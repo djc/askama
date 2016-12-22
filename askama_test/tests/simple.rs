@@ -7,6 +7,7 @@ extern crate askama;
 use askama::Template;
 
 #[derive(Template)]
+#[template(path = "simple.html")]
 struct TestTemplate {
     var: String,
 }

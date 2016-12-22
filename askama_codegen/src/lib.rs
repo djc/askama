@@ -1,11 +1,50 @@
 #![feature(proc_macro, proc_macro_lib)]
 
+#[macro_use]
+extern crate nom;
 extern crate proc_macro;
 #[macro_use]
 extern crate quote;
 extern crate syn;
 
 use proc_macro::TokenStream;
+use std::fs::File;
+use std::io::Read;
+
+fn get_path_from_attrs(attrs: &Vec<syn::Attribute>) -> String {
+    for attr in attrs {
+        if attr.name() == "template" {
+            match attr.value {
+                syn::MetaItem::List(_, ref inner) => {
+                    match inner[0] {
+                        syn::NestedMetaItem::MetaItem(ref item) => {
+                            match item {
+                                &syn::MetaItem::NameValue(ref key, ref val) => {
+                                    assert_eq!(key.as_ref(), "path");
+                                    match val {
+                                        &syn::Lit::Str(ref s, _) => { return s.clone(); },
+                                        _ => panic!("template path must be a string"),
+                                    }
+                                },
+                                _ => panic!("template annotation must contain key/value pair"),
+                            }
+                        },
+                        _ => panic!("template annotation must contain item"),
+                    }
+                },
+                _ => panic!("template annotation must be of List type"),
+            }
+        }
+    }
+    panic!("template annotation not found");
+}
+
+fn get_template_source(path: &str) -> String {
+    let mut f = File::open(path).unwrap();
+    let mut s = String::new();
+    f.read_to_string(&mut s).unwrap();
+    s
+}
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
@@ -18,11 +57,14 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
     };
 
     let name = &ast.ident;
+    let path = get_path_from_attrs(&ast.attrs);
+    let src = get_template_source(&path);
+
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
     let expanded = quote! {
         impl #impl_generics askama::Template for #name #ty_generics #where_clause {
              fn render(&self) -> String {
-                 "hello world, bar".to_string()
+                 src
              }
         }
     };
