@@ -1,0 +1,2 @@
+[workspace]
+members = ["askama", "askama_codegen", "askama_test"]
