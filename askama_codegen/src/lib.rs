@@ -10,6 +10,7 @@ extern crate syn;
 use proc_macro::TokenStream;
 use std::fs::File;
 use std::io::Read;
+use std::path::{Path, PathBuf};
 
 fn get_path_from_attrs(attrs: &Vec<syn::Attribute>) -> String {
     for attr in attrs {
@@ -39,7 +40,11 @@ fn get_path_from_attrs(attrs: &Vec<syn::Attribute>) -> String {
     panic!("template annotation not found");
 }
 
-fn get_template_source(path: &str) -> String {
+fn get_template_source(tpl_file: &str) -> String {
+    let root = ::std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let mut path = PathBuf::from(root);
+    path.push("templates");
+    path.push(Path::new(tpl_file));
     let mut f = File::open(path).unwrap();
     let mut s = String::new();
     f.read_to_string(&mut s).unwrap();
@@ -64,7 +69,7 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         impl #impl_generics askama::Template for #name #ty_generics #where_clause {
              fn render(&self) -> String {
-                 src
+                 #src.into()
              }
         }
     };
