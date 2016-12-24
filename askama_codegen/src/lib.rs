@@ -7,13 +7,13 @@ extern crate proc_macro;
 extern crate quote;
 extern crate syn;
 
+mod generator;
 mod parser;
 
 use proc_macro::TokenStream;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::str;
 
 fn get_path_from_attrs(attrs: &Vec<syn::Attribute>) -> String {
     for attr in attrs {
@@ -68,24 +68,5 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
     let path = get_path_from_attrs(&ast.attrs);
     let src = get_template_source(&path);
     let tokens = parser::parse(&src);
-
-    let mut code = String::new();
-    code.push_str("impl askama::Template for ");
-    code.push_str(name.as_ref());
-    code.push_str(" {\n");
-    code.push_str("    fn render(&self) -> String {\n");
-    code.push_str("        let mut buf = String::new();\n");
-    code.push_str("        buf.push_str(\"");
-    code.push_str(str::from_utf8(tokens[0]).unwrap());
-    code.push_str("\");\n");
-    code.push_str("        buf.push_str(&self.");
-    code.push_str(str::from_utf8(tokens[1]).unwrap());
-    code.push_str(");\n");
-    code.push_str("        buf.push_str(\"");
-    code.push_str(str::from_utf8(tokens[2]).unwrap());
-    code.push_str("\");\n");
-    code.push_str("        buf");
-    code.push_str("    }\n");
-    code.push_str("}\n\n");
-    code.parse().unwrap()
+    generator::generate(name.as_ref(), &tokens).parse().unwrap()
 }
