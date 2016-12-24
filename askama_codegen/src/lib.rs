@@ -7,10 +7,12 @@ extern crate proc_macro;
 extern crate quote;
 extern crate syn;
 
+use nom::IResult;
 use proc_macro::TokenStream;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::str;
 
 fn get_path_from_attrs(attrs: &Vec<syn::Attribute>) -> String {
     for attr in attrs {
@@ -51,6 +53,28 @@ fn get_template_source(tpl_file: &str) -> String {
     s
 }
 
+fn take_content(i: &[u8]) -> IResult<&[u8], &[u8]> {
+    if i.len() < 1 || i[0] == b'{' {
+        return IResult::Error(error_position!(nom::ErrorKind::TakeUntil, i));
+    }
+    for (j, c) in i.iter().enumerate() {
+        if *c == b'{' {
+            if i.len() < j + 2 {
+                return IResult::Done(&i[..0], &i[..]);
+            } else if i[j + 1] == '{' as u8 {
+                return IResult::Done(&i[j..], &i[..j]);
+            } else if i[j + 1] == '%' as u8 {
+                return IResult::Done(&i[j..], &i[..j]);
+            }
+        }
+    }
+    IResult::Done(&i[..0], &i[..])
+}
+
+named!(var_expr, delimited!(tag!("{{"), take_until!("}}"), tag!("}}")));
+
+named!(parse_template< Vec<&[u8]> >, many1!(alt!(take_content | var_expr)));
+
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
     let source = input.to_string();
@@ -65,14 +89,28 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
     let path = get_path_from_attrs(&ast.attrs);
     let src = get_template_source(&path);
 
-    let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
-    let expanded = quote! {
-        impl #impl_generics askama::Template for #name #ty_generics #where_clause {
-             fn render(&self) -> String {
-                 #src.into()
-             }
-        }
+    let root = match parse_template(src.as_bytes()) {
+        IResult::Done(_, res) => res,
+        _ => panic!("problems parsing template source"),
     };
 
-    expanded.parse().unwrap()
+    let mut code = String::new();
+    code.push_str("impl askama::Template for ");
+    code.push_str(name.as_ref());
+    code.push_str(" {\n");
+    code.push_str("    fn render(&self) -> String {\n");
+    code.push_str("        let mut buf = String::new();\n");
+    code.push_str("        buf.push_str(\"");
+    code.push_str(str::from_utf8(root[0]).unwrap());
+    code.push_str("\");\n");
+    code.push_str("        buf.push_str(&self.");
+    code.push_str(str::from_utf8(root[1]).unwrap());
+    code.push_str(");\n");
+    code.push_str("        buf.push_str(\"");
+    code.push_str(str::from_utf8(root[2]).unwrap());
+    code.push_str("\");\n");
+    code.push_str("        buf");
+    code.push_str("    }\n");
+    code.push_str("}\n\n");
+    code.parse().unwrap()
 }

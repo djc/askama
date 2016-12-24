@@ -15,5 +15,5 @@ struct TestTemplate {
 #[test]
 fn it_works() {
     let s = TestTemplate { var: "foo".to_string() }.render();
-    assert_eq!(s, "hello world, foo");
+    assert_eq!(s, "hello world, foo\n");
 }
