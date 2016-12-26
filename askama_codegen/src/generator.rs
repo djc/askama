@@ -57,9 +57,10 @@ impl Generator {
     }
 
     fn visit_expr(&mut self, s: &[u8]) {
-        self.write("buf.push_str(");
-        self.write(&format!("&self.{}", str::from_utf8(s).unwrap()));
-        self.writeln(");");
+        let var_name = str::from_utf8(s).unwrap();
+        let code = format!("std::fmt::Write::write_fmt(\
+            &mut buf, format_args!(\"{{}}\", self.{})).unwrap();", var_name);
+        self.writeln(&code);
     }
 
     fn handle(&mut self, tokens: &Vec<Node>) {

@@ -9,11 +9,20 @@ use askama::Template;
 #[derive(Template)]
 #[template(path = "simple.html")]
 struct TestTemplate {
-    var: String,
+    strvar: String,
+    num: i64,
+    i18n: String,
 }
 
 #[test]
 fn it_works() {
-    let s = TestTemplate { var: "foo".to_string() }.render();
-    assert_eq!(s, "hello world, foo\n");
+    let s = TestTemplate {
+        strvar: "foo".to_string(),
+        num: 42,
+        i18n: "Iñtërnâtiônàlizætiøn".to_string(),
+    };
+    assert_eq!(s.render(), "hello world, foo\n\
+                            with number: 42\n\
+                            Iñtërnâtiônàlizætiøn is important\n\
+                            in vars too: Iñtërnâtiônàlizætiøn\n");
 }
