@@ -1,4 +1,4 @@
-use parser::Node;
+use parser::{Expr, Node};
 use std::str;
 
 struct Generator {
@@ -56,18 +56,24 @@ impl Generator {
         self.writeln(");");
     }
 
-    fn visit_expr(&mut self, s: &[u8]) {
+    fn visit_var(&mut self, s: &[u8]) {
         let var_name = str::from_utf8(s).unwrap();
         let code = format!("std::fmt::Write::write_fmt(\
             &mut buf, format_args!(\"{{}}\", self.{})).unwrap();", var_name);
         self.writeln(&code);
     }
 
+    fn visit_expr(&mut self, expr: &Expr) {
+        match expr {
+            &Expr::Var(s) => self.visit_var(s),
+        }
+    }
+
     fn handle(&mut self, tokens: &Vec<Node>) {
         for n in tokens {
             match n {
                 &Node::Lit(val) => { self.visit_lit(val); },
-                &Node::Expr(val) => { self.visit_expr(val); },
+                &Node::Expr(ref val) => { self.visit_expr(&val); },
             }
         }
     }

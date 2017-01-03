@@ -1,8 +1,12 @@
 use nom::{self, IResult};
 
+pub enum Expr<'a> {
+     Var(&'a [u8]),
+}
+
 pub enum Node<'a> {
     Lit(&'a [u8]),
-    Expr(&'a [u8]),
+    Expr(Expr<'a>),
 }
 
 fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
@@ -23,9 +27,11 @@ fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
     IResult::Done(&i[..0], Node::Lit(&i[..]))
 }
 
-named!(expr_str, delimited!(tag!("{{"), take_until!("}}"), tag!("}}")));
+named!(expr_var<Expr>, map!(ws!(nom::alphanumeric), Expr::Var));
 
-named!(expr_node<Node>, map!(expr_str, Node::Expr));
+named!(any_expr<Expr>, delimited!(tag!("{{"), expr_var, tag!("}}")));
+
+named!(expr_node<Node>, map!(any_expr, Node::Expr));
 
 named!(parse_template< Vec<Node> >, many1!(alt!(take_content | expr_node)));
 
