@@ -5,5 +5,5 @@ authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 workspace = ".."
 
 [dependencies]
-askama_codegen = { path = "../askama_codegen" }
+askama_derive = { path = "../askama_derive" }
 askama = { path = "../askama" }

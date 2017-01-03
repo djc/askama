@@ -1,7 +1,7 @@
 #![feature(proc_macro)]
 
 #[macro_use]
-extern crate askama_codegen;
+extern crate askama_derive;
 
 pub trait Template {
     fn render(&self) -> String;

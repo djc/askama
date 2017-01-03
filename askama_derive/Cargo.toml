@@ -1,5 +1,5 @@
 [package]
-name = "askama_codegen"
+name = "askama_derive"
 version = "0.1.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 
