@@ -1,2 +1,2 @@
 [workspace]
-members = ["askama", "askama_derive", "askama_test"]
+members = ["askama", "askama_derive", "testing"]

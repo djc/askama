@@ -1,9 +1,9 @@
 [package]
-name = "askama_test"
+name = "askama_testing"
 version = "0.1.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 workspace = ".."
 
 [dependencies]
-askama_derive = { path = "../askama_derive" }
 askama = { path = "../askama" }
+askama_derive = { path = "../askama_derive" }
