@@ -1,0 +1,53 @@
+[root]
+name = "askama_testing"
+version = "0.1.0"
+dependencies = [
+ "askama 0.1.0",
+ "askama_derive 0.1.0",
+]
+
+[[package]]
+name = "askama"
+version = "0.1.0"
+dependencies = [
+ "askama_derive 0.1.0",
+]
+
+[[package]]
+name = "askama_derive"
+version = "0.1.0"
+dependencies = [
+ "nom 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syn 0.10.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "nom"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "quote"
+version = "0.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "syn"
+version = "0.10.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "quote 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "unicode-xid 0.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "unicode-xid"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[metadata]
+"checksum nom 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ffc564b2727f758993db55d4ffed0d84bbd7f387a66509516768c8f786bb0b10"
+"checksum quote 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)" = "6732e32663c9c271bfc7c1823486b471f18c47a2dbf87c066897b7b51afc83be"
+"checksum syn 0.10.5 (registry+https://github.com/rust-lang/crates.io-index)" = "1a437f8b4353179418870f014113876cd4cd4f642e42dbc5ed4f328d5f808246"
+"checksum unicode-xid 0.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "36dff09cafb4ec7c8cf0023eb0b686cb6ce65499116a12201c9e11840ca01beb"
