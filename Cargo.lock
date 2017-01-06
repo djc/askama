@@ -11,6 +11,7 @@ name = "askama"
 version = "0.1.0"
 dependencies = [
  "askama_derive 0.1.0",
+ "htmlescape 0.3.1 (git+https://github.com/veddan/rust-htmlescape)",
 ]
 
 [[package]]
@@ -21,6 +22,11 @@ dependencies = [
  "quote 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "syn 0.10.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "htmlescape"
+version = "0.3.1"
+source = "git+https://github.com/veddan/rust-htmlescape#1699b539179798e705ad8464128492a0a0092876"
 
 [[package]]
 name = "nom"
@@ -47,6 +53,7 @@ version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [metadata]
+"checksum htmlescape 0.3.1 (git+https://github.com/veddan/rust-htmlescape)" = "<none>"
 "checksum nom 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ffc564b2727f758993db55d4ffed0d84bbd7f387a66509516768c8f786bb0b10"
 "checksum quote 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)" = "6732e32663c9c271bfc7c1823486b471f18c47a2dbf87c066897b7b51afc83be"
 "checksum syn 0.10.5 (registry+https://github.com/rust-lang/crates.io-index)" = "1a437f8b4353179418870f014113876cd4cd4f642e42dbc5ed4f328d5f808246"

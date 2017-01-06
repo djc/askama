@@ -7,6 +7,8 @@ pub trait Template {
     fn render(&self) -> String;
 }
 
+pub mod filters;
+
 #[cfg(test)]
 mod tests {
 

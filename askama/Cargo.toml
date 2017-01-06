@@ -6,3 +6,4 @@ workspace = ".."
 
 [dependencies]
 askama_derive = { path = "../askama_derive" }
+htmlescape = { git = "https://github.com/veddan/rust-htmlescape" }
