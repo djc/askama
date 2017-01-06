@@ -54,9 +54,16 @@ impl Generator {
         self.write(&format!("self.{}", str::from_utf8(s).unwrap()));
     }
 
+    fn visit_filter(&mut self, name: &str, val: &Expr) {
+        self.write(&format!("askama::filters::{}(&", name));
+        self.visit_expr(val);
+        self.write(")");
+    }
+
     fn visit_expr(&mut self, expr: &Expr) {
         match expr {
             &Expr::Var(s) => self.visit_var(s),
+            &Expr::Filter(name, ref val) => self.visit_filter(name, &val),
         }
     }
 
