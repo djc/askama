@@ -50,17 +50,8 @@ impl Generator {
         self.start = true;
     }
 
-    fn visit_lit(&mut self, s: &[u8]) {
-        self.write("buf.push_str(");
-        self.write(&format!("{:#?}", str::from_utf8(s).unwrap()));
-        self.writeln(");");
-    }
-
     fn visit_var(&mut self, s: &[u8]) {
-        let var_name = str::from_utf8(s).unwrap();
-        let code = format!("std::fmt::Write::write_fmt(\
-            &mut buf, format_args!(\"{{}}\", self.{})).unwrap();", var_name);
-        self.writeln(&code);
+        self.write(&format!("self.{}", str::from_utf8(s).unwrap()));
     }
 
     fn visit_expr(&mut self, expr: &Expr) {
@@ -69,11 +60,23 @@ impl Generator {
         }
     }
 
+    fn write_lit(&mut self, s: &[u8]) {
+        self.write("buf.push_str(");
+        self.write(&format!("{:#?}", str::from_utf8(s).unwrap()));
+        self.writeln(");");
+    }
+
+    fn write_expr(&mut self, s: &Expr) {
+        self.write("std::fmt::Write::write_fmt(&mut buf, format_args!(\"{}\", ");
+        self.visit_expr(s);
+        self.writeln(")).unwrap();");
+    }
+
     fn handle(&mut self, tokens: &Vec<Node>) {
         for n in tokens {
             match n {
-                &Node::Lit(val) => { self.visit_lit(val); },
-                &Node::Expr(ref val) => { self.visit_expr(&val); },
+                &Node::Lit(val) => { self.write_lit(val); },
+                &Node::Expr(ref val) => { self.write_expr(&val); },
             }
         }
     }
