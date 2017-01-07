@@ -5,7 +5,6 @@ authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 
 [dependencies]
 syn = "0.10"
-quote = "0.3"
 nom = "2.0"
 
 [lib]

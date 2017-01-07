@@ -19,7 +19,6 @@ name = "askama_derive"
 version = "0.1.0"
 dependencies = [
  "nom 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "quote 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "syn 0.10.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
