@@ -11,13 +11,14 @@ name = "askama"
 version = "0.1.0"
 dependencies = [
  "htmlescape 0.3.1 (git+https://github.com/veddan/rust-htmlescape)",
+ "nom 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "askama_derive"
 version = "0.1.0"
 dependencies = [
- "nom 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "askama 0.1.0",
  "syn 0.10.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

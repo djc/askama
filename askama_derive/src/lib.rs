@@ -1,12 +1,8 @@
 #![feature(proc_macro, proc_macro_lib)]
 
-#[macro_use]
-extern crate nom;
+extern crate askama;
 extern crate proc_macro;
 extern crate syn;
-
-mod generator;
-mod parser;
 
 use proc_macro::TokenStream;
 use std::fs::File;
@@ -65,6 +61,6 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
     let name = &ast.ident;
     let path = get_path_from_attrs(&ast.attrs);
     let src = get_template_source(&path);
-    let tokens = parser::parse(&src);
-    generator::generate(name.as_ref(), &tokens).parse().unwrap()
+    let tokens = askama::parser::parse(&src);
+    askama::generator::generate(name.as_ref(), &tokens).parse().unwrap()
 }

@@ -7,5 +7,5 @@ authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 proc-macro = true
 
 [dependencies]
+askama = { path = "../askama" }
 syn = "0.10"
-nom = "2.0"
