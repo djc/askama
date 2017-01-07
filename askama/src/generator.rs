@@ -79,11 +79,24 @@ impl Generator {
         self.writeln(")).unwrap();");
     }
 
+    fn write_cond(&mut self, cond: &Expr, nodes: &Vec<Node>) {
+        self.write("if ");
+        self.visit_expr(cond);
+        self.writeln(" {");
+        self.indent();
+        self.handle(nodes);
+        self.dedent();
+        self.writeln("}");
+    }
+
     fn handle(&mut self, tokens: &Vec<Node>) {
         for n in tokens {
             match n {
                 &Node::Lit(val) => { self.write_lit(val); },
                 &Node::Expr(ref val) => { self.write_expr(&val); },
+                &Node::Cond(ref cond, ref nodes) => {
+                    self.write_cond(&cond, &nodes);
+                },
             }
         }
     }

@@ -9,6 +9,7 @@ pub enum Expr<'a> {
 pub enum Node<'a> {
     Lit(&'a [u8]),
     Expr(Expr<'a>),
+    Cond(Expr<'a>, Vec<Node<'a>>),
 }
 
 fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
@@ -58,7 +59,21 @@ named!(expr_node<Node>, map!(
     delimited!(tag_s!("{{"), ws!(expr_filtered), tag_s!("}}")),
     Node::Expr));
 
-named!(parse_template< Vec<Node> >, many1!(alt!(take_content | expr_node)));
+named!(block_if<Node>, do_parse!(
+    tag_s!("{%") >>
+    ws!(tag_s!("if")) >>
+    cond: ws!(expr_filtered) >>
+    ws!(tag_s!("%}")) >>
+    block: parse_template >>
+    ws!(tag_s!("{%")) >>
+    ws!(tag_s!("endif")) >>
+    tag_s!("%}") >>
+    (Node::Cond(cond, block))));
+
+named!(parse_template< Vec<Node> >, many1!(alt!(
+    take_content |
+    expr_node |
+    block_if)));
 
 pub fn parse<'a>(src: &'a str) -> Vec<Node> {
     match parse_template(src.as_bytes()) {
