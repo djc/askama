@@ -39,3 +39,16 @@ fn test_if() {
     let s = IfTemplate { cond: true };
     assert_eq!(s.render(), "true\n");
 }
+
+
+#[derive(Template)]
+#[template(path = "else.html")]
+struct ElseTemplate {
+    cond: bool,
+}
+
+#[test]
+fn test_else() {
+    let s = ElseTemplate { cond: false };
+    assert_eq!(s.render(), "false\n");
+}
