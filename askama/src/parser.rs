@@ -9,8 +9,11 @@ pub enum Expr<'a> {
 pub enum Node<'a> {
     Lit(&'a [u8]),
     Expr(Expr<'a>),
-    Cond(Expr<'a>, Vec<Node<'a>>),
+    Cond(Vec<(Option<Expr<'a>>, Vec<Node<'a>>)>),
 }
+
+pub type Nodes<'a> = Vec<Node<'a>>;
+pub type Conds<'a> = Vec<(Option<Expr<'a>>, Nodes<'a>)>;
 
 fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
     if i.len() < 1 || i[0] == b'{' {
@@ -59,16 +62,31 @@ named!(expr_node<Node>, map!(
     delimited!(tag_s!("{{"), ws!(expr_filtered), tag_s!("}}")),
     Node::Expr));
 
+named!(cond_blocks<Conds>, do_parse!(
+    tag_s!("{%") >>
+    ws!(tag_s!("else")) >>
+    tag_s!("%}") >>
+    block: parse_template >>
+    (vec![(None, block)])));
+
 named!(block_if<Node>, do_parse!(
     tag_s!("{%") >>
     ws!(tag_s!("if")) >>
     cond: ws!(expr_filtered) >>
     tag_s!("%}") >>
     block: parse_template >>
+    rest: opt!(cond_blocks) >>
     tag_s!("{%") >>
     ws!(tag_s!("endif")) >>
     tag_s!("%}") >>
-    (Node::Cond(cond, block))));
+    ({
+        let mut res = Vec::new();
+        res.push((Some(cond), block));
+        if let Some(blocks) = rest {
+            res.extend(blocks);
+        }
+        Node::Cond(res)
+    })));
 
 named!(parse_template< Vec<Node> >, many1!(alt!(
     take_content |

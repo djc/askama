@@ -1,4 +1,4 @@
-use parser::{Expr, Node};
+use parser::{Conds, Expr, Node};
 use std::str;
 
 struct Generator {
@@ -79,13 +79,24 @@ impl Generator {
         self.writeln(")).unwrap();");
     }
 
-    fn write_cond(&mut self, cond: &Expr, nodes: &Vec<Node>) {
-        self.write("if ");
-        self.visit_expr(cond);
-        self.writeln(" {");
-        self.indent();
-        self.handle(nodes);
-        self.dedent();
+    fn write_cond(&mut self, conds: &Conds) {
+        for (i, &(ref cond, ref nodes)) in conds.iter().enumerate() {
+            match cond {
+                &Some(ref expr) => {
+                    if i == 0 {
+                        self.write("if ");
+                    } else {
+                        self.write("} else if ");
+                    }
+                    self.visit_expr(expr);
+                },
+                &None => { self.writeln("} else"); },
+            }
+            self.writeln(" {");
+            self.indent();
+            self.handle(nodes);
+            self.dedent();
+        }
         self.writeln("}");
     }
 
@@ -94,9 +105,7 @@ impl Generator {
             match n {
                 &Node::Lit(val) => { self.write_lit(val); },
                 &Node::Expr(ref val) => { self.write_expr(&val); },
-                &Node::Cond(ref cond, ref nodes) => {
-                    self.write_cond(&cond, &nodes);
-                },
+                &Node::Cond(ref conds) => { self.write_cond(&conds); },
             }
         }
     }
