@@ -10,7 +10,6 @@ dependencies = [
 name = "askama"
 version = "0.1.0"
 dependencies = [
- "askama_derive 0.1.0",
  "htmlescape 0.3.1 (git+https://github.com/veddan/rust-htmlescape)",
 ]
 
