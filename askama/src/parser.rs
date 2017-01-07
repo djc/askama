@@ -98,12 +98,12 @@ named!(block_if<Node>, do_parse!(
         Node::Cond(res)
     })));
 
-named!(parse_template< Vec<Node> >, many1!(alt!(
+named!(parse_template<Nodes>, many1!(alt!(
     take_content |
     expr_node |
     block_if)));
 
-pub fn parse<'a>(src: &'a str) -> Vec<Node> {
+pub fn parse<'a>(src: &'a str) -> Nodes {
     match parse_template(src.as_bytes()) {
         IResult::Done(_, res) => res,
         IResult::Error(err) => panic!("problems parsing template source: {}", err),
