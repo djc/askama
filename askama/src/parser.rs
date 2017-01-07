@@ -63,9 +63,9 @@ named!(block_if<Node>, do_parse!(
     tag_s!("{%") >>
     ws!(tag_s!("if")) >>
     cond: ws!(expr_filtered) >>
-    ws!(tag_s!("%}")) >>
+    tag_s!("%}") >>
     block: parse_template >>
-    ws!(tag_s!("{%")) >>
+    tag_s!("{%") >>
     ws!(tag_s!("endif")) >>
     tag_s!("%}") >>
     (Node::Cond(cond, block))));
