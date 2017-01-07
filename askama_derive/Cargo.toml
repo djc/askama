@@ -3,9 +3,9 @@ name = "askama_derive"
 version = "0.1.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 
+[lib]
+proc-macro = true
+
 [dependencies]
 syn = "0.10"
 nom = "2.0"
-
-[lib]
-proc-macro = true
