@@ -26,3 +26,16 @@ fn test_variables() {
                             Iñtërnâtiônàlizætiøn is important\n\
                             in vars too: Iñtërnâtiônàlizætiøn\n");
 }
+
+
+#[derive(Template)]
+#[template(path = "if.html")]
+struct IfTemplate {
+    cond: bool,
+}
+
+#[test]
+fn test_if() {
+    let s = IfTemplate { cond: true };
+    assert_eq!(s.render(), "true\n");
+}
