@@ -8,15 +8,15 @@ use askama::Template;
 
 #[derive(Template)]
 #[template(path = "simple.html")]
-struct TestTemplate {
+struct VariablesTemplate {
     strvar: String,
     num: i64,
     i18n: String,
 }
 
 #[test]
-fn it_works() {
-    let s = TestTemplate {
+fn test_variables() {
+    let s = VariablesTemplate {
         strvar: "foo".to_string(),
         num: 42,
         i18n: "Iñtërnâtiônàlizætiøn".to_string(),
