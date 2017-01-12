@@ -55,14 +55,14 @@ fn test_else() {
 
 
 #[derive(Template)]
-#[template(path = "elif.html")]
-struct ElIfTemplate {
+#[template(path = "else-if.html")]
+struct ElseIfTemplate {
     cond: bool,
     check: bool,
 }
 
 #[test]
-fn test_elif() {
-    let s = ElIfTemplate { cond: false, check: true };
+fn test_else_if() {
+    let s = ElseIfTemplate { cond: false, check: true };
     assert_eq!(s.render(), "checked\n");
 }

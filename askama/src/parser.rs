@@ -62,20 +62,18 @@ named!(expr_node<Node>, map!(
     delimited!(tag_s!("{{"), ws!(expr_filtered), tag_s!("}}")),
     Node::Expr));
 
-named!(cond_elif<(Option<Expr>, Nodes)>, do_parse!(
-    tag_s!("{%") >>
-    ws!(tag_s!("elif")) >>
+named!(cond_if<Expr>, do_parse!(
+    ws!(tag_s!("if")) >>
     cond: ws!(expr_filtered) >>
-    tag_s!("%}") >>
-    block: parse_template >>
-    (Some(cond), block)));
+    (cond)));
 
-named!(cond_else<Nodes>, do_parse!(
+named!(cond_block<(Option<Expr>, Nodes)>, do_parse!(
     tag_s!("{%") >>
     ws!(tag_s!("else")) >>
+    cond: opt!(cond_if) >>
     tag_s!("%}") >>
     block: parse_template >>
-    (block)));
+    (cond, block)));
 
 named!(block_if<Node>, do_parse!(
     tag_s!("{%") >>
@@ -83,8 +81,7 @@ named!(block_if<Node>, do_parse!(
     cond: ws!(expr_filtered) >>
     tag_s!("%}") >>
     block: parse_template >>
-    elifs: many0!(cond_elif) >>
-    rest: opt!(cond_else) >>
+    elifs: many0!(cond_block) >>
     tag_s!("{%") >>
     ws!(tag_s!("endif")) >>
     tag_s!("%}") >>
@@ -92,9 +89,6 @@ named!(block_if<Node>, do_parse!(
         let mut res = Vec::new();
         res.push((Some(cond), block));
         res.extend(elifs);
-        if let Some(else_block) = rest {
-            res.push((None, else_block));
-        }
         Node::Cond(res)
     })));
 
