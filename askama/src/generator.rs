@@ -91,10 +91,17 @@ impl Generator {
         self.write(")");
     }
 
+    fn visit_eq(&mut self, left: &Expr, right: &Expr) {
+        self.visit_expr(left);
+        self.write(" == ");
+        self.visit_expr(right);
+    }
+
     fn visit_expr(&mut self, expr: &Expr) {
         match expr {
             &Expr::Var(s) => self.visit_var(s),
             &Expr::Filter(name, ref val) => self.visit_filter(name, &val),
+            &Expr::Eq(ref left, ref right) => self.visit_eq(&left, &right),
         }
     }
 

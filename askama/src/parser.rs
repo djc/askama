@@ -4,6 +4,7 @@ use std::str;
 pub enum Expr<'a> {
      Var(&'a [u8]),
      Filter(&'a str, Box<Expr<'a>>),
+     Eq(Box<Expr<'a>>, Box<Expr<'a>>),
 }
 
 pub enum Target<'a> {
@@ -65,13 +66,21 @@ fn expr_filtered(i: &[u8]) -> IResult<&[u8], Expr> {
     return IResult::Done(left, expr);
 }
 
+named!(expr_eq<Expr>, do_parse!(
+    left: expr_filtered >>
+    ws!(tag_s!("==")) >>
+    right: expr_filtered >>
+    (Expr::Eq(Box::new(left), Box::new(right)))));
+
+named!(expr_any<Expr>, alt!(expr_eq | expr_filtered));
+
 named!(expr_node<Node>, map!(
-    delimited!(tag_s!("{{"), ws!(expr_filtered), tag_s!("}}")),
+    delimited!(tag_s!("{{"), ws!(expr_any), tag_s!("}}")),
     Node::Expr));
 
 named!(cond_if<Expr>, do_parse!(
     ws!(tag_s!("if")) >>
-    cond: ws!(expr_filtered) >>
+    cond: ws!(expr_any) >>
     (cond)));
 
 named!(cond_block<(Option<Expr>, Nodes)>, do_parse!(
@@ -85,7 +94,7 @@ named!(cond_block<(Option<Expr>, Nodes)>, do_parse!(
 named!(block_if<Node>, do_parse!(
     tag_s!("{%") >>
     ws!(tag_s!("if")) >>
-    cond: ws!(expr_filtered) >>
+    cond: ws!(expr_any) >>
     tag_s!("%}") >>
     block: parse_template >>
     elifs: many0!(cond_block) >>
@@ -104,7 +113,7 @@ named!(block_for<Node>, do_parse!(
     ws!(tag_s!("for")) >>
     var: ws!(target_single) >>
     ws!(tag_s!("in")) >>
-    iter: ws!(expr_filtered) >>
+    iter: ws!(expr_any) >>
     tag_s!("%}") >>
     block: parse_template >>
     tag_s!("{%") >>
