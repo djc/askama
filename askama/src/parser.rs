@@ -2,9 +2,9 @@ use nom::{self, IResult};
 use std::str;
 
 pub enum Expr<'a> {
-     Var(&'a [u8]),
-     Filter(&'a str, Box<Expr<'a>>),
-     Eq(Box<Expr<'a>>, Box<Expr<'a>>),
+    Var(&'a [u8]),
+    Filter(&'a str, Box<Expr<'a>>),
+    Eq(Box<Expr<'a>>, Box<Expr<'a>>),
 }
 
 pub enum Target<'a> {
