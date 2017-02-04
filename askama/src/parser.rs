@@ -4,7 +4,7 @@ use std::str;
 pub enum Expr<'a> {
     Var(&'a [u8]),
     Filter(&'a str, Box<Expr<'a>>),
-    Eq(Box<Expr<'a>>, Box<Expr<'a>>),
+    Compare(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
 }
 
 pub enum Target<'a> {
@@ -66,13 +66,18 @@ fn expr_filtered(i: &[u8]) -> IResult<&[u8], Expr> {
     return IResult::Done(left, expr);
 }
 
-named!(expr_eq<Expr>, do_parse!(
+named!(expr_compare<Expr>, do_parse!(
     left: expr_filtered >>
-    ws!(tag_s!("==")) >>
+    op: ws!(alt!(
+        tag_s!("==") | tag_s!("!=") |
+        tag_s!(">=") | tag_s!(">") |
+        tag_s!("<=") | tag_s!("<")
+    )) >>
     right: expr_filtered >>
-    (Expr::Eq(Box::new(left), Box::new(right)))));
+    (Expr::Compare(str::from_utf8(op).unwrap(),
+                   Box::new(left), Box::new(right)))));
 
-named!(expr_any<Expr>, alt!(expr_eq | expr_filtered));
+named!(expr_any<Expr>, alt!(expr_compare | expr_filtered));
 
 named!(expr_node<Node>, map!(
     delimited!(tag_s!("{{"), ws!(expr_any), tag_s!("}}")),

@@ -91,9 +91,9 @@ impl Generator {
         self.write(")");
     }
 
-    fn visit_eq(&mut self, left: &Expr, right: &Expr) {
+    fn visit_compare(&mut self, op: &str, left: &Expr, right: &Expr) {
         self.visit_expr(left);
-        self.write(" == ");
+        self.write(&format!(" {} ", op));
         self.visit_expr(right);
     }
 
@@ -101,7 +101,8 @@ impl Generator {
         match expr {
             &Expr::Var(s) => self.visit_var(s),
             &Expr::Filter(name, ref val) => self.visit_filter(name, &val),
-            &Expr::Eq(ref left, ref right) => self.visit_eq(&left, &right),
+            &Expr::Compare(op, ref left, ref right) =>
+                self.visit_compare(op, &left, &right),
         }
     }
 
