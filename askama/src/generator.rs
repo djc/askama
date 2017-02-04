@@ -1,6 +1,7 @@
 use parser::{Conds, Expr, Node, Nodes, Target};
 use std::str;
 use std::collections::HashSet;
+use syn;
 
 struct Generator {
     buf: String,
@@ -170,9 +171,9 @@ impl Generator {
 
 }
 
-pub fn generate(ctx_name: &str, tokens: &Vec<Node>) -> String {
+pub fn generate(ast: &syn::DeriveInput, tokens: &Vec<Node>) -> String {
     let mut gen = Generator::new();
-    gen.init(ctx_name);
+    gen.init(ast.ident.as_ref());
     gen.handle(tokens);
     gen.finalize();
     gen.result()

@@ -56,9 +56,8 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
         _ => panic!("#[derive(Template)] can only be used with structs"),
     };
 
-    let name = &ast.ident;
     let path = get_path_from_attrs(&ast.attrs);
     let src = get_template_source(&path);
     let tokens = askama::parser::parse(&src);
-    askama::generator::generate(name.as_ref(), &tokens).parse().unwrap()
+    askama::generator::generate(&ast, &tokens).parse().unwrap()
 }
