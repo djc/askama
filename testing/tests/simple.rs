@@ -6,8 +6,8 @@ use askama::Template;
 
 #[derive(Template)]
 #[template(path = "simple.html")]
-struct VariablesTemplate {
-    strvar: String,
+struct VariablesTemplate<'a> {
+    strvar: &'a str,
     num: i64,
     i18n: String,
 }
@@ -15,7 +15,7 @@ struct VariablesTemplate {
 #[test]
 fn test_variables() {
     let s = VariablesTemplate {
-        strvar: "foo".to_string(),
+        strvar: "foo",
         num: 42,
         i18n: "Iñtërnâtiônàlizætiøn".to_string(),
     };
@@ -68,14 +68,14 @@ fn test_else_if() {
 
 #[derive(Template)]
 #[template(path = "for.html")]
-struct ForTemplate {
-    strings: Vec<String>,
+struct ForTemplate<'a> {
+    strings: Vec<&'a str>,
 }
 
 #[test]
 fn test_for() {
     let s = ForTemplate {
-        strings: vec!["A".to_string(), "alfa".to_string(), "1".to_string()],
+        strings: vec!["A", "alfa", "1"],
     };
     assert_eq!(s.render(), "\n  A\n\n  alfa\n\n  1\n\n");
 }
