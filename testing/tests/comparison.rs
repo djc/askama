@@ -5,15 +5,15 @@ extern crate askama_derive;
 use askama::Template;
 
 #[derive(Template)]
-#[template(path = "eq.html")]
-struct EqTemplate {
+#[template(path = "comparison.html")]
+struct ComparisonTemplate {
     a: usize,
     b: usize,
     c: usize,
 }
 
 #[test]
-fn test_eq() {
-    let t = EqTemplate { a: 1, b: 1, c: 2 };
-    assert_eq!(t.render(), "tf\n");
+fn test_comparison() {
+    let t = ComparisonTemplate { a: 1, b: 1, c: 2 };
+    assert_eq!(t.render(), "tf\ntf\ntf\ntf\ntf\ntf\n");
 }
