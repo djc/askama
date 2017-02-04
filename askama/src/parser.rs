@@ -93,8 +93,7 @@ named!(cond_block<(Option<Expr>, Nodes)>, do_parse!(
 
 named!(block_if<Node>, do_parse!(
     tag_s!("{%") >>
-    ws!(tag_s!("if")) >>
-    cond: ws!(expr_any) >>
+    cond: ws!(cond_if) >>
     tag_s!("%}") >>
     block: parse_template >>
     elifs: many0!(cond_block) >>
