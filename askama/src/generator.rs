@@ -21,10 +21,28 @@ impl Generator {
         }
     }
 
-    fn init(&mut self, name: &str) {
-        self.write("impl askama::Template for ");
+    fn annotations(&self, generics: &syn::Generics) -> String {
+        if generics.lifetimes.len() < 1 {
+            return String::new();
+        }
+        let mut res = String::new();
+        res.push('<');
+        for lt in &generics.lifetimes {
+            res.push_str(lt.lifetime.ident.as_ref());
+        }
+        res.push('>');
+        res
+    }
+
+    fn init(&mut self, name: &str, generics: &syn::Generics) {
+        self.write("impl");
+        let anno = self.annotations(generics);
+        self.write(&anno);
+        self.write(" askama::Template for ");
         self.write(name);
+        self.write(&anno);
         self.writeln(" {");
+
         self.indent();
         self.writeln("fn render(&self) -> String {");
         self.indent();
@@ -173,7 +191,7 @@ impl Generator {
 
 pub fn generate(ast: &syn::DeriveInput, tokens: &Vec<Node>) -> String {
     let mut gen = Generator::new();
-    gen.init(ast.ident.as_ref());
+    gen.init(ast.ident.as_ref(), &ast.generics);
     gen.handle(tokens);
     gen.finalize();
     gen.result()
