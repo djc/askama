@@ -1,16 +1,23 @@
-use parser::{Conds, Expr, Node};
+use parser::{Conds, Expr, Node, Nodes, Target};
 use std::str;
+use std::collections::HashSet;
 
 struct Generator {
     buf: String,
     indent: u8,
     start: bool,
+    locals: HashSet<String>,
 }
 
 impl Generator {
 
     fn new() -> Generator {
-        Generator { buf: String::new(), indent: 0, start: true }
+        Generator {
+            buf: String::new(),
+            indent: 0,
+            start: true,
+            locals: HashSet::new(),
+        }
     }
 
     fn init(&mut self, name: &str) {
@@ -51,7 +58,12 @@ impl Generator {
     }
 
     fn visit_var(&mut self, s: &[u8]) {
-        self.write(&format!("self.{}", str::from_utf8(s).unwrap()));
+        let s = str::from_utf8(s).unwrap();
+        if self.locals.contains(s) {
+            self.write(&format!("{}", s));
+        } else {
+            self.write(&format!("self.{}", s));
+        }
     }
 
     fn visit_filter(&mut self, name: &str, val: &Expr) {
@@ -64,6 +76,16 @@ impl Generator {
         match expr {
             &Expr::Var(s) => self.visit_var(s),
             &Expr::Filter(name, ref val) => self.visit_filter(name, &val),
+        }
+    }
+
+    fn visit_target_single(&mut self, name: &[u8]) -> Vec<String> {
+        vec![str::from_utf8(name).unwrap().to_string()]
+    }
+
+    fn visit_target(&mut self, target: &Target) -> Vec<String> {
+        match target {
+            &Target::Name(s) => { self.visit_target_single(s) },
         }
     }
 
@@ -100,12 +122,36 @@ impl Generator {
         self.writeln("}");
     }
 
+    fn write_loop(&mut self, var: &Target, iter: &Expr, body: &Nodes) {
+
+        self.write("for ");
+        let targets = self.visit_target(var);
+        for name in &targets {
+            self.locals.insert(name.clone());
+            self.write(&format!("{}", name));
+        }
+        self.write(" in &");
+        self.visit_expr(iter);
+        self.writeln(" {");
+
+        self.indent();
+        self.handle(body);
+        self.dedent();
+        self.writeln("}");
+        for name in &targets {
+            self.locals.remove(name);
+        }
+    }
+
     fn handle(&mut self, tokens: &Vec<Node>) {
         for n in tokens {
             match n {
                 &Node::Lit(val) => { self.write_lit(val); },
                 &Node::Expr(ref val) => { self.write_expr(&val); },
                 &Node::Cond(ref conds) => { self.write_cond(&conds); },
+                &Node::Loop(ref var, ref iter, ref body) => {
+                    self.write_loop(&var, &iter, &body);
+                },
             }
         }
     }

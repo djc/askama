@@ -64,3 +64,18 @@ fn test_else_if() {
     let s = ElseIfTemplate { cond: false, check: true };
     assert_eq!(s.render(), "checked\n");
 }
+
+
+#[derive(Template)]
+#[template(path = "for.html")]
+struct ForTemplate {
+    strings: Vec<String>,
+}
+
+#[test]
+fn test_for() {
+    let s = ForTemplate {
+        strings: vec!["A".to_string(), "alfa".to_string(), "1".to_string()],
+    };
+    assert_eq!(s.render(), "\n  A\n\n  alfa\n\n  1\n\n");
+}

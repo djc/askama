@@ -6,10 +6,15 @@ pub enum Expr<'a> {
      Filter(&'a str, Box<Expr<'a>>),
 }
 
+pub enum Target<'a> {
+    Name(&'a [u8]),
+}
+
 pub enum Node<'a> {
     Lit(&'a [u8]),
     Expr(Expr<'a>),
     Cond(Vec<(Option<Expr<'a>>, Vec<Node<'a>>)>),
+    Loop(Target<'a>, Expr<'a>, Vec<Node<'a>>),
 }
 
 pub type Nodes<'a> = Vec<Node<'a>>;
@@ -34,6 +39,8 @@ fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
 }
 
 named!(expr_var<Expr>, map!(nom::alphanumeric, Expr::Var));
+
+named!(target_single<Target>, map!(nom::alphanumeric, Target::Name));
 
 fn expr_filtered(i: &[u8]) -> IResult<&[u8], Expr> {
     let (mut left, mut expr) = match expr_var(i) {
@@ -92,10 +99,24 @@ named!(block_if<Node>, do_parse!(
         Node::Cond(res)
     })));
 
+named!(block_for<Node>, do_parse!(
+    tag_s!("{%") >>
+    ws!(tag_s!("for")) >>
+    var: ws!(target_single) >>
+    ws!(tag_s!("in")) >>
+    iter: ws!(expr_filtered) >>
+    tag_s!("%}") >>
+    block: parse_template >>
+    tag_s!("{%") >>
+    ws!(tag_s!("endfor")) >>
+    tag_s!("%}") >>
+    (Node::Loop(var, iter, block))));
+
 named!(parse_template<Nodes>, many1!(alt!(
     take_content |
     expr_node |
-    block_if)));
+    block_if |
+    block_for)));
 
 pub fn parse<'a>(src: &'a str) -> Nodes {
     match parse_template(src.as_bytes()) {
