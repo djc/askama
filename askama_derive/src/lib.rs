@@ -50,7 +50,7 @@ fn get_template_source(tpl_file: &str) -> String {
 pub fn derive_template(input: TokenStream) -> TokenStream {
     let source = input.to_string();
 
-    let ast = syn::parse_macro_input(&source).unwrap();
+    let ast = syn::parse_derive_input(&source).unwrap();
     let _ctx = match ast.body {
         syn::Body::Struct(ref data) => data,
         _ => panic!("#[derive(Template)] can only be used with structs"),

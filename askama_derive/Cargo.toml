@@ -12,4 +12,4 @@ proc-macro = true
 
 [dependencies]
 askama = { path = "../askama" }
-syn = "0.10"
+syn = "0.11"
