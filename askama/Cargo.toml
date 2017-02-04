@@ -9,5 +9,5 @@ workspace = ".."
 
 [dependencies]
 htmlescape = { git = "https://github.com/veddan/rust-htmlescape" }
-nom = "2.0"
+nom = "2.1"
 syn = "0.11"
