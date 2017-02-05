@@ -75,6 +75,10 @@ impl Generator {
         self.start = true;
     }
 
+    fn visit_str_lit(&mut self, s: &str) {
+        self.write(&format!("\"{}\"", s));
+    }
+
     fn visit_var(&mut self, s: &[u8]) {
         let s = str::from_utf8(s).unwrap();
         if self.locals.contains(s) {
@@ -98,6 +102,7 @@ impl Generator {
 
     fn visit_expr(&mut self, expr: &Expr) {
         match expr {
+            &Expr::StrLit(s) => self.visit_str_lit(s),
             &Expr::Var(s) => self.visit_var(s),
             &Expr::Filter(name, ref val) => self.visit_filter(name, &val),
             &Expr::Compare(op, ref left, ref right) =>

@@ -2,6 +2,7 @@ use nom::{self, IResult};
 use std::str;
 
 pub enum Expr<'a> {
+    StrLit(&'a str),
     Var(&'a [u8]),
     Filter(&'a str, Box<Expr<'a>>),
     Compare(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
@@ -38,6 +39,10 @@ fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
     }
     IResult::Done(&i[..0], Node::Lit(&i[..]))
 }
+
+named!(expr_str_lit<Expr>, map!(
+    delimited!(char!('"'), is_not!("\""), char!('"')),
+    |s| Expr::StrLit(str::from_utf8(s).unwrap())));
 
 named!(expr_var<Expr>, map!(nom::alphanumeric, Expr::Var));
 
@@ -77,7 +82,10 @@ named!(expr_compare<Expr>, do_parse!(
     (Expr::Compare(str::from_utf8(op).unwrap(),
                    Box::new(left), Box::new(right)))));
 
-named!(expr_any<Expr>, alt!(expr_compare | expr_filtered));
+named!(expr_any<Expr>, alt!(
+    expr_compare |
+    expr_filtered |
+    expr_str_lit));
 
 named!(expr_node<Node>, map!(
     delimited!(tag_s!("{{"), ws!(expr_any), tag_s!("}}")),
