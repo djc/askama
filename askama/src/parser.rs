@@ -133,7 +133,7 @@ named!(block_for<Node>, do_parse!(
     tag_s!("%}") >>
     (Node::Loop(var, iter, block))));
 
-named!(parse_template<Nodes>, many1!(alt!(
+named!(parse_template<Nodes>, many0!(alt!(
     take_content |
     expr_node |
     block_if |
