@@ -147,8 +147,8 @@ impl Generator {
         }
     }
 
-    fn handle(&mut self, tokens: &Vec<Node>) {
-        for n in tokens {
+    fn handle(&mut self, nodes: &Vec<Node>) {
+        for n in nodes {
             match n {
                 &Node::Lit(val) => { self.write_lit(val); },
                 &Node::Expr(ref val) => { self.write_expr(&val); },
@@ -173,7 +173,7 @@ impl Generator {
         res
     }
 
-    fn template_impl(&mut self, ast: &syn::DeriveInput, tokens: &Vec<Node>) {
+    fn template_impl(&mut self, ast: &syn::DeriveInput, nodes: &Vec<Node>) {
         self.write("impl");
         let anno = self.annotations(&ast.generics);
         self.write(&anno);
@@ -186,7 +186,7 @@ impl Generator {
         self.writeln("fn render_into(&self, writer: &mut std::fmt::Write) {");
         self.indent();
 
-        self.handle(tokens);
+        self.handle(nodes);
 
         self.dedent();
         self.writeln("}");
@@ -200,8 +200,8 @@ impl Generator {
 
 }
 
-pub fn generate(ast: &syn::DeriveInput, tokens: &Vec<Node>) -> String {
+pub fn generate(ast: &syn::DeriveInput, nodes: Vec<Node>) -> String {
     let mut gen = Generator::new();
-    gen.template_impl(ast, tokens);
+    gen.template_impl(ast, &nodes);
     gen.result()
 }

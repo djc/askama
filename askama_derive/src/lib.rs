@@ -58,6 +58,6 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 
     let path = get_path_from_attrs(&ast.attrs);
     let src = get_template_source(&path);
-    let tokens = askama::parser::parse(&src);
-    askama::generator::generate(&ast, &tokens).parse().unwrap()
+    let nodes = askama::parser::parse(&src);
+    askama::generator::generate(&ast, nodes).parse().unwrap()
 }
