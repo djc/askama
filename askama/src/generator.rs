@@ -204,22 +204,17 @@ impl Generator {
     }
 
     fn template_impl(&mut self, ast: &syn::DeriveInput, nodes: &Vec<Node>) {
-        self.write("impl");
         let anno = annotations(&ast.generics);
-        self.write(&anno);
-        self.write(" askama::Template for ");
-        self.write(ast.ident.as_ref());
-        self.write(&anno);
-        self.writeln(" {");
-
+        self.writeln(&format!("impl{} askama::Template for {}{} {{",
+                              anno, ast.ident.as_ref(), anno));
         self.indent();
+
         self.writeln("fn render_into(&self, writer: &mut std::fmt::Write) {");
         self.indent();
-
         self.handle(nodes);
-
         self.dedent();
         self.writeln("}");
+
         self.dedent();
         self.writeln("}");
     }
