@@ -3,6 +3,18 @@ use std::str;
 use std::collections::HashSet;
 use syn;
 
+fn path_as_identifier(s: &str) -> String {
+    let mut res = String::new();
+    for c in s.chars() {
+        if c.is_alphanumeric() {
+            res.push(c);
+        } else {
+            res.push_str(&format!("{:x}", c as u32));
+        }
+    }
+    res
+}
+
 struct Generator {
     buf: String,
     indent: u8,
@@ -160,6 +172,16 @@ impl Generator {
         }
     }
 
+    fn path_based_name(&mut self, ast: &syn::DeriveInput, path: &str) {
+        let encoded = path_as_identifier(path);
+        let original = ast.ident.as_ref();
+        let anno = self.annotations(&ast.generics);
+        self.writeln("#[allow(dead_code, non_camel_case_types)]");
+        let s = format!("type TemplateFrom{}{} = {}{};",
+                        encoded, &anno, original, &anno);
+        self.writeln(&s);
+    }
+
     fn annotations(&self, generics: &syn::Generics) -> String {
         if generics.lifetimes.len() < 1 {
             return String::new();
@@ -200,8 +222,9 @@ impl Generator {
 
 }
 
-pub fn generate(ast: &syn::DeriveInput, nodes: Vec<Node>) -> String {
+pub fn generate(ast: &syn::DeriveInput, path: &str, nodes: Vec<Node>) -> String {
     let mut gen = Generator::new();
+    gen.path_based_name(ast, path);
     gen.template_impl(ast, &nodes);
     gen.result()
 }
