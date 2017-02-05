@@ -79,3 +79,14 @@ fn test_for() {
     };
     assert_eq!(s.render(), "\n  A\n\n  alfa\n\n  1\n\n");
 }
+
+
+#[derive(Template)]
+#[template(path = "literals.html")]
+struct LiteralsTemplate {}
+
+#[test]
+fn test_literals() {
+    let s = LiteralsTemplate {};
+    assert_eq!(s.render(), "a\n");
+}
