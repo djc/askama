@@ -173,21 +173,21 @@ impl Generator {
         res
     }
 
-    fn init(&mut self, name: &str, generics: &syn::Generics) {
+    fn template_impl(&mut self, ast: &syn::DeriveInput, tokens: &Vec<Node>) {
         self.write("impl");
-        let anno = self.annotations(generics);
+        let anno = self.annotations(&ast.generics);
         self.write(&anno);
         self.write(" askama::Template for ");
-        self.write(name);
+        self.write(ast.ident.as_ref());
         self.write(&anno);
         self.writeln(" {");
 
         self.indent();
         self.writeln("fn render_into(&self, writer: &mut std::fmt::Write) {");
         self.indent();
-    }
 
-    fn finalize(&mut self) {
+        self.handle(tokens);
+
         self.dedent();
         self.writeln("}");
         self.dedent();
@@ -202,8 +202,6 @@ impl Generator {
 
 pub fn generate(ast: &syn::DeriveInput, tokens: &Vec<Node>) -> String {
     let mut gen = Generator::new();
-    gen.init(ast.ident.as_ref(), &ast.generics);
-    gen.handle(tokens);
-    gen.finalize();
+    gen.template_impl(ast, tokens);
     gen.result()
 }
