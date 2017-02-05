@@ -44,9 +44,8 @@ impl Generator {
         self.writeln(" {");
 
         self.indent();
-        self.writeln("fn render(&self) -> String {");
+        self.writeln("fn render_into(&self, writer: &mut std::fmt::Write) {");
         self.indent();
-        self.writeln("let mut buf = String::new();");
     }
 
     fn indent(&mut self) {
@@ -117,13 +116,13 @@ impl Generator {
     }
 
     fn write_lit(&mut self, s: &[u8]) {
-        self.write("buf.push_str(");
+        self.write("writer.write_str(");
         self.write(&format!("{:#?}", str::from_utf8(s).unwrap()));
-        self.writeln(");");
+        self.writeln(").unwrap();");
     }
 
     fn write_expr(&mut self, s: &Expr) {
-        self.write("std::fmt::Write::write_fmt(&mut buf, format_args!(\"{}\", ");
+        self.write("writer.write_fmt(format_args!(\"{}\", ");
         self.visit_expr(s);
         self.writeln(")).unwrap();");
     }
@@ -184,7 +183,6 @@ impl Generator {
     }
 
     fn finalize(&mut self) {
-        self.writeln("buf");
         self.dedent();
         self.writeln("}");
         self.dedent();

@@ -3,7 +3,12 @@ extern crate nom;
 extern crate syn;
 
 pub trait Template {
-    fn render(&self) -> String;
+    fn render_into(&self, writer: &mut std::fmt::Write);
+    fn render(&self) -> String {
+        let mut buf = String::new();
+        self.render_into(&mut buf);
+        buf
+    }
 }
 
 pub mod filters;
