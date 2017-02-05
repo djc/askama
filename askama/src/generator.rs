@@ -193,6 +193,23 @@ impl Generator {
         }
     }
 
+    fn block_methods(&mut self, blocks: &Vec<Node>) {
+        for b in blocks {
+            if let &Node::BlockDef(name, ref nodes) = b {
+                self.writeln("#[allow(unused_variables)]");
+                self.writeln(&format!(
+                    "fn render_block_{}_into(&self, writer: &mut std::fmt::Write) {{",
+                    name));
+                self.indent();
+                self.handle(&nodes);
+                self.dedent();
+                self.writeln("}");
+            } else {
+                panic!("only block definitions allowed");
+            }
+        }
+    }
+
     fn path_based_name(&mut self, ast: &syn::DeriveInput, path: &str) {
         let encoded = path_as_identifier(path);
         let original = ast.ident.as_ref();
@@ -219,15 +236,94 @@ impl Generator {
         self.writeln("}");
     }
 
+    fn trait_impl(&mut self, ast: &syn::DeriveInput, base: &str, blocks: &Vec<Node>) {
+        let anno = annotations(&ast.generics);
+        self.writeln(&format!("impl{} TraitFrom{} for {}{} {{",
+                              anno, path_as_identifier(base),
+                              ast.ident.as_ref(), anno));
+        self.indent();
+
+        self.block_methods(blocks);
+
+        self.dedent();
+        self.writeln("}");
+    }
+
+    fn trait_based_impl(&mut self, ast: &syn::DeriveInput) {
+        let anno = annotations(&ast.generics);
+        self.writeln(&format!("impl{} askama::Template for {}{} {{",
+                              anno, ast.ident.as_ref(), anno));
+        self.indent();
+
+        self.writeln("fn render_into(&self, writer: &mut std::fmt::Write) {");
+        self.indent();
+        self.writeln("self.render_trait_into(writer);");
+        self.dedent();
+        self.writeln("}");
+
+        self.dedent();
+        self.writeln("}");
+    }
+
+    fn template_trait(&mut self, ast: &syn::DeriveInput, path: &str,
+                      blocks: &Vec<Node>, nodes: &Vec<Node>) {
+        let anno = annotations(&ast.generics);
+        self.writeln(&format!("trait{} TraitFrom{}{} {{", anno,
+                              path_as_identifier(path), anno));
+        self.indent();
+
+        self.block_methods(blocks);
+
+        self.writeln("fn render_trait_into(&self, writer: &mut std::fmt::Write) {");
+        self.indent();
+        self.handle(nodes);
+        self.dedent();
+        self.writeln("}");
+
+        self.dedent();
+        self.writeln("}");
+    }
+
     fn result(self) -> String {
         self.buf
     }
 
 }
 
-pub fn generate(ast: &syn::DeriveInput, path: &str, nodes: Vec<Node>) -> String {
+pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> String {
+    let mut base: Option<Expr> = None;
+    let mut blocks = Vec::new();
+    let mut content = Vec::new();
+    for n in nodes.drain(..) {
+        match n {
+            Node::Extends(path) => {
+                match base {
+                    Some(_) => panic!("multiple extend blocks found"),
+                    None => { base = Some(path); },
+                }
+            },
+            Node::BlockDef(name, _) => {
+                blocks.push(n);
+                content.push(Node::Block(name));
+            },
+            _ => { content.push(n); },
+        }
+    }
+
     let mut gen = Generator::new();
     gen.path_based_name(ast, path);
-    gen.template_impl(ast, &nodes);
+    if blocks.len() > 0 {
+        if let Some(extends) = base {
+            if let Expr::StrLit(base_path) = extends {
+                gen.trait_impl(ast, &base_path, &blocks);
+            }
+        } else {
+            gen.template_trait(ast, path, &blocks, &content);
+            gen.trait_impl(ast, path, &Vec::new());
+        }
+        gen.trait_based_impl(ast);
+    } else {
+        gen.template_impl(ast, &content);
+    }
     gen.result()
 }
