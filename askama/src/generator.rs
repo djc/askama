@@ -3,6 +3,19 @@ use std::str;
 use std::collections::HashSet;
 use syn;
 
+fn annotations(generics: &syn::Generics) -> String {
+    if generics.lifetimes.len() < 1 {
+        return String::new();
+    }
+    let mut res = String::new();
+    res.push('<');
+    for lt in &generics.lifetimes {
+        res.push_str(lt.lifetime.ident.as_ref());
+    }
+    res.push('>');
+    res
+}
+
 fn path_as_identifier(s: &str) -> String {
     let mut res = String::new();
     for c in s.chars() {
@@ -183,29 +196,16 @@ impl Generator {
     fn path_based_name(&mut self, ast: &syn::DeriveInput, path: &str) {
         let encoded = path_as_identifier(path);
         let original = ast.ident.as_ref();
-        let anno = self.annotations(&ast.generics);
+        let anno = annotations(&ast.generics);
         self.writeln("#[allow(dead_code, non_camel_case_types)]");
         let s = format!("type TemplateFrom{}{} = {}{};",
                         encoded, &anno, original, &anno);
         self.writeln(&s);
     }
 
-    fn annotations(&self, generics: &syn::Generics) -> String {
-        if generics.lifetimes.len() < 1 {
-            return String::new();
-        }
-        let mut res = String::new();
-        res.push('<');
-        for lt in &generics.lifetimes {
-            res.push_str(lt.lifetime.ident.as_ref());
-        }
-        res.push('>');
-        res
-    }
-
     fn template_impl(&mut self, ast: &syn::DeriveInput, nodes: &Vec<Node>) {
         self.write("impl");
-        let anno = self.annotations(&ast.generics);
+        let anno = annotations(&ast.generics);
         self.write(&anno);
         self.write(" askama::Template for ");
         self.write(ast.ident.as_ref());
