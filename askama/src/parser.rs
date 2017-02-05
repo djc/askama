@@ -17,6 +17,9 @@ pub enum Node<'a> {
     Expr(Expr<'a>),
     Cond(Vec<(Option<Expr<'a>>, Vec<Node<'a>>)>),
     Loop(Target<'a>, Expr<'a>, Vec<Node<'a>>),
+    Extends(Expr<'a>),
+    BlockDef(&'a str, Vec<Node<'a>>),
+    Block(&'a str),
 }
 
 pub type Nodes<'a> = Vec<Node<'a>>;
@@ -133,11 +136,31 @@ named!(block_for<Node>, do_parse!(
     tag_s!("%}") >>
     (Node::Loop(var, iter, block))));
 
+named!(block_extends<Node>, do_parse!(
+    tag_s!("{%") >>
+    ws!(tag_s!("extends")) >>
+    name: ws!(expr_str_lit) >>
+    tag_s!("%}") >>
+    (Node::Extends(name))));
+
+named!(block_block<Node>, do_parse!(
+    tag_s!("{%") >>
+    ws!(tag_s!("block")) >>
+    name: ws!(nom::alphanumeric) >>
+    tag_s!("%}") >>
+    contents: parse_template >>
+    tag_s!("{%") >>
+    ws!(tag_s!("endblock")) >>
+    tag_s!("%}") >>
+    (Node::BlockDef(str::from_utf8(name).unwrap(), contents))));
+
 named!(parse_template<Nodes>, many0!(alt!(
     take_content |
     expr_node |
     block_if |
-    block_for)));
+    block_for |
+    block_extends |
+    block_block)));
 
 pub fn parse<'a>(src: &'a str) -> Nodes {
     match parse_template(src.as_bytes()) {

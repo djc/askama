@@ -159,6 +159,10 @@ impl Generator {
         }
     }
 
+    fn write_block(&mut self, name: &str) {
+        self.writeln(&format!("self.render_block_{}_into(writer);", name));
+    }
+
     fn handle(&mut self, nodes: &Vec<Node>) {
         for n in nodes {
             match n {
@@ -167,6 +171,10 @@ impl Generator {
                 &Node::Cond(ref conds) => { self.write_cond(&conds); },
                 &Node::Loop(ref var, ref iter, ref body) => {
                     self.write_loop(&var, &iter, &body);
+                },
+                &Node::Block(ref name) => { self.write_block(name) },
+                &Node::Extends(_) | &Node::BlockDef(_, _) => {
+                    panic!("no extends or block definition allowed in content");
                 },
             }
         }
