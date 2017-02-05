@@ -21,33 +21,6 @@ impl Generator {
         }
     }
 
-    fn annotations(&self, generics: &syn::Generics) -> String {
-        if generics.lifetimes.len() < 1 {
-            return String::new();
-        }
-        let mut res = String::new();
-        res.push('<');
-        for lt in &generics.lifetimes {
-            res.push_str(lt.lifetime.ident.as_ref());
-        }
-        res.push('>');
-        res
-    }
-
-    fn init(&mut self, name: &str, generics: &syn::Generics) {
-        self.write("impl");
-        let anno = self.annotations(generics);
-        self.write(&anno);
-        self.write(" askama::Template for ");
-        self.write(name);
-        self.write(&anno);
-        self.writeln(" {");
-
-        self.indent();
-        self.writeln("fn render_into(&self, writer: &mut std::fmt::Write) {");
-        self.indent();
-    }
-
     fn indent(&mut self) {
         self.indent += 1;
     }
@@ -185,6 +158,33 @@ impl Generator {
                 },
             }
         }
+    }
+
+    fn annotations(&self, generics: &syn::Generics) -> String {
+        if generics.lifetimes.len() < 1 {
+            return String::new();
+        }
+        let mut res = String::new();
+        res.push('<');
+        for lt in &generics.lifetimes {
+            res.push_str(lt.lifetime.ident.as_ref());
+        }
+        res.push('>');
+        res
+    }
+
+    fn init(&mut self, name: &str, generics: &syn::Generics) {
+        self.write("impl");
+        let anno = self.annotations(generics);
+        self.write(&anno);
+        self.write(" askama::Template for ");
+        self.write(name);
+        self.write(&anno);
+        self.writeln(" {");
+
+        self.indent();
+        self.writeln("fn render_into(&self, writer: &mut std::fmt::Write) {");
+        self.indent();
     }
 
     fn finalize(&mut self) {
