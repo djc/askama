@@ -62,7 +62,8 @@ fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
 
 named!(expr_str_lit<Expr>, map!(
     delimited!(char!('"'), is_not!("\""), char!('"')),
-    |s| Expr::StrLit(str::from_utf8(s).unwrap())));
+    |s| Expr::StrLit(str::from_utf8(s).unwrap())
+));
 
 named!(expr_var<Expr>, map!(nom::alphanumeric, Expr::Var));
 
@@ -100,21 +101,25 @@ named!(expr_compare<Expr>, do_parse!(
     )) >>
     right: expr_filtered >>
     (Expr::Compare(str::from_utf8(op).unwrap(),
-                   Box::new(left), Box::new(right)))));
+                   Box::new(left), Box::new(right)))
+));
 
 named!(expr_any<Expr>, alt!(
     expr_compare |
     expr_filtered |
-    expr_str_lit));
+    expr_str_lit
+));
 
 named!(expr_node<Node>, map!(
     delimited!(tag_s!("{{"), ws!(expr_any), tag_s!("}}")),
-    Node::Expr));
+    Node::Expr
+));
 
 named!(cond_if<Expr>, do_parse!(
     ws!(tag_s!("if")) >>
     cond: ws!(expr_any) >>
-    (cond)));
+    (cond)
+));
 
 named!(cond_block<Cond>, do_parse!(
     tag_s!("{%") >>
@@ -122,7 +127,8 @@ named!(cond_block<Cond>, do_parse!(
     cond: opt!(cond_if) >>
     tag_s!("%}") >>
     block: parse_template >>
-    (cond, block)));
+    (cond, block)
+));
 
 named!(block_if<Node>, do_parse!(
     tag_s!("{%") >>
@@ -134,11 +140,12 @@ named!(block_if<Node>, do_parse!(
     ws!(tag_s!("endif")) >>
     tag_s!("%}") >>
     ({
-        let mut res = Vec::new();
-        res.push((Some(cond), block));
-        res.extend(elifs);
-        Node::Cond(res)
-    })));
+       let mut res = Vec::new();
+       res.push((Some(cond), block));
+       res.extend(elifs);
+       Node::Cond(res)
+    })
+));
 
 named!(block_for<Node>, do_parse!(
     tag_s!("{%") >>
@@ -151,14 +158,16 @@ named!(block_for<Node>, do_parse!(
     tag_s!("{%") >>
     ws!(tag_s!("endfor")) >>
     tag_s!("%}") >>
-    (Node::Loop(var, iter, block))));
+    (Node::Loop(var, iter, block))
+));
 
 named!(block_extends<Node>, do_parse!(
     tag_s!("{%") >>
     ws!(tag_s!("extends")) >>
     name: ws!(expr_str_lit) >>
     tag_s!("%}") >>
-    (Node::Extends(name))));
+    (Node::Extends(name))
+));
 
 named!(block_block<Node>, do_parse!(
     tag_s!("{%") >>
@@ -169,7 +178,8 @@ named!(block_block<Node>, do_parse!(
     tag_s!("{%") >>
     ws!(tag_s!("endblock")) >>
     tag_s!("%}") >>
-    (Node::BlockDef(str::from_utf8(name).unwrap(), contents))));
+    (Node::BlockDef(str::from_utf8(name).unwrap(), contents))
+));
 
 named!(parse_template<Vec<Node<'a>>>, many0!(alt!(
     take_content |
@@ -177,7 +187,8 @@ named!(parse_template<Vec<Node<'a>>>, many0!(alt!(
     block_if |
     block_for |
     block_extends |
-    block_block)));
+    block_block
+)));
 
 pub fn parse(src: &str) -> Vec<Node> {
     match parse_template(src.as_bytes()) {
