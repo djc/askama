@@ -1,0 +1,8 @@
+sudo: false
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+script:
+  - cd testing && cargo test
