@@ -1,7 +1,18 @@
 use std::env;
-use std::fs::{self, DirEntry};
-use std::io;
-use std::path::Path;
+use std::fs::{self, DirEntry, File};
+use std::io::{self, Read};
+use std::path::{Path, PathBuf};
+
+pub fn get_template_source(tpl_file: &str) -> String {
+    let root = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let mut path = PathBuf::from(root);
+    path.push("templates");
+    path.push(Path::new(tpl_file));
+    let mut f = File::open(path).unwrap();
+    let mut s = String::new();
+    f.read_to_string(&mut s).unwrap();
+    s
+}
 
 fn visit_dirs(dir: &Path, cb: &Fn(&DirEntry)) -> io::Result<()> {
     if dir.is_dir() {

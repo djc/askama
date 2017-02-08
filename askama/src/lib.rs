@@ -11,8 +11,14 @@ pub trait Template {
     }
 }
 
-pub mod filters;
-pub mod generator;
-pub mod parser;
+mod generator;
+mod parser;
 mod path;
+
+pub mod filters;
 pub use path::rerun_if_templates_changed;
+pub fn build_template(path: &str, ast: &syn::DeriveInput) -> String {
+    let src = path::get_template_source(path);
+    let nodes = parser::parse(&src);
+    generator::generate(ast, path, nodes)
+}
