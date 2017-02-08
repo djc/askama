@@ -14,3 +14,5 @@ pub trait Template {
 pub mod filters;
 pub mod generator;
 pub mod parser;
+mod path;
+pub use path::rerun_if_templates_changed;

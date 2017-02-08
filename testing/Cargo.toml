@@ -8,3 +8,6 @@ build = "build.rs"
 [dependencies]
 askama = { path = "../askama" }
 askama_derive = { path = "../askama_derive" }
+
+[build-dependencies]
+askama = { path = "../askama" }
