@@ -176,6 +176,17 @@ impl Generator {
         self.writeln(&format!("self.render_block_{}_into(writer);", name));
     }
 
+    fn write_block_def(&mut self, name: &str, nodes: &[Node]) {
+        self.writeln("#[allow(unused_variables)]");
+        self.writeln(&format!(
+            "fn render_block_{}_into(&self, writer: &mut std::fmt::Write) {{",
+            name));
+        self.indent();
+        self.handle(nodes);
+        self.dedent();
+        self.writeln("}");
+    }
+
     fn handle(&mut self, nodes: &[Node]) {
         for n in nodes {
             match *n {
@@ -190,26 +201,12 @@ impl Generator {
                     self.write_loop(var, iter, body);
                 },
                 Node::Block(name) => { self.write_block(name) },
-                Node::Extends(_) | Node::BlockDef(_, _) => {
+                Node::BlockDef(name, ref block_nodes) => {
+                    self.write_block_def(name, block_nodes);
+                }
+                Node::Extends(_) => {
                     panic!("no extends or block definition allowed in content");
                 },
-            }
-        }
-    }
-
-    fn block_methods(&mut self, blocks: &[Node]) {
-        for b in blocks {
-            if let Node::BlockDef(name, ref nodes) = *b {
-                self.writeln("#[allow(unused_variables)]");
-                self.writeln(&format!(
-                    "fn render_block_{}_into(&self, writer: &mut std::fmt::Write) {{",
-                    name));
-                self.indent();
-                self.handle(nodes);
-                self.dedent();
-                self.writeln("}");
-            } else {
-                panic!("only block definitions allowed");
             }
         }
     }
@@ -246,9 +243,7 @@ impl Generator {
                               anno, path_as_identifier(base),
                               ast.ident.as_ref(), anno));
         self.indent();
-
-        self.block_methods(blocks);
-
+        self.handle(blocks);
         self.dedent();
         self.writeln("}");
     }
@@ -276,7 +271,7 @@ impl Generator {
                               path_as_identifier(path), anno));
         self.indent();
 
-        self.block_methods(blocks);
+        self.handle(blocks);
 
         self.writeln("fn render_trait_into(&self, writer: &mut std::fmt::Write) {");
         self.indent();
