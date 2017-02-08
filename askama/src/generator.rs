@@ -99,11 +99,11 @@ impl Generator {
     }
 
     fn visit_expr(&mut self, expr: &Expr) {
-        match expr {
-            &Expr::StrLit(s) => self.visit_str_lit(s),
-            &Expr::Var(s) => self.visit_var(s),
-            &Expr::Filter(name, ref val) => self.visit_filter(name, &val),
-            &Expr::Compare(op, ref left, ref right) =>
+        match *expr {
+            Expr::StrLit(s) => self.visit_str_lit(s),
+            Expr::Var(s) => self.visit_var(s),
+            Expr::Filter(name, ref val) => self.visit_filter(name, &val),
+            Expr::Compare(op, ref left, ref right) =>
                 self.visit_compare(op, &left, &right),
         }
     }
@@ -113,8 +113,8 @@ impl Generator {
     }
 
     fn visit_target(&mut self, target: &Target) -> Vec<String> {
-        match target {
-            &Target::Name(s) => { self.visit_target_single(s) },
+        match *target {
+            Target::Name(s) => { self.visit_target_single(s) },
         }
     }
 
@@ -132,8 +132,8 @@ impl Generator {
 
     fn write_cond(&mut self, conds: &Conds) {
         for (i, &(ref cond, ref nodes)) in conds.iter().enumerate() {
-            match cond {
-                &Some(ref expr) => {
+            match *cond {
+                Some(ref expr) => {
                     if i == 0 {
                         self.write("if ");
                     } else {
@@ -141,7 +141,7 @@ impl Generator {
                     }
                     self.visit_expr(expr);
                 },
-                &None => { self.writeln("} else"); },
+                None => { self.writeln("} else"); },
             }
             self.writeln(" {");
             self.indent();
@@ -178,15 +178,15 @@ impl Generator {
 
     fn handle(&mut self, nodes: &Vec<Node>) {
         for n in nodes {
-            match n {
-                &Node::Lit(val) => { self.write_lit(val); },
-                &Node::Expr(ref val) => { self.write_expr(&val); },
-                &Node::Cond(ref conds) => { self.write_cond(&conds); },
-                &Node::Loop(ref var, ref iter, ref body) => {
+            match *n {
+                Node::Lit(val) => { self.write_lit(val); },
+                Node::Expr(ref val) => { self.write_expr(&val); },
+                Node::Cond(ref conds) => { self.write_cond(&conds); },
+                Node::Loop(ref var, ref iter, ref body) => {
                     self.write_loop(&var, &iter, &body);
                 },
-                &Node::Block(ref name) => { self.write_block(name) },
-                &Node::Extends(_) | &Node::BlockDef(_, _) => {
+                Node::Block(ref name) => { self.write_block(name) },
+                Node::Extends(_) | Node::BlockDef(_, _) => {
                     panic!("no extends or block definition allowed in content");
                 },
             }
