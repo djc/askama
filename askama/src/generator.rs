@@ -80,7 +80,7 @@ impl Generator {
     fn visit_var(&mut self, s: &[u8]) {
         let s = str::from_utf8(s).unwrap();
         if self.locals.contains(s) {
-            self.write(&s);
+            self.write(s);
         } else {
             self.write(&format!("self.{}", s));
         }
@@ -102,9 +102,9 @@ impl Generator {
         match *expr {
             Expr::StrLit(s) => self.visit_str_lit(s),
             Expr::Var(s) => self.visit_var(s),
-            Expr::Filter(name, ref val) => self.visit_filter(name, &val),
+            Expr::Filter(name, ref val) => self.visit_filter(name, val),
             Expr::Compare(op, ref left, ref right) =>
-                self.visit_compare(op, &left, &right),
+                self.visit_compare(op, left, right),
         }
     }
 
@@ -180,12 +180,12 @@ impl Generator {
         for n in nodes {
             match *n {
                 Node::Lit(val) => { self.write_lit(val); },
-                Node::Expr(ref val) => { self.write_expr(&val); },
-                Node::Cond(ref conds) => { self.write_cond(&conds); },
+                Node::Expr(ref val) => { self.write_expr(val); },
+                Node::Cond(ref conds) => { self.write_cond(conds); },
                 Node::Loop(ref var, ref iter, ref body) => {
-                    self.write_loop(&var, &iter, &body);
+                    self.write_loop(var, iter, body);
                 },
-                Node::Block(ref name) => { self.write_block(name) },
+                Node::Block(name) => { self.write_block(name) },
                 Node::Extends(_) | Node::BlockDef(_, _) => {
                     panic!("no extends or block definition allowed in content");
                 },
@@ -195,13 +195,13 @@ impl Generator {
 
     fn block_methods(&mut self, blocks: &Vec<Node>) {
         for b in blocks {
-            if let &Node::BlockDef(name, ref nodes) = b {
+            if let Node::BlockDef(name, ref nodes) = *b {
                 self.writeln("#[allow(unused_variables)]");
                 self.writeln(&format!(
                     "fn render_block_{}_into(&self, writer: &mut std::fmt::Write) {{",
                     name));
                 self.indent();
-                self.handle(&nodes);
+                self.handle(nodes);
                 self.dedent();
                 self.writeln("}");
             } else {
@@ -315,7 +315,7 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
     if blocks.len() > 0 {
         if let Some(extends) = base {
             if let Expr::StrLit(base_path) = extends {
-                gen.trait_impl(ast, &base_path, &blocks);
+                gen.trait_impl(ast, base_path, &blocks);
             }
         } else {
             gen.template_trait(ast, path, &blocks, &content);
