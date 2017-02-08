@@ -124,9 +124,13 @@ impl<'a> Generator<'a> {
     fn flush_ws(&mut self, ws: &WS) {
         if self.next_ws.is_some() && !ws.0 {
             let val = self.next_ws.unwrap();
-            self.write(&format!("writer.write_str({:#?}).unwrap();", val));
-            self.next_ws = None;
+            if !val.is_empty() {
+                self.write(&format!("writer.write_str({:#?}).unwrap();",
+                                    val));
+            }
+        } else if self.next_ws.is_some() {
         }
+        self.next_ws = None;
     }
 
     fn prepare_ws(&mut self, ws: &WS) {
@@ -138,13 +142,24 @@ impl<'a> Generator<'a> {
         self.prepare_ws(ws);
     }
 
-    fn write_lit(&mut self, lws: &str, val: &str, rws: &'a str) {
+    fn write_lit(&mut self, lws: &'a str, val: &str, rws: &'a str) {
         assert!(self.next_ws.is_none());
-        if !self.skip_ws {
-            self.write(&format!("writer.write_str({:#?}).unwrap();", lws));
+        if !lws.is_empty() {
+            if self.skip_ws {
+                self.skip_ws = false;
+            } else if val.is_empty() {
+                assert!(rws.is_empty());
+                self.next_ws = Some(lws);
+            } else {
+                self.write(&format!("writer.write_str({:#?}).unwrap();", lws));
+            }
         }
-        self.write(&format!("writer.write_str({:#?}).unwrap();", val));
-        self.next_ws = Some(rws);
+        if !val.is_empty() {
+            self.write(&format!("writer.write_str({:#?}).unwrap();", val));
+        }
+        if !rws.is_empty() {
+            self.next_ws = Some(rws);
+        }
     }
 
     fn write_expr(&mut self, ws: &WS, s: &Expr) {
