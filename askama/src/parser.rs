@@ -186,3 +186,26 @@ pub fn parse(src: &str) -> Vec<Node> {
         IResult::Incomplete(_) => panic!("parsing incomplete"),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    fn check_ws_split(s: &str, res: &(&[u8], &[u8], &[u8])) {
+        let node = super::split_ws_parts(s.as_bytes());
+        match node {
+            super::Node::Lit(lws, s, rws) => {
+                assert_eq!(lws, res.0);
+                assert_eq!(s, res.1);
+                assert_eq!(rws, res.2);
+            },
+            _ => { panic!("fail"); },
+        }
+    }
+    #[test]
+    fn test_ws_splitter() {
+        check_ws_split("a", &(b"", b"a", b""));
+        check_ws_split("", &(b"", b"", b""));
+        check_ws_split("\ta", &(b"\t", b"a", b""));
+        check_ws_split("b\n", &(b"", b"b", b"\n"));
+        check_ws_split(" \t\r\n", &(b" \t\r\n", b"", b""));
+    }
+}
