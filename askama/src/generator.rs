@@ -80,7 +80,7 @@ impl Generator {
     fn visit_var(&mut self, s: &[u8]) {
         let s = str::from_utf8(s).unwrap();
         if self.locals.contains(s) {
-            self.write(&format!("{}", s));
+            self.write(&s);
         } else {
             self.write(&format!("self.{}", s));
         }
@@ -157,7 +157,7 @@ impl Generator {
         let targets = self.visit_target(var);
         for name in &targets {
             self.locals.insert(name.clone());
-            self.write(&format!("{}", name));
+            self.write(name);
         }
         self.write(" in &");
         self.visit_expr(iter);
