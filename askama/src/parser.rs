@@ -13,7 +13,7 @@ pub enum Target<'a> {
 }
 
 #[derive(Clone, Copy)]
-pub struct WS(bool, bool);
+pub struct WS(pub bool, pub bool);
 
 pub enum Node<'a> {
     Lit(&'a str, &'a str, &'a str),

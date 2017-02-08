@@ -1,4 +1,4 @@
-use parser::{Cond, Expr, Node, Target};
+use parser::{Cond, Expr, Node, Target, WS};
 use std::str;
 use std::collections::HashSet;
 use syn;
@@ -28,21 +28,25 @@ fn path_as_identifier(s: &str) -> String {
     res
 }
 
-struct Generator {
+struct Generator<'a> {
     buf: String,
     indent: u8,
     start: bool,
     locals: HashSet<String>,
+    next_ws: Option<&'a str>,
+    skip_ws: bool,
 }
 
-impl Generator {
+impl<'a> Generator<'a> {
 
-    fn new() -> Generator {
+    fn new() -> Generator<'a> {
         Generator {
             buf: String::new(),
             indent: 0,
             start: true,
             locals: HashSet::new(),
+            next_ws: None,
+            skip_ws: false,
         }
     }
 
@@ -117,20 +121,42 @@ impl Generator {
         }
     }
 
-    fn write_lit(&mut self, lws: &str, val: &str, rws: &str) {
-        self.write(&format!("writer.write_str({:#?}).unwrap();", lws));
-        self.write(&format!("writer.write_str({:#?}).unwrap();", val));
-        self.write(&format!("writer.write_str({:#?}).unwrap();", rws));
+    fn flush_ws(&mut self, ws: &WS) {
+        if self.next_ws.is_some() && !ws.0 {
+            let val = self.next_ws.unwrap();
+            self.write(&format!("writer.write_str({:#?}).unwrap();", val));
+            self.next_ws = None;
+        }
     }
 
-    fn write_expr(&mut self, s: &Expr) {
+    fn prepare_ws(&mut self, ws: &WS) {
+        self.skip_ws = ws.1;
+    }
+
+    fn handle_ws(&mut self, ws: &WS) {
+        self.flush_ws(ws);
+        self.prepare_ws(ws);
+    }
+
+    fn write_lit(&mut self, lws: &str, val: &str, rws: &'a str) {
+        assert!(self.next_ws.is_none());
+        if !self.skip_ws {
+            self.write(&format!("writer.write_str({:#?}).unwrap();", lws));
+        }
+        self.write(&format!("writer.write_str({:#?}).unwrap();", val));
+        self.next_ws = Some(rws);
+    }
+
+    fn write_expr(&mut self, ws: &WS, s: &Expr) {
+        self.handle_ws(ws);
         self.write("writer.write_fmt(format_args!(\"{}\", ");
         self.visit_expr(s);
         self.writeln(")).unwrap();");
     }
 
-    fn write_cond(&mut self, conds: &[Cond]) {
-        for (i, &(_, ref cond, ref nodes)) in conds.iter().enumerate() {
+    fn write_cond(&mut self, conds: &'a [Cond], ws: &WS) {
+        for (i, &(ref cws, ref cond, ref nodes)) in conds.iter().enumerate() {
+            self.handle_ws(cws);
             match *cond {
                 Some(ref expr) => {
                     if i == 0 {
@@ -147,11 +173,14 @@ impl Generator {
             self.handle(nodes);
             self.dedent();
         }
+        self.handle_ws(ws);
         self.writeln("}");
     }
 
-    fn write_loop(&mut self, var: &Target, iter: &Expr, body: &[Node]) {
+    fn write_loop(&mut self, ws1: &WS, var: &Target, iter: &Expr,
+                  body: &'a [Node], ws2: &WS) {
 
+        self.handle_ws(ws1);
         self.write("for ");
         let targets = self.visit_target(var);
         for name in &targets {
@@ -164,6 +193,7 @@ impl Generator {
 
         self.indent();
         self.handle(body);
+        self.handle_ws(ws2);
         self.dedent();
         self.writeln("}");
         for name in &targets {
@@ -171,33 +201,42 @@ impl Generator {
         }
     }
 
-    fn write_block(&mut self, name: &str) {
+    fn write_block(&mut self, ws1: &WS, name: &str, ws2: &WS) {
+        self.flush_ws(ws1);
         self.writeln(&format!("self.render_block_{}_into(writer);", name));
+        self.prepare_ws(ws2);
     }
 
-    fn write_block_def(&mut self, name: &str, nodes: &[Node]) {
+    fn write_block_def(&mut self, ws1: &WS, name: &str, nodes: &'a [Node],
+                       ws2: &WS) {
         self.writeln("#[allow(unused_variables)]");
         self.writeln(&format!(
             "fn render_block_{}_into(&self, writer: &mut std::fmt::Write) {{",
             name));
         self.indent();
+        self.prepare_ws(ws1);
         self.handle(nodes);
+        self.flush_ws(ws2);
         self.dedent();
         self.writeln("}");
     }
 
-    fn handle(&mut self, nodes: &[Node]) {
+    fn handle(&mut self, nodes: &'a [Node]) {
         for n in nodes {
             match *n {
                 Node::Lit(lws, val, rws) => { self.write_lit(lws, val, rws); }
-                Node::Expr(_, ref val) => { self.write_expr(val); },
-                Node::Cond(ref conds, _) => { self.write_cond(conds); },
-                Node::Loop(_, ref var, ref iter, ref body, _) => {
-                    self.write_loop(var, iter, body);
+                Node::Expr(ref ws, ref val) => { self.write_expr(ws, val); },
+                Node::Cond(ref conds, ref ws) => {
+                    self.write_cond(conds, ws);
                 },
-                Node::Block(_, name, _) => { self.write_block(name) },
-                Node::BlockDef(_, name, ref block_nodes, _) => {
-                    self.write_block_def(name, block_nodes);
+                Node::Loop(ref ws1, ref var, ref iter, ref body, ref ws2) => {
+                    self.write_loop(ws1, var, iter, body, ws2);
+                },
+                Node::Block(ref ws1, name, ref ws2) => {
+                    self.write_block(ws1, name, ws2);
+                },
+                Node::BlockDef(ref ws1, name, ref block_nodes, ref ws2) => {
+                    self.write_block_def(ws1, name, block_nodes, ws2);
                 }
                 Node::Extends(_) => {
                     panic!("no extends or block definition allowed in content");
@@ -216,7 +255,7 @@ impl Generator {
         self.writeln(&s);
     }
 
-    fn template_impl(&mut self, ast: &syn::DeriveInput, nodes: &[Node]) {
+    fn template_impl(&mut self, ast: &syn::DeriveInput, nodes: &'a [Node]) {
         let anno = annotations(&ast.generics);
         self.writeln(&format!("impl{} askama::Template for {}{} {{",
                               anno, ast.ident.as_ref(), anno));
@@ -225,6 +264,7 @@ impl Generator {
         self.writeln("fn render_into(&self, writer: &mut std::fmt::Write) {");
         self.indent();
         self.handle(nodes);
+        self.flush_ws(&WS(false, false));
         self.dedent();
         self.writeln("}");
 
@@ -232,13 +272,14 @@ impl Generator {
         self.writeln("}");
     }
 
-    fn trait_impl(&mut self, ast: &syn::DeriveInput, base: &str, blocks: &[Node]) {
+    fn trait_impl(&mut self, ast: &syn::DeriveInput, base: &str, blocks: &'a [Node]) {
         let anno = annotations(&ast.generics);
         self.writeln(&format!("impl{} TraitFrom{} for {}{} {{",
                               anno, path_as_identifier(base),
                               ast.ident.as_ref(), anno));
         self.indent();
         self.handle(blocks);
+        self.flush_ws(&WS(false, false));
         self.dedent();
         self.writeln("}");
     }
@@ -260,7 +301,7 @@ impl Generator {
     }
 
     fn template_trait(&mut self, ast: &syn::DeriveInput, path: &str,
-                      blocks: &[Node], nodes: &[Node]) {
+                      blocks: &'a [Node], nodes: &'a [Node]) {
         let anno = annotations(&ast.generics);
         self.writeln(&format!("trait{} TraitFrom{}{} {{", anno,
                               path_as_identifier(path), anno));
@@ -271,6 +312,7 @@ impl Generator {
         self.writeln("fn render_trait_into(&self, writer: &mut std::fmt::Write) {");
         self.indent();
         self.handle(nodes);
+        self.flush_ws(&WS(false, false));
         self.dedent();
         self.writeln("}");
 
@@ -304,6 +346,7 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
         }
     }
 
+    let empty = Vec::new();
     let mut gen = Generator::new();
     gen.path_based_name(ast, path);
     if !blocks.is_empty() {
@@ -313,7 +356,7 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
             }
         } else {
             gen.template_trait(ast, path, &blocks, &content);
-            gen.trait_impl(ast, path, &Vec::new());
+            gen.trait_impl(ast, path, &empty);
         }
         gen.trait_based_impl(ast);
     } else {
