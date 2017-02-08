@@ -4,32 +4,19 @@ extern crate syn;
 
 use proc_macro::TokenStream;
 
-fn get_path_from_attrs(attrs: &Vec<syn::Attribute>) -> String {
-    for attr in attrs {
-        if attr.name() == "template" {
-            match attr.value {
-                syn::MetaItem::List(_, ref inner) => {
-                    match inner[0] {
-                        syn::NestedMetaItem::MetaItem(ref item) => {
-                            match item {
-                                &syn::MetaItem::NameValue(ref key, ref val) => {
-                                    assert_eq!(key.as_ref(), "path");
-                                    match val {
-                                        &syn::Lit::Str(ref s, _) => { return s.clone(); },
-                                        _ => panic!("template path must be a string"),
-                                    }
-                                },
-                                _ => panic!("template annotation must contain key/value pair"),
-                            }
-                        },
-                        _ => panic!("template annotation must contain item"),
-                    }
-                },
-                _ => panic!("template annotation must be of List type"),
+fn get_path_from_attrs(attrs: &[syn::Attribute]) -> String {
+    let attr = attrs.iter().find(|a| a.name() == "template").unwrap();
+    if let syn::MetaItem::List(_, ref inner) = attr.value {
+        if let syn::NestedMetaItem::MetaItem(ref item) = inner[0] {
+            if let &syn::MetaItem::NameValue(ref key, ref val) = item {
+                assert_eq!(key.as_ref(), "path");
+                if let &syn::Lit::Str(ref s, _) = val {
+                    return s.clone();
+                }
             }
         }
     }
-    panic!("template annotation not found");
+    panic!("template path not found in struct attributes");
 }
 
 #[proc_macro_derive(Template, attributes(template))]
