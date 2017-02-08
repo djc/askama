@@ -118,9 +118,7 @@ impl Generator {
     }
 
     fn write_lit(&mut self, s: &str) {
-        self.write("writer.write_str(");
-        self.write(&format!("{:#?}", s));
-        self.writeln(").unwrap();");
+        self.write(&format!("writer.write_str({:#?}).unwrap();", s));
     }
 
     fn write_expr(&mut self, s: &Expr) {
