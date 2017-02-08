@@ -312,7 +312,7 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
 
     let mut gen = Generator::new();
     gen.path_based_name(ast, path);
-    if blocks.len() > 0 {
+    if !blocks.is_empty() {
         if let Some(extends) = base {
             if let Expr::StrLit(base_path) = extends {
                 gen.trait_impl(ast, base_path, &blocks);

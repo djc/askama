@@ -68,7 +68,7 @@ fn expr_filtered(i: &[u8]) -> IResult<&[u8], Expr> {
             },
         };
     }
-    return IResult::Done(left, expr);
+    IResult::Done(left, expr)
 }
 
 named!(expr_compare<Expr>, do_parse!(
@@ -159,7 +159,7 @@ named!(parse_template<Vec<Node<'a>>>, many0!(alt!(
     block_extends |
     block_block)));
 
-pub fn parse<'a>(src: &'a str) -> Vec<Node<'a>> {
+pub fn parse(src: &str) -> Vec<Node> {
     match parse_template(src.as_bytes()) {
         IResult::Done(_, res) => res,
         IResult::Error(err) => panic!("problems parsing template source: {}", err),
