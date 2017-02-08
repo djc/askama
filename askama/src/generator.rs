@@ -1,4 +1,4 @@
-use parser::{Conds, Expr, Node, Nodes, Target};
+use parser::{Cond, Expr, Node, Target};
 use std::str;
 use std::collections::HashSet;
 use syn;
@@ -130,7 +130,7 @@ impl Generator {
         self.writeln(")).unwrap();");
     }
 
-    fn write_cond(&mut self, conds: &Conds) {
+    fn write_cond(&mut self, conds: &[Cond]) {
         for (i, &(ref cond, ref nodes)) in conds.iter().enumerate() {
             match *cond {
                 Some(ref expr) => {
@@ -151,7 +151,7 @@ impl Generator {
         self.writeln("}");
     }
 
-    fn write_loop(&mut self, var: &Target, iter: &Expr, body: &Nodes) {
+    fn write_loop(&mut self, var: &Target, iter: &Expr, body: &[Node]) {
 
         self.write("for ");
         let targets = self.visit_target(var);
@@ -176,7 +176,7 @@ impl Generator {
         self.writeln(&format!("self.render_block_{}_into(writer);", name));
     }
 
-    fn handle(&mut self, nodes: &Vec<Node>) {
+    fn handle(&mut self, nodes: &[Node]) {
         for n in nodes {
             match *n {
                 Node::Lit(val) => { self.write_lit(val); },
@@ -193,7 +193,7 @@ impl Generator {
         }
     }
 
-    fn block_methods(&mut self, blocks: &Vec<Node>) {
+    fn block_methods(&mut self, blocks: &[Node]) {
         for b in blocks {
             if let Node::BlockDef(name, ref nodes) = *b {
                 self.writeln("#[allow(unused_variables)]");
@@ -220,7 +220,7 @@ impl Generator {
         self.writeln(&s);
     }
 
-    fn template_impl(&mut self, ast: &syn::DeriveInput, nodes: &Vec<Node>) {
+    fn template_impl(&mut self, ast: &syn::DeriveInput, nodes: &[Node]) {
         let anno = annotations(&ast.generics);
         self.writeln(&format!("impl{} askama::Template for {}{} {{",
                               anno, ast.ident.as_ref(), anno));
@@ -236,7 +236,7 @@ impl Generator {
         self.writeln("}");
     }
 
-    fn trait_impl(&mut self, ast: &syn::DeriveInput, base: &str, blocks: &Vec<Node>) {
+    fn trait_impl(&mut self, ast: &syn::DeriveInput, base: &str, blocks: &[Node]) {
         let anno = annotations(&ast.generics);
         self.writeln(&format!("impl{} TraitFrom{} for {}{} {{",
                               anno, path_as_identifier(base),
@@ -266,7 +266,7 @@ impl Generator {
     }
 
     fn template_trait(&mut self, ast: &syn::DeriveInput, path: &str,
-                      blocks: &Vec<Node>, nodes: &Vec<Node>) {
+                      blocks: &[Node], nodes: &[Node]) {
         let anno = annotations(&ast.generics);
         self.writeln(&format!("trait{} TraitFrom{}{} {{", anno,
                               path_as_identifier(path), anno));

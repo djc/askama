@@ -22,8 +22,7 @@ pub enum Node<'a> {
     Block(&'a str),
 }
 
-pub type Nodes<'a> = Vec<Node<'a>>;
-pub type Conds<'a> = Vec<(Option<Expr<'a>>, Nodes<'a>)>;
+pub type Cond<'a> = (Option<Expr<'a>>, Vec<Node<'a>>);
 
 fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
     if i.len() < 1 || i[0] == b'{' {
@@ -97,7 +96,7 @@ named!(cond_if<Expr>, do_parse!(
     cond: ws!(expr_any) >>
     (cond)));
 
-named!(cond_block<(Option<Expr>, Nodes)>, do_parse!(
+named!(cond_block<Cond>, do_parse!(
     tag_s!("{%") >>
     ws!(tag_s!("else")) >>
     cond: opt!(cond_if) >>
@@ -152,7 +151,7 @@ named!(block_block<Node>, do_parse!(
     tag_s!("%}") >>
     (Node::BlockDef(str::from_utf8(name).unwrap(), contents))));
 
-named!(parse_template<Nodes>, many0!(alt!(
+named!(parse_template<Vec<Node<'a>>>, many0!(alt!(
     take_content |
     expr_node |
     block_if |
@@ -160,7 +159,7 @@ named!(parse_template<Nodes>, many0!(alt!(
     block_extends |
     block_block)));
 
-pub fn parse<'a>(src: &'a str) -> Nodes {
+pub fn parse<'a>(src: &'a str) -> Vec<Node<'a>> {
     match parse_template(src.as_bytes()) {
         IResult::Done(_, res) => res,
         IResult::Error(err) => panic!("problems parsing template source: {}", err),
