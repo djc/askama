@@ -77,8 +77,7 @@ impl Generator {
         self.write(&format!("\"{}\"", s));
     }
 
-    fn visit_var(&mut self, s: &[u8]) {
-        let s = str::from_utf8(s).unwrap();
+    fn visit_var(&mut self, s: &str) {
         if self.locals.contains(s) {
             self.write(s);
         } else {
@@ -108,8 +107,8 @@ impl Generator {
         }
     }
 
-    fn visit_target_single(&mut self, name: &[u8]) -> Vec<String> {
-        vec![str::from_utf8(name).unwrap().to_string()]
+    fn visit_target_single(&mut self, name: &str) -> Vec<String> {
+        vec![name.to_string()]
     }
 
     fn visit_target(&mut self, target: &Target) -> Vec<String> {
@@ -118,9 +117,9 @@ impl Generator {
         }
     }
 
-    fn write_lit(&mut self, s: &[u8]) {
+    fn write_lit(&mut self, s: &str) {
         self.write("writer.write_str(");
-        self.write(&format!("{:#?}", str::from_utf8(s).unwrap()));
+        self.write(&format!("{:#?}", s));
         self.writeln(").unwrap();");
     }
 

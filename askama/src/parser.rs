@@ -3,20 +3,20 @@ use std::str;
 
 pub enum Expr<'a> {
     StrLit(&'a str),
-    Var(&'a [u8]),
+    Var(&'a str),
     Filter(&'a str, Box<Expr<'a>>),
     Compare(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
 }
 
 pub enum Target<'a> {
-    Name(&'a [u8]),
+    Name(&'a str),
 }
 
 #[derive(Clone, Copy)]
 pub struct WS(bool, bool);
 
 pub enum Node<'a> {
-    Lit(&'a [u8], &'a [u8], &'a [u8]),
+    Lit(&'a str, &'a str, &'a str),
     Expr(WS, Expr<'a>),
     Cond(Vec<(WS, Option<Expr<'a>>, Vec<Node<'a>>)>, WS),
     Loop(WS, Target<'a>, Expr<'a>, Vec<Node<'a>>, WS),
@@ -29,22 +29,28 @@ pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
 
 fn split_ws_parts(s: &[u8]) -> Node {
     if s.is_empty() {
-        return Node::Lit(s, s, s);
+        let rs = str::from_utf8(s).unwrap();
+        return Node::Lit(rs, rs, rs);
     }
     let is_ws = |c: &u8| {
         *c != b' ' && *c != b'\t' && *c != b'\r' && *c != b'\n'
     };
     let start = s.iter().position(&is_ws);
-    if let None = start {
-        return Node::Lit(s, &s[0..0], &s[0..0]);
-    }
-    let start = start.unwrap();
-    let end = s.iter().rposition(&is_ws);
-    if let None = end {
-        return Node::Lit(&s[..start], &s[start..], &s[0..0]);
-    }
-    let end = end.unwrap();
-    Node::Lit(&s[..start], &s[start..end + 1], &s[end + 1..])
+    let res = if let None = start {
+            (s, &s[0..0], &s[0..0])
+        } else {
+            let start = start.unwrap();
+            let end = s.iter().rposition(&is_ws);
+            if let None = end {
+                (&s[..start], &s[start..], &s[0..0])
+            } else {
+                let end = end.unwrap();
+                (&s[..start], &s[start..end + 1], &s[end + 1..])
+            }
+        };
+    Node::Lit(str::from_utf8(res.0).unwrap(),
+              str::from_utf8(res.1).unwrap(),
+              str::from_utf8(res.2).unwrap())
 }
 
 fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
@@ -68,9 +74,13 @@ named!(expr_str_lit<Expr>, map!(
     |s| Expr::StrLit(str::from_utf8(s).unwrap())
 ));
 
-named!(expr_var<Expr>, map!(nom::alphanumeric, Expr::Var));
+named!(expr_var<Expr>, map!(nom::alphanumeric,
+    |s| Expr::Var(str::from_utf8(s).unwrap())
+));
 
-named!(target_single<Target>, map!(nom::alphanumeric, Target::Name));
+named!(target_single<Target>, map!(nom::alphanumeric,
+    |s| Target::Name(str::from_utf8(s).unwrap())
+));
 
 fn expr_filtered(i: &[u8]) -> IResult<&[u8], Expr> {
     let (mut left, mut expr) = match expr_var(i) {
@@ -225,7 +235,7 @@ pub fn parse(src: &str) -> Vec<Node> {
 
 #[cfg(test)]
 mod tests {
-    fn check_ws_split(s: &str, res: &(&[u8], &[u8], &[u8])) {
+    fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
         let node = super::split_ws_parts(s.as_bytes());
         match node {
             super::Node::Lit(lws, s, rws) => {
@@ -238,10 +248,10 @@ mod tests {
     }
     #[test]
     fn test_ws_splitter() {
-        check_ws_split("a", &(b"", b"a", b""));
-        check_ws_split("", &(b"", b"", b""));
-        check_ws_split("\ta", &(b"\t", b"a", b""));
-        check_ws_split("b\n", &(b"", b"b", b"\n"));
-        check_ws_split(" \t\r\n", &(b" \t\r\n", b"", b""));
+        check_ws_split("", &("", "", ""));
+        check_ws_split("a", &("", "a", ""));
+        check_ws_split("\ta", &("\t", "a", ""));
+        check_ws_split("b\n", &("", "b", "\n"));
+        check_ws_split(" \t\r\n", &(" \t\r\n", "", ""));
     }
 }
