@@ -33,9 +33,7 @@ fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
         if *c == b'{' {
             if i.len() < j + 2 {
                 return IResult::Done(&i[..0], Node::Lit(&i[..]));
-            } else if i[j + 1] == '{' as u8 {
-                return IResult::Done(&i[j..], Node::Lit(&i[..j]));
-            } else if i[j + 1] == '%' as u8 {
+            } else if i[j + 1] == b'{' || i[j + 1] == b'%' {
                 return IResult::Done(&i[j..], Node::Lit(&i[..j]));
             }
         }
