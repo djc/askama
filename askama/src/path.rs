@@ -3,10 +3,14 @@ use std::fs::{self, DirEntry, File};
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
-pub fn get_template_source(tpl_file: &str) -> String {
-    let root = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let mut path = PathBuf::from(root);
+fn template_dir() -> PathBuf {
+    let mut path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     path.push("templates");
+    path
+}
+
+pub fn get_template_source(tpl_file: &str) -> String {
+    let mut path = template_dir();
     path.push(Path::new(tpl_file));
     let mut f = File::open(path).unwrap();
     let mut s = String::new();
@@ -30,8 +34,7 @@ fn visit_dirs(dir: &Path, cb: &Fn(&DirEntry)) -> io::Result<()> {
 }
 
 pub fn rerun_if_templates_changed() {
-    let root = env::var("CARGO_MANIFEST_DIR").unwrap();
-    visit_dirs(&Path::new(&root).join("templates"), &|e: &DirEntry| {
+    visit_dirs(&template_dir(), &|e: &DirEntry| {
         println!("cargo:rerun-if-changed={}", e.path().to_str().unwrap());
     }).unwrap();
 }
