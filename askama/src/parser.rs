@@ -13,7 +13,7 @@ pub enum Target<'a> {
 }
 
 pub enum Node<'a> {
-    Lit(&'a [u8]),
+    Lit(&'a [u8], &'a [u8], &'a [u8]),
     Expr(Expr<'a>),
     Cond(Vec<(Option<Expr<'a>>, Vec<Node<'a>>)>),
     Loop(Target<'a>, Expr<'a>, Vec<Node<'a>>),
@@ -24,6 +24,26 @@ pub enum Node<'a> {
 
 pub type Cond<'a> = (Option<Expr<'a>>, Vec<Node<'a>>);
 
+fn split_ws_parts(s: &[u8]) -> Node {
+    if s.is_empty() {
+        return Node::Lit(s, s, s);
+    }
+    let is_ws = |c: &u8| {
+        *c != b' ' && *c != b'\t' && *c != b'\r' && *c != b'\n'
+    };
+    let start = s.iter().position(&is_ws);
+    if let None = start {
+        return Node::Lit(s, &s[0..0], &s[0..0]);
+    }
+    let start = start.unwrap();
+    let end = s.iter().rposition(&is_ws);
+    if let None = end {
+        return Node::Lit(&s[..start], &s[start..], &s[0..0]);
+    }
+    let end = end.unwrap();
+    Node::Lit(&s[..start], &s[start..end + 1], &s[end + 1..])
+}
+
 fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
     if i.len() < 1 || i[0] == b'{' {
         return IResult::Error(error_position!(nom::ErrorKind::TakeUntil, i));
@@ -31,13 +51,13 @@ fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
     for (j, c) in i.iter().enumerate() {
         if *c == b'{' {
             if i.len() < j + 2 {
-                return IResult::Done(&i[..0], Node::Lit(&i[..]));
+                return IResult::Done(&i[..0], split_ws_parts(&i[..]));
             } else if i[j + 1] == b'{' || i[j + 1] == b'%' {
-                return IResult::Done(&i[j..], Node::Lit(&i[..j]));
+                return IResult::Done(&i[j..], split_ws_parts(&i[..j]));
             }
         }
     }
-    IResult::Done(&i[..0], Node::Lit(&i[..]))
+    IResult::Done(&i[..0], split_ws_parts(&i[..]))
 }
 
 named!(expr_str_lit<Expr>, map!(
