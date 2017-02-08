@@ -131,7 +131,7 @@ impl Generator {
     }
 
     fn write_cond(&mut self, conds: &[Cond]) {
-        for (i, &(ref cond, ref nodes)) in conds.iter().enumerate() {
+        for (i, &(_, ref cond, ref nodes)) in conds.iter().enumerate() {
             match *cond {
                 Some(ref expr) => {
                     if i == 0 {
@@ -195,13 +195,13 @@ impl Generator {
                     self.write_lit(val);
                     self.write_lit(rws);
                 },
-                Node::Expr(ref val) => { self.write_expr(val); },
-                Node::Cond(ref conds) => { self.write_cond(conds); },
-                Node::Loop(ref var, ref iter, ref body) => {
+                Node::Expr(_, ref val) => { self.write_expr(val); },
+                Node::Cond(ref conds, _) => { self.write_cond(conds); },
+                Node::Loop(_, ref var, ref iter, ref body, _) => {
                     self.write_loop(var, iter, body);
                 },
-                Node::Block(name) => { self.write_block(name) },
-                Node::BlockDef(name, ref block_nodes) => {
+                Node::Block(_, name, _) => { self.write_block(name) },
+                Node::BlockDef(_, name, ref block_nodes, _) => {
                     self.write_block_def(name, block_nodes);
                 }
                 Node::Extends(_) => {
@@ -301,9 +301,9 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
                     None => { base = Some(path); },
                 }
             },
-            Node::BlockDef(name, _) => {
+            Node::BlockDef(ws1, name, _, ws2) => {
                 blocks.push(n);
-                content.push(Node::Block(name));
+                content.push(Node::Block(ws1, name, ws2));
             },
             _ => { content.push(n); },
         }

@@ -12,17 +12,20 @@ pub enum Target<'a> {
     Name(&'a [u8]),
 }
 
+#[derive(Clone, Copy)]
+pub struct WS(bool, bool);
+
 pub enum Node<'a> {
     Lit(&'a [u8], &'a [u8], &'a [u8]),
-    Expr(Expr<'a>),
-    Cond(Vec<(Option<Expr<'a>>, Vec<Node<'a>>)>),
-    Loop(Target<'a>, Expr<'a>, Vec<Node<'a>>),
+    Expr(WS, Expr<'a>),
+    Cond(Vec<(WS, Option<Expr<'a>>, Vec<Node<'a>>)>, WS),
+    Loop(WS, Target<'a>, Expr<'a>, Vec<Node<'a>>, WS),
     Extends(Expr<'a>),
-    BlockDef(&'a str, Vec<Node<'a>>),
-    Block(&'a str),
+    BlockDef(WS, &'a str, Vec<Node<'a>>, WS),
+    Block(WS, &'a str, WS),
 }
 
-pub type Cond<'a> = (Option<Expr<'a>>, Vec<Node<'a>>);
+pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
 
 fn split_ws_parts(s: &[u8]) -> Node {
     if s.is_empty() {
@@ -110,9 +113,13 @@ named!(expr_any<Expr>, alt!(
     expr_str_lit
 ));
 
-named!(expr_node<Node>, map!(
-    delimited!(tag_s!("{{"), ws!(expr_any), tag_s!("}}")),
-    Node::Expr
+named!(expr_node<Node>, do_parse!(
+    tag_s!("{{") >>
+    pws: opt!(tag_s!("-")) >>
+    expr: ws!(expr_any) >>
+    nws: opt!(tag_s!("-")) >>
+    tag_s!("}}") >>
+    (Node::Expr(WS(pws.is_some(), nws.is_some()), expr))
 ));
 
 named!(cond_if<Expr>, do_parse!(
@@ -123,42 +130,54 @@ named!(cond_if<Expr>, do_parse!(
 
 named!(cond_block<Cond>, do_parse!(
     tag_s!("{%") >>
+    pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("else")) >>
     cond: opt!(cond_if) >>
+    nws: opt!(tag_s!("-")) >>
     tag_s!("%}") >>
     block: parse_template >>
-    (cond, block)
+    (WS(pws.is_some(), nws.is_some()), cond, block)
 ));
 
 named!(block_if<Node>, do_parse!(
     tag_s!("{%") >>
+    pws1: opt!(tag_s!("-")) >>
     cond: ws!(cond_if) >>
+    nws1: opt!(tag_s!("-")) >>
     tag_s!("%}") >>
     block: parse_template >>
     elifs: many0!(cond_block) >>
     tag_s!("{%") >>
+    pws2: opt!(tag_s!("-")) >>
     ws!(tag_s!("endif")) >>
+    nws2: opt!(tag_s!("-")) >>
     tag_s!("%}") >>
     ({
        let mut res = Vec::new();
-       res.push((Some(cond), block));
+       res.push((WS(pws1.is_some(), nws1.is_some()), Some(cond), block));
        res.extend(elifs);
-       Node::Cond(res)
+       Node::Cond(res, WS(pws2.is_some(), nws2.is_some()))
     })
 ));
 
 named!(block_for<Node>, do_parse!(
     tag_s!("{%") >>
+    pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("for")) >>
     var: ws!(target_single) >>
     ws!(tag_s!("in")) >>
     iter: ws!(expr_any) >>
+    nws1: opt!(tag_s!("-")) >>
     tag_s!("%}") >>
     block: parse_template >>
     tag_s!("{%") >>
+    pws2: opt!(tag_s!("-")) >>
     ws!(tag_s!("endfor")) >>
+    nws2: opt!(tag_s!("-")) >>
     tag_s!("%}") >>
-    (Node::Loop(var, iter, block))
+    (Node::Loop(WS(pws1.is_some(), nws1.is_some()),
+                var, iter, block,
+                WS(pws2.is_some(), pws2.is_some())))
 ));
 
 named!(block_extends<Node>, do_parse!(
@@ -171,14 +190,20 @@ named!(block_extends<Node>, do_parse!(
 
 named!(block_block<Node>, do_parse!(
     tag_s!("{%") >>
+    pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("block")) >>
     name: ws!(nom::alphanumeric) >>
+    nws1: opt!(tag_s!("-")) >>
     tag_s!("%}") >>
     contents: parse_template >>
     tag_s!("{%") >>
+    pws2: opt!(tag_s!("-")) >>
     ws!(tag_s!("endblock")) >>
+    nws2: opt!(tag_s!("-")) >>
     tag_s!("%}") >>
-    (Node::BlockDef(str::from_utf8(name).unwrap(), contents))
+    (Node::BlockDef(WS(pws1.is_some(), nws1.is_some()),
+                    str::from_utf8(name).unwrap(), contents,
+                    WS(pws2.is_some(), pws2.is_some())))
 ));
 
 named!(parse_template<Vec<Node<'a>>>, many0!(alt!(
