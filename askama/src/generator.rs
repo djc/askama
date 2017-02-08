@@ -117,8 +117,10 @@ impl Generator {
         }
     }
 
-    fn write_lit(&mut self, s: &str) {
-        self.write(&format!("writer.write_str({:#?}).unwrap();", s));
+    fn write_lit(&mut self, lws: &str, val: &str, rws: &str) {
+        self.write(&format!("writer.write_str({:#?}).unwrap();", lws));
+        self.write(&format!("writer.write_str({:#?}).unwrap();", val));
+        self.write(&format!("writer.write_str({:#?}).unwrap();", rws));
     }
 
     fn write_expr(&mut self, s: &Expr) {
@@ -187,11 +189,7 @@ impl Generator {
     fn handle(&mut self, nodes: &[Node]) {
         for n in nodes {
             match *n {
-                Node::Lit(lws, val, rws) => {
-                    self.write_lit(lws);
-                    self.write_lit(val);
-                    self.write_lit(rws);
-                },
+                Node::Lit(lws, val, rws) => { self.write_lit(lws, val, rws); }
                 Node::Expr(_, ref val) => { self.write_expr(val); },
                 Node::Cond(ref conds, _) => { self.write_cond(conds); },
                 Node::Loop(_, ref var, ref iter, ref body, _) => {
