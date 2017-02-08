@@ -21,14 +21,11 @@ fn get_path_from_attrs(attrs: &[syn::Attribute]) -> String {
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
-    let source = input.to_string();
-
-    let ast = syn::parse_derive_input(&source).unwrap();
-    let _ctx = match ast.body {
+    let ast = syn::parse_derive_input(&input.to_string()).unwrap();
+    match ast.body {
         syn::Body::Struct(ref data) => data,
         _ => panic!("#[derive(Template)] can only be used with structs"),
     };
-
     let path = get_path_from_attrs(&ast.attrs);
     askama::build_template(&path, &ast).parse().unwrap()
 }
