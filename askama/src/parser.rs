@@ -36,12 +36,12 @@ fn split_ws_parts(s: &[u8]) -> Node {
         *c != b' ' && *c != b'\t' && *c != b'\r' && *c != b'\n'
     };
     let start = s.iter().position(&is_ws);
-    let res = if let None = start {
+    let res = if start.is_none() {
             (s, &s[0..0], &s[0..0])
         } else {
             let start = start.unwrap();
             let end = s.iter().rposition(&is_ws);
-            if let None = end {
+            if end.is_none() {
                 (&s[..start], &s[start..], &s[0..0])
             } else {
                 let end = end.unwrap();
