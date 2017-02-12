@@ -218,7 +218,7 @@ impl<'a> Generator<'a> {
 
     fn write_block(&mut self, ws1: &WS, name: &str, ws2: &WS) {
         self.flush_ws(ws1);
-        self.writeln(&format!("self.render_block_{}_into(writer);", name));
+        self.writeln(&format!("self.render_block_{}_to(writer);", name));
         self.prepare_ws(ws2);
     }
 
@@ -226,7 +226,7 @@ impl<'a> Generator<'a> {
                        ws2: &WS) {
         self.writeln("#[allow(unused_variables)]");
         self.writeln(&format!(
-            "fn render_block_{}_into(&self, writer: &mut std::fmt::Write) {{",
+            "fn render_block_{}_to(&self, writer: &mut std::fmt::Write) {{",
             name));
         self.indent();
         self.prepare_ws(ws1);
@@ -276,7 +276,7 @@ impl<'a> Generator<'a> {
                               anno, ast.ident.as_ref(), anno));
         self.indent();
 
-        self.writeln("fn render_into(&self, writer: &mut std::fmt::Write) {");
+        self.writeln("fn render_to(&self, writer: &mut std::fmt::Write) {");
         self.indent();
         self.handle(nodes);
         self.flush_ws(&WS(false, false));
@@ -305,9 +305,9 @@ impl<'a> Generator<'a> {
                               anno, ast.ident.as_ref(), anno));
         self.indent();
 
-        self.writeln("fn render_into(&self, writer: &mut std::fmt::Write) {");
+        self.writeln("fn render_to(&self, writer: &mut std::fmt::Write) {");
         self.indent();
-        self.writeln("self.render_trait_into(writer);");
+        self.writeln("self.render_trait_to(writer);");
         self.dedent();
         self.writeln("}");
 
@@ -324,7 +324,7 @@ impl<'a> Generator<'a> {
 
         self.handle(blocks);
 
-        self.writeln("fn render_trait_into(&self, writer: &mut std::fmt::Write) {");
+        self.writeln("fn render_trait_to(&self, writer: &mut std::fmt::Write) {");
         self.indent();
         self.handle(nodes);
         self.flush_ws(&WS(false, false));

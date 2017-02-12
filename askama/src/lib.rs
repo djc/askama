@@ -3,10 +3,10 @@ extern crate nom;
 extern crate syn;
 
 pub trait Template {
-    fn render_into(&self, writer: &mut std::fmt::Write);
+    fn render_to(&self, writer: &mut std::fmt::Write);
     fn render(&self) -> String {
         let mut buf = String::new();
-        self.render_into(&mut buf);
+        self.render_to(&mut buf);
         buf
     }
 }
