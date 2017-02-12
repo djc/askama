@@ -337,11 +337,10 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
-    fn define_trait(&mut self, ast: &syn::DeriveInput, path: &str,
-                      block_names: &[&str], nodes: &'a [Node]) {
-        let anno = annotations(&ast.generics);
-        self.writeln(&format!("trait{} TraitFrom{}{} {{", anno,
-                              path_as_identifier(path), anno));
+    fn define_trait(&mut self, path: &str, block_names: &[&str],
+                    nodes: &'a [Node]) {
+        self.writeln(&format!("trait TraitFrom{} {{",
+                              path_as_identifier(path)));
         self.indent();
 
         for bname in block_names {
@@ -394,7 +393,7 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
     if !blocks.is_empty() {
         gen.struct_impl(ast, &blocks);
         if base.is_none() {
-            gen.define_trait(ast, path, &block_names, &content);
+            gen.define_trait(path, &block_names, &content);
         }
         let tmpl_path = match base {
             Some(Expr::StrLit(base_path)) => { base_path },
