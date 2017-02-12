@@ -219,7 +219,7 @@ impl<'a> Generator<'a> {
 
     fn write_block(&mut self, ws1: &WS, name: &str, ws2: &WS) {
         self.flush_ws(ws1);
-        self.writeln(&format!("self.render_block_{}_to(writer);", name));
+        self.writeln(&format!("timpl.render_block_{}_to(writer);", name));
         self.prepare_ws(ws2);
     }
 
@@ -271,12 +271,27 @@ impl<'a> Generator<'a> {
         self.writeln(&s);
     }
 
-    fn struct_impl(&mut self, ast: &syn::DeriveInput, blocks: &'a [Node]) {
+    fn struct_impl(&mut self, ast: &syn::DeriveInput, path: &str,
+                   blocks: &'a [Node], nodes: Option<&'a [Node]>) {
         let anno = annotations(&ast.generics);
         self.writeln(&format!("impl{} {}{} {{", anno, ast.ident.as_ref(),
                               anno));
         self.indent();
+
         self.handle(blocks);
+
+        if let Some(nodes) = nodes {
+            let trait_name = format!("TraitFrom{}", path_as_identifier(path));
+            self.writeln(&format!("fn render_trait_to(&self, timpl: &{},",
+                                  trait_name));
+            self.writeln("                   writer: &mut std::fmt::Write) {");
+            self.indent();
+            self.handle(nodes);
+            self.flush_ws(&WS(false, false));
+            self.dedent();
+            self.writeln("}");
+        }
+
         self.dedent();
         self.writeln("}");
     }
@@ -321,7 +336,7 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
-    fn impl_template_for_trait(&mut self, ast: &syn::DeriveInput) {
+    fn impl_template_for_trait(&mut self, ast: &syn::DeriveInput, derived: bool) {
         let anno = annotations(&ast.generics);
         self.writeln(&format!("impl{} askama::Template for {}{} {{",
                               anno, ast.ident.as_ref(), anno));
@@ -329,7 +344,11 @@ impl<'a> Generator<'a> {
 
         self.writeln("fn render_to(&self, writer: &mut std::fmt::Write) {");
         self.indent();
-        self.writeln("self.render_trait_to(writer);");
+        if derived {
+            self.writeln("self._parent.render_trait_to(self, writer);");
+        } else {
+            self.writeln("self.render_trait_to(self, writer);");
+        }
         self.dedent();
         self.writeln("}");
 
@@ -337,8 +356,7 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
-    fn define_trait(&mut self, path: &str, block_names: &[&str],
-                    nodes: &'a [Node]) {
+    fn define_trait(&mut self, path: &str, block_names: &[&str]) {
         self.writeln(&format!("trait TraitFrom{} {{",
                               path_as_identifier(path)));
         self.indent();
@@ -348,13 +366,6 @@ impl<'a> Generator<'a> {
                 "fn render_block_{}_to(&self, writer: &mut std::fmt::Write);",
                 bname));
         }
-
-        self.writeln("fn render_trait_to(&self, writer: &mut std::fmt::Write) {");
-        self.indent();
-        self.handle(nodes);
-        self.flush_ws(&WS(false, false));
-        self.dedent();
-        self.writeln("}");
 
         self.dedent();
         self.writeln("}");
@@ -391,16 +402,18 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
     let mut gen = Generator::new();
     gen.path_based_name(ast, path);
     if !blocks.is_empty() {
-        gen.struct_impl(ast, &blocks);
         if base.is_none() {
-            gen.define_trait(path, &block_names, &content);
+            gen.struct_impl(ast, path, &blocks, Some(&content));
+            gen.define_trait(path, &block_names);
+        } else {
+            gen.struct_impl(ast, path, &blocks, None);
         }
         let tmpl_path = match base {
             Some(Expr::StrLit(base_path)) => { base_path },
             _ => { path },
         };
         gen.impl_trait(ast, tmpl_path, &block_names);
-        gen.impl_template_for_trait(ast);
+        gen.impl_template_for_trait(ast, base.is_some());
     } else {
         gen.impl_template(ast, &content);
     }

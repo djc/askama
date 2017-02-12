@@ -10,7 +10,9 @@ struct BaseTemplate { }
 
 #[derive(Template)]
 #[template(path = "child.html")]
-struct ChildTemplate { }
+struct ChildTemplate {
+    _parent: BaseTemplate,
+}
 
 #[test]
 fn test_use_base_directly() {
@@ -20,6 +22,6 @@ fn test_use_base_directly() {
 
 #[test]
 fn test_simple_extends() {
-    let t = ChildTemplate { };
+    let t = ChildTemplate { _parent: BaseTemplate {} };
     assert_eq!(t.render(), "Content goes here\nCopyright 2017\n");
 }
