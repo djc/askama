@@ -125,8 +125,8 @@ impl<'a> Generator<'a> {
         if self.next_ws.is_some() && !ws.0 {
             let val = self.next_ws.unwrap();
             if !val.is_empty() {
-                self.write(&format!("writer.write_str({:#?}).unwrap();",
-                                    val));
+                self.writeln(&format!("writer.write_str({:#?}).unwrap();",
+                                      val));
             }
         } else if self.next_ws.is_some() {
         }
@@ -151,11 +151,12 @@ impl<'a> Generator<'a> {
                 assert!(rws.is_empty());
                 self.next_ws = Some(lws);
             } else {
-                self.write(&format!("writer.write_str({:#?}).unwrap();", lws));
+                self.writeln(&format!("writer.write_str({:#?}).unwrap();",
+                                      lws));
             }
         }
         if !val.is_empty() {
-            self.write(&format!("writer.write_str({:#?}).unwrap();", val));
+            self.writeln(&format!("writer.write_str({:#?}).unwrap();", val));
         }
         if !rws.is_empty() {
             self.next_ws = Some(rws);
