@@ -281,7 +281,7 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
-    fn template_impl(&mut self, ast: &syn::DeriveInput, nodes: &'a [Node]) {
+    fn impl_template(&mut self, ast: &syn::DeriveInput, nodes: &'a [Node]) {
         let anno = annotations(&ast.generics);
         self.writeln(&format!("impl{} askama::Template for {}{} {{",
                               anno, ast.ident.as_ref(), anno));
@@ -298,7 +298,7 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
-    fn trait_impl(&mut self, ast: &syn::DeriveInput, base: &str,
+    fn impl_trait(&mut self, ast: &syn::DeriveInput, base: &str,
                   block_names: &[&str]) {
         let anno = annotations(&ast.generics);
         self.writeln(&format!("impl{} TraitFrom{} for {}{} {{",
@@ -321,7 +321,7 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
-    fn trait_based_impl(&mut self, ast: &syn::DeriveInput) {
+    fn impl_template_for_trait(&mut self, ast: &syn::DeriveInput) {
         let anno = annotations(&ast.generics);
         self.writeln(&format!("impl{} askama::Template for {}{} {{",
                               anno, ast.ident.as_ref(), anno));
@@ -337,7 +337,7 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
-    fn template_trait(&mut self, ast: &syn::DeriveInput, path: &str,
+    fn define_trait(&mut self, ast: &syn::DeriveInput, path: &str,
                       block_names: &[&str], nodes: &'a [Node]) {
         let anno = annotations(&ast.generics);
         self.writeln(&format!("trait{} TraitFrom{}{} {{", anno,
@@ -394,16 +394,16 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
     if !blocks.is_empty() {
         gen.struct_impl(ast, &blocks);
         if base.is_none() {
-            gen.template_trait(ast, path, &block_names, &content);
+            gen.define_trait(ast, path, &block_names, &content);
         }
         let tmpl_path = match base {
             Some(Expr::StrLit(base_path)) => { base_path },
             _ => { path },
         };
-        gen.trait_impl(ast, tmpl_path, &block_names);
-        gen.trait_based_impl(ast);
+        gen.impl_trait(ast, tmpl_path, &block_names);
+        gen.impl_template_for_trait(ast);
     } else {
-        gen.template_impl(ast, &content);
+        gen.impl_template(ast, &content);
     }
     gen.result()
 }
