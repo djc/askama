@@ -6,22 +6,24 @@ use askama::Template;
 
 #[derive(Template)]
 #[template(path = "base.html")]
-struct BaseTemplate { }
+struct BaseTemplate<'a> {
+    title: &'a str,
+}
 
 #[derive(Template)]
 #[template(path = "child.html")]
-struct ChildTemplate {
-    _parent: BaseTemplate,
+struct ChildTemplate<'a> {
+    _parent: BaseTemplate<'a>,
 }
 
 #[test]
 fn test_use_base_directly() {
-    let t = BaseTemplate {};
-    assert_eq!(t.render(), "\nCopyright 2017\n");
+    let t = BaseTemplate { title: "Foo" };
+    assert_eq!(t.render(), "Foo\n\nCopyright 2017\n");
 }
 
 #[test]
 fn test_simple_extends() {
-    let t = ChildTemplate { _parent: BaseTemplate {} };
-    assert_eq!(t.render(), "Content goes here\nCopyright 2017\n");
+    let t = ChildTemplate { _parent: BaseTemplate { title: "Bar" } };
+    assert_eq!(t.render(), "Bar\nContent goes here\nCopyright 2017\n");
 }
