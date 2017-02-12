@@ -13,6 +13,12 @@ struct BaseTemplate { }
 struct ChildTemplate { }
 
 #[test]
+fn test_use_base_directly() {
+    let t = BaseTemplate {};
+    assert_eq!(t.render(), "\nCopyright 2017\n");
+}
+
+#[test]
 fn test_simple_extends() {
     let t = ChildTemplate { };
     assert_eq!(t.render(), "Content goes here\nCopyright 2017\n");
