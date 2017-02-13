@@ -15,5 +15,5 @@ struct OperatorsTemplate {
 #[test]
 fn test_operators() {
     let t = OperatorsTemplate { a: 1, b: 1, c: 2 };
-    assert_eq!(t.render(), "tf\ntf\ntf\ntf\ntf\ntf\n");
+    assert_eq!(t.render(), "tf\ntf\ntf\ntf\ntf\ntf\nmul\ndiv\nmod\n");
 }
