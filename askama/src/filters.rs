@@ -4,7 +4,7 @@ fn escapable(b: &u8) -> bool {
     *b == b'<' || *b == b'>' || *b == b'&'
 }
 
-pub fn e(s: &fmt::Display) -> String {
+pub fn escape(s: &fmt::Display) -> String {
     let s = format!("{}", s);
     let mut found = Vec::new();
     for (i, b) in s.as_bytes().iter().enumerate() {
@@ -39,14 +39,18 @@ pub fn e(s: &fmt::Display) -> String {
     String::from_utf8(res).unwrap()
 }
 
+pub fn e(s: &fmt::Display) -> String {
+    escape(s)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::e;
+    use super::*;
     #[test]
     fn test_escape() {
-        assert_eq!(e(&""), "");
-        assert_eq!(e(&"<&>"), "&lt;&amp;&gt;");
-        assert_eq!(e(&"bla&"), "bla&amp;");
-        assert_eq!(e(&"<foo"), "&lt;foo");
+        assert_eq!(escape(&""), "");
+        assert_eq!(escape(&"<&>"), "&lt;&amp;&gt;");
+        assert_eq!(escape(&"bla&"), "bla&amp;");
+        assert_eq!(escape(&"<foo"), "&lt;foo");
     }
 }
