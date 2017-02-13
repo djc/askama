@@ -5,7 +5,7 @@ pub enum Expr<'a> {
     StrLit(&'a str),
     Var(&'a str),
     Filter(&'a str, Box<Expr<'a>>),
-    Compare(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
+    BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
 }
 
 pub enum Target<'a> {
@@ -113,8 +113,8 @@ named!(expr_compare<Expr>, do_parse!(
         tag_s!("<=") | tag_s!("<")
     )) >>
     right: expr_filtered >>
-    (Expr::Compare(str::from_utf8(op).unwrap(),
-                   Box::new(left), Box::new(right)))
+    (Expr::BinOp(str::from_utf8(op).unwrap(),
+                 Box::new(left), Box::new(right)))
 ));
 
 named!(expr_any<Expr>, alt!(

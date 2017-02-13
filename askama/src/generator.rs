@@ -95,7 +95,7 @@ impl<'a> Generator<'a> {
         self.write(")");
     }
 
-    fn visit_compare(&mut self, op: &str, left: &Expr, right: &Expr) {
+    fn visit_binop(&mut self, op: &str, left: &Expr, right: &Expr) {
         self.visit_expr(left);
         self.write(&format!(" {} ", op));
         self.visit_expr(right);
@@ -106,8 +106,8 @@ impl<'a> Generator<'a> {
             Expr::StrLit(s) => self.visit_str_lit(s),
             Expr::Var(s) => self.visit_var(s),
             Expr::Filter(name, ref val) => self.visit_filter(name, val),
-            Expr::Compare(op, ref left, ref right) =>
-                self.visit_compare(op, left, right),
+            Expr::BinOp(op, ref left, ref right) =>
+                self.visit_binop(op, left, right),
         }
     }
 
