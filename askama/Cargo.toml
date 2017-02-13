@@ -8,6 +8,5 @@ license = "MIT/Apache-2.0"
 workspace = ".."
 
 [dependencies]
-htmlescape = { git = "https://github.com/veddan/rust-htmlescape" }
 nom = "2.1"
 syn = "0.11"
