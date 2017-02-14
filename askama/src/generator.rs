@@ -77,6 +77,26 @@ impl<'a> Generator<'a> {
         self.start = true;
     }
 
+    fn flush_ws(&mut self, ws: &WS) {
+        if self.next_ws.is_some() && !ws.0 {
+            let val = self.next_ws.unwrap();
+            if !val.is_empty() {
+                self.writeln(&format!("writer.write_str({:#?}).unwrap();",
+                                      val));
+            }
+        }
+        self.next_ws = None;
+    }
+
+    fn prepare_ws(&mut self, ws: &WS) {
+        self.skip_ws = ws.1;
+    }
+
+    fn handle_ws(&mut self, ws: &WS) {
+        self.flush_ws(ws);
+        self.prepare_ws(ws);
+    }
+
     fn visit_str_lit(&mut self, s: &str) {
         self.write(&format!("\"{}\"", s));
     }
@@ -119,26 +139,6 @@ impl<'a> Generator<'a> {
         match *target {
             Target::Name(s) => { self.visit_target_single(s) },
         }
-    }
-
-    fn flush_ws(&mut self, ws: &WS) {
-        if self.next_ws.is_some() && !ws.0 {
-            let val = self.next_ws.unwrap();
-            if !val.is_empty() {
-                self.writeln(&format!("writer.write_str({:#?}).unwrap();",
-                                      val));
-            }
-        }
-        self.next_ws = None;
-    }
-
-    fn prepare_ws(&mut self, ws: &WS) {
-        self.skip_ws = ws.1;
-    }
-
-    fn handle_ws(&mut self, ws: &WS) {
-        self.flush_ws(ws);
-        self.prepare_ws(ws);
     }
 
     fn write_lit(&mut self, lws: &'a str, val: &str, rws: &'a str) {
