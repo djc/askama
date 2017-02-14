@@ -72,7 +72,13 @@ impl<'a> Generator<'a> {
         if s.is_empty() {
             return;
         }
+        if s == "}" {
+            self.dedent();
+        }
         self.write(s);
+        if s.ends_with('{') {
+            self.indent();
+        }
         self.buf.push('\n');
         self.start = true;
     }
@@ -177,16 +183,18 @@ impl<'a> Generator<'a> {
                     if i == 0 {
                         self.write("if ");
                     } else {
+                        self.dedent();
                         self.write("} else if ");
                     }
                     self.visit_expr(expr);
                 },
-                None => { self.write("} else"); },
+                None => {
+                    self.dedent();
+                    self.write("} else");
+                },
             }
             self.writeln(" {");
-            self.indent();
             self.handle(nodes);
-            self.dedent();
         }
         self.handle_ws(ws);
         self.writeln("}");
@@ -206,10 +214,8 @@ impl<'a> Generator<'a> {
         self.visit_expr(iter);
         self.writeln(" {");
 
-        self.indent();
         self.handle(body);
         self.handle_ws(ws2);
-        self.dedent();
         self.writeln("}");
         for name in &targets {
             self.locals.remove(name);
@@ -228,11 +234,9 @@ impl<'a> Generator<'a> {
         self.writeln(&format!(
             "fn render_block_{}_to(&self, writer: &mut std::fmt::Write) {{",
             name));
-        self.indent();
         self.prepare_ws(ws1);
         self.handle(nodes);
         self.flush_ws(ws2);
-        self.dedent();
         self.writeln("}");
     }
 
@@ -274,16 +278,11 @@ impl<'a> Generator<'a> {
         let anno = annotations(&ast.generics);
         self.writeln(&format!("impl{} askama::Template for {}{} {{",
                               anno, ast.ident.as_ref(), anno));
-        self.indent();
 
         self.writeln("fn render_to(&self, writer: &mut std::fmt::Write) {");
-        self.indent();
         self.handle(nodes);
         self.flush_ws(&WS(false, false));
-        self.dedent();
         self.writeln("}");
-
-        self.dedent();
         self.writeln("}");
     }
 
@@ -293,7 +292,6 @@ impl<'a> Generator<'a> {
         self.writeln(&format!("impl{} TraitFrom{} for {}{} {{",
                               anno, path_as_identifier(base),
                               ast.ident.as_ref(), anno));
-        self.indent();
         self.handle(blocks);
 
         self.writeln("#[allow(unused_variables)]");
@@ -301,7 +299,6 @@ impl<'a> Generator<'a> {
         self.writeln(&format!(
             "fn render_trait_to(&self, timpl: &{}, writer: &mut std::fmt::Write) {{",
             trait_name));
-        self.indent();
 
         if let Some(nodes) = nodes {
             self.handle(nodes);
@@ -310,10 +307,8 @@ impl<'a> Generator<'a> {
             self.writeln("self._parent.render_trait_to(self, writer);");
         }
 
-        self.dedent();
         self.writeln("}");
         self.flush_ws(&WS(false, false));
-        self.dedent();
         self.writeln("}");
     }
 
@@ -321,26 +316,19 @@ impl<'a> Generator<'a> {
         let anno = annotations(&ast.generics);
         self.writeln(&format!("impl{} askama::Template for {}{} {{",
                               anno, ast.ident.as_ref(), anno));
-        self.indent();
-
         self.writeln("fn render_to(&self, writer: &mut std::fmt::Write) {");
-        self.indent();
         if derived {
             self.writeln("self._parent.render_trait_to(self, writer);");
         } else {
             self.writeln("self.render_trait_to(self, writer);");
         }
-        self.dedent();
         self.writeln("}");
-
-        self.dedent();
         self.writeln("}");
     }
 
     fn define_trait(&mut self, path: &str, block_names: &[&str]) {
         let trait_name = format!("TraitFrom{}", path_as_identifier(path));
         self.writeln(&format!("trait {} {{", &trait_name));
-        self.indent();
 
         for bname in block_names {
             self.writeln(&format!(
@@ -351,7 +339,6 @@ impl<'a> Generator<'a> {
             "fn render_trait_to(&self, timpl: &{}, writer: &mut std::fmt::Write);",
             trait_name));
 
-        self.dedent();
         self.writeln("}");
     }
 
