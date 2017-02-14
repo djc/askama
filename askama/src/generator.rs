@@ -181,7 +181,7 @@ impl<'a> Generator<'a> {
                     }
                     self.visit_expr(expr);
                 },
-                None => { self.writeln("} else"); },
+                None => { self.write("} else"); },
             }
             self.writeln(" {");
             self.indent();
