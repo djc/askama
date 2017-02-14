@@ -128,7 +128,6 @@ impl<'a> Generator<'a> {
                 self.writeln(&format!("writer.write_str({:#?}).unwrap();",
                                       val));
             }
-        } else if self.next_ws.is_some() {
         }
         self.next_ws = None;
     }
