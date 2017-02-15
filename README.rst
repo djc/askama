@@ -23,6 +23,7 @@ Askama is in heavy development, so it currently has some limitations:
 * Only a small number of built-in template filters have been implemented
 * User-defined template filters are not supported yet
 * Not a lot of documentation has been written
+* Debugging Askama bugs or template problems can be challenging
 
 All feedback welcome. Feel free to file bugs, requests for documentation and
 any other feedback to the `issue tracker`_ or `tweet me`_.
