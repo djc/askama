@@ -12,5 +12,5 @@ workspace = ".."
 proc-macro = true
 
 [dependencies]
-askama = { path = "../askama" }
+askama = "0.1"
 syn = "0.11"
