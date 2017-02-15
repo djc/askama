@@ -95,6 +95,21 @@ In any Rust file inside your crate, add the following:
    }
 
 You should now be able to compile and run this code.
+Askama should generate Rust code like below:
+
+.. code-block:: rust
+   
+   #[allow(dead_code, non_camel_case_types)]
+   type TemplateFromhello2ehtml<'a> = HelloTemplate<'a>;
+   impl<'a> askama::Template for HelloTemplate<'a> {
+       fn render_to(&self, writer: &mut std::fmt::Write) {
+           writer.write_str("Hello,").unwrap();
+           writer.write_str(" ").unwrap();
+           writer.write_fmt(format_args!("{}", self.name)).unwrap();
+           writer.write_str("!").unwrap();
+           writer.write_str("\n").unwrap();
+       }
+   }
 
 Review the `test cases`_ for more examples.
 
