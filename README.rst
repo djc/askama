@@ -94,6 +94,8 @@ In any Rust file inside your crate, add the following:
        println!("{}", hello.render()); // then render it.
    }
 
+You should now be able to compile and run this code.
+
 Review the `test cases`_ for more examples.
 
 .. _test cases: https://github.com/djc/askama/tree/master/testing
