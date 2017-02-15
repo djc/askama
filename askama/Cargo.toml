@@ -2,10 +2,16 @@
 name = "askama"
 version = "0.1.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
-description = "Type-safe compiled templates for Rust"
+description = "Type-safe, compiled Jinja-like templates for Rust"
+keywords = ["markup", "template", "jinja2", "html"]
+categories = ["template-engine"]
+homepage = "https://github.com/djc/askama"
 repository = "https://github.com/djc/askama"
 license = "MIT/Apache-2.0"
 workspace = ".."
+
+[badges]
+travis-ci = { repository = "https://github.com/djc/askama" }
 
 [dependencies]
 nom = "2.1"
