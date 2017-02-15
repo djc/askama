@@ -95,4 +95,4 @@ In any Rust file inside your crate, add the following:
 
 Review the `test cases`_ for more examples.
 
-.. _test cases: https://github.com/djc/askama/tree/master/testing/tests
+.. _test cases: https://github.com/djc/askama/tree/master/testing
