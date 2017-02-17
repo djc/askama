@@ -29,16 +29,16 @@ fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
     let attr = ast.attrs.iter().find(|a| a.name() == "template").unwrap();
     if let syn::MetaItem::List(_, ref inner) = attr.value {
         for nm_item in inner {
-            if let &syn::NestedMetaItem::MetaItem(ref item) = nm_item {
-                if let &syn::MetaItem::NameValue(ref key, ref val) = item {
+            if let syn::NestedMetaItem::MetaItem(ref item) = *nm_item {
+                if let syn::MetaItem::NameValue(ref key, ref val) = *item {
                     match key.as_ref() {
-                        "path" => if let &syn::Lit::Str(ref s, _) = val {
+                        "path" => if let syn::Lit::Str(ref s, _) = *val {
                             path = Some(s.clone());
                         } else {
                             panic!("template path must be string literal");
                         },
-                        "print" => if let &syn::Lit::Str(ref s, _) = val {
-                            print = if s == "true" { true } else { false };
+                        "print" => if let syn::Lit::Str(ref s, _) = *val {
+                            print = s == "true";
                         } else {
                             panic!("print value must be string literal");
                         },
