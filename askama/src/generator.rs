@@ -103,6 +103,10 @@ impl<'a> Generator<'a> {
         self.prepare_ws(ws);
     }
 
+    fn visit_num_lit(&mut self, s: &str) {
+        self.write(s);
+    }
+
     fn visit_str_lit(&mut self, s: &str) {
         self.write(&format!("\"{}\"", s));
     }
@@ -129,6 +133,7 @@ impl<'a> Generator<'a> {
 
     fn visit_expr(&mut self, expr: &Expr) {
         match *expr {
+            Expr::NumLit(s) => self.visit_num_lit(s),
             Expr::StrLit(s) => self.visit_str_lit(s),
             Expr::Var(s) => self.visit_var(s),
             Expr::Filter(name, ref val) => self.visit_filter(name, val),

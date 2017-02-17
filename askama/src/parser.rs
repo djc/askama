@@ -3,6 +3,7 @@ use std::str;
 
 #[derive(Debug)]
 pub enum Expr<'a> {
+    NumLit(&'a str),
     StrLit(&'a str),
     Var(&'a str),
     Filter(&'a str, Box<Expr<'a>>),
@@ -72,6 +73,10 @@ fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
     IResult::Done(&i[..0], split_ws_parts(&i[..]))
 }
 
+named!(expr_num_lit<Expr>, map!(nom::digit,
+    |s| Expr::NumLit(str::from_utf8(s).unwrap())
+));
+
 named!(expr_str_lit<Expr>, map!(
     delimited!(char!('"'), is_not!("\""), char!('"')),
     |s| Expr::StrLit(str::from_utf8(s).unwrap())
@@ -86,6 +91,7 @@ named!(target_single<Target>, map!(alphanumeric,
 ));
 
 named!(expr_single<Expr>, alt!(
+    expr_num_lit |
     expr_str_lit |
     expr_var
 ));
