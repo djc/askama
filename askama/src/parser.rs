@@ -125,9 +125,16 @@ macro_rules! expr_prec_layer {
 }
 
 expr_prec_layer!(expr_muldivmod, expr_single, "*", "/", "%");
-expr_prec_layer!(expr_any, expr_muldivmod,
+expr_prec_layer!(expr_addsub, expr_muldivmod, "+", "-");
+expr_prec_layer!(expr_shifts, expr_addsub, ">>", "<<");
+expr_prec_layer!(expr_band, expr_shifts, "&");
+expr_prec_layer!(expr_bxor, expr_band, "^");
+expr_prec_layer!(expr_bor, expr_bxor, "|");
+expr_prec_layer!(expr_compare, expr_bor,
     "==", "!=", ">=", ">", "<=", "<"
 );
+expr_prec_layer!(expr_and, expr_compare, "&&");
+expr_prec_layer!(expr_any, expr_and, "||");
 
 named!(expr_node<Node>, do_parse!(
     tag_s!("{{") >>
