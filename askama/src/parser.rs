@@ -1,4 +1,4 @@
-use nom::{self, IResult};
+use nom::{self, alphanumeric, IResult};
 use std::str;
 
 #[derive(Debug)]
@@ -77,11 +77,11 @@ named!(expr_str_lit<Expr>, map!(
     |s| Expr::StrLit(str::from_utf8(s).unwrap())
 ));
 
-named!(expr_var<Expr>, map!(nom::alphanumeric,
+named!(expr_var<Expr>, map!(alphanumeric,
     |s| Expr::Var(str::from_utf8(s).unwrap())
 ));
 
-named!(target_single<Target>, map!(nom::alphanumeric,
+named!(target_single<Target>, map!(alphanumeric,
     |s| Target::Name(str::from_utf8(s).unwrap())
 ));
 
@@ -92,7 +92,7 @@ fn expr_filtered(i: &[u8]) -> IResult<&[u8], Expr> {
         IResult::Done(left, res) => (left, res),
     };
     while left[0] == b'|' {
-        match nom::alphanumeric(&left[1..]) {
+        match alphanumeric(&left[1..]) {
             IResult::Error(err) => {
                 return IResult::Error(err);
             },
@@ -218,7 +218,7 @@ named!(block_block<Node>, do_parse!(
     tag_s!("{%") >>
     pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("block")) >>
-    name: ws!(nom::alphanumeric) >>
+    name: ws!(alphanumeric) >>
     nws1: opt!(tag_s!("-")) >>
     tag_s!("%}") >>
     contents: parse_template >>
