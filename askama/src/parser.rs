@@ -85,32 +85,28 @@ named!(target_single<Target>, map!(alphanumeric,
     |s| Target::Name(str::from_utf8(s).unwrap())
 ));
 
-fn expr_filtered(i: &[u8]) -> IResult<&[u8], Expr> {
-    let (mut left, mut expr) = match expr_var(i) {
-        IResult::Error(err) => { return IResult::Error(err); },
-        IResult::Incomplete(needed) => { return IResult::Incomplete(needed); },
-        IResult::Done(left, res) => (left, res),
-    };
-    while left[0] == b'|' {
-        match alphanumeric(&left[1..]) {
-            IResult::Error(err) => {
-                return IResult::Error(err);
-            },
-            IResult::Incomplete(needed) => {
-                return IResult::Incomplete(needed);
-            },
-            IResult::Done(new_left, res) => {
-                left = new_left;
-                expr = Expr::Filter(str::from_utf8(res).unwrap(), Box::new(expr));
-            },
-        };
-    }
-    IResult::Done(left, expr)
-}
-
 named!(expr_single<Expr>, alt!(
-    expr_filtered |
-    expr_str_lit
+    expr_str_lit |
+    expr_var
+));
+
+named!(filter, do_parse!(
+    tag_s!("|") >>
+    fname: alphanumeric >>
+    (fname)
+));
+
+named!(expr_filtered<Expr>, do_parse!(
+    obj: expr_single >>
+    filters: many0!(filter) >>
+    ({
+       let mut res = obj;
+       for f in filters {
+           let fname = str::from_utf8(f).unwrap();
+           res = Expr::Filter(fname, Box::new(res));
+       }
+       res
+    })
 ));
 
 macro_rules! expr_prec_layer {
@@ -127,7 +123,7 @@ macro_rules! expr_prec_layer {
     }
 }
 
-expr_prec_layer!(expr_muldivmod, expr_single, "*", "/", "%");
+expr_prec_layer!(expr_muldivmod, expr_filtered, "*", "/", "%");
 expr_prec_layer!(expr_addsub, expr_muldivmod, "+", "-");
 expr_prec_layer!(expr_shifts, expr_addsub, ">>", "<<");
 expr_prec_layer!(expr_band, expr_shifts, "&");
