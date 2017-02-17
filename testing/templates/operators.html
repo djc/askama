@@ -1,57 +1,9 @@
-{% if a == b -%}
-  t
-{%- endif -%}
-{% if a == c -%}
-  t
-{%- else -%}
-  f
-{%- endif %}
-{% if a != c -%}
-  t
-{%- endif %}
-{%- if a != b -%}
-  t
-{%- else -%}
-  f
-{%- endif %}
-{% if c >= b -%}
-  t
-{%- endif -%}
-{% if b >= c -%}
-  t
-{%- else -%}
-  f
-{%- endif %}
-{% if c > b -%}
-  t
-{%- endif -%}
-{% if a > c -%}
-  t
-{%- else -%}
-  f
-{%- endif %}
-{% if a <= b -%}
-  t
-{%- endif -%}
-{% if c <= b -%}
-  t
-{%- else -%}
-  f
-{%- endif %}
-{% if a < c -%}
-  t
-{%- endif %}
-{%- if a < b -%}
-  t
-{%- else -%}
-  f
-{%- endif %}
 {% if a * c > b -%}
   mul
-{%- endif %}
+{%- endif -%}
 {% if c / c == a -%}
   div
-{%- endif %}
+{%- endif -%}
 {% if a % c == b -%}
   mod
-{%- endif %}
+{%- endif -%}

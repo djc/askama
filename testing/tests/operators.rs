@@ -5,6 +5,21 @@ extern crate askama_derive;
 use askama::Template;
 
 #[derive(Template)]
+#[template(path = "compare.html")]
+struct CompareTemplate {
+    a: usize,
+    b: usize,
+    c: usize,
+}
+
+#[test]
+fn test_compare() {
+    let t = CompareTemplate { a: 1, b: 1, c: 2 };
+    assert_eq!(t.render(), "tf\ntf\ntf\ntf\ntf\ntf\n");
+}
+
+
+#[derive(Template)]
 #[template(path = "operators.html")]
 struct OperatorsTemplate {
     a: usize,
@@ -15,5 +30,5 @@ struct OperatorsTemplate {
 #[test]
 fn test_operators() {
     let t = OperatorsTemplate { a: 1, b: 1, c: 2 };
-    assert_eq!(t.render(), "tf\ntf\ntf\ntf\ntf\ntf\nmul\ndiv\nmod\n");
+    assert_eq!(t.render(), "muldivmod");
 }
