@@ -110,29 +110,24 @@ named!(expr_single<Expr>, alt!(
     expr_str_lit
 ));
 
-named!(expr_muldivmod<Expr>, alt!(
-    do_parse!(
-        left: expr_single >>
-        op: ws!(alt!(tag_s!("*") | tag_s!("/") | tag_s!("%"))) >>
-        right: expr_single >>
-        (Expr::BinOp(str::from_utf8(op).unwrap(),
-                     Box::new(left), Box::new(right)))
-    ) | expr_single
-));
+macro_rules! expr_prec_layer {
+    ( $name:ident, $inner:ident, $( $op:expr ),* ) => {
+        named!($name<Expr>, alt!(
+            do_parse!(
+                left: $inner >>
+                op: ws!(alt!($( tag_s!($op) )|*)) >>
+                right: $inner >>
+                (Expr::BinOp(str::from_utf8(op).unwrap(),
+                             Box::new(left), Box::new(right)))
+            ) | $inner
+        ));
+    }
+}
 
-named!(expr_any<Expr>, alt!(
-    do_parse!(
-        left: expr_muldivmod >>
-        op: ws!(alt!(
-            tag_s!("==") | tag_s!("!=") |
-            tag_s!(">=") | tag_s!(">") |
-            tag_s!("<=") | tag_s!("<")
-        )) >>
-        right: expr_muldivmod >>
-        (Expr::BinOp(str::from_utf8(op).unwrap(),
-                     Box::new(left), Box::new(right)))
-    ) | expr_muldivmod
-));
+expr_prec_layer!(expr_muldivmod, expr_single, "*", "/", "%");
+expr_prec_layer!(expr_any, expr_muldivmod,
+    "==", "!=", ">=", ">", "<=", "<"
+);
 
 named!(expr_node<Node>, do_parse!(
     tag_s!("{{") >>
