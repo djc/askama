@@ -1,6 +1,7 @@
 use nom::{self, IResult};
 use std::str;
 
+#[derive(Debug)]
 pub enum Expr<'a> {
     StrLit(&'a str),
     Var(&'a str),
@@ -8,13 +9,15 @@ pub enum Expr<'a> {
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
 }
 
+#[derive(Debug)]
 pub enum Target<'a> {
     Name(&'a str),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct WS(pub bool, pub bool);
 
+#[derive(Debug)]
 pub enum Node<'a> {
     Lit(&'a str, &'a str, &'a str),
     Expr(WS, Expr<'a>),
