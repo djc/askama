@@ -20,10 +20,12 @@ pub use path::rerun_if_templates_changed;
 
 struct TemplateMeta {
     path: String,
+    print: bool,
 }
 
 fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
     let mut path = None;
+    let mut print = false;
     let attr = ast.attrs.iter().find(|a| a.name() == "template").unwrap();
     if let syn::MetaItem::List(_, ref inner) = attr.value {
         for nm_item in inner {
@@ -35,6 +37,11 @@ fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
                         } else {
                             panic!("template path must be string literal");
                         },
+                        "print" => if let &syn::Lit::Str(ref s, _) = val {
+                            print = if s == "true" { true } else { false };
+                        } else {
+                            panic!("print value must be string literal");
+                        },
                         _ => { panic!("unsupported annotation key found") }
                     }
                 }
@@ -44,12 +51,16 @@ fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
     if path.is_none() {
         panic!("template path not found in struct attributes");
     }
-    TemplateMeta { path: path.unwrap() }
+    TemplateMeta { path: path.unwrap(), print: print }
 }
 
 pub fn build_template(ast: &syn::DeriveInput) -> String {
     let meta = get_template_meta(ast);
     let src = path::get_template_source(&meta.path);
     let nodes = parser::parse(&src);
-    generator::generate(ast, &meta.path, nodes)
+    let code = generator::generate(ast, &meta.path, nodes);
+    if meta.print {
+        println!("{}", code);
+    }
+    code
 }
