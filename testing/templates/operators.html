@@ -7,3 +7,27 @@
 {% if a % c == b -%}
   mod
 {%- endif -%}
+{% if a + b == c -%}
+  add
+{%- endif -%}
+{% if a << b == c -%}
+  rsh
+{%- endif -%}
+{% if c >> b == a -%}
+  lsh
+{%- endif -%}
+{% if a & b == b -%}
+  band
+{%- endif -%}
+{% if b ^ c == a + c -%}
+  bxor
+{%- endif -%}
+{% if b | c == a + c -%}
+  bor
+{%- endif -%}
+{% if a == b && a + b == c -%}
+  and
+{%- endif -%}
+{% if a == c || a == b -%}
+  or
+{%- endif -%}
