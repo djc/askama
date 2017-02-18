@@ -1,4 +1,4 @@
-use nom::{self, alphanumeric, IResult};
+use nom::{self, IResult};
 use std::str;
 
 #[derive(Debug)]
@@ -74,6 +74,20 @@ fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
     IResult::Done(&i[..0], split_ws_parts(&i[..]))
 }
 
+fn identifier(input: &[u8]) -> IResult<&[u8], &str> {
+    if !nom::is_alphabetic(input[0]) && input[0] != b'_' {
+        return IResult::Error(nom::ErrorKind::Custom(0));
+    }
+    for (i, ch) in input.iter().enumerate() {
+        if i == 0 || nom::is_alphanumeric(*ch) || *ch == b'_' {
+            continue;
+        }
+        return IResult::Done(&input[i..],
+                             str::from_utf8(&input[..i]).unwrap());
+    }
+    IResult::Done(&input[1..], str::from_utf8(&input[..1]).unwrap())
+}
+
 named!(expr_num_lit<Expr>, map!(nom::digit,
     |s| Expr::NumLit(str::from_utf8(s).unwrap())
 ));
@@ -83,12 +97,12 @@ named!(expr_str_lit<Expr>, map!(
     |s| Expr::StrLit(str::from_utf8(s).unwrap())
 ));
 
-named!(expr_var<Expr>, map!(alphanumeric,
-    |s| Expr::Var(str::from_utf8(s).unwrap())
-));
+named!(expr_var<Expr>, map!(identifier,
+    |s| Expr::Var(s))
+);
 
-named!(target_single<Target>, map!(alphanumeric,
-    |s| Target::Name(str::from_utf8(s).unwrap())
+named!(target_single<Target>, map!(identifier,
+    |s| Target::Name(s)
 ));
 
 named!(arguments<Option<Vec<Expr>>>, opt!(
@@ -122,16 +136,16 @@ named!(expr_attr<Expr>, alt!(
     do_parse!(
         obj: expr_single >>
         tag_s!(".") >>
-        attr: alphanumeric >>
-        (Expr::Attr(Box::new(obj), str::from_utf8(attr).unwrap()))
+        attr: identifier >>
+        (Expr::Attr(Box::new(obj), attr))
     ) | expr_single
 ));
 
 named!(filter<(&str, Option<Vec<Expr>>)>, do_parse!(
     tag_s!("|") >>
-    fname: alphanumeric >>
+    fname: identifier >>
     args: arguments >>
-    (str::from_utf8(fname).unwrap(), args)
+    (fname, args)
 ));
 
 named!(expr_filtered<Expr>, do_parse!(
@@ -258,7 +272,7 @@ named!(block_block<Node>, do_parse!(
     tag_s!("{%") >>
     pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("block")) >>
-    name: ws!(alphanumeric) >>
+    name: ws!(identifier) >>
     nws1: opt!(tag_s!("-")) >>
     tag_s!("%}") >>
     contents: parse_template >>
@@ -268,7 +282,7 @@ named!(block_block<Node>, do_parse!(
     nws2: opt!(tag_s!("-")) >>
     tag_s!("%}") >>
     (Node::BlockDef(WS(pws1.is_some(), nws1.is_some()),
-                    str::from_utf8(name).unwrap(), contents,
+                    name, contents,
                     WS(pws2.is_some(), pws2.is_some())))
 ));
 
