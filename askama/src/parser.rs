@@ -9,6 +9,7 @@ pub enum Expr<'a> {
     Attr(Box<Expr<'a>>, &'a str),
     Filter(&'a str, Vec<Expr<'a>>),
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
+    Call(Box<Expr<'a>>, &'a str, Vec<Expr<'a>>),
 }
 
 #[derive(Debug)]
@@ -137,7 +138,12 @@ named!(expr_attr<Expr>, alt!(
         obj: expr_single >>
         tag_s!(".") >>
         attr: identifier >>
-        (Expr::Attr(Box::new(obj), attr))
+        args: arguments >>
+        (if args.is_some() {
+            Expr::Call(Box::new(obj), attr, args.unwrap())
+        } else {
+            Expr::Attr(Box::new(obj), attr)
+        })
     ) | expr_single
 ));
 

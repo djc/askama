@@ -146,6 +146,18 @@ impl<'a> Generator<'a> {
         self.visit_expr(right);
     }
 
+    fn visit_call(&mut self, obj: &Expr, method: &str, args: &[Expr]) {
+        self.visit_expr(obj);
+        self.write(&format!(".{}(", method));
+        for (i, arg) in args.iter().enumerate() {
+            if i > 0 {
+                self.write(", ");
+            }
+            self.visit_expr(arg);
+        }
+        self.write(")");
+    }
+
     fn visit_expr(&mut self, expr: &Expr) {
         match *expr {
             Expr::NumLit(s) => self.visit_num_lit(s),
@@ -155,6 +167,8 @@ impl<'a> Generator<'a> {
             Expr::Filter(name, ref args) => self.visit_filter(name, args),
             Expr::BinOp(op, ref left, ref right) =>
                 self.visit_binop(op, left, right),
+            Expr::Call(ref obj, method, ref args) =>
+                self.visit_call(obj, method, args),
         }
     }
 
