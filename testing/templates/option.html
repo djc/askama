@@ -1,0 +1,5 @@
+{% if var.is_some() -%}
+  some: {{ var.unwrap() }}
+{%- else -%}
+  none
+{%- endif %}

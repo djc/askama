@@ -107,3 +107,18 @@ fn test_attr() {
     let t = AttrTemplate { inner: Holder { a: 5 } };
     assert_eq!(t.render(), "5\n");
 }
+
+
+#[derive(Template)]
+#[template(path = "option.html")]
+struct OptionTemplate<'a> {
+    var: Option<&'a str>,
+}
+
+#[test]
+fn test_option() {
+    let some = OptionTemplate { var: Some("foo") };
+    assert_eq!(some.render(), "some: foo\n");
+    let none = OptionTemplate { var: None };
+    assert_eq!(none.render(), "none\n");
+}
