@@ -19,7 +19,6 @@ Currently implemented features:
 
 Askama is in heavy development, so it currently has some limitations:
 
-* Only a small subset of the intended expressions are supported in templates
 * Only a small number of built-in template filters have been implemented
 * User-defined template filters are not supported yet
 * Not a lot of documentation has been written
