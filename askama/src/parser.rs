@@ -7,7 +7,7 @@ pub enum Expr<'a> {
     StrLit(&'a str),
     Var(&'a str),
     Attr(Box<Expr<'a>>, &'a str),
-    Filter(&'a str, Box<Expr<'a>>),
+    Filter(&'a str, Vec<Expr<'a>>),
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
 }
 
@@ -91,6 +91,27 @@ named!(target_single<Target>, map!(alphanumeric,
     |s| Target::Name(str::from_utf8(s).unwrap())
 ));
 
+named!(arguments<Option<Vec<Expr>>>, opt!(
+    do_parse!(
+        tag_s!("(") >>
+        arg0: ws!(opt!(expr_any)) >>
+        args: many0!(do_parse!(
+            tag_s!(",") >>
+            argn: ws!(expr_any) >>
+            (argn)
+        )) >>
+        tag_s!(")") >>
+        ({
+            let mut res = Vec::new();
+            if arg0.is_some() {
+                res.push(arg0.unwrap());
+            }
+            res.extend(args);
+            res
+        })
+    )
+));
+
 named!(expr_single<Expr>, alt!(
     expr_num_lit |
     expr_str_lit |
@@ -106,10 +127,11 @@ named!(expr_attr<Expr>, alt!(
     ) | expr_single
 ));
 
-named!(filter, do_parse!(
+named!(filter<(&str, Option<Vec<Expr>>)>, do_parse!(
     tag_s!("|") >>
     fname: alphanumeric >>
-    (fname)
+    args: arguments >>
+    (str::from_utf8(fname).unwrap(), args)
 ));
 
 named!(expr_filtered<Expr>, do_parse!(
@@ -117,9 +139,15 @@ named!(expr_filtered<Expr>, do_parse!(
     filters: many0!(filter) >>
     ({
        let mut res = obj;
-       for f in filters {
-           let fname = str::from_utf8(f).unwrap();
-           res = Expr::Filter(fname, Box::new(res));
+       for (fname, args) in filters {
+           res = Expr::Filter(fname, {
+               let mut args = match args {
+                   Some(inner) => inner,
+                   None => Vec::new(),
+               };
+               args.insert(0, res);
+               args
+           });
        }
        res
     })
