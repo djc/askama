@@ -90,3 +90,20 @@ fn test_literals() {
     let s = LiteralsTemplate {};
     assert_eq!(s.render(), "a\n");
 }
+
+
+struct Holder {
+    a: usize,
+}
+
+#[derive(Template)]
+#[template(path = "attr.html")]
+struct AttrTemplate {
+    inner: Holder,
+}
+
+#[test]
+fn test_attr() {
+    let t = AttrTemplate { inner: Holder { a: 5 } };
+    assert_eq!(t.render(), "5\n");
+}
