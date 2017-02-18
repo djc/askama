@@ -125,7 +125,12 @@ impl<'a> Generator<'a> {
     }
 
     fn visit_filter(&mut self, name: &str, args: &[Expr]) {
-        self.write(&format!("askama::filters::{}(&", name));
+        if name == "format" {
+            self.write("format!(");
+        } else {
+            self.write(&format!("askama::filters::{}(&", name));
+        }
+
         for (i, arg) in args.iter().enumerate() {
             if i > 0 {
                 self.write(", &");

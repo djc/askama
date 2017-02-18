@@ -43,6 +43,10 @@ pub fn e(s: &fmt::Display) -> String {
     escape(s)
 }
 
+/// This is actually unused; format filter calls are forwarded directly to
+/// the format!() macro in the code generator (see `visit_filter()`).
+pub fn format() { }
+
 #[cfg(test)]
 mod tests {
     use super::*;
