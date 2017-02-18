@@ -119,6 +119,11 @@ impl<'a> Generator<'a> {
         }
     }
 
+    fn visit_attr(&mut self, obj: &Expr, attr: &str) {
+        self.visit_expr(obj);
+        self.write(&format!(".{}", attr));
+    }
+
     fn visit_filter(&mut self, name: &str, val: &Expr) {
         self.write(&format!("askama::filters::{}(&", name));
         self.visit_expr(val);
@@ -136,6 +141,7 @@ impl<'a> Generator<'a> {
             Expr::NumLit(s) => self.visit_num_lit(s),
             Expr::StrLit(s) => self.visit_str_lit(s),
             Expr::Var(s) => self.visit_var(s),
+            Expr::Attr(ref obj, name) => self.visit_attr(obj, name),
             Expr::Filter(name, ref val) => self.visit_filter(name, val),
             Expr::BinOp(op, ref left, ref right) =>
                 self.visit_binop(op, left, right),

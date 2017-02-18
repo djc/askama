@@ -6,6 +6,7 @@ pub enum Expr<'a> {
     NumLit(&'a str),
     StrLit(&'a str),
     Var(&'a str),
+    Attr(Box<Expr<'a>>, &'a str),
     Filter(&'a str, Box<Expr<'a>>),
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
 }
@@ -96,6 +97,15 @@ named!(expr_single<Expr>, alt!(
     expr_var
 ));
 
+named!(expr_attr<Expr>, alt!(
+    do_parse!(
+        obj: expr_single >>
+        tag_s!(".") >>
+        attr: alphanumeric >>
+        (Expr::Attr(Box::new(obj), str::from_utf8(attr).unwrap()))
+    ) | expr_single
+));
+
 named!(filter, do_parse!(
     tag_s!("|") >>
     fname: alphanumeric >>
@@ -103,7 +113,7 @@ named!(filter, do_parse!(
 ));
 
 named!(expr_filtered<Expr>, do_parse!(
-    obj: expr_single >>
+    obj: expr_attr >>
     filters: many0!(filter) >>
     ({
        let mut res = obj;
