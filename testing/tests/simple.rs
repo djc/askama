@@ -77,7 +77,7 @@ fn test_for() {
     let s = ForTemplate {
         strings: vec!["A", "alfa", "1"],
     };
-    assert_eq!(s.render(), "\n  A\n\n  alfa\n\n  1\n\n");
+    assert_eq!(s.render(), "0. A\n1. alfa\n2. 1\n\n");
 }
 
 
