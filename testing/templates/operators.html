@@ -22,7 +22,7 @@
 {% if b ^ c == a + c -%}
   bxor
 {%- endif -%}
-{% if b | c == a + c -%}
+{% if (b | c) == a + c -%}
   bor
 {%- endif -%}
 {% if a == b && a + b == c -%}
