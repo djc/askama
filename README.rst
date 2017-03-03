@@ -39,16 +39,16 @@ How to get started
 
 First, add the following to your crate's ``Cargo.toml``:
 
-.. code-block::
+.. code-block:: toml
    
-   // in section [package]
+   # in section [package]
    build = "build.rs"
    
-   // in section [dependencies]
+   # in section [dependencies]
    askama = "0.1"
    askama_derive = "0.1"
    
-   // in section [build-dependencies]
+   # in section [build-dependencies]
    askama = "0.1"
 
 Custom derive macros can not be exported together with other items,
