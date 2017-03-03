@@ -103,7 +103,7 @@ Review the `test cases`_ for more examples.
 Debugging and troubleshooting
 -----------------------------
 
-You can debug your the parse tree for a template and the generated code by
+You can view the parse tree for a template as well as the generated code by
 changing the ``template`` attribute item list for the template struct:
 
 .. code-block:: rust
