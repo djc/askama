@@ -19,7 +19,7 @@ fn test_variables() {
         num: 42,
         i18n: "Iñtërnâtiônàlizætiøn".to_string(),
     };
-    assert_eq!(s.render(), "hello world, foo\n\
+    assert_eq!(s.render(), "\nhello world, foo\n\
                             with number: 42\n\
                             Iñtërnâtiônàlizætiøn is important\n\
                             in vars too: Iñtërnâtiônàlizætiøn");
