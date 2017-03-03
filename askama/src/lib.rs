@@ -2,8 +2,11 @@
 extern crate nom;
 extern crate syn;
 
+/// Main `Template` trait; implementations are generally derived
 pub trait Template {
+    /// Renders the template to the given `writer` buffer
     fn render_to(&self, writer: &mut std::fmt::Write);
+    /// Helper method which allocates a new `String` and renders into it
     fn render(&self) -> String {
         let mut buf = String::new();
         self.render_to(&mut buf);
@@ -18,11 +21,15 @@ mod path;
 pub mod filters;
 pub use path::rerun_if_templates_changed;
 
+// Holds metadata for the template, based on the `template()` attribute.
 struct TemplateMeta {
     path: String,
     print: String,
 }
 
+// Returns a `TemplateMeta` based on the `template()` attribute data found
+// in the parsed struct or enum. Will panic if it does not find the required
+// template path, or if the `print` key has an unexpected value.
 fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
     let mut path = None;
     let mut print = "none".to_string();
@@ -54,6 +61,13 @@ fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
     TemplateMeta { path: path.unwrap(), print: print }
 }
 
+/// Takes a `syn::DeriveInput` and generates source code for it
+///
+/// Reads the metadata from the `template()` attribute to get the template
+/// metadata, then fetches the source from the filesystem. The source is
+/// parsed, and the parse tree is fed to the code generator. Will print
+/// the parse tree and/or generated source according to the `print` key's
+/// value as passed to the `template()` attribute.
 pub fn build_template(ast: &syn::DeriveInput) -> String {
     let meta = get_template_meta(ast);
     let src = path::get_template_source(&meta.path);

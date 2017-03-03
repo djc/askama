@@ -33,6 +33,15 @@ fn visit_dirs(dir: &Path, cb: &Fn(&DirEntry)) -> io::Result<()> {
     Ok(())
 }
 
+/// Build script helper to rebuild crates if contained templates have changed
+///
+/// Iterates over all files in the template dir (`templates` in
+/// `CARGO_MANIFEST_DIR`) and writes a `cargo:rerun-if-changed=` line for each
+/// of them to stdout.
+///
+/// This helper method can be used in build scripts (`build.rs`) in crates
+/// that have templates, to make sure the crate gets rebuilt when template
+/// source code changes.
 pub fn rerun_if_templates_changed() {
     visit_dirs(&template_dir(), &|e: &DirEntry| {
         println!("cargo:rerun-if-changed={}", e.path().to_str().unwrap());

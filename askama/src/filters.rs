@@ -1,9 +1,14 @@
+//! Module for built-in filter functions
+//!
+//! Contains all the built-in filter functions for use in templates.
+//! Currently, there is no way to define filters outside this module.
 use std::fmt;
 
 fn escapable(b: &u8) -> bool {
     *b == b'<' || *b == b'>' || *b == b'&'
 }
 
+/// Escapes `&`, `<` and `>` in strings
 pub fn escape(s: &fmt::Display) -> String {
     let s = format!("{}", s);
     let mut found = Vec::new();
@@ -39,12 +44,17 @@ pub fn escape(s: &fmt::Display) -> String {
     String::from_utf8(res).unwrap()
 }
 
+/// Alias for the `escape()` filter
 pub fn e(s: &fmt::Display) -> String {
     escape(s)
 }
 
-/// This is actually unused; format filter calls are forwarded directly to
-/// the format!() macro in the code generator (see `visit_filter()`).
+/// Formats arguments according to the specified format
+///
+/// The first argument to this filter must be a string literal (as in normal
+/// Rust). All arguments are passed through to the `format!()`
+/// [macro](https://doc.rust-lang.org/stable/std/macro.format.html) by
+/// the Askama code generator.
 pub fn format() { }
 
 #[cfg(test)]
