@@ -70,7 +70,10 @@ fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
 /// value as passed to the `template()` attribute.
 pub fn build_template(ast: &syn::DeriveInput) -> String {
     let meta = get_template_meta(ast);
-    let src = path::get_template_source(&meta.path);
+    let mut src = path::get_template_source(&meta.path);
+    if src.ends_with('\n') {
+        let _ = src.pop();
+    }
     let nodes = parser::parse(&src);
     if meta.print == "ast" || meta.print == "all" {
         println!("{:?}", nodes);

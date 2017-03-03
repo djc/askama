@@ -19,11 +19,11 @@ struct ChildTemplate<'a> {
 #[test]
 fn test_use_base_directly() {
     let t = BaseTemplate { title: "Foo" };
-    assert_eq!(t.render(), "Foo\n\nCopyright 2017\n");
+    assert_eq!(t.render(), "Foo\n\nCopyright 2017");
 }
 
 #[test]
 fn test_simple_extends() {
     let t = ChildTemplate { _parent: BaseTemplate { title: "Bar" } };
-    assert_eq!(t.render(), "Bar\nContent goes here\nCopyright 2017\n");
+    assert_eq!(t.render(), "Bar\nContent goes here\nCopyright 2017");
 }

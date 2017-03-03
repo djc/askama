@@ -16,7 +16,7 @@ fn filter_escape() {
         strvar: "my <html> is unsafe & should be escaped".to_string(),
     };
     assert_eq!(s.render(),
-               "my &lt;html&gt; is unsafe &amp; should be escaped\n");
+               "my &lt;html&gt; is unsafe &amp; should be escaped");
 }
 
 
@@ -29,5 +29,5 @@ struct FormatTemplate<'a> {
 #[test]
 fn filter_format() {
     let t = FormatTemplate { var: "formatted" };
-    assert_eq!(t.render(), "\"formatted\"\n");
+    assert_eq!(t.render(), "\"formatted\"");
 }

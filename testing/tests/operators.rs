@@ -15,7 +15,7 @@ struct CompareTemplate {
 #[test]
 fn test_compare() {
     let t = CompareTemplate { a: 1, b: 1, c: 2 };
-    assert_eq!(t.render(), "tf\ntf\ntf\ntf\ntf\ntf\n");
+    assert_eq!(t.render(), "tf\ntf\ntf\ntf\ntf\ntf");
 }
 
 

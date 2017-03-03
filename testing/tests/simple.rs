@@ -22,7 +22,7 @@ fn test_variables() {
     assert_eq!(s.render(), "hello world, foo\n\
                             with number: 42\n\
                             Iñtërnâtiônàlizætiøn is important\n\
-                            in vars too: Iñtërnâtiônàlizætiøn\n");
+                            in vars too: Iñtërnâtiônàlizætiøn");
 }
 
 
@@ -35,7 +35,7 @@ struct IfTemplate {
 #[test]
 fn test_if() {
     let s = IfTemplate { cond: true };
-    assert_eq!(s.render(), "true\n");
+    assert_eq!(s.render(), "true");
 }
 
 
@@ -48,7 +48,7 @@ struct ElseTemplate {
 #[test]
 fn test_else() {
     let s = ElseTemplate { cond: false };
-    assert_eq!(s.render(), "false\n");
+    assert_eq!(s.render(), "false");
 }
 
 
@@ -62,7 +62,7 @@ struct ElseIfTemplate {
 #[test]
 fn test_else_if() {
     let s = ElseIfTemplate { cond: false, check: true };
-    assert_eq!(s.render(), "checked\n");
+    assert_eq!(s.render(), "checked");
 }
 
 
@@ -77,7 +77,7 @@ fn test_for() {
     let s = ForTemplate {
         strings: vec!["A", "alfa", "1"],
     };
-    assert_eq!(s.render(), "0. A\n1. alfa\n2. 1\n\n");
+    assert_eq!(s.render(), "0. A\n1. alfa\n2. 1\n");
 }
 
 
@@ -88,7 +88,7 @@ struct LiteralsTemplate {}
 #[test]
 fn test_literals() {
     let s = LiteralsTemplate {};
-    assert_eq!(s.render(), "a\n");
+    assert_eq!(s.render(), "a");
 }
 
 
@@ -105,7 +105,7 @@ struct AttrTemplate {
 #[test]
 fn test_attr() {
     let t = AttrTemplate { inner: Holder { a: 5 } };
-    assert_eq!(t.render(), "5\n");
+    assert_eq!(t.render(), "5");
 }
 
 
@@ -118,7 +118,7 @@ struct OptionTemplate<'a> {
 #[test]
 fn test_option() {
     let some = OptionTemplate { var: Some("foo") };
-    assert_eq!(some.render(), "some: foo\n");
+    assert_eq!(some.render(), "some: foo");
     let none = OptionTemplate { var: None };
-    assert_eq!(none.render(), "none\n");
+    assert_eq!(none.render(), "none");
 }
