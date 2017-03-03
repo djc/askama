@@ -24,6 +24,7 @@ pub struct WS(pub bool, pub bool);
 #[derive(Debug)]
 pub enum Node<'a> {
     Lit(&'a str, &'a str, &'a str),
+    Comment(),
     Expr(WS, Expr<'a>),
     Cond(Vec<(WS, Option<Expr<'a>>, Vec<Node<'a>>)>, WS),
     Loop(WS, Target<'a>, Expr<'a>, Vec<Node<'a>>, WS),
@@ -68,7 +69,7 @@ fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
         if *c == b'{' {
             if i.len() < j + 2 {
                 return IResult::Done(&i[..0], split_ws_parts(&i[..]));
-            } else if i[j + 1] == b'{' || i[j + 1] == b'%' {
+            } else if i[j + 1] == b'{' || i[j + 1] == b'%' || i[j + 1] == b'#' {
                 return IResult::Done(&i[j..], split_ws_parts(&i[..j]));
             }
         }
@@ -299,8 +300,16 @@ named!(block_block<Node>, do_parse!(
                     WS(pws2.is_some(), pws2.is_some())))
 ));
 
+named!(block_comment<Node>, do_parse!(
+    tag_s!("{#") >>
+    take_until_s!("#}") >>
+    tag_s!("#}") >>
+    (Node::Comment())
+));
+
 named!(parse_template<Vec<Node<'a>>>, many0!(alt!(
     take_content |
+    block_comment |
     expr_node |
     block_if |
     block_for |

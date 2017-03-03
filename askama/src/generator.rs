@@ -316,6 +316,7 @@ impl<'a> Generator<'a> {
         for n in nodes {
             match *n {
                 Node::Lit(lws, val, rws) => { self.write_lit(lws, val, rws); }
+                Node::Comment() => {},
                 Node::Expr(ref ws, ref val) => { self.write_expr(ws, val); },
                 Node::Cond(ref conds, ref ws) => {
                     self.write_cond(conds, ws);
