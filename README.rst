@@ -94,7 +94,35 @@ In any Rust file inside your crate, add the following:
    }
 
 You should now be able to compile and run this code.
-Askama should generate Rust code like below:
+
+
+Debugging and troubleshooting
+-----------------------------
+
+You can debug your the parse tree for a template and the generated code by
+changing the ``template`` attribute item list for the template struct:
+
+.. code-block:: rust
+
+   #[derive(Template)]
+   #[template(path = "hello.html", print = "all")]
+   struct HelloTemplate<'a> { ... }
+
+The ``print`` key can take one of four values:
+
+* ``none`` (the default value)
+* ``ast`` (print the parse tree)
+* ``code`` (print the generated code)
+* ``all`` (print both parse tree and code)
+
+The parse tree looks like this for the example template:
+
+.. code-block::
+
+   [Lit("", "Hello,", " "), Expr(WS(false, false), Var("name")),
+   Lit("", "!", "\n")]
+
+The generated code looks like this:
 
 .. code-block:: rust
    
