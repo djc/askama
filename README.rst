@@ -3,6 +3,8 @@ Askama
 
 .. image:: https://travis-ci.org/djc/askama.svg?branch=master
    :target: https://travis-ci.org/djc/askama
+.. image:: https://codecov.io/gh/djc/askama/branch/master/graph/badge.svg
+   :target: https://codecov.io/gh/djc/askama
 
 Askama implements a template rendering engine based on Jinja.
 It generates Rust code from your templates at compile time
