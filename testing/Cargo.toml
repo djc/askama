@@ -6,8 +6,8 @@ workspace = ".."
 build = "build.rs"
 
 [dependencies]
-askama = { path = "../askama", version = "0.1" }
-askama_derive = { path = "../askama_derive", version = "0.1" }
+askama = { path = "../askama", version = "*" }
+askama_derive = { path = "../askama_derive", version = "*" }
 
 [build-dependencies]
-askama = { path = "../askama", version = "0.1" }
+askama = { path = "../askama", version = "*" }
