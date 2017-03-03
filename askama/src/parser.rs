@@ -9,6 +9,7 @@ pub enum Expr<'a> {
     Attr(Box<Expr<'a>>, &'a str),
     Filter(&'a str, Vec<Expr<'a>>),
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
+    Group(Box<Expr<'a>>),
     Call(Box<Expr<'a>>, &'a str, Vec<Expr<'a>>),
 }
 
@@ -127,10 +128,16 @@ named!(arguments<Option<Vec<Expr>>>, opt!(
     )
 ));
 
+named!(expr_group<Expr>, map!(
+    delimited!(char!('('), expr_any, char!(')')),
+    |s| Expr::Group(Box::new(s))
+));
+
 named!(expr_single<Expr>, alt!(
     expr_num_lit |
     expr_str_lit |
-    expr_var
+    expr_var |
+    expr_group
 ));
 
 named!(expr_attr<Expr>, alt!(
