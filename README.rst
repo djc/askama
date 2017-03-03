@@ -95,6 +95,10 @@ In any Rust file inside your crate, add the following:
 
 You should now be able to compile and run this code.
 
+Review the `test cases`_ for more examples.
+
+.. _test cases: https://github.com/djc/askama/tree/master/testing
+
 
 Debugging and troubleshooting
 -----------------------------
@@ -137,7 +141,3 @@ The generated code looks like this:
            writer.write_str("\n").unwrap();
        }
    }
-
-Review the `test cases`_ for more examples.
-
-.. _test cases: https://github.com/djc/askama/tree/master/testing
