@@ -1,6 +1,8 @@
 Askama
 ======
 
+.. image:: https://img.shields.io/crates/v/askama.svg
+   :target: https://crates.io/crates/askama
 .. image:: https://travis-ci.org/djc/askama.svg?branch=master
    :target: https://travis-ci.org/djc/askama
 .. image:: https://codecov.io/gh/djc/askama/branch/master/graph/badge.svg
