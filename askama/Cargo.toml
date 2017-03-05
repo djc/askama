@@ -9,6 +9,7 @@ homepage = "https://github.com/djc/askama"
 repository = "https://github.com/djc/askama"
 license = "MIT/Apache-2.0"
 workspace = ".."
+readme = "../README.md"
 
 [badges]
 travis-ci = { repository = "djc/askama" }
