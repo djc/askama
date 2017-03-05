@@ -23,6 +23,7 @@ Currently implemented features:
 * Basic loops and if/else if/else statements
 * Whitespace suppressing with '-' markers
 * Some built-in filters
+* Works on stable Rust
 
 Askama is in heavy development, so it currently has some limitations:
 
