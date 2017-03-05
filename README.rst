@@ -13,6 +13,9 @@ It generates Rust code from your templates at compile time
 based on a user-defined ``struct`` to hold the template's context.
 See below for an example, or read `the documentation`_.
 
+**"Pretty exciting. I would love to use this already."** -- `Armin Ronacher`_,
+creator of Jinja
+
 Currently implemented features:
 
 * Generates fully type-safe Rust code from your templates
@@ -32,6 +35,7 @@ All feedback welcome. Feel free to file bugs, requests for documentation and
 any other feedback to the `issue tracker`_ or `tweet me`_.
 
 .. _the documentation: https://docs.rs/askama
+.. _Armin Ronacher: http://lucumr.pocoo.org/
 .. _issue tracker: https://github.com/djc/askama/issues
 .. _tweet me: https://twitter.com/djco/
 
