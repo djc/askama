@@ -337,16 +337,6 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn path_based_name(&mut self, ast: &syn::DeriveInput, path: &str) {
-        let encoded = path_as_identifier(path);
-        let original = ast.ident.as_ref();
-        let anno = annotations(&ast.generics);
-        self.writeln("#[allow(dead_code, non_camel_case_types)]");
-        let s = format!("type TemplateFrom{}{} = {}{};",
-                        encoded, &anno, original, &anno);
-        self.writeln(&s);
-    }
-
     fn impl_template(&mut self, ast: &syn::DeriveInput, nodes: &'a [Node]) {
         let anno = annotations(&ast.generics);
         self.writeln(&format!("impl{} askama::Template for {}{} {{",
@@ -444,7 +434,6 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
     }
 
     let mut gen = Generator::new();
-    gen.path_based_name(ast, path);
     if !blocks.is_empty() {
         if base.is_none() {
             gen.define_trait(path, &block_names);
