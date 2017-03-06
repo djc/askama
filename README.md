@@ -134,7 +134,6 @@ The generated code looks like this:
 
 ```rust
 #[allow(dead_code, non_camel_case_types)]
-type TemplateFromhello2ehtml<'a> = HelloTemplate<'a>;
 impl<'a> askama::Template for HelloTemplate<'a> {
     fn render_to(&self, writer: &mut std::fmt::Write) {
         writer.write_str("Hello,").unwrap();
