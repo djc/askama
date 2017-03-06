@@ -35,8 +35,6 @@ struct Generator<'a> {
     locals: HashSet<String>,
     next_ws: Option<&'a str>,
     skip_ws: bool,
-    loop_vars: bool,
-    loop_index: u8,
 }
 
 impl<'a> Generator<'a> {
@@ -49,8 +47,6 @@ impl<'a> Generator<'a> {
             locals: HashSet::new(),
             next_ws: None,
             skip_ws: false,
-            loop_vars: false,
-            loop_index: 0,
         }
     }
 
@@ -126,11 +122,11 @@ impl<'a> Generator<'a> {
     fn visit_attr(&mut self, obj: &Expr, attr: &str) {
         if let Expr::Var(name) = *obj {
             if name == "loop" {
-                self.write("_loop_indexes[_loop_cur]");
+                self.write("_loop_index");
                 if attr == "index" {
+                    self.write(" + 1");
                     return;
                 } else if attr == "index0" {
-                    self.write(" - 1");
                     return;
                 } else {
                     panic!("unknown loop variable");
@@ -261,34 +257,20 @@ impl<'a> Generator<'a> {
 
     fn write_loop(&mut self, ws1: &WS, var: &Target, iter: &Expr,
                   body: &'a [Node], ws2: &WS) {
-
         self.handle_ws(ws1);
-        if !self.loop_vars {
-            self.writeln("let mut _loop_indexes = Vec::new();");
-            self.writeln("let mut _loop_cur = 0;");
-            self.loop_vars = true;
-        }
-
-        self.writeln("_loop_indexes.push(0);");
-        let cur_index = self.loop_index;
-        self.loop_index += 1;
-        self.writeln(&format!("_loop_cur = {};", cur_index));
-        self.write("for ");
+        self.write("for (_loop_index, ");
         let targets = self.visit_target(var);
         for name in &targets {
             self.locals.insert(name.clone());
             self.write(name);
         }
-        self.write(" in (&");
+        self.write(") in (&");
         self.visit_expr(iter);
-        self.writeln(").into_iter() {");
+        self.writeln(").into_iter().enumerate() {");
 
-        self.writeln("_loop_indexes[_loop_cur] += 1;");
         self.handle(body);
         self.handle_ws(ws2);
         self.writeln("}");
-        self.loop_index -= 1;
-        self.writeln("_loop_indexes.pop();");
         for name in &targets {
             self.locals.remove(name);
         }
