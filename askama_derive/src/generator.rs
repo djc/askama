@@ -279,9 +279,9 @@ impl<'a> Generator<'a> {
             self.locals.insert(name.clone());
             self.write(name);
         }
-        self.write(" in &");
+        self.write(" in (&");
         self.visit_expr(iter);
-        self.writeln(" {");
+        self.writeln(").into_iter() {");
 
         self.writeln("_loop_indexes[_loop_cur] += 1;");
         self.handle(body);
