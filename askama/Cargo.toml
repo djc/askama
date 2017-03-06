@@ -16,5 +16,4 @@ readme = "../README.md"
 travis-ci = { repository = "djc/askama" }
 
 [dependencies]
-nom = "2.1"
-syn = "0.11"
+askama_derive = { path = "../askama_derive", version = "0.2.1" }

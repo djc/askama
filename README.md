@@ -79,8 +79,7 @@ In any Rust file inside your crate, add the following:
 
 ```rust
 #[macro_use]
-extern crate askama_derive; // for the custom derive implementation
-extern crate askama; // for the Template trait
+extern crate askama; // for the Template trait and custom derive macro
 
 use askama::Template; // bring trait in scope
 

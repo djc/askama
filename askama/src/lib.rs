@@ -182,8 +182,12 @@
 //! Expressions can be grouped using parentheses.
 
 #[macro_use]
-extern crate nom;
-extern crate syn;
+extern crate askama_derive;
+
+use std::env;
+use std::fs::{self, DirEntry};
+use std::io;
+use std::path::{Path, PathBuf};
 
 /// Main `Template` trait; implementations are generally derived
 pub trait Template {
@@ -197,73 +201,42 @@ pub trait Template {
     }
 }
 
-mod generator;
-mod parser;
-mod path;
-
 pub mod filters;
-pub use path::rerun_if_templates_changed;
+pub use askama_derive::*;
 
-// Holds metadata for the template, based on the `template()` attribute.
-struct TemplateMeta {
-    path: String,
-    print: String,
+// Duplicates askama_derive::path::template_dir()
+fn template_dir() -> PathBuf {
+    let mut path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    path.push("templates");
+    path
 }
 
-// Returns a `TemplateMeta` based on the `template()` attribute data found
-// in the parsed struct or enum. Will panic if it does not find the required
-// template path, or if the `print` key has an unexpected value.
-fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
-    let mut path = None;
-    let mut print = "none".to_string();
-    let attr = ast.attrs.iter().find(|a| a.name() == "template").unwrap();
-    if let syn::MetaItem::List(_, ref inner) = attr.value {
-        for nm_item in inner {
-            if let syn::NestedMetaItem::MetaItem(ref item) = *nm_item {
-                if let syn::MetaItem::NameValue(ref key, ref val) = *item {
-                    match key.as_ref() {
-                        "path" => if let syn::Lit::Str(ref s, _) = *val {
-                            path = Some(s.clone());
-                        } else {
-                            panic!("template path must be string literal");
-                        },
-                        "print" => if let syn::Lit::Str(ref s, _) = *val {
-                            print = s.clone();
-                        } else {
-                            panic!("print value must be string literal");
-                        },
-                        _ => { panic!("unsupported annotation key found") }
-                    }
-                }
+fn visit_dirs(dir: &Path, cb: &Fn(&DirEntry)) -> io::Result<()> {
+    if dir.is_dir() {
+        for entry in try!(fs::read_dir(dir)) {
+            let entry = try!(entry);
+            let path = entry.path();
+            if path.is_dir() {
+                try!(visit_dirs(&path, cb));
+            } else {
+                cb(&entry);
             }
         }
     }
-    if path.is_none() {
-        panic!("template path not found in struct attributes");
-    }
-    TemplateMeta { path: path.unwrap(), print: print }
+    Ok(())
 }
 
-/// Takes a `syn::DeriveInput` and generates source code for it
+/// Build script helper to rebuild crates if contained templates have changed
 ///
-/// Reads the metadata from the `template()` attribute to get the template
-/// metadata, then fetches the source from the filesystem. The source is
-/// parsed, and the parse tree is fed to the code generator. Will print
-/// the parse tree and/or generated source according to the `print` key's
-/// value as passed to the `template()` attribute.
-pub fn build_template(ast: &syn::DeriveInput) -> String {
-    let meta = get_template_meta(ast);
-    let mut src = path::get_template_source(&meta.path);
-    if src.ends_with('\n') {
-        let _ = src.pop();
-    }
-    let nodes = parser::parse(&src);
-    if meta.print == "ast" || meta.print == "all" {
-        println!("{:?}", nodes);
-    }
-    let code = generator::generate(ast, &meta.path, nodes);
-    if meta.print == "code" || meta.print == "all" {
-        println!("{}", code);
-    }
-    code
+/// Iterates over all files in the template dir (`templates` in
+/// `CARGO_MANIFEST_DIR`) and writes a `cargo:rerun-if-changed=` line for each
+/// of them to stdout.
+///
+/// This helper method can be used in build scripts (`build.rs`) in crates
+/// that have templates, to make sure the crate gets rebuilt when template
+/// source code changes.
+pub fn rerun_if_templates_changed() {
+    visit_dirs(&template_dir(), &|e: &DirEntry| {
+        println!("cargo:rerun-if-changed={}", e.path().to_str().unwrap());
+    }).unwrap();
 }

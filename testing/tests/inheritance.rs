@@ -1,6 +1,5 @@
-extern crate askama;
 #[macro_use]
-extern crate askama_derive;
+extern crate askama;
 
 use askama::Template;
 
