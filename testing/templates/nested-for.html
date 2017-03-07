@@ -1,0 +1,6 @@
+{% for seq in seqs -%}
+  {{ loop.index }}
+  {% for v in seq -%}
+    {{ loop.index0 }}{{ v }}
+  {%- endfor -%}
+{% endfor %}
