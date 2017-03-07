@@ -19,9 +19,16 @@ struct TemplateMeta {
 // in the parsed struct or enum. Will panic if it does not find the required
 // template path, or if the `print` key has an unexpected value.
 fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
+    let attr = ast.attrs.iter().find(|a| a.name() == "template");
+    if attr.is_none() {
+        let msg = format!("'template' attribute not found on struct '{}'",
+                          ast.ident.as_ref());
+        panic!(msg);
+    }
+
+    let attr = attr.unwrap();
     let mut path = None;
     let mut print = "none".to_string();
-    let attr = ast.attrs.iter().find(|a| a.name() == "template").unwrap();
     if let syn::MetaItem::List(_, ref inner) = attr.value {
         for nm_item in inner {
             if let syn::NestedMetaItem::MetaItem(ref item) = *nm_item {
