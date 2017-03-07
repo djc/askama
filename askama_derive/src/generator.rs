@@ -319,11 +319,20 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn impl_template(&mut self, ast: &syn::DeriveInput, nodes: &'a [Node]) {
+    fn write_header(&mut self, ast: &syn::DeriveInput,
+                    trait_suffix: Option<&str>) {
         let anno = annotations(&ast.generics);
-        self.writeln(&format!("impl{} askama::Template for {}{} {{",
-                              anno, ast.ident.as_ref(), anno));
+        let name = if trait_suffix.is_some() {
+            format!("TraitFrom{}", trait_suffix.unwrap())
+        } else {
+            "askama::Template".to_string()
+        };
+        self.writeln(&format!("impl{} {} for {}{} {{",
+                              anno, &name, ast.ident.as_ref(), anno));
+    }
 
+    fn impl_template(&mut self, ast: &syn::DeriveInput, nodes: &'a [Node]) {
+        self.write_header(ast, None);
         self.writeln("fn render_to(&self, writer: &mut std::fmt::Write) {");
         self.handle(nodes);
         self.flush_ws(&WS(false, false));
@@ -333,10 +342,7 @@ impl<'a> Generator<'a> {
 
     fn impl_trait(&mut self, ast: &syn::DeriveInput, base: &str,
                   blocks: &'a [Node], nodes: Option<&'a [Node]>) {
-        let anno = annotations(&ast.generics);
-        self.writeln(&format!("impl{} TraitFrom{} for {}{} {{",
-                              anno, path_as_identifier(base),
-                              ast.ident.as_ref(), anno));
+        self.write_header(ast, Some(&path_as_identifier(base)));
         self.handle(blocks);
 
         self.writeln("#[allow(unused_variables)]");
@@ -358,9 +364,7 @@ impl<'a> Generator<'a> {
     }
 
     fn impl_template_for_trait(&mut self, ast: &syn::DeriveInput, derived: bool) {
-        let anno = annotations(&ast.generics);
-        self.writeln(&format!("impl{} askama::Template for {}{} {{",
-                              anno, ast.ident.as_ref(), anno));
+        self.write_header(ast, None);
         self.writeln("fn render_to(&self, writer: &mut std::fmt::Write) {");
         if derived {
             self.writeln("self._parent.render_trait_to(self, writer);");
