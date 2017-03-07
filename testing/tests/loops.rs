@@ -19,7 +19,7 @@ fn test_for() {
 
 
 #[derive(Template)]
-#[template(path = "nested-for.html", print = "code")]
+#[template(path = "nested-for.html")]
 struct NestedForTemplate<'a> {
     seqs: Vec<&'a [&'a str]>,
 }
