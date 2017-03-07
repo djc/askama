@@ -3,19 +3,6 @@ use std::str;
 use std::collections::HashSet;
 use syn;
 
-fn annotations(generics: &syn::Generics) -> String {
-    if generics.lifetimes.len() < 1 {
-        return String::new();
-    }
-    let mut res = String::new();
-    res.push('<');
-    for lt in &generics.lifetimes {
-        res.push_str(lt.lifetime.ident.as_ref());
-    }
-    res.push('>');
-    res
-}
-
 fn path_as_identifier(s: &str) -> String {
     let mut res = String::new();
     for c in s.chars() {
@@ -321,7 +308,15 @@ impl<'a> Generator<'a> {
 
     fn write_header(&mut self, ast: &syn::DeriveInput,
                     trait_suffix: Option<&str>) {
-        let anno = annotations(&ast.generics);
+        let mut anno = String::new();
+        if ast.generics.lifetimes.len() > 0 {
+            anno.push('<');
+            for lt in &ast.generics.lifetimes {
+                anno.push_str(lt.lifetime.ident.as_ref());
+            }
+            anno.push('>');
+        };
+
         let name = if trait_suffix.is_some() {
             format!("TraitFrom{}", trait_suffix.unwrap())
         } else {
