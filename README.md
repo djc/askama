@@ -26,13 +26,14 @@ See below for an example, or read [the documentation][docs].
 
 ### Supported in templates
 
-* Template inheritance
+* Template inheritance (one level only)
 * Basic loops and if/else if/else statements
 * Whitespace suppressing with '-' markers
 * Some built-in filters
 
-It's still early for Askama, so there are some limitations:
+### Limitations
 
+* Still in beta -- not very mature yet
 * Only a small number of built-in template filters have been implemented
 * User-defined template filters are not supported yet
 * Debugging template problems can be tricky
