@@ -334,7 +334,9 @@ impl<'a> Generator<'a> {
                 full_anno.append(",");
                 orig_anno.append(",");
             }
-            param.to_tokens(&mut full_anno);
+            let mut impl_param = param.clone();
+            impl_param.default = None;
+            impl_param.to_tokens(&mut full_anno);
             param.ident.to_tokens(&mut orig_anno);
             sep = true;
         }

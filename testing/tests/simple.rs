@@ -110,7 +110,8 @@ fn test_option() {
 
 #[derive(Template)]
 #[template(path = "generics.html")]
-struct GenericsTemplate<T: std::fmt::Display, U> where U: std::fmt::Display {
+struct GenericsTemplate<T: std::fmt::Display, U = u8>
+    where U: std::fmt::Display {
     t: T,
     u: U,
 }
