@@ -2,6 +2,7 @@ use parser::{Cond, Expr, Node, Target, WS};
 use std::str;
 use std::collections::HashSet;
 use syn;
+use quote::{Tokens, ToTokens};
 
 fn path_as_identifier(s: &str) -> String {
     let mut res = String::new();
@@ -308,22 +309,51 @@ impl<'a> Generator<'a> {
 
     fn write_header(&mut self, ast: &syn::DeriveInput,
                     trait_suffix: Option<&str>) {
-        let mut anno = String::new();
-        if ast.generics.lifetimes.len() > 0 {
-            anno.push('<');
-            for lt in &ast.generics.lifetimes {
-                anno.push_str(lt.lifetime.ident.as_ref());
-            }
-            anno.push('>');
-        };
+        let mut full_anno = Tokens::new();
+        let mut orig_anno = Tokens::new();
+        let need_anno = ast.generics.lifetimes.len() > 0 ||
+                        ast.generics.ty_params.len() > 0;
+        if need_anno {
+            full_anno.append("<");
+            orig_anno.append("<");
+        }
 
+        let mut sep = false;
+        for lt in &ast.generics.lifetimes {
+            if sep {
+                full_anno.append(",");
+                orig_anno.append(",");
+            }
+            lt.to_tokens(&mut full_anno);
+            lt.to_tokens(&mut orig_anno);
+            sep = true;
+        }
+
+        for param in &ast.generics.ty_params {
+            if sep {
+                full_anno.append(",");
+                orig_anno.append(",");
+            }
+            param.to_tokens(&mut full_anno);
+            param.ident.to_tokens(&mut orig_anno);
+            sep = true;
+        }
+
+        if need_anno {
+            full_anno.append(">");
+            orig_anno.append(">");
+        }
+
+        let mut where_clause = Tokens::new();
+        ast.generics.where_clause.to_tokens(&mut where_clause);
         let name = if trait_suffix.is_some() {
             format!("TraitFrom{}", trait_suffix.unwrap())
         } else {
             "askama::Template".to_string()
         };
-        self.writeln(&format!("impl{} {} for {}{} {{",
-                              anno, &name, ast.ident.as_ref(), anno));
+        self.writeln(&format!("impl{} {} for {}{}{} {{",
+                              full_anno.as_str(), &name, ast.ident.as_ref(),
+                              orig_anno.as_str(), where_clause.as_str()));
     }
 
     fn impl_template(&mut self, ast: &syn::DeriveInput, nodes: &'a [Node]) {

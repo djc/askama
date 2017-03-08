@@ -14,3 +14,4 @@ proc-macro = true
 [dependencies]
 nom = "2.1"
 syn = "0.11"
+quote = "0.3"
