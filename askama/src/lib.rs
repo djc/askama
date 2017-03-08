@@ -20,14 +20,14 @@
 //! # Feature highlights
 //!
 //! * Construct templates using a familiar, easy-to-use syntax
-//! * Fully benefit from the safety provided by Rust's type system
-//! * Templates do not perform eager conversion to strings or other types
+//! * Benefit from the safety provided by Rust's type system
 //! * Template code is compiled into your crate for optimal performance
-//! * Templates can directly access your Rust types, according to Rust's
+//! * Templates only convert your data as needed
+//! * Templates can access your Rust types directly, according to Rust's
 //!   privacy rules
 //! * Debugging features to assist you in template development
-//! * Included filter functions will provide easy access to common functions
 //! * Templates must be valid UTF-8 and produce UTF-8 when rendered
+//! * Works on stable Rust
 //!
 //! # Creating Askama templates
 //!

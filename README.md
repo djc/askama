@@ -12,16 +12,26 @@ See below for an example, or read [the documentation][docs].
 **"Pretty exciting. I would love to use this already."** --
 [Armin Ronacher][mitsuhiko], creator of Jinja
 
-Currently implemented features:
+### Feature highlights
 
-* Generates fully type-safe Rust code from your templates
+* Construct templates using a familiar, easy-to-use syntax
+* Benefit from the safety provided by Rust's type system
+* Template code is compiled into your crate for optimal performance
+* Templates only convert your data as needed
+* Templates can access your Rust types directly, according to Rust's
+  privacy rules
+* Debugging features to assist you in template development
+* Templates must be valid UTF-8 and produce UTF-8 when rendered
+* Works on stable Rust
+
+### Supported in templates
+
 * Template inheritance
 * Basic loops and if/else if/else statements
 * Whitespace suppressing with '-' markers
 * Some built-in filters
-* Works on stable Rust
 
-Askama is in heavy development, so it currently has some limitations:
+It's still early for Askama, so there are some limitations:
 
 * Only a small number of built-in template filters have been implemented
 * User-defined template filters are not supported yet
