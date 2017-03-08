@@ -2,7 +2,7 @@
 //! It lets you write templates in a Jinja-like syntax,
 //! which are linked to a `struct` defining the template context.
 //! This is done using a custom derive implementation (implemented
-//! in [askama_derive](https://crates.io/crates/askama_derive)).
+//! in [`askama_derive`](https://crates.io/crates/askama_derive)).
 //!
 //! # Example template
 //!
@@ -181,6 +181,7 @@
 //! The same precedence order as Rust uses is applied.
 //! Expressions can be grouped using parentheses.
 
+#![allow(unused_imports)]
 #[macro_use]
 extern crate askama_derive;
 
