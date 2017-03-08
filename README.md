@@ -29,11 +29,13 @@ Askama is in heavy development, so it currently has some limitations:
 
 All feedback welcome. Feel free to file bugs, requests for documentation and
 any other feedback to the [issue tracker][issues] or [tweet me][twitter].
+Many thanks to [David Tolnay][dtolnay] for his support in improving Askama.
 
 [docs]: https://docs.rs/askama
 [mitsuhiko]: http://lucumr.pocoo.org/
 [issues]: https://github.com/djc/askama/issues
 [twitter]: https://twitter.com/djco/
+[dtolnay]: https://github.com/dtolnay
 
 
 How to get started
