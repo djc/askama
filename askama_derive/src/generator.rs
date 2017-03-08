@@ -346,8 +346,8 @@ impl<'a> Generator<'a> {
 
         let mut where_clause = Tokens::new();
         ast.generics.where_clause.to_tokens(&mut where_clause);
-        let name = if trait_suffix.is_some() {
-            format!("TraitFrom{}", trait_suffix.unwrap())
+        let name = if let Some(suffix) = trait_suffix {
+            format!("TraitFrom{}", suffix)
         } else {
             "askama::Template".to_string()
         };
