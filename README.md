@@ -12,6 +12,10 @@ See below for an example, or read [the documentation][docs].
 **"Pretty exciting. I would love to use this already."** --
 [Armin Ronacher][mitsuhiko], creator of Jinja
 
+All feedback welcome. Feel free to file bugs, requests for documentation and
+any other feedback to the [issue tracker][issues] or [tweet me][twitter].
+Many thanks to [David Tolnay][dtolnay] for his support in improving Askama.
+
 ### Feature highlights
 
 * Construct templates using a familiar, easy-to-use syntax
@@ -37,10 +41,6 @@ See below for an example, or read [the documentation][docs].
 * Only a small number of built-in template filters have been implemented
 * User-defined template filters are not supported yet
 * Debugging template problems can be tricky
-
-All feedback welcome. Feel free to file bugs, requests for documentation and
-any other feedback to the [issue tracker][issues] or [tweet me][twitter].
-Many thanks to [David Tolnay][dtolnay] for his support in improving Askama.
 
 [docs]: https://docs.rs/askama
 [mitsuhiko]: http://lucumr.pocoo.org/
