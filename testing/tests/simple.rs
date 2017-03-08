@@ -106,3 +106,17 @@ fn test_option() {
     let none = OptionTemplate { var: None };
     assert_eq!(none.render(), "none");
 }
+
+
+#[derive(Template)]
+#[template(path = "generics.html")]
+struct GenericsTemplate<T: std::fmt::Display, U> where U: std::fmt::Display {
+    t: T,
+    u: U,
+}
+
+#[test]
+fn test_generics() {
+    let t = GenericsTemplate { t: "a", u: 42 };
+    assert_eq!(t.render(), "a42");
+}
