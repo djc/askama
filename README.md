@@ -53,8 +53,6 @@ askama_derive = "0.1"
 askama = "0.1"
 ```
 
-Custom derive macros can not be exported together with other items,
-so you have to depend on a separate crate for it.
 Because Askama will generate Rust code from your template files,
 the crate will need to be recompiled when your templates change.
 This is supported with a build script, `build.rs`,
