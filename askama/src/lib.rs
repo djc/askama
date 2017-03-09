@@ -51,8 +51,8 @@
 //! Reading from variables is subject to the usual borrowing policies.
 //! For example, `{{ name }}` will get the ``name`` field from the template
 //! context,
-//! while `{{ user.name }}` will get the ``name`` field of the `user`
-//! ``field`` of the template context.
+//! while `{{ user.name }}` will get the ``name`` field of the ``user``
+//! field of the template context.
 //!
 //! ## Filters
 //!
