@@ -59,11 +59,10 @@ First, add the following to your crate's `Cargo.toml`:
 build = "build.rs"
 
 # in section [dependencies]
-askama = "0.1"
-askama_derive = "0.1"
+askama = "0.3"
 
 # in section [build-dependencies]
-askama = "0.1"
+askama = "0.3"
 ```
 
 Because Askama will generate Rust code from your template files,
