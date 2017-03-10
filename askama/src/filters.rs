@@ -57,6 +57,28 @@ pub fn e(s: &fmt::Display) -> String {
 /// the Askama code generator.
 pub fn format() { }
 
+/// Converts to lowercase.
+pub fn lower(s: &fmt::Display) -> String {
+    let s = format!("{}", s);
+    s.to_lowercase()
+}
+
+/// Alias for the `lower()` filter.
+pub fn lowercase(s: &fmt::Display) -> String {
+    lower(s)
+}
+
+/// Converts to uppercase.
+pub fn upper(s: &fmt::Display) -> String {
+    let s = format!("{}", s);
+    s.to_uppercase()
+}
+
+/// Alias for the `upper()` filter.
+pub fn uppercase(s: &fmt::Display) -> String {
+    upper(s)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -66,5 +88,15 @@ mod tests {
         assert_eq!(escape(&"<&>"), "&lt;&amp;&gt;");
         assert_eq!(escape(&"bla&"), "bla&amp;");
         assert_eq!(escape(&"<foo"), "&lt;foo");
+
+        assert_eq!(lower(&"Foo"), "foo");
+        assert_eq!(lower(&"FOO"), "foo");
+        assert_eq!(lower(&"FooBar"), "foobar");
+        assert_eq!(lower(&"foo"), "foo");
+
+        assert_eq!(upper(&"Foo"), "FOO");
+        assert_eq!(upper(&"FOO"), "FOO");
+        assert_eq!(upper(&"FooBar"), "FOOBAR");
+        assert_eq!(upper(&"foo"), "FOO");
     }
 }
