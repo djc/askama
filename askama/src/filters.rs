@@ -79,6 +79,12 @@ pub fn uppercase(s: &fmt::Display) -> String {
     upper(s)
 }
 
+/// Strip leading and trailing whitespace.
+pub fn trim(s: &fmt::Display) -> String {
+    let s = format!("{}", s);
+    s.trim().to_owned()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -98,5 +104,10 @@ mod tests {
         assert_eq!(upper(&"FOO"), "FOO");
         assert_eq!(upper(&"FooBar"), "FOOBAR");
         assert_eq!(upper(&"foo"), "FOO");
+    }
+
+    #[test]
+    fn test_trim() {
+        assert_eq!(trim(&" Hello\tworld\t"), "Hello\tworld");
     }
 }
