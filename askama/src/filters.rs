@@ -94,12 +94,18 @@ mod tests {
         assert_eq!(escape(&"<&>"), "&lt;&amp;&gt;");
         assert_eq!(escape(&"bla&"), "bla&amp;");
         assert_eq!(escape(&"<foo"), "&lt;foo");
+    }
 
+    #[test]
+    fn test_lower() {
         assert_eq!(lower(&"Foo"), "foo");
         assert_eq!(lower(&"FOO"), "foo");
         assert_eq!(lower(&"FooBar"), "foobar");
         assert_eq!(lower(&"foo"), "foo");
+    }
 
+    #[test]
+    fn test_upper() {
         assert_eq!(upper(&"Foo"), "FOO");
         assert_eq!(upper(&"FOO"), "FOO");
         assert_eq!(upper(&"FooBar"), "FOOBAR");
