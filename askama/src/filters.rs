@@ -85,6 +85,36 @@ pub fn trim(s: &fmt::Display) -> String {
     s.trim().to_owned()
 }
 
+/// Convert the value to integer
+pub fn int(s: &fmt::Display) -> String {
+    let s = format!("{}", s);
+    let i = s.parse::<i32>();
+    match i {
+        Ok(n) => n.to_string(),
+        _ => 0.to_string(),
+    }
+}
+
+/// Convert the value to float
+pub fn float(s: &fmt::Display) -> String {
+    let s = format!("{}", s);
+    let f = s.parse::<f32>();
+    match f {
+        Ok(n) => n.to_string(),
+        _ => 0.to_string(),
+    }
+}
+
+/// Returns the nearest integer to a number
+pub fn round(s: &fmt::Display) -> String {
+    let s = format!("{}", s);
+    let f = s.parse::<f32>();
+    match f {
+        Ok(n) => n.round().to_string(),
+        _ => 0.to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -115,5 +145,25 @@ mod tests {
     #[test]
     fn test_trim() {
         assert_eq!(trim(&" Hello\tworld\t"), "Hello\tworld");
+    }
+
+    #[test]
+    fn test_int() {
+        assert_eq!(int(&"27"), "27");
+        assert_eq!(int(&"27z"), "0");
+    }
+
+    #[test]
+    fn test_float() {
+        assert_eq!(float(&"27"), "27");
+        assert_eq!(float(&"27.5"), "27.5");
+        assert_eq!(float(&"27z"), "0");
+    }
+
+    #[test]
+    fn test_round() {
+        assert_eq!(round(&"27"), "27");
+        assert_eq!(round(&"27.5"), "28");
+        assert_eq!(round(&"27z"), "0");
     }
 }
