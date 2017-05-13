@@ -31,7 +31,7 @@ Many thanks to [David Tolnay][dtolnay] for his support in improving Askama.
 ### Supported in templates
 
 * Template inheritance (one level only)
-* Basic loops and if/else if/else statements
+* Basic loops and if/else statements
 * Whitespace suppressing with '-' markers
 * Some built-in filters
 
