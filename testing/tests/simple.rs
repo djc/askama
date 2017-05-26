@@ -93,6 +93,25 @@ fn test_attr() {
 }
 
 
+struct NestedHolder {
+    holder: Holder,
+}
+
+#[derive(Template)]
+#[template(path = "nested-attr.html")]
+struct NestedAttrTemplate {
+    inner: NestedHolder,
+}
+
+#[test]
+fn test_nested_attr() {
+    let t = NestedAttrTemplate {
+        inner: NestedHolder { holder: Holder { a: 5 } }
+    };
+    assert_eq!(t.render(), "5");
+}
+
+
 #[derive(Template)]
 #[template(path = "option.html")]
 struct OptionTemplate<'a> {
