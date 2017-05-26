@@ -447,6 +447,9 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
     }
 
     let mut gen = Generator::new();
+    gen.writeln("use askama;");
+    gen.writeln("use std;");
+
     if !blocks.is_empty() {
         if base.is_none() {
             gen.define_trait(path, &block_names);
