@@ -1,6 +1,6 @@
 [package]
 name = "askama"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Type-safe, compiled Jinja-like templates for Rust"
 documentation = "https://docs.rs/askama"
@@ -16,4 +16,4 @@ readme = "../README.md"
 travis-ci = { repository = "djc/askama" }
 
 [dependencies]
-askama_derive = { path = "../askama_derive", version = "0.3.2" }
+askama_derive = { path = "../askama_derive", version = "0.3.3" }
