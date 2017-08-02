@@ -61,20 +61,35 @@ fn split_ws_parts(s: &[u8]) -> Node {
               str::from_utf8(res.2).unwrap())
 }
 
+enum ContentState {
+    Any,
+    Brace(usize),
+    End(usize),
+}
+
 fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
-    if i.len() < 1 || i[0] == b'{' {
-        return IResult::Error(error_position!(nom::ErrorKind::TakeUntil, i));
-    }
-    for (j, c) in i.iter().enumerate() {
-        if *c == b'{' {
-            if i.len() < j + 2 {
-                return IResult::Done(&i[..0], split_ws_parts(&i[..]));
-            } else if i[j + 1] == b'{' || i[j + 1] == b'%' || i[j + 1] == b'#' {
-                return IResult::Done(&i[j..], split_ws_parts(&i[..j]));
-            }
+    use parser::ContentState::*;
+    let mut state = Any;
+    for (idx, c) in i.iter().enumerate() {
+        state = match (state, *c) {
+            (Any, b'{') => Brace(idx),
+            (Any, _) => Any,
+            (Brace(start), b'{') |
+            (Brace(start), b'%') |
+            (Brace(start), b'#') => End(start),
+            (Brace(_), _) => Any,
+            (End(_), _) => panic!("cannot happen"),
+        };
+        if let End(_) = state {
+            break;
         }
     }
-    IResult::Done(&i[..0], split_ws_parts(&i[..]))
+    match state {
+        Any |
+        Brace(_) => IResult::Done(&i[..0], split_ws_parts(i)),
+        End(0) => IResult::Error(nom::ErrorKind::Custom(0)),
+        End(start) => IResult::Done(&i[start..], split_ws_parts(&i[..start])),
+    }
 }
 
 fn identifier(input: &[u8]) -> IResult<&[u8], &str> {
