@@ -2,19 +2,19 @@
 name = "askama_testing"
 version = "0.1.0"
 dependencies = [
- "askama 0.3.3",
+ "askama 0.3.4",
 ]
 
 [[package]]
 name = "askama"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
- "askama_derive 0.3.3",
+ "askama_derive 0.3.4",
 ]
 
 [[package]]
 name = "askama_derive"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "nom 3.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
