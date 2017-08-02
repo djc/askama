@@ -12,6 +12,6 @@ workspace = ".."
 proc-macro = true
 
 [dependencies]
-nom = "2.1"
+nom = "3"
 syn = "0.11"
 quote = "0.3"

@@ -156,18 +156,27 @@ named!(expr_single<Expr>, alt!(
     expr_group
 ));
 
-named!(expr_attr<Expr>, alt!(
-    do_parse!(
-        obj: expr_single >>
-        tag_s!(".") >>
-        attr: identifier >>
-        args: arguments >>
-        (if args.is_some() {
-            Expr::Call(Box::new(obj), attr, args.unwrap())
-        } else {
-            Expr::Attr(Box::new(obj), attr)
-        })
-    ) | expr_single
+named!(attr<(&str, Option<Vec<Expr>>)>, do_parse!(
+    tag_s!(".") >>
+    attr: identifier >>
+    args: arguments >>
+    (attr, args)
+));
+
+named!(expr_attr<Expr>, do_parse!(
+    obj: expr_single >>
+    attrs: many0!(attr) >>
+    ({
+        let mut res = obj;
+        for (aname, args) in attrs {
+            res = if args.is_some() {
+                Expr::Call(Box::new(res), aname, args.unwrap())
+            } else {
+                Expr::Attr(Box::new(res), aname)
+            };
+        }
+        res
+    })
 ));
 
 named!(filter<(&str, Option<Vec<Expr>>)>, do_parse!(

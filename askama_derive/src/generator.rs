@@ -129,7 +129,7 @@ impl<'a> Generator<'a> {
         if name == "format" {
             self.write("format!(");
         } else {
-            self.write(&format!("askama::filters::{}(&", name));
+            self.write(&format!("::askama::filters::{}(&", name));
         }
 
         for (i, arg) in args.iter().enumerate() {
@@ -274,7 +274,7 @@ impl<'a> Generator<'a> {
                        ws2: &WS) {
         self.writeln("#[allow(unused_variables)]");
         self.writeln(&format!(
-            "fn render_block_{}_to(&self, writer: &mut std::fmt::Write) {{",
+            "fn render_block_{}_to(&self, writer: &mut ::std::fmt::Write) {{",
             name));
         self.prepare_ws(ws1);
         self.handle(nodes);
@@ -351,7 +351,7 @@ impl<'a> Generator<'a> {
         let name = if let Some(suffix) = trait_suffix {
             format!("TraitFrom{}", suffix)
         } else {
-            "askama::Template".to_string()
+            "::askama::Template".to_string()
         };
         self.writeln(&format!("impl{} {} for {}{}{} {{",
                               full_anno.as_str(), &name, ast.ident.as_ref(),
@@ -360,7 +360,7 @@ impl<'a> Generator<'a> {
 
     fn impl_template(&mut self, ast: &syn::DeriveInput, nodes: &'a [Node]) {
         self.write_header(ast, None);
-        self.writeln("fn render_to(&self, writer: &mut std::fmt::Write) {");
+        self.writeln("fn render_to(&self, writer: &mut ::std::fmt::Write) {");
         self.handle(nodes);
         self.flush_ws(&WS(false, false));
         self.writeln("}");
@@ -375,7 +375,7 @@ impl<'a> Generator<'a> {
         self.writeln("#[allow(unused_variables)]");
         let trait_name = format!("TraitFrom{}", path_as_identifier(base));
         self.writeln(&format!(
-            "fn render_trait_to(&self, timpl: &{}, writer: &mut std::fmt::Write) {{",
+            "fn render_trait_to(&self, timpl: &{}, writer: &mut ::std::fmt::Write) {{",
             trait_name));
 
         if let Some(nodes) = nodes {
@@ -392,7 +392,7 @@ impl<'a> Generator<'a> {
 
     fn impl_template_for_trait(&mut self, ast: &syn::DeriveInput, derived: bool) {
         self.write_header(ast, None);
-        self.writeln("fn render_to(&self, writer: &mut std::fmt::Write) {");
+        self.writeln("fn render_to(&self, writer: &mut ::std::fmt::Write) {");
         if derived {
             self.writeln("self._parent.render_trait_to(self, writer);");
         } else {
@@ -408,11 +408,11 @@ impl<'a> Generator<'a> {
 
         for bname in block_names {
             self.writeln(&format!(
-                "fn render_block_{}_to(&self, writer: &mut std::fmt::Write);",
+                "fn render_block_{}_to(&self, writer: &mut ::std::fmt::Write);",
                 bname));
         }
         self.writeln(&format!(
-            "fn render_trait_to(&self, timpl: &{}, writer: &mut std::fmt::Write);",
+            "fn render_trait_to(&self, timpl: &{}, writer: &mut ::std::fmt::Write);",
             trait_name));
 
         self.writeln("}");

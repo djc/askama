@@ -51,8 +51,8 @@
 //! Reading from variables is subject to the usual borrowing policies.
 //! For example, `{{ name }}` will get the ``name`` field from the template
 //! context,
-//! while `{{ user.name }}` will get the ``name`` field of the `user`
-//! ``field`` of the template context.
+//! while `{{ user.name }}` will get the ``name`` field of the ``user``
+//! field from the template context.
 //!
 //! ## Filters
 //!
@@ -105,6 +105,8 @@
 //!
 //! The `block` tags define three blocks that can be filled in by child
 //! templates. The base template defines a default version of the block.
+//! A base template must define one or more blocks in order to be enable
+//! inheritance.
 //!
 //! ### Child template
 //!
@@ -132,6 +134,11 @@
 //! from the child template. The inheriting template context `struct` must
 //! have a field called `_parent` of the type used as the base template
 //! context. Blocks can only refer to the context of their own template.
+//!
+//! Note that, if the base template lives in another module than the child
+//! template, the child template's module should import all symbols from the
+//! base template's module in order for it to find the trait definition that
+//! supports the inheritance mechanism.
 //!
 //! ## HTML escaping
 //!
