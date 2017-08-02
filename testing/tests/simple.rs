@@ -121,3 +121,17 @@ fn test_generics() {
     let t = GenericsTemplate { t: "a", u: 42 };
     assert_eq!(t.render(), "a42");
 }
+
+
+#[derive(Template)]
+#[template(path = "json.html")]
+struct JsonTemplate<'a> {
+    foo: &'a str,
+    bar: &'a str,
+}
+
+#[test]
+fn test_json() {
+    let t = JsonTemplate { foo: "a", bar: "b" };
+    assert_eq!(t.render(), "{\"foo\": \"a\", \"bar\": \"b\"}");
+}
