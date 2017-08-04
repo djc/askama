@@ -398,4 +398,9 @@ mod tests {
         check_ws_split("b\n", &("", "b", "\n"));
         check_ws_split(" \t\r\n", &(" \t\r\n", "", ""));
     }
+    #[test]
+    #[should_panic]
+    fn test_invalid_block() {
+        super::parse("{% extend \"blah\" %}");
+    }
 }
