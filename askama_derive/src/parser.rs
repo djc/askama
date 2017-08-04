@@ -364,7 +364,14 @@ named!(parse_template<Vec<Node<'a>>>, many0!(alt!(
 
 pub fn parse(src: &str) -> Vec<Node> {
     match parse_template(src.as_bytes()) {
-        IResult::Done(_, res) => res,
+        IResult::Done(left, res) => {
+            if left.len() > 0 {
+                let s = str::from_utf8(left).unwrap();
+                panic!("unable to parse template:\n\n{:?}", s);
+            } else {
+                res
+            }
+        },
         IResult::Error(err) => panic!("problems parsing template source: {}", err),
         IResult::Incomplete(_) => panic!("parsing incomplete"),
     }
