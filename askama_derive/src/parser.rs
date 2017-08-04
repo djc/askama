@@ -1,4 +1,5 @@
 use nom::{self, IResult};
+use path;
 use std::str;
 
 #[derive(Debug)]
@@ -31,6 +32,7 @@ pub enum Node<'a> {
     Extends(Expr<'a>),
     BlockDef(WS, &'a str, Vec<Node<'a>>, WS),
     Block(WS, &'a str, WS),
+    Include(WS, String),
 }
 
 pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
@@ -324,6 +326,25 @@ named!(block_block<Node>, do_parse!(
                     WS(pws2.is_some(), pws2.is_some())))
 ));
 
+named!(block_include<Node>, do_parse!(
+    tag_s!("{%") >>
+    pws: opt!(tag_s!("-")) >>
+    ws!(tag_s!("include")) >>
+    name: ws!(expr_str_lit) >>
+    nws: opt!(tag_s!("-")) >>
+    tag_s!("%}") >>
+    ({
+        let mut src = match name {
+            Expr::StrLit(s) => path::get_template_source(s),
+            _ => panic!("include path must be a string literal"),
+        };
+        if src.ends_with('\n') {
+            let _ = src.pop();
+        }
+        Node::Include(WS(pws.is_some(), nws.is_some()), src)
+    })
+));
+
 named!(block_comment<Node>, do_parse!(
     tag_s!("{#") >>
     take_until_s!("#}") >>
@@ -338,6 +359,7 @@ named!(parse_template<Vec<Node<'a>>>, many0!(alt!(
     block_if |
     block_for |
     block_extends |
+    block_include |
     block_block
 )));
 

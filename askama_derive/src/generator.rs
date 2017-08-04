@@ -1,4 +1,4 @@
-use parser::{Cond, Expr, Node, Target, WS};
+use parser::{self, Cond, Expr, Node, Target, WS};
 use std::str;
 use std::collections::HashSet;
 use syn;
@@ -27,15 +27,23 @@ struct Generator<'a> {
 
 impl<'a> Generator<'a> {
 
-    fn new() -> Generator<'a> {
+    fn new(locals: HashSet<String>, indent: u8) -> Generator<'a> {
         Generator {
             buf: String::new(),
-            indent: 0,
+            indent: indent,
             start: true,
-            locals: HashSet::new(),
+            locals: locals,
             next_ws: None,
             skip_ws: false,
         }
+    }
+
+    fn default() -> Generator<'a> {
+        Self::new(HashSet::new(), 0)
+    }
+
+    fn child(&self) -> Generator<'a> {
+        Self::new(self.locals.clone(), self.indent)
     }
 
     fn indent(&mut self) {
@@ -282,6 +290,15 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
+    fn handle_include(&mut self, ws: &WS, src: &str) {
+        self.prepare_ws(ws);
+        let nodes = parser::parse(&src);
+        let mut gen = self.child();
+        gen.handle(&nodes);
+        self.buf.push_str(&gen.result());
+        self.flush_ws(ws);
+    }
+
     fn handle(&mut self, nodes: &'a [Node]) {
         for n in nodes {
             match *n {
@@ -300,6 +317,9 @@ impl<'a> Generator<'a> {
                 Node::BlockDef(ref ws1, name, ref block_nodes, ref ws2) => {
                     self.write_block_def(ws1, name, block_nodes, ws2);
                 }
+                Node::Include(ref ws, ref src) => {
+                    self.handle_include(ws, src);
+                },
                 Node::Extends(_) => {
                     panic!("no extends or block definition allowed in content");
                 },
@@ -446,7 +466,7 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
         }
     }
 
-    let mut gen = Generator::new();
+    let mut gen = Generator::default();
     if !blocks.is_empty() {
         if base.is_none() {
             gen.define_trait(path, &block_names);
