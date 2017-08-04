@@ -260,7 +260,6 @@ named!(cond_block<Cond>, do_parse!(
 ));
 
 named!(block_if<Node>, do_parse!(
-    tag_s!("{%") >>
     pws1: opt!(tag_s!("-")) >>
     cond: ws!(cond_if) >>
     nws1: opt!(tag_s!("-")) >>
@@ -271,7 +270,6 @@ named!(block_if<Node>, do_parse!(
     pws2: opt!(tag_s!("-")) >>
     ws!(tag_s!("endif")) >>
     nws2: opt!(tag_s!("-")) >>
-    tag_s!("%}") >>
     ({
        let mut res = Vec::new();
        res.push((WS(pws1.is_some(), nws1.is_some()), Some(cond), block));
@@ -281,7 +279,6 @@ named!(block_if<Node>, do_parse!(
 ));
 
 named!(block_for<Node>, do_parse!(
-    tag_s!("{%") >>
     pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("for")) >>
     var: ws!(target_single) >>
@@ -294,22 +291,18 @@ named!(block_for<Node>, do_parse!(
     pws2: opt!(tag_s!("-")) >>
     ws!(tag_s!("endfor")) >>
     nws2: opt!(tag_s!("-")) >>
-    tag_s!("%}") >>
     (Node::Loop(WS(pws1.is_some(), nws1.is_some()),
                 var, iter, block,
                 WS(pws2.is_some(), pws2.is_some())))
 ));
 
 named!(block_extends<Node>, do_parse!(
-    tag_s!("{%") >>
     ws!(tag_s!("extends")) >>
     name: ws!(expr_str_lit) >>
-    tag_s!("%}") >>
     (Node::Extends(name))
 ));
 
 named!(block_block<Node>, do_parse!(
-    tag_s!("{%") >>
     pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("block")) >>
     name: ws!(identifier) >>
@@ -320,19 +313,16 @@ named!(block_block<Node>, do_parse!(
     pws2: opt!(tag_s!("-")) >>
     ws!(tag_s!("endblock")) >>
     nws2: opt!(tag_s!("-")) >>
-    tag_s!("%}") >>
     (Node::BlockDef(WS(pws1.is_some(), nws1.is_some()),
                     name, contents,
                     WS(pws2.is_some(), pws2.is_some())))
 ));
 
 named!(block_include<Node>, do_parse!(
-    tag_s!("{%") >>
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("include")) >>
     name: ws!(expr_str_lit) >>
     nws: opt!(tag_s!("-")) >>
-    tag_s!("%}") >>
     ({
         let mut src = match name {
             Expr::StrLit(s) => path::get_template_source(s),
@@ -343,6 +333,19 @@ named!(block_include<Node>, do_parse!(
         }
         Node::Include(WS(pws.is_some(), nws.is_some()), src)
     })
+));
+
+named!(block_node<Node>, do_parse!(
+    tag_s!("{%") >>
+    contents: alt!(
+        block_if |
+        block_for |
+        block_extends |
+        block_include |
+        block_block
+    ) >>
+    tag_s!("%}") >>
+    (contents)
 ));
 
 named!(block_comment<Node>, do_parse!(
@@ -356,11 +359,7 @@ named!(parse_template<Vec<Node<'a>>>, many0!(alt!(
     take_content |
     block_comment |
     expr_node |
-    block_if |
-    block_for |
-    block_extends |
-    block_include |
-    block_block
+    block_node
 )));
 
 pub fn parse(src: &str) -> Vec<Node> {
