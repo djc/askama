@@ -1,4 +1,6 @@
 use parser::{self, Cond, Expr, Node, Target, WS};
+use path;
+use std::path::PathBuf;
 use std::str;
 use std::collections::HashSet;
 use syn;
@@ -471,12 +473,18 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
         if base.is_none() {
             gen.define_trait(path, &block_names);
         }
-        let tmpl_path = match base {
-            Some(Expr::StrLit(base_path)) => { base_path },
-            _ => { path },
+        let base_path = match base {
+            Some(Expr::StrLit(user_path)) => {
+                path::find_template_from_path(user_path, Some(path))
+            },
+            _ => {
+                let mut path_buf = PathBuf::new();
+                path_buf.push(&path);
+                path_buf
+            },
         };
         let trait_nodes = if base.is_none() { Some(&content[..]) } else { None };
-        gen.impl_trait(ast, tmpl_path, &blocks, trait_nodes);
+        gen.impl_trait(ast, base_path.to_str().unwrap(), &blocks, trait_nodes);
         gen.impl_template_for_trait(ast, base.is_some());
     } else {
         gen.impl_template(ast, &content);
