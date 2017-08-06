@@ -51,8 +51,13 @@ pub fn get_template_source(tpl_file: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::find_template_from_path;
+    use super::{find_template_from_path, get_template_source};
     use super::Path;
+
+    #[test]
+    fn get_source() {
+        assert_eq!(get_template_source("sub/b.html"), "bar\n");
+    }
 
     #[test]
     fn find_absolute() {
