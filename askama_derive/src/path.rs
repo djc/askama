@@ -33,9 +33,9 @@ pub fn find_template_from_path<'a>(path: &str, start_at: Option<&str>) -> PathBu
     }
 }
 
-pub fn get_template_source(tpl_file: &str) -> String {
+pub fn get_template_source(tpl_path: &Path) -> String {
     let mut path = template_dir();
-    path.push(Path::new(tpl_file));
+    path.push(tpl_path);
     let mut f = match File::open(&path) {
         Err(_) => {
             let msg = format!("unable to open template file '{}'",
@@ -59,7 +59,7 @@ mod tests {
 
     #[test]
     fn get_source() {
-        assert_eq!(get_template_source("sub/b.html"), "bar");
+        assert_eq!(get_template_source(Path::new("sub/b.html")), "bar");
     }
 
     #[test]

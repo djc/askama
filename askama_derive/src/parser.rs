@@ -1,5 +1,6 @@
 use nom::{self, IResult};
 use path;
+use std::path::Path;
 use std::str;
 
 #[derive(Debug)]
@@ -324,7 +325,7 @@ named!(block_include<Node>, do_parse!(
     name: ws!(expr_str_lit) >>
     nws: opt!(tag_s!("-")) >>
     (Node::Include(WS(pws.is_some(), nws.is_some()), match name {
-        Expr::StrLit(s) => path::get_template_source(s),
+        Expr::StrLit(s) => path::get_template_source(Path::new(s)),
         _ => panic!("include path must be a string literal"),
     }))
 ));
