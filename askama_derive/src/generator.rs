@@ -22,14 +22,14 @@ struct Generator<'a> {
     buf: String,
     indent: u8,
     start: bool,
-    locals: HashSet<String>,
+    locals: &'a mut HashSet<String>,
     next_ws: Option<&'a str>,
     skip_ws: bool,
 }
 
 impl<'a> Generator<'a> {
 
-    fn new(locals: HashSet<String>, indent: u8) -> Generator<'a> {
+    fn new<'n>(locals: &'n mut HashSet<String>, indent: u8) -> Generator<'n> {
         Generator {
             buf: String::new(),
             indent: indent,
@@ -40,12 +40,12 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn default() -> Generator<'a> {
-        Self::new(HashSet::new(), 0)
+    fn default<'n>(locals: &'n mut HashSet<String>) -> Generator<'n> {
+        Self::new(locals, 0)
     }
 
-    fn child(&self) -> Generator<'a> {
-        Self::new(self.locals.clone(), self.indent)
+    fn child<'n>(&'n mut self) -> Generator<'n> {
+        Self::new(self.locals, self.indent)
     }
 
     fn indent(&mut self) {
@@ -297,9 +297,12 @@ impl<'a> Generator<'a> {
         let path = path::find_template_from_path(&path, None);
         let src = path::get_template_source(&path);
         let nodes = parser::parse(&src);
-        let mut gen = self.child();
-        gen.handle(&nodes);
-        self.buf.push_str(&gen.result());
+        let nested = {
+            let mut gen = self.child();
+            gen.handle(&nodes);
+            gen.result()
+        };
+        self.buf.push_str(&nested);
         self.flush_ws(ws);
     }
 
@@ -470,7 +473,8 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
         }
     }
 
-    let mut gen = Generator::default();
+    let mut locals = HashSet::new();
+    let mut gen = Generator::default(&mut locals);
     if !blocks.is_empty() {
         if base.is_none() {
             gen.define_trait(path, &block_names);
