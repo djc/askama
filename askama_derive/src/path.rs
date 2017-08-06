@@ -48,3 +48,33 @@ pub fn get_template_source(tpl_file: &str) -> String {
     f.read_to_string(&mut s).unwrap();
     s
 }
+
+#[cfg(test)]
+mod tests {
+    use super::find_template_from_path;
+    use super::Path;
+
+    #[test]
+    fn find_absolute() {
+        let path = find_template_from_path("sub/b.html", Some("a.html"));
+        assert_eq!(path, Path::new("sub/b.html"));
+    }
+
+    #[test]
+    #[should_panic]
+    fn find_relative_nonexistent() {
+        find_template_from_path("b.html", Some("a.html"));
+    }
+
+    #[test]
+    fn find_relative() {
+        let path = find_template_from_path("c.html", Some("sub/b.html"));
+        assert_eq!(path, Path::new("sub/c.html"));
+    }
+
+    #[test]
+    fn find_relative_sub() {
+        let path = find_template_from_path("sub1/d.html", Some("sub/b.html"));
+        assert_eq!(path, Path::new("sub/sub1/d.html"));
+    }
+}
