@@ -1,6 +1,4 @@
 use nom::{self, IResult};
-use path;
-use std::path::Path;
 use std::str;
 
 #[derive(Debug)]
@@ -33,7 +31,7 @@ pub enum Node<'a> {
     Extends(Expr<'a>),
     BlockDef(WS, &'a str, Vec<Node<'a>>, WS),
     Block(WS, &'a str, WS),
-    Include(WS, String),
+    Include(WS, &'a str),
 }
 
 pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
@@ -325,7 +323,7 @@ named!(block_include<Node>, do_parse!(
     name: ws!(expr_str_lit) >>
     nws: opt!(tag_s!("-")) >>
     (Node::Include(WS(pws.is_some(), nws.is_some()), match name {
-        Expr::StrLit(s) => path::get_template_source(Path::new(s)),
+        Expr::StrLit(s) => s,
         _ => panic!("include path must be a string literal"),
     }))
 ));

@@ -292,8 +292,10 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
-    fn handle_include(&mut self, ws: &WS, src: &str) {
+    fn handle_include(&mut self, ws: &WS, path: &str) {
         self.prepare_ws(ws);
+        let path = path::find_template_from_path(&path, None);
+        let src = path::get_template_source(&path);
         let nodes = parser::parse(&src);
         let mut gen = self.child();
         gen.handle(&nodes);
@@ -319,8 +321,8 @@ impl<'a> Generator<'a> {
                 Node::BlockDef(ref ws1, name, ref block_nodes, ref ws2) => {
                     self.write_block_def(ws1, name, block_nodes, ws2);
                 }
-                Node::Include(ref ws, ref src) => {
-                    self.handle_include(ws, src);
+                Node::Include(ref ws, ref path) => {
+                    self.handle_include(ws, path);
                 },
                 Node::Extends(_) => {
                     panic!("no extends or block definition allowed in content");
