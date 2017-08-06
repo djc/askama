@@ -46,6 +46,9 @@ pub fn get_template_source(tpl_file: &str) -> String {
     };
     let mut s = String::new();
     f.read_to_string(&mut s).unwrap();
+    if s.ends_with('\n') {
+        let _ = s.pop();
+    }
     s
 }
 
@@ -56,7 +59,7 @@ mod tests {
 
     #[test]
     fn get_source() {
-        assert_eq!(get_template_source("sub/b.html"), "bar\n");
+        assert_eq!(get_template_source("sub/b.html"), "bar");
     }
 
     #[test]

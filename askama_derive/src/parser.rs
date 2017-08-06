@@ -323,16 +323,10 @@ named!(block_include<Node>, do_parse!(
     ws!(tag_s!("include")) >>
     name: ws!(expr_str_lit) >>
     nws: opt!(tag_s!("-")) >>
-    ({
-        let mut src = match name {
-            Expr::StrLit(s) => path::get_template_source(s),
-            _ => panic!("include path must be a string literal"),
-        };
-        if src.ends_with('\n') {
-            let _ = src.pop();
-        }
-        Node::Include(WS(pws.is_some(), nws.is_some()), src)
-    })
+    (Node::Include(WS(pws.is_some(), nws.is_some()), match name {
+        Expr::StrLit(s) => path::get_template_source(s),
+        _ => panic!("include path must be a string literal"),
+    }))
 ));
 
 named!(block_node<Node>, do_parse!(
