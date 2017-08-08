@@ -24,5 +24,5 @@ fn test_use_base_directly() {
 #[test]
 fn test_simple_extends() {
     let t = ChildTemplate { _parent: BaseTemplate { title: "Bar" } };
-    assert_eq!(t.render(), "Bar\nContent goes here\nCopyright 2017");
+    assert_eq!(t.render(), "Bar\n(Bar) Content goes here\nCopyright 2017");
 }
