@@ -207,7 +207,7 @@
 //! Askama supports string literals (`"foo"`) and integer literals (`1`).
 //! It supports almost all binary operators that Rust supports,
 //! including arithmetic, comparison and logic operators.
-//! The same precedence order as Rust uses is applied.
+//! The parser applies the same precedence order as the Rust compiler.
 //! Expressions can be grouped using parentheses.
 
 #![allow(unused_imports)]
