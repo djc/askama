@@ -1,10 +1,13 @@
 use parser::{self, Cond, Expr, Node, Target, WS};
 use path;
+
+use quote::{Tokens, ToTokens};
+
 use std::path::PathBuf;
 use std::str;
 use std::collections::HashSet;
+
 use syn;
-use quote::{Tokens, ToTokens};
 
 struct Generator<'a> {
     buf: String,
