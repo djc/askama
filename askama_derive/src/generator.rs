@@ -121,6 +121,8 @@ impl<'a> Generator<'a> {
         Self::new(self.locals, self.indent)
     }
 
+    /* Helper methods for writing to internal buffer */
+
     fn indent(&mut self) {
         self.indent += 1;
     }
@@ -154,6 +156,8 @@ impl<'a> Generator<'a> {
         self.start = true;
     }
 
+    /* Helper methods for dealing with whitespace nodes */
+
     fn flush_ws(&mut self, ws: &WS) {
         if self.next_ws.is_some() && !ws.0 {
             let val = self.next_ws.unwrap();
@@ -173,6 +177,8 @@ impl<'a> Generator<'a> {
         self.flush_ws(ws);
         self.prepare_ws(ws);
     }
+
+    /* Visitor methods for expression types */
 
     fn visit_num_lit(&mut self, s: &str) {
         self.write(s);
@@ -272,6 +278,8 @@ impl<'a> Generator<'a> {
             Target::Name(s) => { self.visit_target_single(s) },
         }
     }
+
+    /* Helper methods for handling node types */
 
     fn write_lit(&mut self, lws: &'a str, val: &str, rws: &'a str) {
         assert!(self.next_ws.is_none());
