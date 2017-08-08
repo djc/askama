@@ -182,6 +182,26 @@
 //! {% endif %}
 //! ```
 //!
+//! ### Include
+//!
+//! The *include* statement lets you split large or repetitive blocks into
+//! separate template files. Included templates get full access to the context
+//! in which they're used, including local variables like those from loops:
+//!
+//! ```text
+//! {% for i in iter %}
+//!   {% include "item.html" %}
+//! {% endfor %}
+//! ```
+//!
+//! ```text
+//! * Item: {{ i }}
+//! ```
+//!
+//! The path to include must be a string literal, so that it is known at
+//! compile time. You can use include within the branches of an if/else
+//! block to use includes more dynamically.
+//!
 //! ## Expressions
 //!
 //! Askama supports string literals (`"foo"`) and integer literals (`1`).
