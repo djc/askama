@@ -334,8 +334,7 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn write_header(&mut self, ast: &syn::DeriveInput,
-                    trait_suffix: Option<&str>) {
+    fn write_header(&mut self, ast: &syn::DeriveInput, target: &str) {
         let mut full_anno = Tokens::new();
         let mut orig_anno = Tokens::new();
         let need_anno = ast.generics.lifetimes.len() > 0 ||
@@ -375,18 +374,13 @@ impl<'a> Generator<'a> {
 
         let mut where_clause = Tokens::new();
         ast.generics.where_clause.to_tokens(&mut where_clause);
-        let name = if let Some(suffix) = trait_suffix {
-            format!("TraitFrom{}", suffix)
-        } else {
-            "::askama::Template".to_string()
-        };
         self.writeln(&format!("impl{} {} for {}{}{} {{",
-                              full_anno.as_str(), &name, ast.ident.as_ref(),
+                              full_anno.as_str(), target, ast.ident.as_ref(),
                               orig_anno.as_str(), where_clause.as_str()));
     }
 
     fn impl_template(&mut self, ast: &syn::DeriveInput, nodes: &'a [Node]) {
-        self.write_header(ast, None);
+        self.write_header(ast, "::askama::Template");
         self.writeln("fn render_to(&self, writer: &mut ::std::fmt::Write) {");
         self.handle(nodes);
         self.flush_ws(&WS(false, false));
@@ -396,11 +390,11 @@ impl<'a> Generator<'a> {
 
     fn impl_trait(&mut self, ast: &syn::DeriveInput, base: &str,
                   blocks: &'a [Node], nodes: Option<&'a [Node]>) {
-        self.write_header(ast, Some(&path_as_identifier(base)));
+        let trait_name = format!("TraitFrom{}", path_as_identifier(base));
+        self.write_header(ast, &trait_name);
         self.handle(blocks);
 
         self.writeln("#[allow(unused_variables)]");
-        let trait_name = format!("TraitFrom{}", path_as_identifier(base));
         self.writeln(&format!(
             "fn render_trait_to(&self, timpl: &{}, writer: &mut ::std::fmt::Write) {{",
             trait_name));
@@ -418,7 +412,7 @@ impl<'a> Generator<'a> {
     }
 
     fn impl_template_for_trait(&mut self, ast: &syn::DeriveInput, derived: bool) {
-        self.write_header(ast, None);
+        self.write_header(ast, "::askama::Template");
         self.writeln("fn render_to(&self, writer: &mut ::std::fmt::Write) {");
         if derived {
             self.writeln("self._parent.render_trait_to(self, writer);");
