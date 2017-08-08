@@ -6,18 +6,6 @@ use std::collections::HashSet;
 use syn;
 use quote::{Tokens, ToTokens};
 
-fn path_as_identifier(s: &str) -> String {
-    let mut res = String::new();
-    for c in s.chars() {
-        if c.is_alphanumeric() {
-            res.push(c);
-        } else {
-            res.push_str(&format!("{:x}", c as u32));
-        }
-    }
-    res
-}
-
 struct Generator<'a> {
     buf: String,
     indent: u8,
@@ -449,6 +437,18 @@ impl<'a> Generator<'a> {
         self.buf
     }
 
+}
+
+fn path_as_identifier(s: &str) -> String {
+    let mut res = String::new();
+    for c in s.chars() {
+        if c.is_alphanumeric() {
+            res.push(c);
+        } else {
+            res.push_str(&format!("{:x}", c as u32));
+        }
+    }
+    res
 }
 
 pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> String {
