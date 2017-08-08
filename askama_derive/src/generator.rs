@@ -380,9 +380,8 @@ impl<'a> Generator<'a> {
     }
 
     // Implement `TraitFromPathName` for the given context struct.
-    fn impl_trait(&mut self, ast: &syn::DeriveInput, base: &str,
+    fn impl_trait(&mut self, ast: &syn::DeriveInput, trait_name: &str,
                   blocks: &'a [Node], nodes: Option<&'a [Node]>) {
-        let trait_name = format!("TraitFrom{}", path_as_identifier(base));
         self.write_header(ast, &trait_name);
         self.handle(blocks);
 
@@ -417,8 +416,7 @@ impl<'a> Generator<'a> {
     }
 
     // Defines the `TraitFromPathName` trait.
-    fn define_trait(&mut self, path: &str, block_names: &[&str]) {
-        let trait_name = format!("TraitFrom{}", path_as_identifier(path));
+    fn define_trait(&mut self, trait_name: &str, block_names: &[&str]) {
         self.writeln(&format!("trait {} {{", &trait_name));
 
         for bname in block_names {
@@ -439,9 +437,21 @@ impl<'a> Generator<'a> {
 
 }
 
-fn path_as_identifier(s: &str) -> String {
+fn trait_name_for_path(base: &Option<Expr>, path: &str) -> String {
+    let rooted_path = match *base {
+        Some(Expr::StrLit(user_path)) => {
+            path::find_template_from_path(user_path, Some(path))
+        },
+        _ => {
+            let mut path_buf = PathBuf::new();
+            path_buf.push(&path);
+            path_buf
+        },
+    };
+
     let mut res = String::new();
-    for c in s.chars() {
+    res.push_str("TraitFrom");
+    for c in rooted_path.to_string_lossy().chars() {
         if c.is_alphanumeric() {
             res.push(c);
         } else {
@@ -476,21 +486,13 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
     let mut locals = HashSet::new();
     let mut gen = Generator::default(&mut locals);
     if !blocks.is_empty() {
+        let trait_name = trait_name_for_path(&base, path);
         if base.is_none() {
-            gen.define_trait(path, &block_names);
+            gen.define_trait(&trait_name, &block_names);
         }
-        let base_path = match base {
-            Some(Expr::StrLit(user_path)) => {
-                path::find_template_from_path(user_path, Some(path))
-            },
-            _ => {
-                let mut path_buf = PathBuf::new();
-                path_buf.push(&path);
-                path_buf
-            },
-        };
+
         let trait_nodes = if base.is_none() { Some(&content[..]) } else { None };
-        gen.impl_trait(ast, base_path.to_str().unwrap(), &blocks, trait_nodes);
+        gen.impl_trait(ast, &trait_name, &blocks, trait_nodes);
         gen.impl_template_for_trait(ast, base.is_some());
     } else {
         gen.impl_template(ast, &content);
