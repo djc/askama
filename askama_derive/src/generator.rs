@@ -334,6 +334,8 @@ impl<'a> Generator<'a> {
         }
     }
 
+    // Writes header for the `impl` for `TraitFromPathName` or `Template`
+    // for the given context struct.
     fn write_header(&mut self, ast: &syn::DeriveInput, target: &str) {
         let mut full_anno = Tokens::new();
         let mut orig_anno = Tokens::new();
@@ -379,6 +381,7 @@ impl<'a> Generator<'a> {
                               orig_anno.as_str(), where_clause.as_str()));
     }
 
+    // Implement `Template` for the given context struct.
     fn impl_template(&mut self, ast: &syn::DeriveInput, nodes: &'a [Node]) {
         self.write_header(ast, "::askama::Template");
         self.writeln("fn render_to(&self, writer: &mut ::std::fmt::Write) {");
@@ -388,6 +391,7 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
+    // Implement `TraitFromPathName` for the given context struct.
     fn impl_trait(&mut self, ast: &syn::DeriveInput, base: &str,
                   blocks: &'a [Node], nodes: Option<&'a [Node]>) {
         let trait_name = format!("TraitFrom{}", path_as_identifier(base));
@@ -411,6 +415,7 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
+    // Implement `Template` for templates that implement a template trait.
     fn impl_template_for_trait(&mut self, ast: &syn::DeriveInput, derived: bool) {
         self.write_header(ast, "::askama::Template");
         self.writeln("fn render_to(&self, writer: &mut ::std::fmt::Write) {");
@@ -423,6 +428,7 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
+    // Defines the `TraitFromPathName` trait.
     fn define_trait(&mut self, path: &str, block_names: &[&str]) {
         let trait_name = format!("TraitFrom{}", path_as_identifier(path));
         self.writeln(&format!("trait {} {{", &trait_name));
