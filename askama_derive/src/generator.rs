@@ -379,6 +379,18 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
+    // Implement `Deref<Parent>` for an inheriting context struct.
+    fn deref_to_parent(&mut self, ast: &syn::DeriveInput, parent_type: &syn::Ty) {
+        self.write_header(ast, "::std::ops::Deref");
+        let mut tokens = Tokens::new();
+        parent_type.to_tokens(&mut tokens);
+        self.writeln(&format!("type Target = {};", tokens.as_str()));
+        self.writeln("fn deref(&self) -> &Self::Target {");
+        self.writeln("&self._parent");
+        self.writeln("}");
+        self.writeln("}");
+    }
+
     // Implement `TraitFromPathName` for the given context struct.
     fn impl_trait(&mut self, ast: &syn::DeriveInput, trait_name: &str,
                   blocks: &'a [Node], nodes: Option<&'a [Node]>) {
@@ -461,6 +473,23 @@ fn trait_name_for_path(base: &Option<Expr>, path: &str) -> String {
     res
 }
 
+fn get_parent_type(ast: &syn::DeriveInput) -> Option<&syn::Ty> {
+    match ast.body {
+        syn::Body::Struct(ref data) => {
+            data.fields().iter().filter_map(|f| {
+                f.ident.as_ref().and_then(|name| {
+                    if name.as_ref() == "_parent" {
+                        Some(&f.ty)
+                    } else {
+                        None
+                    }
+                })
+            })
+        },
+        _ => panic!("derive(Template) only works for struct items"),
+    }.next()
+}
+
 pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> String {
     let mut base: Option<Expr> = None;
     let mut blocks = Vec::new();
@@ -489,6 +518,8 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
         let trait_name = trait_name_for_path(&base, path);
         if base.is_none() {
             gen.define_trait(&trait_name, &block_names);
+        } else {
+            gen.deref_to_parent(ast, &get_parent_type(ast).unwrap());
         }
 
         let trait_nodes = if base.is_none() { Some(&content[..]) } else { None };
