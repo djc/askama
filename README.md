@@ -31,16 +31,14 @@ Many thanks to [David Tolnay][dtolnay] for his support in improving Askama.
 ### Supported in templates
 
 * Template inheritance (one level only)
-* Basic loops and if/else statements
+* Basic loops, if/else statements and include support
 * Whitespace suppressing with '-' markers
 * Some built-in filters
 
 ### Limitations
 
-* Still in beta -- not very mature yet
 * Only a small number of built-in template filters have been implemented
 * User-defined template filters are not supported yet
-* Debugging template problems can be tricky
 
 [docs]: https://docs.rs/askama
 [mitsuhiko]: http://lucumr.pocoo.org/
