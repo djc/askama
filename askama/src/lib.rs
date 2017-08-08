@@ -129,11 +129,13 @@
 //! ```
 //!
 //! The `extends` tag tells the code generator that this template inherits
-//! from another template. It will render the top-level content from the
-//! base template, and substitute blocks from the base template with those
-//! from the child template. The inheriting template context `struct` must
-//! have a field called `_parent` of the type used as the base template
-//! context. Blocks can only refer to the context of their own template.
+//! from another template. It will search for the base template relative to
+//! itself before looking relative to the template base directory. It will
+//! render the top-level content from the base template, and substitute
+//! blocks from the base template with those from the child template. The
+//! inheriting template context `struct` must have a field called `_parent` of
+//! the type used as the base template context. Blocks can refer to the context
+//! of both parent and child template.
 //!
 //! Note that, if the base template lives in another module than the child
 //! template, the child template's module should import all symbols from the
