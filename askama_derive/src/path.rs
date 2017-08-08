@@ -3,10 +3,23 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-fn template_dir() -> PathBuf {
-    let mut path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    path.push("templates");
-    path
+pub fn get_template_source(tpl_path: &Path) -> String {
+    let mut path = template_dir();
+    path.push(tpl_path);
+    let mut f = match File::open(&path) {
+        Err(_) => {
+            let msg = format!("unable to open template file '{}'",
+                              &path.to_str().unwrap());
+            panic!(msg);
+        },
+        Ok(f) => f,
+    };
+    let mut s = String::new();
+    f.read_to_string(&mut s).unwrap();
+    if s.ends_with('\n') {
+        let _ = s.pop();
+    }
+    s
 }
 
 pub fn find_template_from_path<'a>(path: &str, start_at: Option<&str>) -> PathBuf {
@@ -33,23 +46,10 @@ pub fn find_template_from_path<'a>(path: &str, start_at: Option<&str>) -> PathBu
     }
 }
 
-pub fn get_template_source(tpl_path: &Path) -> String {
-    let mut path = template_dir();
-    path.push(tpl_path);
-    let mut f = match File::open(&path) {
-        Err(_) => {
-            let msg = format!("unable to open template file '{}'",
-                              &path.to_str().unwrap());
-            panic!(msg);
-        },
-        Ok(f) => f,
-    };
-    let mut s = String::new();
-    f.read_to_string(&mut s).unwrap();
-    if s.ends_with('\n') {
-        let _ = s.pop();
-    }
-    s
+fn template_dir() -> PathBuf {
+    let mut path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    path.push("templates");
+    path
 }
 
 #[cfg(test)]

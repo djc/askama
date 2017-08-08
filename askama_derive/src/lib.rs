@@ -10,10 +10,36 @@ mod generator;
 mod parser;
 mod path;
 
-// Holds metadata for the template, based on the `template()` attribute.
-struct TemplateMeta {
-    path: String,
-    print: String,
+#[proc_macro_derive(Template, attributes(template))]
+pub fn derive_template(input: TokenStream) -> TokenStream {
+    let ast = syn::parse_derive_input(&input.to_string()).unwrap();
+    match ast.body {
+        syn::Body::Struct(ref data) => data,
+        _ => panic!("#[derive(Template)] can only be used with structs"),
+    };
+    build_template(&ast).parse().unwrap()
+}
+
+/// Takes a `syn::DeriveInput` and generates source code for it
+///
+/// Reads the metadata from the `template()` attribute to get the template
+/// metadata, then fetches the source from the filesystem. The source is
+/// parsed, and the parse tree is fed to the code generator. Will print
+/// the parse tree and/or generated source according to the `print` key's
+/// value as passed to the `template()` attribute.
+fn build_template(ast: &syn::DeriveInput) -> String {
+    let meta = get_template_meta(ast);
+    let path = path::find_template_from_path(&meta.path, None);
+    let src = path::get_template_source(&path);
+    let nodes = parser::parse(&src);
+    if meta.print == "ast" || meta.print == "all" {
+        println!("{:?}", nodes);
+    }
+    let code = generator::generate(ast, &meta.path, nodes);
+    if meta.print == "code" || meta.print == "all" {
+        println!("{}", code);
+    }
+    code
 }
 
 // Returns a `TemplateMeta` based on the `template()` attribute data found
@@ -57,34 +83,8 @@ fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
     TemplateMeta { path: path.unwrap(), print: print }
 }
 
-/// Takes a `syn::DeriveInput` and generates source code for it
-///
-/// Reads the metadata from the `template()` attribute to get the template
-/// metadata, then fetches the source from the filesystem. The source is
-/// parsed, and the parse tree is fed to the code generator. Will print
-/// the parse tree and/or generated source according to the `print` key's
-/// value as passed to the `template()` attribute.
-fn build_template(ast: &syn::DeriveInput) -> String {
-    let meta = get_template_meta(ast);
-    let path = path::find_template_from_path(&meta.path, None);
-    let src = path::get_template_source(&path);
-    let nodes = parser::parse(&src);
-    if meta.print == "ast" || meta.print == "all" {
-        println!("{:?}", nodes);
-    }
-    let code = generator::generate(ast, &meta.path, nodes);
-    if meta.print == "code" || meta.print == "all" {
-        println!("{}", code);
-    }
-    code
-}
-
-#[proc_macro_derive(Template, attributes(template))]
-pub fn derive_template(input: TokenStream) -> TokenStream {
-    let ast = syn::parse_derive_input(&input.to_string()).unwrap();
-    match ast.body {
-        syn::Body::Struct(ref data) => data,
-        _ => panic!("#[derive(Template)] can only be used with structs"),
-    };
-    build_template(&ast).parse().unwrap()
+// Holds metadata for the template, based on the `template()` attribute.
+struct TemplateMeta {
+    path: String,
+    print: String,
 }

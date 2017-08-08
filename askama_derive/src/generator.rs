@@ -9,6 +9,88 @@ use std::collections::HashSet;
 
 use syn;
 
+pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> String {
+    let mut base: Option<Expr> = None;
+    let mut blocks = Vec::new();
+    let mut block_names = Vec::new();
+    let mut content = Vec::new();
+    for n in nodes.drain(..) {
+        match n {
+            Node::Extends(path) => {
+                match base {
+                    Some(_) => panic!("multiple extend blocks found"),
+                    None => { base = Some(path); },
+                }
+            },
+            Node::BlockDef(ws1, name, _, ws2) => {
+                blocks.push(n);
+                block_names.push(name);
+                content.push(Node::Block(ws1, name, ws2));
+            },
+            _ => { content.push(n); },
+        }
+    }
+
+    let mut locals = HashSet::new();
+    let mut gen = Generator::default(&mut locals);
+    if !blocks.is_empty() {
+        let trait_name = trait_name_for_path(&base, path);
+        if base.is_none() {
+            gen.define_trait(&trait_name, &block_names);
+        } else {
+            gen.deref_to_parent(ast, &get_parent_type(ast).unwrap());
+        }
+
+        let trait_nodes = if base.is_none() { Some(&content[..]) } else { None };
+        gen.impl_trait(ast, &trait_name, &blocks, trait_nodes);
+        gen.impl_template_for_trait(ast, base.is_some());
+    } else {
+        gen.impl_template(ast, &content);
+    }
+    gen.result()
+}
+
+fn trait_name_for_path(base: &Option<Expr>, path: &str) -> String {
+    let rooted_path = match *base {
+        Some(Expr::StrLit(user_path)) => {
+            path::find_template_from_path(user_path, Some(path))
+        },
+        _ => {
+            let mut path_buf = PathBuf::new();
+            path_buf.push(&path);
+            path_buf
+        },
+    };
+
+    let mut res = String::new();
+    res.push_str("TraitFrom");
+    for c in rooted_path.to_string_lossy().chars() {
+        if c.is_alphanumeric() {
+            res.push(c);
+        } else {
+            res.push_str(&format!("{:x}", c as u32));
+        }
+    }
+    res
+}
+
+fn get_parent_type(ast: &syn::DeriveInput) -> Option<&syn::Ty> {
+    match ast.body {
+        syn::Body::Struct(ref data) => {
+            data.fields().iter().filter_map(|f| {
+                f.ident.as_ref().and_then(|name| {
+                    if name.as_ref() == "_parent" {
+                        Some(&f.ty)
+                    } else {
+                        None
+                    }
+                })
+            })
+        },
+        _ => panic!("derive(Template) only works for struct items"),
+    }.next()
+}
+
 struct Generator<'a> {
     buf: String,
     indent: u8,
@@ -450,86 +532,4 @@ impl<'a> Generator<'a> {
         self.buf
     }
 
-}
-
-fn trait_name_for_path(base: &Option<Expr>, path: &str) -> String {
-    let rooted_path = match *base {
-        Some(Expr::StrLit(user_path)) => {
-            path::find_template_from_path(user_path, Some(path))
-        },
-        _ => {
-            let mut path_buf = PathBuf::new();
-            path_buf.push(&path);
-            path_buf
-        },
-    };
-
-    let mut res = String::new();
-    res.push_str("TraitFrom");
-    for c in rooted_path.to_string_lossy().chars() {
-        if c.is_alphanumeric() {
-            res.push(c);
-        } else {
-            res.push_str(&format!("{:x}", c as u32));
-        }
-    }
-    res
-}
-
-fn get_parent_type(ast: &syn::DeriveInput) -> Option<&syn::Ty> {
-    match ast.body {
-        syn::Body::Struct(ref data) => {
-            data.fields().iter().filter_map(|f| {
-                f.ident.as_ref().and_then(|name| {
-                    if name.as_ref() == "_parent" {
-                        Some(&f.ty)
-                    } else {
-                        None
-                    }
-                })
-            })
-        },
-        _ => panic!("derive(Template) only works for struct items"),
-    }.next()
-}
-
-pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> String {
-    let mut base: Option<Expr> = None;
-    let mut blocks = Vec::new();
-    let mut block_names = Vec::new();
-    let mut content = Vec::new();
-    for n in nodes.drain(..) {
-        match n {
-            Node::Extends(path) => {
-                match base {
-                    Some(_) => panic!("multiple extend blocks found"),
-                    None => { base = Some(path); },
-                }
-            },
-            Node::BlockDef(ws1, name, _, ws2) => {
-                blocks.push(n);
-                block_names.push(name);
-                content.push(Node::Block(ws1, name, ws2));
-            },
-            _ => { content.push(n); },
-        }
-    }
-
-    let mut locals = HashSet::new();
-    let mut gen = Generator::default(&mut locals);
-    if !blocks.is_empty() {
-        let trait_name = trait_name_for_path(&base, path);
-        if base.is_none() {
-            gen.define_trait(&trait_name, &block_names);
-        } else {
-            gen.deref_to_parent(ast, &get_parent_type(ast).unwrap());
-        }
-
-        let trait_nodes = if base.is_none() { Some(&content[..]) } else { None };
-        gen.impl_trait(ast, &trait_name, &blocks, trait_nodes);
-        gen.impl_template_for_trait(ast, base.is_some());
-    } else {
-        gen.impl_template(ast, &content);
-    }
-    gen.result()
 }
