@@ -178,6 +178,20 @@ impl<'a> Generator<'a> {
         self.prepare_ws(ws);
     }
 
+    /* Helper methods for dealing with scope */
+
+    fn is_local(&self, var: &str) -> bool {
+        self.locals.contains(var)
+    }
+
+    fn make_local(&mut self, var: &str) {
+        self.locals.insert(var.to_string());
+    }
+
+    fn drop_local(&mut self, var: &str) {
+        self.locals.remove(var);
+    }
+
     /* Visitor methods for expression types */
 
     fn visit_num_lit(&mut self, s: &str) {
@@ -189,7 +203,7 @@ impl<'a> Generator<'a> {
     }
 
     fn visit_var(&mut self, s: &str) {
-        if self.locals.contains(s) {
+        if self.is_local(s) {
             self.write(s);
         } else {
             self.write(&format!("self.{}", s));
@@ -340,7 +354,7 @@ impl<'a> Generator<'a> {
         self.write("for (_loop_index, ");
         let targets = self.visit_target(var);
         for name in &targets {
-            self.locals.insert(name.clone());
+            self.make_local(name);
             self.write(name);
         }
         self.write(") in (&");
@@ -351,7 +365,7 @@ impl<'a> Generator<'a> {
         self.handle_ws(ws2);
         self.writeln("}");
         for name in &targets {
-            self.locals.remove(name);
+            self.drop_local(name);
         }
     }
 
