@@ -3,8 +3,8 @@ use path;
 
 use quote::{Tokens, ToTokens};
 
+use std::{cmp, hash, str};
 use std::path::PathBuf;
-use std::str;
 use std::collections::HashSet;
 
 use syn;
@@ -31,8 +31,7 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
         }
     }
 
-    let mut locals = HashSet::new();
-    let mut gen = Generator::default(&mut locals);
+    let mut gen = Generator::default();
     if !blocks.is_empty() {
         let trait_name = trait_name_for_path(&base, path);
         if base.is_none() {
@@ -98,14 +97,14 @@ struct Generator<'a> {
     buf: String,
     indent: u8,
     start: bool,
-    locals: &'a mut HashSet<String>,
+    locals: SetChain<'a, &'a str>,
     next_ws: Option<&'a str>,
     skip_ws: bool,
 }
 
 impl<'a> Generator<'a> {
 
-    fn new<'n>(locals: &'n mut HashSet<String>, indent: u8) -> Generator<'n> {
+    fn new<'n>(locals: SetChain<'n, &'n str>, indent: u8) -> Generator<'n> {
         Generator {
             buf: String::new(),
             indent: indent,
@@ -116,12 +115,13 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn default<'n>(locals: &'n mut HashSet<String>) -> Generator<'n> {
-        Self::new(locals, 0)
+    fn default<'n>() -> Generator<'n> {
+        Self::new(SetChain::new(), 0)
     }
 
     fn child<'n>(&'n mut self) -> Generator<'n> {
-        Self::new(self.locals, self.indent)
+        let locals = SetChain::with_parent(&self.locals);
+        Self::new(locals, self.indent)
     }
 
     /* Helper methods for writing to internal buffer */
@@ -184,15 +184,19 @@ impl<'a> Generator<'a> {
     /* Helper methods for dealing with scope */
 
     fn is_local(&self, var: &str) -> bool {
-        self.locals.contains(var)
+        self.locals.contains(&var)
     }
 
-    fn make_local(&mut self, var: &str) {
-        self.locals.insert(var.to_string());
+    fn make_local<'s>(&mut self, var: &'a str) {
+        self.locals.insert(var);
     }
 
-    fn drop_local(&mut self, var: &str) {
-        self.locals.remove(var);
+    fn push_scope(&mut self) {
+        self.locals.push();
+    }
+
+    fn pop_scope(&mut self) {
+        self.locals.pop();
     }
 
     /* Visitor methods for expression types */
@@ -351,9 +355,10 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
-    fn write_loop(&mut self, ws1: &WS, var: &Target, iter: &Expr,
+    fn write_loop(&mut self, ws1: &WS, var: &'a Target, iter: &Expr,
                   body: &'a [Node], ws2: &WS) {
         self.handle_ws(ws1);
+        self.push_scope();
         self.write("for (_loop_index, ");
         let targets = self.visit_target(var);
         for name in &targets {
@@ -367,9 +372,7 @@ impl<'a> Generator<'a> {
         self.handle(body);
         self.handle_ws(ws2);
         self.writeln("}");
-        for name in &targets {
-            self.drop_local(name);
-        }
+        self.pop_scope();
     }
 
     fn write_block(&mut self, ws1: &WS, name: &str, ws2: &WS) {
@@ -575,4 +578,34 @@ impl<'a> Generator<'a> {
         self.buf
     }
 
+}
+
+struct SetChain<'a, T: 'a> where T: cmp::Eq + hash::Hash {
+    parent: Option<&'a SetChain<'a, T>>,
+    scopes: Vec<HashSet<T>>,
+}
+
+impl<'a, T: 'a> SetChain<'a, T> where T: cmp::Eq + hash::Hash {
+    fn new() -> SetChain<'a, T> {
+        SetChain { parent: None, scopes: vec![HashSet::new()] }
+    }
+    fn with_parent<'p>(parent: &'p SetChain<T>) -> SetChain<'p, T> {
+        SetChain { parent: Some(parent), scopes: vec![HashSet::new()] }
+    }
+    fn contains(&self, val: &T) -> bool {
+        self.scopes.iter().rev().any(|set| set.contains(val)) ||
+            match self.parent {
+                Some(set) => set.contains(val),
+                None => false,
+            }
+    }
+    fn insert(&mut self, val: T) {
+        self.scopes.last_mut().unwrap().insert(val);
+    }
+    fn push(&mut self) {
+        self.scopes.push(HashSet::new());
+    }
+    fn pop(&mut self) {
+        self.scopes.pop().unwrap();
+    }
 }
