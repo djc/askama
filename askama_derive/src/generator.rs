@@ -162,7 +162,7 @@ impl<'a> Generator<'a> {
         if self.next_ws.is_some() && !ws.0 {
             let val = self.next_ws.unwrap();
             if !val.is_empty() {
-                self.writeln(&format!("writer.write_str({:#?}).unwrap();",
+                self.writeln(&format!("writer.write_str({:#?})?;",
                                       val));
             }
         }
@@ -304,12 +304,12 @@ impl<'a> Generator<'a> {
                 assert!(rws.is_empty());
                 self.next_ws = Some(lws);
             } else {
-                self.writeln(&format!("writer.write_str({:#?}).unwrap();",
+                self.writeln(&format!("writer.write_str({:#?})?;",
                                       lws));
             }
         }
         if !val.is_empty() {
-            self.writeln(&format!("writer.write_str({:#?}).unwrap();", val));
+            self.writeln(&format!("writer.write_str({:#?})?;", val));
         }
         if !rws.is_empty() {
             self.next_ws = Some(rws);
@@ -320,7 +320,7 @@ impl<'a> Generator<'a> {
         self.handle_ws(ws);
         self.write("writer.write_fmt(format_args!(\"{}\", ");
         self.visit_expr(s);
-        self.writeln(")).unwrap();");
+        self.writeln("))?;");
     }
 
     fn write_cond(&mut self, conds: &'a [Cond], ws: &WS) {
@@ -371,7 +371,7 @@ impl<'a> Generator<'a> {
 
     fn write_block(&mut self, ws1: &WS, name: &str, ws2: &WS) {
         self.flush_ws(ws1);
-        self.writeln(&format!("timpl.render_block_{}_to(writer);", name));
+        self.writeln(&format!("timpl.render_block_{}_into(writer)?;", name));
         self.prepare_ws(ws2);
     }
 
@@ -379,11 +379,13 @@ impl<'a> Generator<'a> {
                        ws2: &WS) {
         self.writeln("#[allow(unused_variables)]");
         self.writeln(&format!(
-            "fn render_block_{}_to(&self, writer: &mut ::std::fmt::Write) {{",
+            "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
+             -> Result<(), ::std::fmt::Error> {{",
             name));
         self.prepare_ws(ws1);
         self.handle(nodes);
         self.flush_ws(ws2);
+        self.writeln("Ok(())");
         self.writeln("}");
     }
 
@@ -479,9 +481,11 @@ impl<'a> Generator<'a> {
     // Implement `Template` for the given context struct.
     fn impl_template(&mut self, ast: &syn::DeriveInput, nodes: &'a [Node]) {
         self.write_header(ast, "::askama::Template");
-        self.writeln("fn render_to(&self, writer: &mut ::std::fmt::Write) {");
+        self.writeln("fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
+                      Result<(), ::std::fmt::Error> {");
         self.handle(nodes);
         self.flush_ws(&WS(false, false));
+        self.writeln("Ok(())");
         self.writeln("}");
         self.writeln("}");
     }
@@ -506,16 +510,18 @@ impl<'a> Generator<'a> {
 
         self.writeln("#[allow(unused_variables)]");
         self.writeln(&format!(
-            "fn render_trait_to(&self, timpl: &{}, writer: &mut ::std::fmt::Write) {{",
+            "fn render_trait_into(&self, timpl: &{}, writer: &mut ::std::fmt::Write) \
+             -> Result<(), ::std::fmt::Error> {{",
             trait_name));
 
         if let Some(nodes) = nodes {
             self.handle(nodes);
             self.flush_ws(&WS(false, false));
         } else {
-            self.writeln("self._parent.render_trait_to(self, writer);");
+            self.writeln("self._parent.render_trait_into(self, writer)?;");
         }
 
+        self.writeln("Ok(())");
         self.writeln("}");
         self.flush_ws(&WS(false, false));
         self.writeln("}");
@@ -524,12 +530,14 @@ impl<'a> Generator<'a> {
     // Implement `Template` for templates that implement a template trait.
     fn impl_template_for_trait(&mut self, ast: &syn::DeriveInput, derived: bool) {
         self.write_header(ast, "::askama::Template");
-        self.writeln("fn render_to(&self, writer: &mut ::std::fmt::Write) {");
+        self.writeln("fn render_into(&self, writer: &mut ::std::fmt::Write) \
+                      -> Result<(), ::std::fmt::Error> {");
         if derived {
-            self.writeln("self._parent.render_trait_to(self, writer);");
+            self.writeln("self._parent.render_trait_into(self, writer)?;");
         } else {
-            self.writeln("self.render_trait_to(self, writer);");
+            self.writeln("self.render_trait_into(self, writer)?;");
         }
+        self.writeln("Ok(())");
         self.writeln("}");
         self.writeln("}");
     }
@@ -540,13 +548,14 @@ impl<'a> Generator<'a> {
 
         for bname in block_names {
             self.writeln(&format!(
-                "fn render_block_{}_to(&self, writer: &mut ::std::fmt::Write);",
+                "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
+                -> Result<(), ::std::fmt::Error>;",
                 bname));
         }
         self.writeln(&format!(
-            "fn render_trait_to(&self, timpl: &{}, writer: &mut ::std::fmt::Write);",
+            "fn render_trait_into(&self, timpl: &{}, writer: &mut ::std::fmt::Write) \
+             -> Result<(), ::std::fmt::Error>;",
             trait_name));
-
         self.writeln("}");
     }
 

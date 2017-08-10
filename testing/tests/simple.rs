@@ -18,10 +18,10 @@ fn test_variables() {
         num: 42,
         i18n: "Iñtërnâtiônàlizætiøn".to_string(),
     };
-    assert_eq!(s.render(), "\nhello world, foo\n\
-                            with number: 42\n\
-                            Iñtërnâtiônàlizætiøn is important\n\
-                            in vars too: Iñtërnâtiônàlizætiøn");
+    assert_eq!(s.render().unwrap(), "\nhello world, foo\n\
+                                     with number: 42\n\
+                                     Iñtërnâtiônàlizætiøn is important\n\
+                                     in vars too: Iñtërnâtiônàlizætiøn");
 }
 
 
@@ -34,7 +34,7 @@ struct IfTemplate {
 #[test]
 fn test_if() {
     let s = IfTemplate { cond: true };
-    assert_eq!(s.render(), "true");
+    assert_eq!(s.render().unwrap(), "true");
 }
 
 
@@ -47,7 +47,7 @@ struct ElseTemplate {
 #[test]
 fn test_else() {
     let s = ElseTemplate { cond: false };
-    assert_eq!(s.render(), "false");
+    assert_eq!(s.render().unwrap(), "false");
 }
 
 
@@ -61,7 +61,7 @@ struct ElseIfTemplate {
 #[test]
 fn test_else_if() {
     let s = ElseIfTemplate { cond: false, check: true };
-    assert_eq!(s.render(), "checked");
+    assert_eq!(s.render().unwrap(), "checked");
 }
 
 
@@ -72,7 +72,7 @@ struct LiteralsTemplate {}
 #[test]
 fn test_literals() {
     let s = LiteralsTemplate {};
-    assert_eq!(s.render(), "a");
+    assert_eq!(s.render().unwrap(), "a");
 }
 
 
@@ -89,7 +89,7 @@ struct AttrTemplate {
 #[test]
 fn test_attr() {
     let t = AttrTemplate { inner: Holder { a: 5 } };
-    assert_eq!(t.render(), "5");
+    assert_eq!(t.render().unwrap(), "5");
 }
 
 
@@ -108,7 +108,7 @@ fn test_nested_attr() {
     let t = NestedAttrTemplate {
         inner: NestedHolder { holder: Holder { a: 5 } }
     };
-    assert_eq!(t.render(), "5");
+    assert_eq!(t.render().unwrap(), "5");
 }
 
 
@@ -121,9 +121,9 @@ struct OptionTemplate<'a> {
 #[test]
 fn test_option() {
     let some = OptionTemplate { var: Some("foo") };
-    assert_eq!(some.render(), "some: foo");
+    assert_eq!(some.render().unwrap(), "some: foo");
     let none = OptionTemplate { var: None };
-    assert_eq!(none.render(), "none");
+    assert_eq!(none.render().unwrap(), "none");
 }
 
 
@@ -138,7 +138,7 @@ struct GenericsTemplate<T: std::fmt::Display, U = u8>
 #[test]
 fn test_generics() {
     let t = GenericsTemplate { t: "a", u: 42 };
-    assert_eq!(t.render(), "a42");
+    assert_eq!(t.render().unwrap(), "a42");
 }
 
 
@@ -152,5 +152,5 @@ struct JsonTemplate<'a> {
 #[test]
 fn test_json() {
     let t = JsonTemplate { foo: "a", bar: "b" };
-    assert_eq!(t.render(), "{\"foo\": \"a\", \"bar\": \"b\"}");
+    assert_eq!(t.render().unwrap(), "{\"foo\": \"a\", \"bar\": \"b\"}");
 }

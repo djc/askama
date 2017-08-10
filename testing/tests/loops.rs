@@ -14,7 +14,7 @@ fn test_for() {
     let s = ForTemplate {
         strings: vec!["A", "alfa", "1"],
     };
-    assert_eq!(s.render(), "0. A\n1. alfa\n2. 1\n");
+    assert_eq!(s.render().unwrap(), "0. A\n1. alfa\n2. 1\n");
 }
 
 
@@ -31,5 +31,5 @@ fn test_nested_for() {
     let s = NestedForTemplate {
         seqs: vec![&alpha, &numbers],
     };
-    assert_eq!(s.render(), "1\n  0a1b2c2\n  0one1two");
+    assert_eq!(s.render().unwrap(), "1\n  0a1b2c2\n  0one1two");
 }

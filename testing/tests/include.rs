@@ -15,5 +15,5 @@ fn test_include() {
     let s = IncludeTemplate {
         strs: &strs,
     };
-    assert_eq!(s.render(), "INCLUDED: fooINCLUDED: bar")
+    assert_eq!(s.render().unwrap(), "INCLUDED: fooINCLUDED: bar")
 }
