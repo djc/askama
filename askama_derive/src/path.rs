@@ -46,6 +46,7 @@ pub fn find_template_from_path<'a>(path: &str, start_at: Option<&str>) -> PathBu
     }
 }
 
+// Duplicated in askama
 fn template_dir() -> PathBuf {
     let mut path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     path.push("templates");
