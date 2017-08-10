@@ -47,6 +47,7 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
     } else {
         gen.impl_template(ast, &content);
     }
+    gen.impl_display(ast);
     gen.result()
 }
 
@@ -486,6 +487,15 @@ impl<'a> Generator<'a> {
         self.handle(nodes);
         self.flush_ws(&WS(false, false));
         self.writeln("Ok(())");
+        self.writeln("}");
+        self.writeln("}");
+    }
+
+    // Implement `Display` for the given context struct.
+    fn impl_display(&mut self, ast: &syn::DeriveInput) {
+        self.write_header(ast, "::std::fmt::Display");
+        self.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {");
+        self.writeln("self.render_into(f)");
         self.writeln("}");
         self.writeln("}");
     }

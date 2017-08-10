@@ -154,3 +154,16 @@ fn test_json() {
     let t = JsonTemplate { foo: "a", bar: "b" };
     assert_eq!(t.render().unwrap(), "{\"foo\": \"a\", \"bar\": \"b\"}");
 }
+
+
+#[derive(Template)]
+#[template(path = "composition.html")]
+struct CompositionTemplate {
+    foo: IfTemplate,
+}
+
+#[test]
+fn test_composition() {
+    let t = CompositionTemplate { foo: IfTemplate { cond: true } };
+    assert_eq!(t.render().unwrap(), "composed: true");
+}
