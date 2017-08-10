@@ -284,11 +284,11 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn visit_target_single(&mut self, name: &str) -> Vec<String> {
-        vec![name.to_string()]
+    fn visit_target_single<'t>(&mut self, name: &'t str) -> Vec<&'t str> {
+        vec![name]
     }
 
-    fn visit_target(&mut self, target: &Target) -> Vec<String> {
+    fn visit_target<'t>(&mut self, target: &'t Target) -> Vec<&'t str> {
         match *target {
             Target::Name(s) => { self.visit_target_single(s) },
         }
