@@ -141,14 +141,18 @@ Lit("", "!", "\n")]
 The generated code looks like this:
 
 ```rust
-#[allow(dead_code, non_camel_case_types)]
-impl<'a> askama::Template for HelloTemplate<'a> {
-    fn render_to(&self, writer: &mut std::fmt::Write) {
-        writer.write_str("Hello,").unwrap();
-        writer.write_str(" ").unwrap();
-        writer.write_fmt(format_args!("{}", self.name)).unwrap();
-        writer.write_str("!").unwrap();
-        writer.write_str("\n").unwrap();
+impl< 'a > ::askama::Template for HelloTemplate< 'a > {
+    fn render_into(&self, writer: &mut ::std::fmt::Write) -> Result<(), ::std::fmt::Error> {
+        writer.write_str("Hello,")?;
+        writer.write_str(" ")?;
+        writer.write_fmt(format_args!("{}", self.name))?;
+        writer.write_str("!")?;
+        Ok(())
+    }
+}
+impl< 'a > ::std::fmt::Display for HelloTemplate< 'a > {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+        self.render_into(f)
     }
 }
 ```
