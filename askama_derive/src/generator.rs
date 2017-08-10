@@ -38,7 +38,9 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
         if base.is_none() {
             gen.define_trait(&trait_name, &block_names);
         } else {
-            gen.deref_to_parent(ast, &get_parent_type(ast).unwrap());
+            let parent_type = get_parent_type(ast)
+                .expect("expected field '_parent' in extending template struct");
+            gen.deref_to_parent(ast, &parent_type);
         }
 
         let trait_nodes = if base.is_none() { Some(&content[..]) } else { None };
