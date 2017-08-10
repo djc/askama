@@ -181,24 +181,6 @@ impl<'a> Generator<'a> {
         self.prepare_ws(ws);
     }
 
-    /* Helper methods for dealing with scope */
-
-    fn is_local(&self, var: &str) -> bool {
-        self.locals.contains(&var)
-    }
-
-    fn make_local<'s>(&mut self, var: &'a str) {
-        self.locals.insert(var);
-    }
-
-    fn push_scope(&mut self) {
-        self.locals.push();
-    }
-
-    fn pop_scope(&mut self) {
-        self.locals.pop();
-    }
-
     /* Visitor methods for expression types */
 
     fn visit_num_lit(&mut self, s: &str) {
@@ -210,7 +192,7 @@ impl<'a> Generator<'a> {
     }
 
     fn visit_var(&mut self, s: &str) {
-        if self.is_local(s) {
+        if self.locals.contains(s) {
             self.write(s);
         } else {
             self.write(&format!("self.{}", s));
@@ -358,11 +340,11 @@ impl<'a> Generator<'a> {
     fn write_loop(&mut self, ws1: &WS, var: &'a Target, iter: &Expr,
                   body: &'a [Node], ws2: &WS) {
         self.handle_ws(ws1);
-        self.push_scope();
+        self.locals.push();
         self.write("for (_loop_index, ");
         let targets = self.visit_target(var);
         for name in &targets {
-            self.make_local(name);
+            self.locals.insert(name);
             self.write(name);
         }
         self.write(") in (&");
@@ -372,7 +354,7 @@ impl<'a> Generator<'a> {
         self.handle(body);
         self.handle_ws(ws2);
         self.writeln("}");
-        self.pop_scope();
+        self.locals.pop();
     }
 
     fn write_block(&mut self, ws1: &WS, name: &str, ws2: &WS) {
@@ -592,8 +574,8 @@ impl<'a, T: 'a> SetChain<'a, T> where T: cmp::Eq + hash::Hash {
     fn with_parent<'p>(parent: &'p SetChain<T>) -> SetChain<'p, T> {
         SetChain { parent: Some(parent), scopes: vec![HashSet::new()] }
     }
-    fn contains(&self, val: &T) -> bool {
-        self.scopes.iter().rev().any(|set| set.contains(val)) ||
+    fn contains(&self, val: T) -> bool {
+        self.scopes.iter().rev().any(|set| set.contains(&val)) ||
             match self.parent {
                 Some(set) => set.contains(val),
                 None => false,
