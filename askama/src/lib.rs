@@ -216,6 +216,11 @@ extern crate askama_derive;
 #[macro_use]
 extern crate error_chain;
 
+#[cfg(feature = "serde-json")]
+extern crate serde;
+#[cfg(feature = "serde-json")]
+extern crate serde_json;
+
 use std::env;
 use std::fmt;
 use std::fs::{self, DirEntry};
@@ -279,6 +284,7 @@ mod errors {
     error_chain! {
         foreign_links {
             Fmt(::std::fmt::Error);
+            Json(::serde_json::Error) #[cfg(feature = "serde-json")];
         }
     }
 }

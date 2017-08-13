@@ -2,8 +2,16 @@
 //!
 //! Contains all the built-in filter functions for use in templates.
 //! Currently, there is no way to define filters outside this module.
+
+#[cfg(feature = "serde-json")]
+mod json;
+
+#[cfg(feature = "serde-json")]
+pub use self::json::json;
+
 use std::fmt;
 use super::Result;
+
 
 fn escapable(b: &u8) -> bool {
     *b == b'<' || *b == b'>' || *b == b'&'

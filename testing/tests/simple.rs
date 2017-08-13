@@ -1,7 +1,10 @@
 #[macro_use]
 extern crate askama;
+#[macro_use]
+extern crate serde_json;
 
 use askama::Template;
+use serde_json::Value;
 
 #[derive(Template)]
 #[template(path = "simple.html")]
@@ -146,15 +149,26 @@ fn test_generics() {
 #[template(path = "json.html")]
 struct JsonTemplate<'a> {
     foo: &'a str,
-    bar: &'a str,
+    bar: &'a Value,
 }
 
 #[test]
 fn test_json() {
-    let t = JsonTemplate { foo: "a", bar: "b" };
-    assert_eq!(t.render().unwrap(), "{\"foo\": \"a\", \"bar\": \"b\"}");
+    let val =  json!({"arr": [ "one", 2, true, null ]});
+    let t = JsonTemplate { foo: "a", bar: &val };
+    // Note: the json filter lacks a way to specify initial indentation
+    assert_eq!(t.render().unwrap(), r#"{
+  "foo": "a",
+  "bar": {
+  "arr": [
+    "one",
+    2,
+    true,
+    null
+  ]
 }
-
+}"#);
+}
 
 #[derive(Template)]
 #[template(path = "composition.html")]
