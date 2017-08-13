@@ -368,7 +368,7 @@ impl<'a> Generator<'a> {
         self.writeln("#[allow(unused_variables)]");
         self.writeln(&format!(
             "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
-             -> Result<(), ::std::fmt::Error> {{",
+             -> ::std::result::Result<(), ::std::fmt::Error> {{",
             name));
         self.prepare_ws(ws1);
         self.handle(nodes);
@@ -470,7 +470,7 @@ impl<'a> Generator<'a> {
     fn impl_template(&mut self, ast: &syn::DeriveInput, nodes: &'a [Node]) {
         self.write_header(ast, "::askama::Template");
         self.writeln("fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
-                      Result<(), ::std::fmt::Error> {");
+                      ::std::result::Result<(), ::std::fmt::Error> {");
         self.handle(nodes);
         self.flush_ws(&WS(false, false));
         self.writeln("Ok(())");
@@ -481,7 +481,7 @@ impl<'a> Generator<'a> {
     // Implement `Display` for the given context struct.
     fn impl_display(&mut self, ast: &syn::DeriveInput) {
         self.write_header(ast, "::std::fmt::Display");
-        self.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {");
+        self.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::result::Result<(), ::std::fmt::Error> {");
         self.writeln("self.render_into(f)");
         self.writeln("}");
         self.writeln("}");
@@ -508,7 +508,7 @@ impl<'a> Generator<'a> {
         self.writeln("#[allow(unused_variables)]");
         self.writeln(&format!(
             "fn render_trait_into(&self, timpl: &{}, writer: &mut ::std::fmt::Write) \
-             -> Result<(), ::std::fmt::Error> {{",
+             -> ::std::result::Result<(), ::std::fmt::Error> {{",
             trait_name));
 
         if let Some(nodes) = nodes {
@@ -528,7 +528,7 @@ impl<'a> Generator<'a> {
     fn impl_template_for_trait(&mut self, ast: &syn::DeriveInput, derived: bool) {
         self.write_header(ast, "::askama::Template");
         self.writeln("fn render_into(&self, writer: &mut ::std::fmt::Write) \
-                      -> Result<(), ::std::fmt::Error> {");
+                      -> ::std::result::Result<(), ::std::fmt::Error> {");
         if derived {
             self.writeln("self._parent.render_trait_into(self, writer)?;");
         } else {
@@ -546,12 +546,12 @@ impl<'a> Generator<'a> {
         for bname in block_names {
             self.writeln(&format!(
                 "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
-                -> Result<(), ::std::fmt::Error>;",
+                -> ::std::result::Result<(), ::std::fmt::Error>;",
                 bname));
         }
         self.writeln(&format!(
             "fn render_trait_into(&self, timpl: &{}, writer: &mut ::std::fmt::Write) \
-             -> Result<(), ::std::fmt::Error>;",
+             -> ::std::result::Result<(), ::std::fmt::Error>;",
             trait_name));
         self.writeln("}");
     }
