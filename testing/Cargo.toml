@@ -6,7 +6,8 @@ workspace = ".."
 build = "build.rs"
 
 [dependencies]
-askama = { path = "../askama", version = "*" }
+serde_json = "1.0"
+askama = { path = "../askama", version = "*", features = ["serde-json"] }
 
 [build-dependencies]
-askama = { path = "../askama", version = "*" }
+askama = { path = "../askama", version = "*", features = ["serde-json"] }
