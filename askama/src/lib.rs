@@ -214,6 +214,11 @@
 #[macro_use]
 extern crate askama_derive;
 
+#[cfg(feature = "serde-json")]
+extern crate serde;
+#[cfg(feature = "serde-json")]
+extern crate serde_json;
+
 use std::env;
 use std::fs::{self, DirEntry};
 use std::io;
