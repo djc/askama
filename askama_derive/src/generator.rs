@@ -589,5 +589,6 @@ impl<'a, T: 'a> SetChain<'a, T> where T: cmp::Eq + hash::Hash {
     }
     fn pop(&mut self) {
         self.scopes.pop().unwrap();
+        assert!(self.scopes.len() > 0);
     }
 }
