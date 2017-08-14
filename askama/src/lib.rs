@@ -223,14 +223,16 @@ use std::path::{Path, PathBuf};
 /// Main `Template` trait; implementations are generally derived
 pub trait Template {
     /// Renders the template to the given `writer` buffer
-    fn render_into(&self, writer: &mut std::fmt::Write) -> Result<(), fmt::Error>;
+    fn render_into(&self, writer: &mut std::fmt::Write) -> Result<()>;
     /// Helper method which allocates a new `String` and renders into it
-    fn render(&self) -> Result<String, fmt::Error> {
+    fn render(&self) -> Result<String> {
         let mut buf = String::new();
         self.render_into(&mut buf)?;
         Ok(buf)
     }
 }
+
+pub type Result<T> = std::result::Result<T, std::fmt::Error>;
 
 pub mod filters;
 pub use askama_derive::*;
