@@ -26,6 +26,7 @@ pub enum Node<'a> {
     Lit(&'a str, &'a str, &'a str),
     Comment(),
     Expr(WS, Expr<'a>),
+    Let(WS, Target<'a>, Expr<'a>),
     Cond(Vec<(WS, Option<Expr<'a>>, Vec<Node<'a>>)>, WS),
     Loop(WS, Target<'a>, Expr<'a>, Vec<Node<'a>>, WS),
     Extends(Expr<'a>),
@@ -277,6 +278,16 @@ named!(block_if<Node>, do_parse!(
     })
 ));
 
+named!(block_let<Node>, do_parse!(
+    pws: opt!(tag_s!("-")) >>
+    ws!(tag_s!("let")) >>
+    var: ws!(target_single) >>
+    ws!(tag_s!("=")) >>
+    val: ws!(expr_any) >>
+    nws: opt!(tag_s!("-")) >>
+    (Node::Let(WS(pws.is_some(), nws.is_some()), var, val))
+));
+
 named!(block_for<Node>, do_parse!(
     pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("for")) >>
@@ -331,6 +342,7 @@ named!(block_include<Node>, do_parse!(
 named!(block_node<Node>, do_parse!(
     tag_s!("{%") >>
     contents: alt!(
+        block_let |
         block_if |
         block_for |
         block_extends |
