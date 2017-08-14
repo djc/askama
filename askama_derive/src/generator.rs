@@ -331,7 +331,9 @@ impl<'a> Generator<'a> {
                 },
             }
             self.writeln(" {");
+            self.locals.push();
             self.handle(nodes);
+            self.locals.pop();
         }
         self.handle_ws(ws);
         self.writeln("}");
@@ -371,7 +373,11 @@ impl<'a> Generator<'a> {
              -> ::askama::Result<()> {{",
             name));
         self.prepare_ws(ws1);
+
+        self.locals.push();
         self.handle(nodes);
+        self.locals.pop();
+
         self.flush_ws(ws2);
         self.writeln("Ok(())");
         self.writeln("}");
