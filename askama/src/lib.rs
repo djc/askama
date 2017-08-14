@@ -213,6 +213,8 @@
 #![allow(unused_imports)]
 #[macro_use]
 extern crate askama_derive;
+#[macro_use]
+extern crate error_chain;
 
 use std::env;
 use std::fmt;
@@ -232,10 +234,9 @@ pub trait Template {
     }
 }
 
-pub type Result<T> = std::result::Result<T, std::fmt::Error>;
-
 pub mod filters;
 pub use askama_derive::*;
+pub use errors::Result;
 
 // Duplicates askama_derive::path::template_dir()
 fn template_dir() -> PathBuf {
@@ -272,4 +273,12 @@ pub fn rerun_if_templates_changed() {
     visit_dirs(&template_dir(), &|e: &DirEntry| {
         println!("cargo:rerun-if-changed={}", e.path().to_str().unwrap());
     }).unwrap();
+}
+
+mod errors {
+    error_chain! {
+        foreign_links {
+            Fmt(::std::fmt::Error);
+        }
+    }
 }

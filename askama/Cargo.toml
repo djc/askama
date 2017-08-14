@@ -17,3 +17,4 @@ travis-ci = { repository = "djc/askama" }
 
 [dependencies]
 askama_derive = { path = "../askama_derive", version = "0.3.4" }
+error-chain = "0.10"

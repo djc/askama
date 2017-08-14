@@ -481,8 +481,8 @@ impl<'a> Generator<'a> {
     // Implement `Display` for the given context struct.
     fn impl_display(&mut self, ast: &syn::DeriveInput) {
         self.write_header(ast, "::std::fmt::Display");
-        self.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::askama::Result<()> {");
-        self.writeln("self.render_into(f)");
+        self.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {");
+        self.writeln("self.render_into(f).map_err(|_| ::std::fmt::Error {})");
         self.writeln("}");
         self.writeln("}");
     }
