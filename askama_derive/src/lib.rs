@@ -45,7 +45,7 @@ fn build_template(ast: &syn::DeriveInput) -> String {
 // Returns a `TemplateMeta` based on the `template()` attribute data found
 // in the parsed struct or enum. Will panic if it does not find the required
 // template path, or if the `print` key has an unexpected value.
-fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
+fn get_template_meta<'a>(ast: &'a syn::DeriveInput) -> TemplateMeta<'a> {
     let attr = ast.attrs.iter().find(|a| a.name() == "template");
     if attr.is_none() {
         let msg = format!("'template' attribute not found on struct '{}'",
@@ -62,7 +62,7 @@ fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
                 if let syn::MetaItem::NameValue(ref key, ref val) = *item {
                     match key.as_ref() {
                         "path" => if let syn::Lit::Str(ref s, _) = *val {
-                            path = Some(s.clone());
+                            path = Some(s.as_ref());
                         } else {
                             panic!("template path must be string literal");
                         },
@@ -84,8 +84,8 @@ fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
 }
 
 // Holds metadata for the template, based on the `template()` attribute.
-struct TemplateMeta {
-    path: String,
+struct TemplateMeta<'a> {
+    path: &'a str,
     print: Print,
 }
 
