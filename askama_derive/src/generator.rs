@@ -4,7 +4,7 @@ use path;
 use quote::{Tokens, ToTokens};
 
 use std::{cmp, hash, str};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::collections::HashSet;
 
 use syn;
@@ -55,7 +55,7 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
 fn trait_name_for_path(base: &Option<Expr>, path: &str) -> String {
     let rooted_path = match *base {
         Some(Expr::StrLit(user_path)) => {
-            path::find_template_from_path(user_path, Some(path))
+            path::find_template_from_path(user_path, Some(Path::new(path)))
         },
         _ => {
             let mut path_buf = PathBuf::new();

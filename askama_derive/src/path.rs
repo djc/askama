@@ -22,7 +22,7 @@ pub fn get_template_source(tpl_path: &Path) -> String {
     s
 }
 
-pub fn find_template_from_path<'a>(path: &str, start_at: Option<&str>) -> PathBuf {
+pub fn find_template_from_path<'a>(path: &str, start_at: Option<&Path>) -> PathBuf {
     let root = template_dir();
     if let Some(rel) = start_at {
         let mut fs_rel_path = root.clone();
@@ -62,25 +62,25 @@ mod tests {
 
     #[test]
     fn find_absolute() {
-        let path = find_template_from_path("sub/b.html", Some("a.html"));
+        let path = find_template_from_path("sub/b.html", Some(Path::new("a.html")));
         assert_eq!(path, Path::new("sub/b.html"));
     }
 
     #[test]
     #[should_panic]
     fn find_relative_nonexistent() {
-        find_template_from_path("b.html", Some("a.html"));
+        find_template_from_path("b.html", Some(Path::new("a.html")));
     }
 
     #[test]
     fn find_relative() {
-        let path = find_template_from_path("c.html", Some("sub/b.html"));
+        let path = find_template_from_path("c.html", Some(Path::new("sub/b.html")));
         assert_eq!(path, Path::new("sub/c.html"));
     }
 
     #[test]
     fn find_relative_sub() {
-        let path = find_template_from_path("sub1/d.html", Some("sub/b.html"));
+        let path = find_template_from_path("sub1/d.html", Some(Path::new("sub/b.html")));
         assert_eq!(path, Path::new("sub/sub1/d.html"));
     }
 }
