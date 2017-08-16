@@ -24,16 +24,13 @@ pub fn get_template_source(tpl_path: &Path) -> String {
 
 pub fn find_template_from_path<'a>(path: &str, start_at: Option<&str>) -> PathBuf {
     let root = template_dir();
-    match start_at {
-        Some(rel) => {
-            let mut fs_rel_path = root.clone();
-            fs_rel_path.push(rel);
-            fs_rel_path = fs_rel_path.with_file_name(path);
-            if fs_rel_path.exists() {
-                return fs_rel_path.strip_prefix(&root).unwrap().to_owned();
-            }
-        },
-        None => {},
+    if let Some(rel) = start_at {
+        let mut fs_rel_path = root.clone();
+        fs_rel_path.push(rel);
+        fs_rel_path = fs_rel_path.with_file_name(path);
+        if fs_rel_path.exists() {
+            return fs_rel_path.strip_prefix(&root).unwrap().to_owned();
+        }
     }
 
     let mut fs_abs_path = root.clone();
