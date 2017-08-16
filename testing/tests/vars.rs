@@ -4,7 +4,7 @@ extern crate askama;
 use askama::Template;
 
 #[derive(Template)]
-#[template(path = "let.html")]
+#[template(source = "{% let v = s %}{{ v }}")]
 struct LetTemplate<'a> {
     s: &'a str,
 }
