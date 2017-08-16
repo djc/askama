@@ -26,6 +26,7 @@ pub enum Node<'a> {
     Lit(&'a str, &'a str, &'a str),
     Comment(),
     Expr(WS, Expr<'a>),
+    LetDecl(WS, Target<'a>),
     Let(WS, Target<'a>, Expr<'a>),
     Cond(Vec<(WS, Option<Expr<'a>>, Vec<Node<'a>>)>, WS),
     Loop(WS, Target<'a>, Expr<'a>, Vec<Node<'a>>, WS),
@@ -282,10 +283,17 @@ named!(block_let<Node>, do_parse!(
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("let")) >>
     var: ws!(target_single) >>
-    ws!(tag_s!("=")) >>
-    val: ws!(expr_any) >>
+    val: opt!(do_parse!(
+        ws!(tag_s!("=")) >>
+        val: ws!(expr_any) >>
+        (val)
+    )) >>
     nws: opt!(tag_s!("-")) >>
-    (Node::Let(WS(pws.is_some(), nws.is_some()), var, val))
+    (if val.is_some() {
+        Node::Let(WS(pws.is_some(), nws.is_some()), var, val.unwrap())
+    } else {
+        Node::LetDecl(WS(pws.is_some(), nws.is_some()), var)
+    })
 ));
 
 named!(block_for<Node>, do_parse!(

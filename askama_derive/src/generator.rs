@@ -312,12 +312,26 @@ impl<'a> Generator<'a> {
         self.writeln("))?;");
     }
 
-    fn write_let(&mut self, ws: &WS, var: &'a Target, val: &Expr) {
+    fn write_let_decl(&mut self, ws: &WS, var: &'a Target) {
         self.handle_ws(ws);
         self.write("let ");
         match *var {
             Target::Name(name) => {
                 self.locals.insert(name);
+                self.write(name);
+            },
+        }
+        self.writeln(";");
+    }
+
+    fn write_let(&mut self, ws: &WS, var: &'a Target, val: &Expr) {
+        self.handle_ws(ws);
+        match *var {
+            Target::Name(name) => {
+                if !self.locals.contains(name) {
+                    self.write("let ");
+                    self.locals.insert(name);
+                }
                 self.write(name);
             },
         }
@@ -417,6 +431,7 @@ impl<'a> Generator<'a> {
                 Node::Lit(lws, val, rws) => { self.write_lit(lws, val, rws); }
                 Node::Comment() => {},
                 Node::Expr(ref ws, ref val) => { self.write_expr(ws, val); },
+                Node::LetDecl(ref ws, ref var) => { self.write_let_decl(ws, var); },
                 Node::Let(ref ws, ref var, ref val) => { self.write_let(ws, var, val); },
                 Node::Cond(ref conds, ref ws) => {
                     self.write_cond(conds, ws);
