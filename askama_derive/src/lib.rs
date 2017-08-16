@@ -6,6 +6,8 @@ extern crate syn;
 
 use proc_macro::TokenStream;
 
+use std::path::Path;
+
 mod generator;
 mod parser;
 mod path;
@@ -35,7 +37,7 @@ fn build_template(ast: &syn::DeriveInput) -> String {
     if meta.print == Print::Ast || meta.print == Print::All {
         println!("{:?}", nodes);
     }
-    let code = generator::generate(ast, &meta.path, nodes);
+    let code = generator::generate(ast, Path::new(&meta.path), nodes);
     if meta.print == Print::Code || meta.print == Print::All {
         println!("{}", code);
     }

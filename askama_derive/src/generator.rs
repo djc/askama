@@ -4,12 +4,12 @@ use path;
 use quote::{Tokens, ToTokens};
 
 use std::{cmp, hash, str};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::collections::HashSet;
 
 use syn;
 
-pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> String {
+pub fn generate(ast: &syn::DeriveInput, path: &Path, mut nodes: Vec<Node>) -> String {
     let mut base: Option<Expr> = None;
     let mut blocks = Vec::new();
     let mut block_names = Vec::new();
@@ -52,16 +52,12 @@ pub fn generate(ast: &syn::DeriveInput, path: &str, mut nodes: Vec<Node>) -> Str
     gen.result()
 }
 
-fn trait_name_for_path(base: &Option<Expr>, path: &str) -> String {
+fn trait_name_for_path(base: &Option<Expr>, path: &Path) -> String {
     let rooted_path = match *base {
         Some(Expr::StrLit(user_path)) => {
-            path::find_template_from_path(user_path, Some(Path::new(path)))
+            path::find_template_from_path(user_path, Some(path))
         },
-        _ => {
-            let mut path_buf = PathBuf::new();
-            path_buf.push(&path);
-            path_buf
-        },
+        _ => path.to_path_buf(),
     };
 
     let mut res = String::new();
