@@ -1,0 +1,7 @@
+{% let val -%}
+{% if cond -%}
+  {% let val = "foo" -%}
+{% else -%}
+  {% let val = s -%}
+{% endif -%}
+{{ val }}
