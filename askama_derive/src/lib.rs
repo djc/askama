@@ -32,11 +32,11 @@ fn build_template(ast: &syn::DeriveInput) -> String {
     let path = path::find_template_from_path(&meta.path, None);
     let src = path::get_template_source(&path);
     let nodes = parser::parse(&src);
-    if meta.print == "ast" || meta.print == "all" {
+    if meta.print == Print::Ast || meta.print == Print::All {
         println!("{:?}", nodes);
     }
     let code = generator::generate(ast, &meta.path, nodes);
-    if meta.print == "code" || meta.print == "all" {
+    if meta.print == Print::Code || meta.print == Print::All {
         println!("{}", code);
     }
     code
@@ -55,7 +55,7 @@ fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
 
     let attr = attr.unwrap();
     let mut path = None;
-    let mut print = "none".to_string();
+    let mut print = Print::None;
     if let syn::MetaItem::List(_, ref inner) = attr.value {
         for nm_item in inner {
             if let syn::NestedMetaItem::MetaItem(ref item) = *nm_item {
@@ -67,7 +67,7 @@ fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
                             panic!("template path must be string literal");
                         },
                         "print" => if let syn::Lit::Str(ref s, _) = *val {
-                            print = s.clone();
+                            print = s.into();
                         } else {
                             panic!("print value must be string literal");
                         },
@@ -86,5 +86,26 @@ fn get_template_meta(ast: &syn::DeriveInput) -> TemplateMeta {
 // Holds metadata for the template, based on the `template()` attribute.
 struct TemplateMeta {
     path: String,
-    print: String,
+    print: Print,
+}
+
+#[derive(PartialEq)]
+enum Print {
+    All,
+    Ast,
+    Code,
+    None,
+}
+
+impl<'a> From<&'a String> for Print {
+    fn from(s: &'a String) -> Print {
+        use Print::*;
+        match s.as_ref() {
+            "all" => All,
+            "ast" => Ast,
+            "code" => Code,
+            "none" => None,
+            v => panic!("invalid value for print option: {}", v),
+        }
+    }
 }
