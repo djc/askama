@@ -7,7 +7,7 @@
 mod json;
 
 #[cfg(feature = "serde-json")]
-pub use self::json::{json, json_pretty};
+pub use self::json::{json};
 
 use std::fmt;
 
