@@ -1,7 +1,7 @@
 use serde::Serialize;
 use serde_json;
 
-/// Serialize to JSON
+/// Serialize to JSON (requires `serde-json` feature)
 ///
 /// ## Errors
 ///
