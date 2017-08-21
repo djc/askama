@@ -227,6 +227,9 @@ impl<'a> Generator<'a> {
             self.visit_expr(arg);
         }
         self.write(")");
+        if name != "format" {
+            self.write("?");
+        }
     }
 
     fn visit_binop(&mut self, op: &str, left: &Expr, right: &Expr) {

@@ -3,13 +3,14 @@
 //! Contains all the built-in filter functions for use in templates.
 //! Currently, there is no way to define filters outside this module.
 use std::fmt;
+use super::Result;
 
 fn escapable(b: &u8) -> bool {
     *b == b'<' || *b == b'>' || *b == b'&'
 }
 
 /// Escapes `&`, `<` and `>` in strings
-pub fn escape(s: &fmt::Display) -> String {
+pub fn escape(s: &fmt::Display) -> Result<String> {
     let s = format!("{}", s);
     let mut found = Vec::new();
     for (i, b) in s.as_bytes().iter().enumerate() {
@@ -18,7 +19,7 @@ pub fn escape(s: &fmt::Display) -> String {
         }
     }
     if found.is_empty() {
-        return s;
+        return Ok(s);
     }
 
     let bytes = s.as_bytes();
@@ -41,11 +42,11 @@ pub fn escape(s: &fmt::Display) -> String {
         res.extend(&bytes[start..]);
     }
 
-    String::from_utf8(res).unwrap()
+    Ok(String::from_utf8(res).unwrap())
 }
 
 /// Alias for the `escape()` filter
-pub fn e(s: &fmt::Display) -> String {
+pub fn e(s: &fmt::Display) -> Result<String> {
     escape(s)
 }
 
@@ -58,31 +59,31 @@ pub fn e(s: &fmt::Display) -> String {
 pub fn format() { }
 
 /// Converts to lowercase.
-pub fn lower(s: &fmt::Display) -> String {
+pub fn lower(s: &fmt::Display) -> Result<String> {
     let s = format!("{}", s);
-    s.to_lowercase()
+    Ok(s.to_lowercase())
 }
 
 /// Alias for the `lower()` filter.
-pub fn lowercase(s: &fmt::Display) -> String {
+pub fn lowercase(s: &fmt::Display) -> Result<String> {
     lower(s)
 }
 
 /// Converts to uppercase.
-pub fn upper(s: &fmt::Display) -> String {
+pub fn upper(s: &fmt::Display) -> Result<String> {
     let s = format!("{}", s);
-    s.to_uppercase()
+    Ok(s.to_uppercase())
 }
 
 /// Alias for the `upper()` filter.
-pub fn uppercase(s: &fmt::Display) -> String {
+pub fn uppercase(s: &fmt::Display) -> Result<String> {
     upper(s)
 }
 
 /// Strip leading and trailing whitespace.
-pub fn trim(s: &fmt::Display) -> String {
+pub fn trim(s: &fmt::Display) -> Result<String> {
     let s = format!("{}", s);
-    s.trim().to_owned()
+    Ok(s.trim().to_owned())
 }
 
 #[cfg(test)]
@@ -90,30 +91,30 @@ mod tests {
     use super::*;
     #[test]
     fn test_escape() {
-        assert_eq!(escape(&""), "");
-        assert_eq!(escape(&"<&>"), "&lt;&amp;&gt;");
-        assert_eq!(escape(&"bla&"), "bla&amp;");
-        assert_eq!(escape(&"<foo"), "&lt;foo");
+        assert_eq!(escape(&"").unwrap(), "");
+        assert_eq!(escape(&"<&>").unwrap(), "&lt;&amp;&gt;");
+        assert_eq!(escape(&"bla&").unwrap(), "bla&amp;");
+        assert_eq!(escape(&"<foo").unwrap(), "&lt;foo");
     }
 
     #[test]
     fn test_lower() {
-        assert_eq!(lower(&"Foo"), "foo");
-        assert_eq!(lower(&"FOO"), "foo");
-        assert_eq!(lower(&"FooBar"), "foobar");
-        assert_eq!(lower(&"foo"), "foo");
+        assert_eq!(lower(&"Foo").unwrap(), "foo");
+        assert_eq!(lower(&"FOO").unwrap(), "foo");
+        assert_eq!(lower(&"FooBar").unwrap(), "foobar");
+        assert_eq!(lower(&"foo").unwrap(), "foo");
     }
 
     #[test]
     fn test_upper() {
-        assert_eq!(upper(&"Foo"), "FOO");
-        assert_eq!(upper(&"FOO"), "FOO");
-        assert_eq!(upper(&"FooBar"), "FOOBAR");
-        assert_eq!(upper(&"foo"), "FOO");
+        assert_eq!(upper(&"Foo").unwrap(), "FOO");
+        assert_eq!(upper(&"FOO").unwrap(), "FOO");
+        assert_eq!(upper(&"FooBar").unwrap(), "FOOBAR");
+        assert_eq!(upper(&"foo").unwrap(), "FOO");
     }
 
     #[test]
     fn test_trim() {
-        assert_eq!(trim(&" Hello\tworld\t"), "Hello\tworld");
+        assert_eq!(trim(&" Hello\tworld\t").unwrap(), "Hello\tworld");
     }
 }
