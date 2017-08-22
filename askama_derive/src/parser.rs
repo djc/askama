@@ -10,7 +10,7 @@ pub enum Expr<'a> {
     Filter(&'a str, Vec<Expr<'a>>),
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
     Group(Box<Expr<'a>>),
-    Call(Box<Expr<'a>>, &'a str, Vec<Expr<'a>>),
+    MethodCall(Box<Expr<'a>>, &'a str, Vec<Expr<'a>>),
 }
 
 #[derive(Debug)]
@@ -173,7 +173,7 @@ named!(expr_attr<Expr>, do_parse!(
         let mut res = obj;
         for (aname, args) in attrs {
             res = if args.is_some() {
-                Expr::Call(Box::new(res), aname, args.unwrap())
+                Expr::MethodCall(Box::new(res), aname, args.unwrap())
             } else {
                 Expr::Attr(Box::new(res), aname)
             };

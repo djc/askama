@@ -244,7 +244,7 @@ impl<'a> Generator<'a> {
         self.write(")");
     }
 
-    fn visit_call(&mut self, obj: &Expr, method: &str, args: &[Expr]) {
+    fn visit_method_call(&mut self, obj: &Expr, method: &str, args: &[Expr]) {
         self.visit_expr(obj);
         self.write(&format!(".{}(", method));
         for (i, arg) in args.iter().enumerate() {
@@ -266,8 +266,8 @@ impl<'a> Generator<'a> {
             Expr::BinOp(op, ref left, ref right) =>
                 self.visit_binop(op, left, right),
             Expr::Group(ref inner) => self.visit_group(inner),
-            Expr::Call(ref obj, method, ref args) =>
-                self.visit_call(obj, method, args),
+            Expr::MethodCall(ref obj, method, ref args) =>
+                self.visit_method_call(obj, method, args),
         }
     }
 
