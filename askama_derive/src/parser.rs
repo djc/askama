@@ -127,25 +127,23 @@ named!(target_single<Target>, map!(identifier,
     |s| Target::Name(s)
 ));
 
-named!(arguments<Option<Vec<Expr>>>, opt!(
-    do_parse!(
-        tag_s!("(") >>
-        arg0: ws!(opt!(expr_any)) >>
-        args: many0!(do_parse!(
-            tag_s!(",") >>
-            argn: ws!(expr_any) >>
-            (argn)
-        )) >>
-        tag_s!(")") >>
-        ({
-            let mut res = Vec::new();
-            if arg0.is_some() {
-                res.push(arg0.unwrap());
-            }
-            res.extend(args);
-            res
-        })
-    )
+named!(arguments<Vec<Expr>>, do_parse!(
+    tag_s!("(") >>
+    arg0: ws!(opt!(expr_any)) >>
+    args: many0!(do_parse!(
+        tag_s!(",") >>
+        argn: ws!(expr_any) >>
+        (argn)
+    )) >>
+    tag_s!(")") >>
+    ({
+        let mut res = Vec::new();
+        if arg0.is_some() {
+            res.push(arg0.unwrap());
+        }
+        res.extend(args);
+        res
+    })
 ));
 
 named!(parameters<Vec<&'a str>>, do_parse!(
@@ -182,7 +180,7 @@ named!(expr_single<Expr>, alt!(
 named!(attr<(&str, Option<Vec<Expr>>)>, do_parse!(
     tag_s!(".") >>
     attr: identifier >>
-    args: arguments >>
+    args: opt!(arguments) >>
     (attr, args)
 ));
 
@@ -205,7 +203,7 @@ named!(expr_attr<Expr>, do_parse!(
 named!(filter<(&str, Option<Vec<Expr>>)>, do_parse!(
     tag_s!("|") >>
     fname: identifier >>
-    args: arguments >>
+    args: opt!(arguments) >>
     (fname, args)
 ));
 
