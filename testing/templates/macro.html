@@ -1,0 +1,5 @@
+{% macro thrice(param) -%}
+  {{ param }} {{ param }} {{ param }}
+{%- endmacro %}
+
+{%- call thrice(s) %}
