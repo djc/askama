@@ -34,6 +34,7 @@ pub enum Node<'a> {
     BlockDef(WS, &'a str, Vec<Node<'a>>, WS),
     Block(WS, &'a str, WS),
     Include(WS, &'a str),
+    Macro(WS, &'a str, Vec<&'a str>, Vec<Node<'a>>, WS),
 }
 
 pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
@@ -145,6 +146,25 @@ named!(arguments<Option<Vec<Expr>>>, opt!(
             res
         })
     )
+));
+
+named!(parameters<Vec<&'a str>>, do_parse!(
+    tag_s!("(") >>
+    vals: opt!(do_parse!(
+        arg0: ws!(identifier) >>
+        args: many0!(do_parse!(
+            tag_s!(",") >>
+            argn: ws!(identifier) >>
+            (argn)
+        )) >>
+        ({
+            let mut res = vec![arg0];
+            res.extend(args);
+            res
+        })
+    )) >>
+    tag_s!(")") >>
+    (vals.unwrap_or(Vec::new()))
 ));
 
 named!(expr_group<Expr>, map!(
@@ -347,6 +367,27 @@ named!(block_include<Node>, do_parse!(
     }))
 ));
 
+named!(block_macro<Node>, do_parse!(
+    pws1: opt!(tag_s!("-")) >>
+    ws!(tag_s!("macro")) >>
+    name: ws!(identifier) >>
+    params: ws!(parameters) >>
+    nws1: opt!(tag_s!("-")) >>
+    tag_s!("%}") >>
+    contents: parse_template >>
+    tag_s!("{%") >>
+    pws2: opt!(tag_s!("-")) >>
+    ws!(tag_s!("endmacro")) >>
+    nws2: opt!(tag_s!("-")) >>
+    (Node::Macro(
+         WS(pws1.is_some(), nws1.is_some()),
+         name,
+         params,
+         contents,
+         WS(pws2.is_some(), nws2.is_some())
+    ))
+));
+
 named!(block_node<Node>, do_parse!(
     tag_s!("{%") >>
     contents: alt!(
@@ -355,7 +396,8 @@ named!(block_node<Node>, do_parse!(
         block_for |
         block_extends |
         block_include |
-        block_block
+        block_block |
+        block_macro
     ) >>
     tag_s!("%}") >>
     (contents)

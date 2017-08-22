@@ -5,7 +5,7 @@ use quote::{Tokens, ToTokens};
 
 use std::{cmp, hash, str};
 use std::path::Path;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use syn;
 
@@ -14,6 +14,7 @@ pub fn generate(ast: &syn::DeriveInput, path: &Path, mut nodes: Vec<Node>) -> St
     let mut blocks = Vec::new();
     let mut block_names = Vec::new();
     let mut content = Vec::new();
+    let mut macros = HashMap::new();
     for n in nodes.drain(..) {
         match n {
             Node::Extends(path) => {
@@ -27,11 +28,14 @@ pub fn generate(ast: &syn::DeriveInput, path: &Path, mut nodes: Vec<Node>) -> St
                 block_names.push(name);
                 content.push(Node::Block(ws1, name, ws2));
             },
+            Node::Macro(ws1, name, params, contents, ws2) => {
+                macros.insert(name, (ws1, name, params, contents, ws2));
+            },
             _ => { content.push(n); },
         }
     }
 
-    let mut gen = Generator::default();
+    let mut gen = Generator::default(&macros);
     if !blocks.is_empty() {
         let trait_name = trait_name_for_path(&base, path);
         if base.is_none() {
@@ -96,11 +100,12 @@ struct Generator<'a> {
     locals: SetChain<'a, &'a str>,
     next_ws: Option<&'a str>,
     skip_ws: bool,
+    macros: &'a MacroMap<'a>,
 }
 
 impl<'a> Generator<'a> {
 
-    fn new<'n>(locals: SetChain<'n, &'n str>, indent: u8) -> Generator<'n> {
+    fn new<'n>(macros: &'n MacroMap, locals: SetChain<'n, &'n str>, indent: u8) -> Generator<'n> {
         Generator {
             buf: String::new(),
             indent: indent,
@@ -108,16 +113,17 @@ impl<'a> Generator<'a> {
             locals: locals,
             next_ws: None,
             skip_ws: false,
+            macros: macros,
         }
     }
 
-    fn default<'n>() -> Generator<'n> {
-        Self::new(SetChain::new(), 0)
+    fn default<'n>(macros: &'n MacroMap) -> Generator<'n> {
+        Self::new(macros, SetChain::new(), 0)
     }
 
     fn child<'n>(&'n mut self) -> Generator<'n> {
         let locals = SetChain::with_parent(&self.locals);
-        Self::new(locals, self.indent)
+        Self::new(self.macros, locals, self.indent)
     }
 
     /* Helper methods for writing to internal buffer */
@@ -447,8 +453,9 @@ impl<'a> Generator<'a> {
                 Node::Include(ref ws, ref path) => {
                     self.handle_include(ws, path);
                 },
+                Node::Macro(_, _, _, _, _) |
                 Node::Extends(_) => {
-                    panic!("no extends or block definition allowed in content");
+                    panic!("no extends or macros allowed in content");
                 },
             }
         }
@@ -627,3 +634,5 @@ impl<'a, T: 'a> SetChain<'a, T> where T: cmp::Eq + hash::Hash {
         assert!(self.scopes.len() > 0);
     }
 }
+
+type MacroMap<'a> = HashMap<&'a str, (WS, &'a str, Vec<&'a str>, Vec<Node<'a>>, WS)>;
