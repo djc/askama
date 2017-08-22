@@ -26,6 +26,7 @@ pub enum Node<'a> {
     Lit(&'a str, &'a str, &'a str),
     Comment(),
     Expr(WS, Expr<'a>),
+    Call(WS, &'a str, Vec<Expr<'a>>),
     LetDecl(WS, Target<'a>),
     Let(WS, Target<'a>, Expr<'a>),
     Cond(Vec<(WS, Option<Expr<'a>>, Vec<Node<'a>>)>, WS),
@@ -129,21 +130,21 @@ named!(target_single<Target>, map!(identifier,
 
 named!(arguments<Vec<Expr>>, do_parse!(
     tag_s!("(") >>
-    arg0: ws!(opt!(expr_any)) >>
-    args: many0!(do_parse!(
-        tag_s!(",") >>
-        argn: ws!(expr_any) >>
-        (argn)
+    args: opt!(do_parse!(
+        arg0: ws!(expr_any) >>
+        args: many0!(do_parse!(
+            tag_s!(",") >>
+            argn: ws!(expr_any) >>
+            (argn)
+        )) >>
+        ({
+           let mut res = vec![arg0];
+           res.extend(args);
+           res
+        })
     )) >>
     tag_s!(")") >>
-    ({
-        let mut res = Vec::new();
-        if arg0.is_some() {
-            res.push(arg0.unwrap());
-        }
-        res.extend(args);
-        res
-    })
+    (args.unwrap_or(Vec::new()))
 ));
 
 named!(parameters<Vec<&'a str>>, do_parse!(
@@ -259,6 +260,15 @@ named!(expr_node<Node>, do_parse!(
     nws: opt!(tag_s!("-")) >>
     tag_s!("}}") >>
     (Node::Expr(WS(pws.is_some(), nws.is_some()), expr))
+));
+
+named!(block_call<Node>, do_parse!(
+    pws: opt!(tag_s!("-")) >>
+    ws!(tag_s!("call")) >>
+    name: ws!(identifier) >>
+    args: ws!(arguments) >>
+    nws: opt!(tag_s!("-")) >>
+    (Node::Call(WS(pws.is_some(), nws.is_some()), name, args))
 ));
 
 named!(cond_if<Expr>, do_parse!(
@@ -389,6 +399,7 @@ named!(block_macro<Node>, do_parse!(
 named!(block_node<Node>, do_parse!(
     tag_s!("{%") >>
     contents: alt!(
+        block_call |
         block_let |
         block_if |
         block_for |

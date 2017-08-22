@@ -317,6 +317,25 @@ impl<'a> Generator<'a> {
         self.writeln("))?;");
     }
 
+    fn write_call(&mut self, ws: &WS, name: &str, args: &[Expr]) {
+        self.handle_ws(ws);
+        let def = self.macros.get(name).expect(&format!("macro '{}' not found", name));
+        self.locals.push();
+        self.writeln("{");
+        self.prepare_ws(&def.0);
+        for (i, arg) in def.2.iter().enumerate() {
+            self.write(&format!("let {} = &", arg));
+            self.locals.insert(arg);
+            self.visit_expr(&args.get(i)
+                .expect(&format!("macro '{}' takes more than {} arguments", name, i)));
+            self.writeln(";");
+        }
+        self.handle(&def.3);
+        self.flush_ws(&def.4);
+        self.writeln("}");
+        self.locals.pop();
+    }
+
     fn write_let_decl(&mut self, ws: &WS, var: &'a Target) {
         self.handle_ws(ws);
         self.write("let ");
@@ -453,6 +472,7 @@ impl<'a> Generator<'a> {
                 Node::Include(ref ws, ref path) => {
                     self.handle_include(ws, path);
                 },
+                Node::Call(ref ws, name, ref args) => self.write_call(ws, name, args),
                 Node::Macro(_, _, _, _, _) |
                 Node::Extends(_) => {
                     panic!("no extends or macros allowed in content");
