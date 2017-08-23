@@ -486,37 +486,52 @@ impl<'a> Generator<'a> {
 
     // Writes header for the `impl` for `TraitFromPathName` or `Template`
     // for the given context struct.
-    fn write_header(&mut self, ast: &syn::DeriveInput, target: &str) {
+    fn write_header(&mut self, ast: &syn::DeriveInput, target: &str, extra_anno: &[&str]) {
         let mut full_anno = Tokens::new();
         let mut orig_anno = Tokens::new();
         let need_anno = ast.generics.lifetimes.len() > 0 ||
-                        ast.generics.ty_params.len() > 0;
+                        ast.generics.ty_params.len() > 0 ||
+                        extra_anno.len() > 0;
         if need_anno {
             full_anno.append("<");
             orig_anno.append("<");
         }
 
-        let mut sep = false;
+        let (mut full_sep, mut orig_sep) = (false, false);
         for lt in &ast.generics.lifetimes {
-            if sep {
+            if full_sep {
                 full_anno.append(",");
+            }
+            if orig_sep {
                 orig_anno.append(",");
             }
             lt.to_tokens(&mut full_anno);
             lt.to_tokens(&mut orig_anno);
-            sep = true;
+            full_sep = true;
+            orig_sep = true;
+        }
+
+        for anno in extra_anno {
+            if full_sep {
+                full_anno.append(",");
+            }
+            full_anno.append(anno);
+            full_sep = true;
         }
 
         for param in &ast.generics.ty_params {
-            if sep {
+            if full_sep {
                 full_anno.append(",");
+            }
+            if orig_sep {
                 orig_anno.append(",");
             }
             let mut impl_param = param.clone();
             impl_param.default = None;
             impl_param.to_tokens(&mut full_anno);
             param.ident.to_tokens(&mut orig_anno);
-            sep = true;
+            full_sep = true;
+            orig_sep = true;
         }
 
         if need_anno {
@@ -533,7 +548,7 @@ impl<'a> Generator<'a> {
 
     // Implement `Template` for the given context struct.
     fn impl_template(&mut self, ast: &syn::DeriveInput, nodes: &'a [Node]) {
-        self.write_header(ast, "::askama::Template");
+        self.write_header(ast, "::askama::Template", &vec![]);
         self.writeln("fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
                       ::askama::Result<()> {");
         self.handle(nodes);
@@ -545,7 +560,7 @@ impl<'a> Generator<'a> {
 
     // Implement `Display` for the given context struct.
     fn impl_display(&mut self, ast: &syn::DeriveInput) {
-        self.write_header(ast, "::std::fmt::Display");
+        self.write_header(ast, "::std::fmt::Display", &vec![]);
         self.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {");
         self.writeln("self.render_into(f).map_err(|_| ::std::fmt::Error {})");
         self.writeln("}");
@@ -554,7 +569,7 @@ impl<'a> Generator<'a> {
 
     // Implement `Deref<Parent>` for an inheriting context struct.
     fn deref_to_parent(&mut self, ast: &syn::DeriveInput, parent_type: &syn::Ty) {
-        self.write_header(ast, "::std::ops::Deref");
+        self.write_header(ast, "::std::ops::Deref", &vec![]);
         let mut tokens = Tokens::new();
         parent_type.to_tokens(&mut tokens);
         self.writeln(&format!("type Target = {};", tokens.as_str()));
@@ -567,7 +582,7 @@ impl<'a> Generator<'a> {
     // Implement `TraitFromPathName` for the given context struct.
     fn impl_trait(&mut self, ast: &syn::DeriveInput, trait_name: &str,
                   blocks: &'a [Node], nodes: Option<&'a [Node]>) {
-        self.write_header(ast, &trait_name);
+        self.write_header(ast, &trait_name, &vec![]);
         self.handle(blocks);
 
         self.writeln("#[allow(unused_variables)]");
@@ -591,7 +606,7 @@ impl<'a> Generator<'a> {
 
     // Implement `Template` for templates that implement a template trait.
     fn impl_template_for_trait(&mut self, ast: &syn::DeriveInput, derived: bool) {
-        self.write_header(ast, "::askama::Template");
+        self.write_header(ast, "::askama::Template", &vec![]);
         self.writeln("fn render_into(&self, writer: &mut ::std::fmt::Write) \
                       -> ::askama::Result<()> {");
         if derived {
@@ -623,7 +638,7 @@ impl<'a> Generator<'a> {
 
     // Implement iron's Modifier<Response> if enabled
     fn impl_modifier_response(&mut self, ast: &syn::DeriveInput) {
-        self.write_header(ast, "::askama::iron::Modifier<::askama::iron::Response>");
+        self.write_header(ast, "::askama::iron::Modifier<::askama::iron::Response>", &vec![]);
         self.writeln("fn modify(self, res: &mut ::askama::iron::Response) {");
         self.writeln("res.body = Some(Box::new(self.render().unwrap().into_bytes()));");
         self.writeln("}");
