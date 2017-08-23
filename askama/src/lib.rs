@@ -250,6 +250,14 @@ pub mod iron {
     pub use self::iron::response::Response;
 }
 
+#[cfg(feature = "with-rocket")]
+pub mod rocket {
+    extern crate rocket;
+    pub use self::rocket::http::{ContentType, Status};
+    pub use self::rocket::request::Request;
+    pub use self::rocket::response::{Responder, Response};
+}
+
 // Duplicates askama_derive::path::template_dir()
 fn template_dir() -> PathBuf {
     let mut path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());

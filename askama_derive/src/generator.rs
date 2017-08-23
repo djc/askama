@@ -56,6 +56,9 @@ pub fn generate(ast: &syn::DeriveInput, path: &Path, mut nodes: Vec<Node>) -> St
     if cfg!(feature = "iron") {
         gen.impl_modifier_response(ast);
     }
+    if cfg!(feature = "rocket") {
+        gen.impl_responder(ast, path);
+    }
     gen.result()
 }
 
@@ -641,6 +644,27 @@ impl<'a> Generator<'a> {
         self.write_header(ast, "::askama::iron::Modifier<::askama::iron::Response>", &vec![]);
         self.writeln("fn modify(self, res: &mut ::askama::iron::Response) {");
         self.writeln("res.body = Some(Box::new(self.render().unwrap().into_bytes()));");
+        self.writeln("}");
+        self.writeln("}");
+    }
+
+    // Implement Rocket's `Responder`.
+    fn impl_responder(&mut self, ast: &syn::DeriveInput, path: &Path) {
+        self.write_header(ast, "::askama::rocket::Responder<'r>", &vec!["'r"]);
+        self.writeln("fn respond_to(self, _: &::askama::rocket::Request) \
+                      -> ::std::result::Result<\
+                         ::askama::rocket::Response<'r>, ::askama::rocket::Status> {");
+        let ext = match path.extension() {
+            Some(s) => s.to_str().unwrap(),
+            None => "txt",
+        };
+        self.writeln("::askama::rocket::Response::build()");
+        self.indent();
+        self.writeln(&format!(".header(::askama::rocket::ContentType::from_extension({:?})\
+                               .unwrap())", ext));
+        self.writeln(".sized_body(::std::io::Cursor::new(self.render().unwrap()))");
+        self.writeln(".ok()");
+        self.dedent();
         self.writeln("}");
         self.writeln("}");
     }
