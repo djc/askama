@@ -11,6 +11,10 @@ workspace = ".."
 [lib]
 proc-macro = true
 
+[features]
+default = []
+iron = []
+
 [dependencies]
 nom = "3"
 syn = "0.11"

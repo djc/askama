@@ -53,6 +53,9 @@ pub fn generate(ast: &syn::DeriveInput, path: &Path, mut nodes: Vec<Node>) -> St
         gen.impl_template(ast, &content);
     }
     gen.impl_display(ast);
+    if cfg!(feature = "iron") {
+        gen.impl_modifier_response(ast);
+    }
     gen.result()
 }
 
@@ -615,6 +618,15 @@ impl<'a> Generator<'a> {
             "fn render_trait_into(&self, timpl: &{}, writer: &mut ::std::fmt::Write) \
              -> ::askama::Result<()>;",
             trait_name));
+        self.writeln("}");
+    }
+
+    // Implement iron's Modifier<Response> if enabled
+    fn impl_modifier_response(&mut self, ast: &syn::DeriveInput) {
+        self.write_header(ast, "::askama::iron::Modifier<::askama::iron::Response>");
+        self.writeln("fn modify(self, res: &mut ::askama::iron::Response) {");
+        self.writeln("res.body = Some(Box::new(self.render().unwrap().into_bytes()));");
+        self.writeln("}");
         self.writeln("}");
     }
 

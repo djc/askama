@@ -243,6 +243,13 @@ pub mod filters;
 pub use askama_derive::*;
 pub use errors::Result;
 
+#[cfg(feature = "with-iron")]
+pub mod iron {
+    extern crate iron;
+    pub use self::iron::modifier::Modifier;
+    pub use self::iron::response::Response;
+}
+
 // Duplicates askama_derive::path::template_dir()
 fn template_dir() -> PathBuf {
     let mut path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
