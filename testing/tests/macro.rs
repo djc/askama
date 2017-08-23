@@ -4,7 +4,7 @@ extern crate askama;
 use askama::Template;
 
 #[derive(Template)]
-#[template(path = "macro.html", print = "all")]
+#[template(path = "macro.html")]
 struct MacroTemplate<'a> {
     s: &'a str,
 }
