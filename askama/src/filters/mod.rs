@@ -94,6 +94,15 @@ pub fn trim(s: &fmt::Display) -> Result<String> {
     Ok(s.trim().to_owned())
 }
 
+pub fn length(s: &fmt::Display) -> Result<usize> {
+    let s = format!("{}", s);
+    Ok(s.len())
+}
+
+pub fn count(s: &fmt::Display) -> Result<usize> {
+    length(s)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -124,5 +133,13 @@ mod tests {
     #[test]
     fn test_trim() {
         assert_eq!(trim(&" Hello\tworld\t").unwrap(), "Hello\tworld");
+    }
+
+    #[test]
+    fn test_length() {
+        assert_eq!(length(&"test").unwrap(), 4);
+        assert_eq!(length(&"Hey There").unwrap(), 9);
+        assert_eq!(length(&"").unwrap(), 0);
+        assert_eq!(length(&1234).unwrap(), 4);
     }
 }
