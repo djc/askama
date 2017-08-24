@@ -2,6 +2,8 @@
 //!
 //! Contains all the built-in filter functions for use in templates.
 //! Currently, there is no way to define filters outside this module.
+//
+// WHEN ADDING FILTERS, DON'T FORGET TO UPDATE `BUILT_IN_FILTERS` in askama_derive::generator.
 
 #[cfg(feature = "serde-json")]
 mod json;

@@ -228,8 +228,10 @@ impl<'a> Generator<'a> {
     fn visit_filter(&mut self, name: &str, args: &[Expr]) {
         if name == "format" {
             self.write("format!(");
-        } else {
+        } else if BUILT_IN_FILTERS.contains(&name) {
             self.write(&format!("::askama::filters::{}(&", name));
+        } else {
+            self.write(&format!("filters::{}(&", name));
         }
 
         for (i, arg) in args.iter().enumerate() {
@@ -707,3 +709,15 @@ impl<'a, T: 'a> SetChain<'a, T> where T: cmp::Eq + hash::Hash {
 }
 
 type MacroMap<'a> = HashMap<&'a str, (WS, &'a str, Vec<&'a str>, Vec<Node<'a>>, WS)>;
+
+const BUILT_IN_FILTERS: [&str; 9] = [
+    "e",
+    "escape",
+    "format",
+    "lower",
+    "lowercase",
+    "trim",
+    "upper",
+    "uppercase",
+    "json", // Optional feature; reserve the name anyway
+];
