@@ -18,5 +18,5 @@ rocket = []
 
 [dependencies]
 nom = "3"
-syn = "0.11"
 quote = "0.3"
+syn = "0.11"
