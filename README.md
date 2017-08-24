@@ -101,7 +101,7 @@ struct HelloTemplate<'a> { // the name of the struct can be anything
    
 fn main() {
     let hello = HelloTemplate { name: "world" }; // instantiate your struct
-    println!("{}", hello.render()); // then render it.
+    println!("{}", hello.render().unwrap()); // then render it.
 }
 ```
 
