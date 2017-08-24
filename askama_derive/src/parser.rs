@@ -358,6 +358,7 @@ named!(block_block<Node>, do_parse!(
     tag_s!("{%") >>
     pws2: opt!(tag_s!("-")) >>
     ws!(tag_s!("endblock")) >>
+    opt!(ws!(tag_s!(name))) >>
     nws2: opt!(tag_s!("-")) >>
     (Node::BlockDef(WS(pws1.is_some(), nws1.is_some()),
                     name, contents,
