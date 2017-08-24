@@ -30,3 +30,17 @@ fn filter_format() {
     let t = FormatTemplate { var: "formatted" };
     assert_eq!(t.render().unwrap(), "\"formatted\"");
 }
+
+
+#[derive(Template)]
+#[template(path = "length.html")]
+struct LengthTemplate<'a> {
+    var: &'a str,
+}
+
+#[test]
+fn filter_length() {
+    let t = LengthTemplate { var: "length" };
+    let expected = "6, 6";
+    assert_eq!(t.render().unwrap(), expected);
+}

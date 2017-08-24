@@ -94,6 +94,16 @@ pub fn trim(s: &fmt::Display) -> Result<String> {
     Ok(s.trim().to_owned())
 }
 
+/// Outputs to length of the argument
+pub fn length<T: AsRef<str>>(s: T) -> Result<usize> {
+    Ok(s.as_ref().len())
+}
+
+/// Alias for the `length()` filter
+pub fn count<T: AsRef<str>>(s: T) -> Result<usize> {
+    length(s)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -124,5 +134,13 @@ mod tests {
     #[test]
     fn test_trim() {
         assert_eq!(trim(&" Hello\tworld\t").unwrap(), "Hello\tworld");
+    }
+
+    #[test]
+    fn test_length() {
+        assert_eq!(length(&"test").unwrap(), 4);
+        assert_eq!(length(&"Hey There").unwrap(), 9);
+        assert_eq!(length(&"").unwrap(), 0);
+        assert_eq!(length("test2".to_string()).unwrap(), 5);
     }
 }
