@@ -12,7 +12,6 @@ use syn;
 pub fn generate(ast: &syn::DeriveInput, path: &Path, mut nodes: Vec<Node>) -> String {
     let mut base: Option<Expr> = None;
     let mut blocks = Vec::new();
-    let mut block_names = Vec::new();
     let mut content = Vec::new();
     let mut macros = HashMap::new();
     for n in nodes.drain(..) {
@@ -25,7 +24,6 @@ pub fn generate(ast: &syn::DeriveInput, path: &Path, mut nodes: Vec<Node>) -> St
             },
             Node::BlockDef(ws1, name, _, ws2) => {
                 blocks.push(n);
-                block_names.push(name);
                 content.push(Node::Block(ws1, name, ws2));
             },
             Node::Macro(ws1, name, params, contents, ws2) => {
@@ -39,7 +37,7 @@ pub fn generate(ast: &syn::DeriveInput, path: &Path, mut nodes: Vec<Node>) -> St
     if !blocks.is_empty() {
         let trait_name = trait_name_for_path(&base, path);
         if base.is_none() {
-            gen.define_trait(&trait_name, &block_names);
+            gen.define_trait(&trait_name, &blocks);
         } else {
             let parent_type = get_parent_type(ast)
                 .expect("expected field '_parent' in extending template struct");
@@ -625,15 +623,9 @@ impl<'a> Generator<'a> {
     }
 
     // Defines the `TraitFromPathName` trait.
-    fn define_trait(&mut self, trait_name: &str, block_names: &[&str]) {
+    fn define_trait(&mut self, trait_name: &str, blocks: &'a [Node]) {
         self.writeln(&format!("trait {} {{", &trait_name));
-
-        for bname in block_names {
-            self.writeln(&format!(
-                "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
-                -> ::askama::Result<()>;",
-                bname));
-        }
+        self.handle(blocks);
         self.writeln(&format!(
             "fn render_trait_into(&self, timpl: &{}, writer: &mut ::std::fmt::Write) \
              -> ::askama::Result<()>;",
