@@ -10,10 +10,12 @@ use std::collections::{HashMap, HashSet};
 use syn;
 
 pub fn generate(ast: &syn::DeriveInput, path: &Path, mut nodes: Vec<Node>) -> String {
+    let mut parent_src = String::new();
     let mut base: Option<Expr> = None;
     let mut blocks = Vec::new();
     let mut content = Vec::new();
     let mut macros = HashMap::new();
+
     for n in nodes.drain(..) {
         match n {
             Node::Extends(path) => {
@@ -30,6 +32,19 @@ pub fn generate(ast: &syn::DeriveInput, path: &Path, mut nodes: Vec<Node>) -> St
                 macros.insert(name, (ws1, name, params, contents, ws2));
             },
             _ => { content.push(n); },
+        }
+    }
+
+    if let Some(Expr::StrLit(user_path)) = base {
+        let full_path = path::find_template_from_path(&user_path, Some(path));
+        parent_src = path::get_template_source(&full_path);
+        let mut parent_nodes = parser::parse(&parent_src);
+        for n in parent_nodes.drain(..) {
+            if let Node::BlockDef(_, name, ..) = n {
+                if !block_names.contains(&name) {
+                    blocks.push(n);
+                }
+            }
         }
     }
 
