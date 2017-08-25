@@ -60,6 +60,11 @@ pub fn e(s: &fmt::Display) -> Result<String> {
     escape(s)
 }
 
+/// Disables escaping for a given argument
+pub fn safe(s: &fmt::Display) -> Result<String> {
+    Ok(format!("{}", s))
+}
+
 /// Formats arguments according to the specified format
 ///
 /// The first argument to this filter must be a string literal (as in normal

@@ -318,9 +318,27 @@ impl<'a> Generator<'a> {
 
     fn write_expr(&mut self, ws: &WS, s: &Expr) {
         self.handle_ws(ws);
-        self.write("writer.write_fmt(format_args!(\"{}\", ");
+
+        let is_safe = match *s {
+            Expr::Filter(name, _) if name == "safe" => true,
+            _ => false
+        };
+
+        self.write("writer.write_fmt(");
+        self.write("format_args!(\"{}\", ");
+
+        if !is_safe {
+            self.write("::askama::filters::escape(&(");
+        }
+
         self.visit_expr(s);
-        self.writeln("))?;");
+
+        if !is_safe {
+            self.write("))?");
+        }
+
+        self.write(")");
+        self.writeln(")?;");
     }
 
     fn write_call(&mut self, ws: &WS, name: &str, args: &[Expr]) {
@@ -702,9 +720,10 @@ impl<'a, T: 'a> SetChain<'a, T> where T: cmp::Eq + hash::Hash {
 
 type MacroMap<'a> = HashMap<&'a str, (WS, &'a str, Vec<&'a str>, Vec<Node<'a>>, WS)>;
 
-const BUILT_IN_FILTERS: [&str; 9] = [
+const BUILT_IN_FILTERS: [&str; 10] = [
     "e",
     "escape",
+    "safe",
     "format",
     "lower",
     "lowercase",
