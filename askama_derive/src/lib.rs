@@ -1,17 +1,11 @@
-#[macro_use]
-extern crate nom;
+extern crate askama_shared as shared;
 extern crate proc_macro;
-extern crate quote;
 extern crate syn;
 
 use proc_macro::TokenStream;
 
 use std::borrow::Cow;
 use std::path::PathBuf;
-
-mod generator;
-mod parser;
-mod path;
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
@@ -35,16 +29,16 @@ fn build_template(ast: &syn::DeriveInput) -> String {
     let (path, src) = match meta.source {
         Source::Source(s) => (PathBuf::new(), Cow::Borrowed(s)),
         Source::Path(s) => {
-            let path = path::find_template_from_path(&s, None);
-            let src = path::get_template_source(&path);
+            let path = shared::path::find_template_from_path(&s, None);
+            let src = shared::path::get_template_source(&path);
             (path, Cow::Owned(src))
         },
     };
-    let nodes = parser::parse(src.as_ref());
+    let nodes = shared::parse(src.as_ref());
     if meta.print == Print::Ast || meta.print == Print::All {
         println!("{:?}", nodes);
     }
-    let code = generator::generate(ast, &path, nodes);
+    let code = shared::generate(ast, &path, nodes);
     if meta.print == Print::Code || meta.print == Print::All {
         println!("{}", code);
     }

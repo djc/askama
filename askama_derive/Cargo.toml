@@ -13,10 +13,9 @@ proc-macro = true
 
 [features]
 default = []
-iron = []
-rocket = []
+iron = ["askama_shared/iron"]
+rocket = ["askama_shared/rocket"]
 
 [dependencies]
-nom = "3"
-quote = "0.3"
+askama_shared = { version = "0.3.4", path = "../askama_shared" }
 syn = "0.11"

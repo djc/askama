@@ -213,19 +213,13 @@
 #![allow(unused_imports)]
 #[macro_use]
 extern crate askama_derive;
-#[macro_use]
-extern crate error_chain;
+extern crate askama_shared as shared;
 
-#[cfg(feature = "serde-json")]
-extern crate serde;
-#[cfg(feature = "serde-json")]
-extern crate serde_json;
+use shared::path;
 
-use std::env;
-use std::fmt;
 use std::fs::{self, DirEntry};
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Main `Template` trait; implementations are generally derived
 pub trait Template {
@@ -239,9 +233,9 @@ pub trait Template {
     }
 }
 
-pub mod filters;
+pub use shared::filters;
 pub use askama_derive::*;
-pub use errors::Result;
+pub use shared::Result;
 
 #[cfg(feature = "with-iron")]
 pub mod iron {
@@ -256,13 +250,6 @@ pub mod rocket {
     pub use self::rocket::http::{ContentType, Status};
     pub use self::rocket::request::Request;
     pub use self::rocket::response::{Responder, Response};
-}
-
-// Duplicates askama_derive::path::template_dir()
-fn template_dir() -> PathBuf {
-    let mut path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    path.push("templates");
-    path
 }
 
 fn visit_dirs(dir: &Path, cb: &Fn(&DirEntry)) -> io::Result<()> {
@@ -290,16 +277,7 @@ fn visit_dirs(dir: &Path, cb: &Fn(&DirEntry)) -> io::Result<()> {
 /// that have templates, to make sure the crate gets rebuilt when template
 /// source code changes.
 pub fn rerun_if_templates_changed() {
-    visit_dirs(&template_dir(), &|e: &DirEntry| {
+    visit_dirs(&path::template_dir(), &|e: &DirEntry| {
         println!("cargo:rerun-if-changed={}", e.path().to_str().unwrap());
     }).unwrap();
-}
-
-mod errors {
-    error_chain! {
-        foreign_links {
-            Fmt(::std::fmt::Error);
-            Json(::serde_json::Error) #[cfg(feature = "serde-json")];
-        }
-    }
 }
