@@ -223,25 +223,35 @@ impl<'a> Generator<'a> {
         self.write(&format!(".{}", attr));
     }
 
-    fn visit_filter(&mut self, name: &str, args: &[Expr]) {
-        if name == "format" {
-            self.write("format!(");
-        } else if BUILT_IN_FILTERS.contains(&name) {
-            self.write(&format!("::askama::filters::{}(&", name));
-        } else {
-            self.write(&format!("filters::{}(&", name));
-        }
-
+    fn _visit_filter_args(&mut self, args: &[Expr]) {
         for (i, arg) in args.iter().enumerate() {
             if i > 0 {
                 self.write(", &");
             }
             self.visit_expr(arg);
         }
+    }
+
+    fn _visit_format_filter(&mut self, args: &[Expr]) {
+        self.write("format!(");
+        self._visit_filter_args(args);
         self.write(")");
-        if name != "format" {
-            self.write("?");
+    }
+
+    fn visit_filter(&mut self, name: &str, args: &[Expr]) {
+        if name == "format" {
+            self._visit_format_filter(args);
+            return;
         }
+
+        if BUILT_IN_FILTERS.contains(&name) {
+            self.write(&format!("::askama::filters::{}(&", name));
+        } else {
+            self.write(&format!("filters::{}(&", name));
+        }
+
+        self._visit_filter_args(args);
+        self.write(")?");
     }
 
     fn visit_binop(&mut self, op: &str, left: &Expr, right: &Expr) {
