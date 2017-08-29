@@ -10,7 +10,7 @@ extern crate serde;
 #[cfg(feature = "serde-json")]
 extern crate serde_json;
 
-pub use errors::Result;
+pub use errors::{Error, Result};
 pub mod filters;
 pub mod path;
 pub use parser::parse;
