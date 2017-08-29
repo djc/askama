@@ -15,6 +15,7 @@ proc-macro = true
 default = []
 iron = ["askama_shared/iron"]
 rocket = ["askama_shared/rocket"]
+shio = ["askama_shared/shio"]
 
 [dependencies]
 askama_shared = { version = "0.3.4", path = "../askama_shared" }

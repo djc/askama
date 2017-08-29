@@ -57,6 +57,9 @@ pub fn generate(ast: &syn::DeriveInput, path: &Path, mut nodes: Vec<Node>) -> St
     if cfg!(feature = "rocket") {
         gen.impl_responder(ast, path);
     }
+    if cfg!(feature = "shio") {
+        gen.impl_shio_responder(ast, path);
+    }
     gen.result()
 }
 
@@ -659,6 +662,16 @@ impl<'a> Generator<'a> {
         self.writeln(".sized_body(::std::io::Cursor::new(self.render().unwrap()))");
         self.writeln(".ok()");
         self.dedent();
+        self.writeln("}");
+        self.writeln("}");
+    }
+
+    // Implement Shio's `Responder`.
+    fn impl_shio_responder(&mut self, ast: &syn::DeriveInput, path: &Path) {
+        self.write_header(ast, "::shio::response::Responder", &vec![]);
+        self.writeln("type Result = ::askama::Result<::shio::Response>;");
+        self.writeln("fn to_response(self) -> Self::Result {");
+        self.writeln("Ok(::shio::Response::with(self.render()?))");
         self.writeln("}");
         self.writeln("}");
     }
