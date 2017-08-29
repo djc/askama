@@ -49,3 +49,28 @@ fn test_my_filter() {
     let t = MyFilterTemplate { s: "foo" };
     assert_eq!(t.render().unwrap(), "faa");
 }
+
+
+#[derive(Template)]
+#[template(path= "filters_join.html")]
+struct JoinTemplate<'a> {
+    s: &'a [&'a str],
+}
+
+#[test]
+fn test_join() {
+    let t = JoinTemplate { s: &["foo", "bar", "bazz"] };
+    assert_eq!(t.render().unwrap(), "foo, bar, bazz");
+}
+
+#[derive(Template)]
+#[template(path= "filters_join.html")]
+struct VecJoinTemplate {
+    s: Vec<String>
+}
+
+#[test]
+fn test_vec_join() {
+    let t = VecJoinTemplate { s: vec!["foo".into(), "bar".into(), "bazz".into()] };
+    assert_eq!(t.render().unwrap(), "foo, bar, bazz");
+}
