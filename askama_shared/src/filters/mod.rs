@@ -12,6 +12,7 @@ mod json;
 pub use self::json::json;
 
 use std::fmt;
+
 use super::Result;
 
 
@@ -96,6 +97,27 @@ pub fn trim(s: &fmt::Display) -> Result<String> {
     Ok(s.trim().to_owned())
 }
 
+/// Joins iterable into a string separated by provided argument
+pub fn join<T, I, S>(input: I, separator: S) -> Result<String>
+    where T: fmt::Display,
+          I: Iterator<Item = T>,
+          S: AsRef<str>
+{
+    let separator: &str = separator.as_ref();
+
+    let mut rv = String::new();
+
+    for (num, item) in input.enumerate() {
+        if num > 0 {
+            rv.push_str(separator);
+        }
+
+        rv.push_str(&format!("{}", item));
+    }
+
+    Ok(rv)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,5 +148,29 @@ mod tests {
     #[test]
     fn test_trim() {
         assert_eq!(trim(&" Hello\tworld\t").unwrap(), "Hello\tworld");
+    }
+
+    #[test]
+    fn test_join() {
+        assert_eq!(join((&["hello", "world"]).into_iter(), ", ").unwrap(), "hello, world");
+        assert_eq!(join((&["hello"]).into_iter(), ", ").unwrap(), "hello");
+
+        let empty: &[&str] = &[];
+        assert_eq!(join(empty.into_iter(), ", ").unwrap(), "");
+
+        let input: Vec<String> = vec!["foo".into(), "bar".into(), "bazz".into()];
+        assert_eq!(join((&input).into_iter(), ":".to_string()).unwrap(), "foo:bar:bazz");
+        assert_eq!(join(input.clone().into_iter(), ":").unwrap(), "foo:bar:bazz");
+        assert_eq!(join(input.clone().into_iter(), ":".to_string()).unwrap(), "foo:bar:bazz");
+
+        let input: &[String] = &["foo".into(), "bar".into()];
+        assert_eq!(join(input.into_iter(), ":").unwrap(), "foo:bar");
+        assert_eq!(join(input.into_iter(), ":".to_string()).unwrap(), "foo:bar");
+
+        let real: String = "blah".into();
+        let input: Vec<&str> = vec![&real];
+        assert_eq!(join(input.into_iter(), ";").unwrap(), "blah");
+
+        assert_eq!(join((&&&&&["foo", "bar"]).into_iter(), ", ").unwrap(), "foo, bar");
     }
 }
