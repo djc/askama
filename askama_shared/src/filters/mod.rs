@@ -13,7 +13,7 @@ pub use self::json::json;
 
 use std::fmt;
 
-use escaping;
+use escaping::{self, MarkupDisplay};
 use super::Result;
 
 
@@ -21,12 +21,13 @@ use super::Result;
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 9] = [
+pub const BUILT_IN_FILTERS: [&str; 10] = [
     "e",
     "escape",
     "format",
     "lower",
     "lowercase",
+    "safe",
     "trim",
     "upper",
     "uppercase",
@@ -34,15 +35,32 @@ pub const BUILT_IN_FILTERS: [&str; 9] = [
 ];
 
 
+pub fn safe<D, I>(v: I) -> Result<MarkupDisplay<D>>
+where
+    D: fmt::Display,
+    MarkupDisplay<D>: From<I>
+{
+    let res: MarkupDisplay<D> = v.into();
+    Ok(res.mark_safe())
+}
+
 /// Escapes `&`, `<` and `>` in strings
-pub fn escape(s: &fmt::Display) -> Result<String> {
-    let s = format!("{}", s);
-    Ok(escaping::escape(s))
+pub fn escape<D, I>(i: I) -> Result<MarkupDisplay<String>>
+where
+    D: fmt::Display,
+    MarkupDisplay<D>: From<I>
+{
+    let md: MarkupDisplay<D> = i.into();
+    Ok(MarkupDisplay::Safe(escaping::escape(md.unsafe_string())))
 }
 
 /// Alias for the `escape()` filter
-pub fn e(s: &fmt::Display) -> Result<String> {
-    escape(s)
+pub fn e<D, I>(i: I) -> Result<MarkupDisplay<String>>
+where
+    D: fmt::Display,
+    MarkupDisplay<D>: From<I>
+{
+    escape(i)
 }
 
 /// Formats arguments according to the specified format

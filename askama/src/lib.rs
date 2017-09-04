@@ -235,7 +235,7 @@ pub trait Template {
 
 pub use shared::filters;
 pub use askama_derive::*;
-pub use shared::{Error, Result};
+pub use shared::{Error, MarkupDisplay, Result};
 
 #[cfg(feature = "with-iron")]
 pub mod iron {
