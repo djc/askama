@@ -229,21 +229,16 @@ named!(expr_filtered<Expr>, do_parse!(
 
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $( $op:expr ),* ) => {
-        named!($name<Expr>,
-            do_parse!(
-                left: $inner >>
-                op_and_right: opt!(pair!(ws!(alt!($( tag_s!($op) )|*)), expr_any)) >>
-                (
-                    if op_and_right.is_some() {
-                        let (op, right) = op_and_right.unwrap();
-                        (Expr::BinOp(str::from_utf8(op).unwrap(),
-                             Box::new(left), Box::new(right)))
-                    } else {
-                        left
-                    }
-                )
-            )
-        );
+        named!($name<Expr>, do_parse!(
+            left: $inner >>
+            op_and_right: opt!(pair!(ws!(alt!($( tag_s!($op) )|*)), expr_any)) >>
+            (match op_and_right {
+                Some((op, right)) => Expr::BinOp(
+                    str::from_utf8(op).unwrap(), Box::new(left), Box::new(right)
+                ),
+                None => left,
+            })
+        ));
     }
 }
 
