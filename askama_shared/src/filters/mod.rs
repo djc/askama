@@ -13,19 +13,36 @@ pub use self::json::json;
 
 use std::fmt;
 
-use escaping;
+use escaping::{self, MarkupDisplay};
 use super::Result;
 
 
+pub fn safe<D, I>(v: I) -> Result<MarkupDisplay<D>>
+where
+    D: fmt::Display,
+    MarkupDisplay<D>: From<I>
+{
+    let res: MarkupDisplay<D> = v.into();
+    Ok(res.mark_safe())
+}
+
 /// Escapes `&`, `<` and `>` in strings
-pub fn escape(s: &fmt::Display) -> Result<String> {
-    let s = format!("{}", s);
-    Ok(escaping::escape(s))
+pub fn escape<D, I>(i: I) -> Result<MarkupDisplay<String>>
+where
+    D: fmt::Display,
+    MarkupDisplay<D>: From<I>
+{
+    let md: MarkupDisplay<D> = i.into();
+    Ok(MarkupDisplay::Safe(escaping::escape(md.unsafe_string())))
 }
 
 /// Alias for the `escape()` filter
-pub fn e(s: &fmt::Display) -> Result<String> {
-    escape(s)
+pub fn e<D, I>(i: I) -> Result<MarkupDisplay<String>>
+where
+    D: fmt::Display,
+    MarkupDisplay<D>: From<I>
+{
+    escape(i)
 }
 
 /// Formats arguments according to the specified format

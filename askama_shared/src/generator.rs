@@ -189,31 +189,34 @@ impl<'a> Generator<'a> {
 
     /* Visitor methods for expression types */
 
-    fn visit_num_lit(&mut self, s: &str) {
+    fn visit_num_lit(&mut self, s: &str) -> DisplayWrap {
         self.write(s);
+        DisplayWrap::Unwrapped
     }
 
-    fn visit_str_lit(&mut self, s: &str) {
+    fn visit_str_lit(&mut self, s: &str) -> DisplayWrap {
         self.write(&format!("\"{}\"", s));
+        DisplayWrap::Unwrapped
     }
 
-    fn visit_var(&mut self, s: &str) {
+    fn visit_var(&mut self, s: &str) -> DisplayWrap {
         if self.locals.contains(s) {
             self.write(s);
         } else {
             self.write(&format!("self.{}", s));
         }
+        DisplayWrap::Unwrapped
     }
 
-    fn visit_attr(&mut self, obj: &Expr, attr: &str) {
+    fn visit_attr(&mut self, obj: &Expr, attr: &str) -> DisplayWrap {
         if let Expr::Var(name) = *obj {
             if name == "loop" {
                 self.write("_loop_index");
                 if attr == "index" {
                     self.write(" + 1");
-                    return;
+                    return DisplayWrap::Unwrapped;
                 } else if attr == "index0" {
-                    return;
+                    return DisplayWrap::Unwrapped;
                 } else {
                     panic!("unknown loop variable");
                 }
@@ -221,6 +224,7 @@ impl<'a> Generator<'a> {
         }
         self.visit_expr(obj);
         self.write(&format!(".{}", attr));
+        DisplayWrap::Unwrapped
     }
 
     fn _visit_filter_args(&mut self, args: &[Expr]) {
@@ -260,13 +264,13 @@ impl<'a> Generator<'a> {
         self.write(")?");
     }
 
-    fn visit_filter(&mut self, name: &str, args: &[Expr]) {
+    fn visit_filter(&mut self, name: &str, args: &[Expr]) -> DisplayWrap {
         if name == "format" {
             self._visit_format_filter(args);
-            return;
+            return DisplayWrap::Unwrapped;
         } else if name == "join" {
             self._visit_join_filter(args);
-            return;
+            return DisplayWrap::Unwrapped;
         }
 
         if BUILT_IN_FILTERS.contains(&name) {
@@ -277,21 +281,28 @@ impl<'a> Generator<'a> {
 
         self._visit_filter_args(args);
         self.write(")?");
+        if name == "safe" || name == "escape" || name == "e" {
+            DisplayWrap::Wrapped
+        } else {
+            DisplayWrap::Unwrapped
+        }
     }
 
-    fn visit_binop(&mut self, op: &str, left: &Expr, right: &Expr) {
+    fn visit_binop(&mut self, op: &str, left: &Expr, right: &Expr) -> DisplayWrap {
         self.visit_expr(left);
         self.write(&format!(" {} ", op));
         self.visit_expr(right);
+        DisplayWrap::Unwrapped
     }
 
-    fn visit_group(&mut self, inner: &Expr) {
+    fn visit_group(&mut self, inner: &Expr) -> DisplayWrap {
         self.write("(");
         self.visit_expr(inner);
         self.write(")");
+        DisplayWrap::Unwrapped
     }
 
-    fn visit_method_call(&mut self, obj: &Expr, method: &str, args: &[Expr]) {
+    fn visit_method_call(&mut self, obj: &Expr, method: &str, args: &[Expr]) -> DisplayWrap {
         self.visit_expr(obj);
         self.write(&format!(".{}(", method));
         for (i, arg) in args.iter().enumerate() {
@@ -301,9 +312,10 @@ impl<'a> Generator<'a> {
             self.visit_expr(arg);
         }
         self.write(")");
+        DisplayWrap::Unwrapped
     }
 
-    fn visit_expr(&mut self, expr: &Expr) {
+    fn visit_expr(&mut self, expr: &Expr) -> DisplayWrap {
         match *expr {
             Expr::NumLit(s) => self.visit_num_lit(s),
             Expr::StrLit(s) => self.visit_str_lit(s),
@@ -353,8 +365,15 @@ impl<'a> Generator<'a> {
 
     fn write_expr(&mut self, ws: &WS, s: &Expr) {
         self.handle_ws(ws);
+        self.write("let askama_expr = &");
+        let wrapped = self.visit_expr(s);
+        self.writeln(";");
+
         self.write("writer.write_fmt(format_args!(\"{}\", ");
-        self.visit_expr(s);
+        self.write(match wrapped {
+            DisplayWrap::Wrapped => "askama_expr",
+            DisplayWrap::Unwrapped => "&::askama::MarkupDisplay::from(askama_expr)",
+        });
         self.writeln("))?;");
     }
 
@@ -733,6 +752,11 @@ impl<'a, T: 'a> SetChain<'a, T> where T: cmp::Eq + hash::Hash {
         self.scopes.pop().unwrap();
         assert!(self.scopes.len() > 0);
     }
+}
+
+enum DisplayWrap {
+    Wrapped,
+    Unwrapped,
 }
 
 type MacroMap<'a> = HashMap<&'a str, (WS, &'a str, Vec<&'a str>, Vec<Node<'a>>, WS)>;
