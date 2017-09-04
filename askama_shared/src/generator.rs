@@ -238,25 +238,18 @@ impl<'a> Generator<'a> {
         self.write(")");
     }
 
+    // Force type coercion on first argument to `join` filter (see #39).
     fn _visit_join_filter(&mut self, args: &[Expr]) {
-        // this is a separate handler because we need to generate code like
-        // this to force auto-deref for first argument:
-        // `join((&&&&&&self.s).into_iter(), ", ")`
-        // otherwise, we were getting errors described in PR #39
         self.write("::askama::filters::join((&");
-
         for (i, arg) in args.iter().enumerate() {
             if i > 0 {
                 self.write(", &");
             }
-
             self.visit_expr(arg);
-
             if i == 0 {
                 self.write(").into_iter()");
             }
         }
-
         self.write(")?");
     }
 
