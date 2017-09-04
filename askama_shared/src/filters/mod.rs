@@ -16,6 +16,23 @@ use std::fmt;
 use super::Result;
 
 
+// This is used by the code generator to decide whether a named filter is part of
+// Askama or should refer to a local `filters` module. It should contain all the
+// filters shipped with Askama, even the optional ones (since optional inclusion
+// in the const vector based on features seems impossible right now).
+pub const BUILT_IN_FILTERS: [&str; 9] = [
+    "e",
+    "escape",
+    "format",
+    "lower",
+    "lowercase",
+    "trim",
+    "upper",
+    "uppercase",
+    "json", // Optional feature; reserve the name anyway
+];
+
+
 fn escapable(b: &u8) -> bool {
     *b == b'<' || *b == b'>' || *b == b'&'
 }

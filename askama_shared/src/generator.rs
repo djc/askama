@@ -1,3 +1,4 @@
+use filters;
 use parser::{self, Cond, Expr, Node, Target, WS};
 use path;
 
@@ -262,7 +263,7 @@ impl<'a> Generator<'a> {
             return;
         }
 
-        if BUILT_IN_FILTERS.contains(&name) {
+        if filters::BUILT_IN_FILTERS.contains(&name) {
             self.write(&format!("::askama::filters::{}(&", name));
         } else {
             self.write(&format!("filters::{}(&", name));
@@ -729,15 +730,3 @@ impl<'a, T: 'a> SetChain<'a, T> where T: cmp::Eq + hash::Hash {
 }
 
 type MacroMap<'a> = HashMap<&'a str, (WS, &'a str, Vec<&'a str>, Vec<Node<'a>>, WS)>;
-
-const BUILT_IN_FILTERS: [&str; 9] = [
-    "e",
-    "escape",
-    "format",
-    "lower",
-    "lowercase",
-    "trim",
-    "upper",
-    "uppercase",
-    "json", // Optional feature; reserve the name anyway
-];
