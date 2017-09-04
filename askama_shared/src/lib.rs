@@ -16,6 +16,7 @@ pub mod path;
 pub use parser::parse;
 pub use generator::generate;
 
+mod escaping;
 mod generator;
 mod parser;
 

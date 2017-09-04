@@ -13,6 +13,7 @@ pub use self::json::json;
 
 use std::fmt;
 
+use escaping;
 use super::Result;
 
 
@@ -33,44 +34,10 @@ pub const BUILT_IN_FILTERS: [&str; 9] = [
 ];
 
 
-fn escapable(b: &u8) -> bool {
-    *b == b'<' || *b == b'>' || *b == b'&'
-}
-
 /// Escapes `&`, `<` and `>` in strings
 pub fn escape(s: &fmt::Display) -> Result<String> {
     let s = format!("{}", s);
-    let mut found = Vec::new();
-    for (i, b) in s.as_bytes().iter().enumerate() {
-        if escapable(b) {
-            found.push(i);
-        }
-    }
-    if found.is_empty() {
-        return Ok(s);
-    }
-
-    let bytes = s.as_bytes();
-    let max_len = bytes.len() + found.len() * 3;
-    let mut res = Vec::<u8>::with_capacity(max_len);
-    let mut start = 0;
-    for idx in &found {
-        if start < *idx {
-            res.extend(&bytes[start..*idx]);
-        }
-        start = *idx + 1;
-        match bytes[*idx] {
-            b'<' => { res.extend(b"&lt;"); },
-            b'>' => { res.extend(b"&gt;"); },
-            b'&' => { res.extend(b"&amp;"); },
-            _ => panic!("incorrect indexing"),
-        }
-    }
-    if start < bytes.len() - 1 {
-        res.extend(&bytes[start..]);
-    }
-
-    Ok(String::from_utf8(res).unwrap())
+    Ok(escaping::escape(s))
 }
 
 /// Alias for the `escape()` filter
@@ -135,17 +102,10 @@ pub fn join<T, I, S>(input: I, separator: S) -> Result<String>
     Ok(rv)
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn test_escape() {
-        assert_eq!(escape(&"").unwrap(), "");
-        assert_eq!(escape(&"<&>").unwrap(), "&lt;&amp;&gt;");
-        assert_eq!(escape(&"bla&").unwrap(), "bla&amp;");
-        assert_eq!(escape(&"<foo").unwrap(), "&lt;foo");
-    }
-
     #[test]
     fn test_lower() {
         assert_eq!(lower(&"Foo").unwrap(), "foo");
