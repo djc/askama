@@ -31,3 +31,14 @@ fn test_operators() {
     let t = OperatorsTemplate { a: 1, b: 1, c: 2 };
     assert_eq!(t.render().unwrap(), "muldivmodaddrshlshbandbxorborandor");
 }
+
+
+#[derive(Template)]
+#[template(path = "precedence.html")]
+struct PrecedenceTemplate { }
+
+#[test]
+fn test_precedence() {
+    let t = PrecedenceTemplate { };
+    assert_eq!(t.render().unwrap(), "6".repeat(7));
+}
