@@ -181,3 +181,42 @@ fn test_composition() {
     let t = CompositionTemplate { foo: IfTemplate { cond: true } };
     assert_eq!(t.render().unwrap(), "composed: true");
 }
+
+
+#[derive(Template)]
+#[template(source = "{{ foo }}")]
+struct ImplicitEscapedTemplate<'a> {
+    foo: &'a str,
+}
+
+#[test]
+fn test_implicit_escaped() {
+    let t = ImplicitEscapedTemplate { foo: "foo & bar" };
+    assert_eq!(t.render().unwrap(), "foo &amp; bar");
+}
+
+
+#[derive(Template)]
+#[template(source = "{{ foo }}", escape = "html")]
+struct ExplicitEscapedTemplate<'a> {
+    foo: &'a str,
+}
+
+#[test]
+fn test_explicit_escaped() {
+    let t = ExplicitEscapedTemplate { foo: "foo & bar" };
+    assert_eq!(t.render().unwrap(), "foo &amp; bar");
+}
+
+
+#[derive(Template)]
+#[template(source = "{{ foo }}", escape = "none")]
+struct UnescapedTemplate<'a> {
+    foo: &'a str,
+}
+
+#[test]
+fn test_unescaped() {
+    let t = UnescapedTemplate { foo: "foo & bar" };
+    assert_eq!(t.render().unwrap(), "foo & bar");
+}
