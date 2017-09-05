@@ -495,7 +495,7 @@ impl<'a> Generator<'a> {
 
     fn handle_include(&mut self, state: &'a State, ws: &WS, path: &str) {
         self.prepare_ws(ws);
-        let path = path::find_template_from_path(&path, None);
+        let path = path::find_template_from_path(&path, Some(&state.input.path));
         let src = path::get_template_source(&path);
         let nodes = parser::parse(&src);
         let nested = {
