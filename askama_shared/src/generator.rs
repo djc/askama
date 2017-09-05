@@ -10,27 +10,25 @@ use std::collections::{HashMap, HashSet};
 
 use syn;
 
-pub fn generate(ast: &syn::DeriveInput, path: &Path, mut nodes: Vec<Node>) -> String {
-    let mut base: Option<Expr> = None;
+pub fn generate(ast: &syn::DeriveInput, path: &Path, nodes: Vec<Node>) -> String {
+    let mut base: Option<&Expr> = None;
     let mut blocks = Vec::new();
-    let mut content = Vec::new();
     let mut macros = HashMap::new();
-    for n in nodes.drain(..) {
-        match n {
-            Node::Extends(path) => {
+    for n in nodes.iter() {
+        match *n {
+            Node::Extends(ref path) => {
                 match base {
                     Some(_) => panic!("multiple extend blocks found"),
                     None => { base = Some(path); },
                 }
             },
-            Node::BlockDef(ws1, name, _, ws2) => {
-                blocks.push(n);
-                content.push(Node::Block(ws1, name, ws2));
+            ref def @ Node::BlockDef(_, _, _, _) => {
+                blocks.push(def);
             },
-            Node::Macro(name, m) => {
+            Node::Macro(name, ref m) => {
                 macros.insert(name, m);
             },
-            _ => { content.push(n); },
+            _ => {},
         }
     }
 
@@ -45,11 +43,11 @@ pub fn generate(ast: &syn::DeriveInput, path: &Path, mut nodes: Vec<Node>) -> St
             gen.deref_to_parent(ast, &parent_type);
         }
 
-        let trait_nodes = if base.is_none() { Some(&content[..]) } else { None };
+        let trait_nodes = if base.is_none() { Some(&nodes[..]) } else { None };
         gen.impl_trait(ast, &trait_name, &blocks, trait_nodes);
         gen.impl_template_for_trait(ast, base.is_some());
     } else {
-        gen.impl_template(ast, &content);
+        gen.impl_template(ast, &nodes);
     }
     gen.impl_display(ast);
     if cfg!(feature = "iron") {
@@ -61,9 +59,9 @@ pub fn generate(ast: &syn::DeriveInput, path: &Path, mut nodes: Vec<Node>) -> St
     gen.result()
 }
 
-fn trait_name_for_path(base: &Option<Expr>, path: &Path) -> String {
+fn trait_name_for_path(base: &Option<&Expr>, path: &Path) -> String {
     let rooted_path = match *base {
-        Some(Expr::StrLit(user_path)) => {
+        Some(&Expr::StrLit(user_path)) => {
             path::find_template_from_path(user_path, Some(path))
         },
         _ => path.to_path_buf(),
@@ -471,9 +469,9 @@ impl<'a> Generator<'a> {
         self.prepare_ws(ws2);
     }
 
-    fn write_block_defs(&mut self, blocks: &'a [Node]) {
+    fn write_block_defs(&mut self, blocks: &'a [&'a Node]) {
         for b in blocks {
-            if let &Node::BlockDef(ref ws1, ref name, ref nodes, ref ws2) = b {
+            if let &&Node::BlockDef(ref ws1, ref name, ref nodes, ref ws2) = b {
                 self.writeln("#[allow(unused_variables)]");
                 self.writeln(&format!(
                     "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
@@ -522,18 +520,15 @@ impl<'a> Generator<'a> {
                 Node::Loop(ref ws1, ref var, ref iter, ref body, ref ws2) => {
                     self.write_loop(ws1, var, iter, body, ws2);
                 },
-                Node::Block(ref ws1, name, ref ws2) => {
+                Node::BlockDef(ref ws1, name, _, ref ws2) => {
                     self.write_block(ws1, name, ws2);
                 },
                 Node::Include(ref ws, ref path) => {
                     self.handle_include(ws, path);
                 },
                 Node::Call(ref ws, name, ref args) => self.write_call(ws, name, args),
-                Node::BlockDef(_, _, _, _) |
                 Node::Macro(_, _) |
-                Node::Extends(_) => {
-                    panic!("no extends or macros allowed in content");
-                },
+                Node::Extends(_) => {},
             }
         }
     }
@@ -635,7 +630,7 @@ impl<'a> Generator<'a> {
 
     // Implement `TraitFromPathName` for the given context struct.
     fn impl_trait(&mut self, ast: &syn::DeriveInput, trait_name: &str,
-                  blocks: &'a [Node], nodes: Option<&'a [Node]>) {
+                  blocks: &'a [&'a Node], nodes: Option<&'a [Node]>) {
         self.write_header(ast, &trait_name, &vec![]);
         self.write_block_defs(blocks);
 
@@ -674,7 +669,7 @@ impl<'a> Generator<'a> {
     }
 
     // Defines the `TraitFromPathName` trait.
-    fn define_trait(&mut self, trait_name: &str, blocks: &'a [Node]) {
+    fn define_trait(&mut self, trait_name: &str, blocks: &'a [&'a Node]) {
         self.writeln(&format!("trait {} {{", &trait_name));
         self.write_block_defs(blocks);
         self.writeln(&format!(
@@ -760,4 +755,4 @@ enum DisplayWrap {
     Unwrapped,
 }
 
-type MacroMap<'a> = HashMap<&'a str, Macro<'a>>;
+type MacroMap<'a> = HashMap<&'a str, &'a Macro<'a>>;

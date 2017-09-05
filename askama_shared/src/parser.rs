@@ -41,7 +41,6 @@ pub enum Node<'a> {
     Loop(WS, Target<'a>, Expr<'a>, Vec<Node<'a>>, WS),
     Extends(Expr<'a>),
     BlockDef(WS, &'a str, Vec<Node<'a>>, WS),
-    Block(WS, &'a str, WS),
     Include(WS, &'a str),
     Macro(&'a str, Macro<'a>),
 }
