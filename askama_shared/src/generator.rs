@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 
 use syn;
 
-pub fn generate(ast: &syn::DeriveInput, path: &Path, nodes: Vec<Node>) -> String {
+pub fn generate(ast: &syn::DeriveInput, path: &Path, nodes: &[Node]) -> String {
     let mut base: Option<&Expr> = None;
     let mut blocks = Vec::new();
     let mut macros = HashMap::new();
