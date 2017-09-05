@@ -352,16 +352,20 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn write_expr(&mut self, ws: &WS, s: &Expr) {
+    fn write_expr(&mut self, state: &'a State, ws: &WS, s: &Expr) {
         self.handle_ws(ws);
         self.write("let askama_expr = &");
         let wrapped = self.visit_expr(s);
         self.writeln(";");
 
+        use self::DisplayWrap::*;
+        use super::input::EscapeMode::*;
         self.write("writer.write_fmt(format_args!(\"{}\", ");
-        self.write(match wrapped {
-            DisplayWrap::Wrapped => "askama_expr",
-            DisplayWrap::Unwrapped => "&::askama::MarkupDisplay::from(askama_expr)",
+        self.write(match (wrapped, &state.input.meta.escaping) {
+            (Wrapped, &Html) |
+            (Wrapped, &None) |
+            (Unwrapped, &None) => "askama_expr",
+            (Unwrapped, &Html) => "&::askama::MarkupDisplay::from(askama_expr)",
         });
         self.writeln("))?;");
     }
@@ -508,7 +512,7 @@ impl<'a> Generator<'a> {
             match *n {
                 Node::Lit(lws, val, rws) => { self.write_lit(lws, val, rws); }
                 Node::Comment() => {},
-                Node::Expr(ref ws, ref val) => { self.write_expr(ws, val); },
+                Node::Expr(ref ws, ref val) => { self.write_expr(state, ws, val); },
                 Node::LetDecl(ref ws, ref var) => { self.write_let_decl(ws, var); },
                 Node::Let(ref ws, ref var, ref val) => { self.write_let(ws, var, val); },
                 Node::Cond(ref conds, ref ws) => {

@@ -32,6 +32,7 @@ impl<'a> TemplateInput<'a> {
 pub struct TemplateMeta<'a> {
     source: Source<'a>,
     pub print: Print,
+    pub escaping: EscapeMode,
 }
 
 impl<'a> TemplateMeta<'a> {
@@ -46,6 +47,7 @@ impl<'a> TemplateMeta<'a> {
         let attr = attr.unwrap();
         let mut source = None;
         let mut print = Print::None;
+        let mut escaping = EscapeMode::Html;
         if let syn::MetaItem::List(_, ref inner) = attr.value {
             for nm_item in inner {
                 if let syn::NestedMetaItem::MetaItem(ref item) = *nm_item {
@@ -66,6 +68,11 @@ impl<'a> TemplateMeta<'a> {
                             } else {
                                 panic!("print value must be string literal");
                             },
+                            "escape" => if let syn::Lit::Str(ref s, _) = *val {
+                                escaping = s.into();
+                            } else {
+                                panic!("escape value must be string literal");
+                            },
                             _ => { panic!("unsupported annotation key found") }
                         }
                     }
@@ -74,7 +81,7 @@ impl<'a> TemplateMeta<'a> {
         }
 
         match source {
-            Some(s) => TemplateMeta { source: s, print },
+            Some(s) => TemplateMeta { source: s, print, escaping },
             None => panic!("template path or source not found in struct attributes"),
         }
     }
@@ -83,6 +90,23 @@ impl<'a> TemplateMeta<'a> {
 enum Source<'a> {
     Path(&'a str),
     Source(&'a str),
+}
+
+#[derive(PartialEq)]
+pub enum EscapeMode {
+    Html,
+    None,
+}
+
+impl<'a> From<&'a String> for EscapeMode {
+    fn from(s: &'a String) -> EscapeMode {
+        use self::EscapeMode::*;
+        match s.as_ref() {
+            "html" => Html,
+            "none" => None,
+            v => panic!("invalid value for escape option: {}", v),
+        }
+    }
 }
 
 #[derive(PartialEq)]
