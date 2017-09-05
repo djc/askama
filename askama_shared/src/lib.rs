@@ -31,24 +31,38 @@ use std::path::PathBuf;
 /// the parse tree and/or generated source according to the `print` key's
 /// value as passed to the `template()` attribute.
 pub fn build_template(ast: &syn::DeriveInput) -> String {
-    let meta = TemplateMeta::new(ast);
-    let (path, src) = match meta.source {
-        Source::Source(s) => (PathBuf::new(), Cow::Borrowed(s)),
-        Source::Path(s) => {
-            let path = path::find_template_from_path(&s, None);
-            let src = path::get_template_source(&path);
-            (path, Cow::Owned(src))
-        },
-    };
-    let nodes = parser::parse(src.as_ref());
-    if meta.print == Print::Ast || meta.print == Print::All {
+    let data = TemplateInput::new(ast);
+    let nodes = parser::parse(data.source.as_ref());
+    if data.meta.print == Print::Ast || data.meta.print == Print::All {
         println!("{:?}", nodes);
     }
-    let code = generator::generate(ast, &path, &nodes);
-    if meta.print == Print::Code || meta.print == Print::All {
+    let code = generator::generate(data.ast, &data.path, &nodes);
+    if data.meta.print == Print::Code || data.meta.print == Print::All {
         println!("{}", code);
     }
     code
+}
+
+struct TemplateInput<'a> {
+    pub ast: &'a syn::DeriveInput,
+    pub meta: TemplateMeta<'a>,
+    pub path: PathBuf,
+    pub source: Cow<'a, str>,
+}
+
+impl<'a> TemplateInput<'a> {
+    fn new(ast: &'a syn::DeriveInput) -> TemplateInput<'a> {
+        let meta = TemplateMeta::new(ast);
+        let (path, source) = match meta.source {
+            Source::Source(s) => (PathBuf::new(), Cow::Borrowed(s)),
+            Source::Path(s) => {
+                let path = path::find_template_from_path(&s, None);
+                let src = path::get_template_source(&path);
+                (path, Cow::Owned(src))
+            },
+        };
+        TemplateInput { ast, meta, path, source }
+    }
 }
 
 mod errors {
