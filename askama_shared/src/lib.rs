@@ -36,7 +36,7 @@ pub fn build_template(ast: &syn::DeriveInput) -> String {
     if data.meta.print == Print::Ast || data.meta.print == Print::All {
         println!("{:?}", nodes);
     }
-    let code = generator::generate(data.ast, &data.path, &nodes);
+    let code = generator::generate(&data, &nodes);
     if data.meta.print == Print::Code || data.meta.print == Print::All {
         println!("{}", code);
     }
