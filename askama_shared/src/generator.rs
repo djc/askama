@@ -471,22 +471,27 @@ impl<'a> Generator<'a> {
         self.prepare_ws(ws2);
     }
 
-    fn write_block_def(&mut self, ws1: &WS, name: &str, nodes: &'a [Node],
-                       ws2: &WS) {
-        self.writeln("#[allow(unused_variables)]");
-        self.writeln(&format!(
-            "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
-             -> ::askama::Result<()> {{",
-            name));
-        self.prepare_ws(ws1);
+    fn write_block_defs(&mut self, blocks: &'a [Node]) {
+        for b in blocks {
+            if let &Node::BlockDef(ref ws1, ref name, ref nodes, ref ws2) = b {
+                self.writeln("#[allow(unused_variables)]");
+                self.writeln(&format!(
+                    "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
+                     -> ::askama::Result<()> {{",
+                    name));
+                self.prepare_ws(ws1);
 
-        self.locals.push();
-        self.handle(nodes);
-        self.locals.pop();
+                self.locals.push();
+                self.handle(nodes);
+                self.locals.pop();
 
-        self.flush_ws(ws2);
-        self.writeln("Ok(())");
-        self.writeln("}");
+                self.flush_ws(ws2);
+                self.writeln("Ok(())");
+                self.writeln("}");
+            } else {
+                panic!("only block definitions allowed here");
+            }
+        }
     }
 
     fn handle_include(&mut self, ws: &WS, path: &str) {
@@ -520,13 +525,11 @@ impl<'a> Generator<'a> {
                 Node::Block(ref ws1, name, ref ws2) => {
                     self.write_block(ws1, name, ws2);
                 },
-                Node::BlockDef(ref ws1, name, ref block_nodes, ref ws2) => {
-                    self.write_block_def(ws1, name, block_nodes, ws2);
-                }
                 Node::Include(ref ws, ref path) => {
                     self.handle_include(ws, path);
                 },
                 Node::Call(ref ws, name, ref args) => self.write_call(ws, name, args),
+                Node::BlockDef(_, _, _, _) |
                 Node::Macro(_, _) |
                 Node::Extends(_) => {
                     panic!("no extends or macros allowed in content");
@@ -634,7 +637,7 @@ impl<'a> Generator<'a> {
     fn impl_trait(&mut self, ast: &syn::DeriveInput, trait_name: &str,
                   blocks: &'a [Node], nodes: Option<&'a [Node]>) {
         self.write_header(ast, &trait_name, &vec![]);
-        self.handle(blocks);
+        self.write_block_defs(blocks);
 
         self.writeln("#[allow(unused_variables)]");
         self.writeln(&format!(
@@ -673,7 +676,7 @@ impl<'a> Generator<'a> {
     // Defines the `TraitFromPathName` trait.
     fn define_trait(&mut self, trait_name: &str, blocks: &'a [Node]) {
         self.writeln(&format!("trait {} {{", &trait_name));
-        self.handle(blocks);
+        self.write_block_defs(blocks);
         self.writeln(&format!(
             "fn render_trait_into(&self, timpl: &{}, writer: &mut ::std::fmt::Write) \
              -> ::askama::Result<()>;",
