@@ -696,16 +696,20 @@ impl<'a> Generator<'a> {
         self.writeln("fn respond_to(self, _: &::askama::rocket::Request) \
                       -> ::std::result::Result<\
                          ::askama::rocket::Response<'r>, ::askama::rocket::Status> {");
+        self.writeln("let rsp = self.render().map_err(\
+                      |_| ::askama::rocket::Status::InternalServerError)?;");
+
+        self.writeln("::askama::rocket::Response::build()");
+        self.indent();
         let ext = match path.extension() {
             Some(s) => s.to_str().unwrap(),
             None => "txt",
         };
-        self.writeln("::askama::rocket::Response::build()");
-        self.indent();
         self.writeln(&format!(".header(::askama::rocket::ContentType::from_extension({:?})\
                                .unwrap())", ext));
-        self.writeln(".sized_body(::std::io::Cursor::new(self.render().unwrap()))");
+        self.writeln(".sized_body(::std::io::Cursor::new(rsp))");
         self.writeln(".ok()");
+
         self.dedent();
         self.writeln("}");
         self.writeln("}");
