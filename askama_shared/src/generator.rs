@@ -1,5 +1,5 @@
 use filters;
-use parser::{self, Cond, Expr, Node, Target, WS};
+use parser::{self, Cond, Expr, Macro, Node, Target, WS};
 use path;
 
 use quote::{Tokens, ToTokens};
@@ -27,8 +27,8 @@ pub fn generate(ast: &syn::DeriveInput, path: &Path, mut nodes: Vec<Node>) -> St
                 blocks.push(n);
                 content.push(Node::Block(ws1, name, ws2));
             },
-            Node::Macro(ws1, name, params, contents, ws2) => {
-                macros.insert(name, (ws1, name, params, contents, ws2));
+            Node::Macro(name, m) => {
+                macros.insert(name, m);
             },
             _ => { content.push(n); },
         }
@@ -372,20 +372,20 @@ impl<'a> Generator<'a> {
     }
 
     fn write_call(&mut self, ws: &WS, name: &str, args: &[Expr]) {
-        self.handle_ws(ws);
         let def = self.macros.get(name).expect(&format!("macro '{}' not found", name));
+        self.handle_ws(ws);
         self.locals.push();
         self.writeln("{");
-        self.prepare_ws(&def.0);
-        for (i, arg) in def.2.iter().enumerate() {
+        self.prepare_ws(&def.ws1);
+        for (i, arg) in def.args.iter().enumerate() {
             self.write(&format!("let {} = &", arg));
             self.locals.insert(arg);
-            self.visit_expr(&args.get(i)
+            self.visit_expr(args.get(i)
                 .expect(&format!("macro '{}' takes more than {} arguments", name, i)));
             self.writeln(";");
         }
-        self.handle(&def.3);
-        self.flush_ws(&def.4);
+        self.handle(&def.nodes);
+        self.flush_ws(&def.ws2);
         self.writeln("}");
         self.locals.pop();
     }
@@ -527,7 +527,7 @@ impl<'a> Generator<'a> {
                     self.handle_include(ws, path);
                 },
                 Node::Call(ref ws, name, ref args) => self.write_call(ws, name, args),
-                Node::Macro(_, _, _, _, _) |
+                Node::Macro(_, _) |
                 Node::Extends(_) => {
                     panic!("no extends or macros allowed in content");
                 },
@@ -757,4 +757,4 @@ enum DisplayWrap {
     Unwrapped,
 }
 
-type MacroMap<'a> = HashMap<&'a str, (WS, &'a str, Vec<&'a str>, Vec<Node<'a>>, WS)>;
+type MacroMap<'a> = HashMap<&'a str, Macro<'a>>;

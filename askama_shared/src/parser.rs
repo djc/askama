@@ -22,6 +22,14 @@ pub enum Target<'a> {
 pub struct WS(pub bool, pub bool);
 
 #[derive(Debug)]
+pub struct Macro<'a> {
+    pub ws1: WS,
+    pub args: Vec<&'a str>,
+    pub nodes: Vec<Node<'a>>,
+    pub ws2: WS,
+}
+
+#[derive(Debug)]
 pub enum Node<'a> {
     Lit(&'a str, &'a str, &'a str),
     Comment(),
@@ -35,7 +43,7 @@ pub enum Node<'a> {
     BlockDef(WS, &'a str, Vec<Node<'a>>, WS),
     Block(WS, &'a str, WS),
     Include(WS, &'a str),
-    Macro(WS, &'a str, Vec<&'a str>, Vec<Node<'a>>, WS),
+    Macro(&'a str, Macro<'a>),
 }
 
 pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
@@ -390,11 +398,13 @@ named!(block_macro<Node>, do_parse!(
     ws!(tag_s!("endmacro")) >>
     nws2: opt!(tag_s!("-")) >>
     (Node::Macro(
-         WS(pws1.is_some(), nws1.is_some()),
          name,
-         params,
-         contents,
-         WS(pws2.is_some(), nws2.is_some())
+         Macro {
+             ws1: WS(pws1.is_some(), nws1.is_some()),
+             args: params,
+             nodes: contents,
+             ws2: WS(pws2.is_some(), nws2.is_some())
+         }
     ))
 ));
 
