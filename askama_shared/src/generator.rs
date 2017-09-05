@@ -13,7 +13,7 @@ use syn;
 
 
 pub fn generate(input: &TemplateInput, nodes: &[Node]) -> String {
-    State::new(input, nodes).generate()
+    Generator::default().result(&State::new(input, nodes))
 }
 
 struct State<'a> {
@@ -55,33 +55,6 @@ impl<'a> State<'a> {
             trait_name: trait_name_for_path(&base, &input.path),
             derived: base.is_some(),
         }
-    }
-
-    fn generate(&self) -> String {
-        let mut gen = Generator::default();
-        if !self.blocks.is_empty() {
-            if !self.derived {
-                gen.define_trait(&self);
-            } else {
-                let parent_type = get_parent_type(self.input.ast)
-                    .expect("expected field '_parent' in extending template struct");
-                gen.deref_to_parent(&self, &parent_type);
-            }
-
-            let trait_nodes = if !self.derived { Some(&self.nodes[..]) } else { None };
-            gen.impl_trait(&self, trait_nodes);
-            gen.impl_template_for_trait(&self);
-        } else {
-            gen.impl_template(&self);
-        }
-        gen.impl_display(&self);
-        if cfg!(feature = "iron") {
-            gen.impl_modifier_response(&self);
-        }
-        if cfg!(feature = "rocket") {
-            gen.impl_responder(&self);
-        }
-        gen.result()
     }
 }
 
@@ -524,7 +497,7 @@ impl<'a> Generator<'a> {
         let nested = {
             let mut gen = self.child();
             gen.handle(state, &nodes);
-            gen.result()
+            gen.buf
         };
         self.buf.push_str(&nested);
         self.flush_ws(ws);
@@ -736,7 +709,29 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
-    fn result(self) -> String {
+    fn result(mut self, state: &'a State) -> String {
+        if !state.blocks.is_empty() {
+            if !state.derived {
+                self.define_trait(&state);
+            } else {
+                let parent_type = get_parent_type(state.input.ast)
+                    .expect("expected field '_parent' in extending template struct");
+                self.deref_to_parent(&state, &parent_type);
+            }
+
+            let trait_nodes = if !state.derived { Some(&state.nodes[..]) } else { None };
+            self.impl_trait(&state, trait_nodes);
+            self.impl_template_for_trait(&state);
+        } else {
+            self.impl_template(&state);
+        }
+        self.impl_display(&state);
+        if cfg!(feature = "iron") {
+            self.impl_modifier_response(&state);
+        }
+        if cfg!(feature = "rocket") {
+            self.impl_responder(&state);
+        }
         self.buf
     }
 }
