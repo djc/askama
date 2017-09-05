@@ -64,12 +64,12 @@ impl<'a> TemplateMeta<'a> {
                                 panic!("template source must be string literal");
                             },
                             "print" => if let syn::Lit::Str(ref s, _) = *val {
-                                print = s.into();
+                                print = (s.as_ref() as &str).into();
                             } else {
                                 panic!("print value must be string literal");
                             },
                             "escape" => if let syn::Lit::Str(ref s, _) = *val {
-                                escaping = s.into();
+                                escaping = (s.as_ref() as &str).into();
                             } else {
                                 panic!("escape value must be string literal");
                             },
@@ -98,10 +98,10 @@ pub enum EscapeMode {
     None,
 }
 
-impl<'a> From<&'a String> for EscapeMode {
-    fn from(s: &'a String) -> EscapeMode {
+impl<'a> From<&'a str> for EscapeMode {
+    fn from(s: &'a str) -> EscapeMode {
         use self::EscapeMode::*;
-        match s.as_ref() {
+        match s {
             "html" => Html,
             "none" => None,
             v => panic!("invalid value for escape option: {}", v),
@@ -117,10 +117,10 @@ pub enum Print {
     None,
 }
 
-impl<'a> From<&'a String> for Print {
-    fn from(s: &'a String) -> Print {
+impl<'a> From<&'a str> for Print {
+    fn from(s: &'a str) -> Print {
         use self::Print::*;
-        match s.as_ref() {
+        match s {
             "all" => All,
             "ast" => Ast,
             "code" => Code,
