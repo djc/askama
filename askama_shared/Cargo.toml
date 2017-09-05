@@ -9,6 +9,7 @@ default = []
 serde-json = ["serde", "serde_json"]
 iron = []
 rocket = []
+shio = []
 
 [dependencies]
 error-chain = "0.10"

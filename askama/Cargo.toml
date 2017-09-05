@@ -20,6 +20,7 @@ default = []
 serde-json = ["askama_shared/serde-json"]
 with-iron = ["iron", "askama_derive/iron"]
 with-rocket = ["rocket", "askama_derive/rocket"]
+with-shio = ["askama_derive/shio"]
 
 [dependencies]
 askama_derive = { path = "../askama_derive", version = "0.3.4" }
