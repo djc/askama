@@ -21,6 +21,32 @@
 //! as well as Jinja-derivatives like [Twig](http://twig.sensiolabs.org/) or
 //! [Tera](https://github.com/Keats/tera).
 //!
+//! ## The `template()` attribute
+//!
+//! Askama works by generating one or more trait implementations for any
+//! `struct` type decorated with the `#[derive(Template)]` attribute. The
+//! code generation process takes some options that can be specified through
+//! the `template()` attribute. The following sub-attributes are currently
+//! recognized:
+//!
+//! * `path` (as `path = "foo.html"`): sets the path to the template file. The
+//!   path is interpreted as relative to the `templates` dir in the directory
+//!   where the originating crate's `Cargo.toml` resides. In web framework
+//!   integrations, the path's extension may be used to infer the content type
+//!   of the resulting response.
+//! * `source` (as `source = "{{ foo }}"`): directly sets the template source.
+//!   This can be useful for test cases or short templates. The generated path
+//!   is empty, which generally makes it impossible to refer to this template
+//!   from other templates.
+//! * `print` (as `print = "code"`): enable debugging by printing nothing
+//!   (`none`), the parsed syntax tree (`ast`), the generated code (`code`)
+//!   or `all` for both. The requested data will be printed to stdout at
+//!   compile time.
+//! * `escape` (as `escape = "none"`): disable escaping of expression output.
+//!   By default, Askama escapes `&`, `<` and `>` to their corresponding
+//!   HTML character entities. This can be enabled explicitly by setting this
+//!   value to `html` or disabled by setting it to `none`.
+//!
 //! ## Variables
 //!
 //! Template variables are defined by the template context linked to the
