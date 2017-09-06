@@ -54,11 +54,17 @@ impl<'a> TemplateMeta<'a> {
                     if let syn::MetaItem::NameValue(ref key, ref val) = *item {
                         match key.as_ref() {
                             "path" => if let syn::Lit::Str(ref s, _) = *val {
+                                if source.is_some() {
+                                    panic!("must specify 'source' or 'path', not both");
+                                }
                                 source = Some(Source::Path(s.as_ref()));
                             } else {
                                 panic!("template path must be string literal");
                             },
                             "source" => if let syn::Lit::Str(ref s, _) = *val {
+                                if source.is_some() {
+                                    panic!("must specify 'source' or 'path', not both");
+                                }
                                 source = Some(Source::Source(s.as_ref()));
                             } else {
                                 panic!("template source must be string literal");

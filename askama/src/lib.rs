@@ -33,11 +33,11 @@
 //!   path is interpreted as relative to the `templates` dir in the directory
 //!   where the originating crate's `Cargo.toml` resides. In web framework
 //!   integrations, the path's extension may be used to infer the content type
-//!   of the resulting response.
+//!   of the resulting response. Cannot be used together with `source`.
 //! * `source` (as `source = "{{ foo }}"`): directly sets the template source.
 //!   This can be useful for test cases or short templates. The generated path
 //!   is empty, which generally makes it impossible to refer to this template
-//!   from other templates.
+//!   from other templates. Cannot be used together with `path`.
 //! * `print` (as `print = "code"`): enable debugging by printing nothing
 //!   (`none`), the parsed syntax tree (`ast`), the generated code (`code`)
 //!   or `all` for both. The requested data will be printed to stdout at
