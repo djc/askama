@@ -383,7 +383,7 @@ impl<'a> Generator<'a> {
                 .expect(&format!("macro '{}' takes more than {} arguments", name, i)));
             self.writeln(";");
         }
-        self.handle(state, &def.nodes);
+        self.handle(state, &def.nodes, AstLevel::Nested);
         self.flush_ws(&def.ws2);
         self.writeln("}");
         self.locals.pop();
@@ -437,7 +437,7 @@ impl<'a> Generator<'a> {
             }
             self.writeln(" {");
             self.locals.push();
-            self.handle(state, nodes);
+            self.handle(state, nodes, AstLevel::Nested);
             self.locals.pop();
         }
         self.handle_ws(ws);
@@ -458,7 +458,7 @@ impl<'a> Generator<'a> {
         self.visit_expr(iter);
         self.writeln(").into_iter().enumerate() {");
 
-        self.handle(state, body);
+        self.handle(state, body, AstLevel::Nested);
         self.handle_ws(ws2);
         self.writeln("}");
         self.locals.pop();
@@ -481,7 +481,7 @@ impl<'a> Generator<'a> {
                 self.prepare_ws(ws1);
 
                 self.locals.push();
-                self.handle(state, nodes);
+                self.handle(state, nodes, AstLevel::Nested);
                 self.locals.pop();
 
                 self.flush_ws(ws2);
@@ -500,14 +500,14 @@ impl<'a> Generator<'a> {
         let nodes = parser::parse(&src);
         let nested = {
             let mut gen = self.child();
-            gen.handle(state, &nodes);
+            gen.handle(state, &nodes, AstLevel::Nested);
             gen.buf
         };
         self.buf.push_str(&nested);
         self.flush_ws(ws);
     }
 
-    fn handle(&mut self, state: &'a State, nodes: &'a [Node]) {
+    fn handle(&mut self, state: &'a State, nodes: &'a [Node], level: AstLevel) {
         for n in nodes {
             match *n {
                 Node::Lit(lws, val, rws) => { self.write_lit(lws, val, rws); }
@@ -522,6 +522,9 @@ impl<'a> Generator<'a> {
                     self.write_loop(state, ws1, var, iter, body, ws2);
                 },
                 Node::BlockDef(ref ws1, name, _, ref ws2) => {
+                    if let AstLevel::Nested = level {
+                        panic!("blocks ('{}') are only allowed at the top level", name);
+                    }
                     self.write_block(ws1, name, ws2);
                 },
                 Node::Include(ref ws, ref path) => {
@@ -529,7 +532,11 @@ impl<'a> Generator<'a> {
                 },
                 Node::Call(ref ws, name, ref args) => self.write_call(state, ws, name, args),
                 Node::Macro(_, _) |
-                Node::Extends(_) => {},
+                Node::Extends(_) => {
+                    if let AstLevel::Nested = level {
+                        panic!("macro or extend blocks only allowed at the top level");
+                    }
+                },
             }
         }
     }
@@ -601,7 +608,7 @@ impl<'a> Generator<'a> {
         self.write_header(state, "::askama::Template", &vec![]);
         self.writeln("fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
                       ::askama::Result<()> {");
-        self.handle(state, state.nodes);
+        self.handle(state, state.nodes, AstLevel::Top);
         self.flush_ws(&WS(false, false));
         self.writeln("Ok(())");
         self.writeln("}");
@@ -641,7 +648,7 @@ impl<'a> Generator<'a> {
             state.trait_name));
 
         if let Some(nodes) = nodes {
-            self.handle(state, nodes);
+            self.handle(state, nodes, AstLevel::Top);
             self.flush_ws(&WS(false, false));
         } else {
             self.writeln("self._parent.render_trait_into(self, writer)?;");
@@ -769,6 +776,11 @@ impl<'a, T: 'a> SetChain<'a, T> where T: cmp::Eq + hash::Hash {
         self.scopes.pop().unwrap();
         assert!(self.scopes.len() > 0);
     }
+}
+
+enum AstLevel {
+    Top,
+    Nested,
 }
 
 enum DisplayWrap {
