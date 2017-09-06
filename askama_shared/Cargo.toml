@@ -2,6 +2,10 @@
 name = "askama_shared"
 version = "0.4.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
+description = "Shared code for Askama"
+homepage = "https://github.com/djc/askama"
+repository = "https://github.com/djc/askama"
+license = "MIT/Apache-2.0"
 workspace = ".."
 
 [features]
