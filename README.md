@@ -23,8 +23,7 @@ Many thanks to [David Tolnay][dtolnay] for his support in improving Askama.
 * Optional built-in support for Rocket and Iron web frameworks
 * Template code is compiled into your crate for optimal performance
 * Templates only convert your data as needed
-* Templates can access your Rust types directly, according to Rust's
-  privacy rules
+* Templates can access your Rust types directly, according to Rust's privacy rules
 * Debugging features to assist you in template development
 * Templates must be valid UTF-8 and produce UTF-8 when rendered
 * Works on stable Rust
