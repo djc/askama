@@ -219,6 +219,38 @@
 //! Expressions can be grouped using parentheses.
 //! The HTML special characters `&`, `<` and `>` will be replaced with their
 //! character entities unless the `escape` mode is disabled for a template.
+//!
+//! # Optional functionality
+//!
+//! ## Rocket integration
+//!
+//! Enabling the `with-rocket` feature appends an implementation of Rocket's
+//! `Responder` trait for each template type. This makes it easy to trivially
+//! return a value of that type in a Rocket handler. See
+//! [the example](https://github.com/djc/askama/blob/master/testing/tests/rocket.rs)
+//! from the Askama test suite for more on how to integrate.
+//!
+//! In case a run-time error occurs during templating, a `500 Internal Server
+//! Error` `Status` value will be returned, so that this can be further
+//! handled by your error catcher.
+//!
+//! ## Iron integration
+//!
+//! Enabling the `with-iron` feature appends an implementation of Iron's
+//! `Modifier<Response>` trait for each template type. This makes it easy to
+//! trivially return a value of that type in an Iron handler. See
+//! [the example](https://github.com/djc/askama/blob/master/testing/tests/iron.rs)
+//! from the Askama test suite for more on how to integrate.
+//!
+//! Note that Askama's generated `Modifier<Response>` implementation currently
+//! unwraps any run-time errors from the template. If you have a better
+//! suggestion, please [file an issue](https://github.com/djc/askama/issues/new).
+//!
+//! ## The `json` filter
+//!
+//! Enabling the `serde-json` filter will enable the use of the `json` filter.
+//! This will output formatted JSON for any value that implements the required
+//! `Serialize` trait.
 
 #![allow(unused_imports)]
 #[macro_use]
