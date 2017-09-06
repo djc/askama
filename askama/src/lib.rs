@@ -289,9 +289,22 @@ pub mod iron {
 #[cfg(feature = "with-rocket")]
 pub mod rocket {
     extern crate rocket;
-    pub use self::rocket::http::{ContentType, Status};
-    pub use self::rocket::request::Request;
-    pub use self::rocket::response::{Responder, Response};
+
+    use self::rocket::http::{ContentType, Status};
+    use self::rocket::request::Request;
+    use self::rocket::response::Response;
+    use std::io::Cursor;
+
+    pub use self::rocket::response::{Responder, Result};
+
+    pub fn respond(t: &super::Template, ext: &str) -> Result {
+        let rsp = t.render().map_err(|_| Status::InternalServerError)?;
+        let ctype = ContentType::from_extension(ext).ok_or(Status::InternalServerError)?;
+        Response::build()
+            .header(ctype)
+            .sized_body(Cursor::new(rsp))
+            .ok()
+    }
 }
 
 fn visit_dirs(dir: &Path, cb: &Fn(&DirEntry)) -> io::Result<()> {
