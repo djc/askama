@@ -38,6 +38,8 @@
 //!   This can be useful for test cases or short templates. The generated path
 //!   is empty, which generally makes it impossible to refer to this template
 //!   from other templates. Cannot be used together with `path`.
+//! * `ext` (as `ext = "txt"`): lets you specify the template extension for
+//!   use in web framework integrations. Cannot be used together with `path`.
 //! * `print` (as `print = "code"`): enable debugging by printing nothing
 //!   (`none`), the parsed syntax tree (`ast`), the generated code (`code`)
 //!   or `all` for both. The requested data will be printed to stdout at

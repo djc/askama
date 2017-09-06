@@ -17,7 +17,13 @@ impl<'a> TemplateInput<'a> {
     pub fn new(ast: &'a syn::DeriveInput) -> TemplateInput<'a> {
         let meta = TemplateMeta::new(ast);
         let (path, source) = match meta.source {
-            Source::Source(s) => (PathBuf::new(), Cow::Borrowed(s)),
+            Source::Source(s) => {
+                let path = match meta.ext {
+                    Some(v) => PathBuf::from(format!("_.{}", v)),
+                    None => PathBuf::new(),
+                };
+                (path, Cow::Borrowed(s))
+            },
             Source::Path(s) => {
                 let path = path::find_template_from_path(&s, None);
                 let src = path::get_template_source(&path);
@@ -33,6 +39,7 @@ pub struct TemplateMeta<'a> {
     source: Source<'a>,
     pub print: Print,
     pub escaping: EscapeMode,
+    pub ext: Option<&'a str>,
 }
 
 impl<'a> TemplateMeta<'a> {
@@ -48,6 +55,7 @@ impl<'a> TemplateMeta<'a> {
         let mut source = None;
         let mut print = Print::None;
         let mut escaping = EscapeMode::Html;
+        let mut ext = None;
         if let syn::MetaItem::List(_, ref inner) = attr.value {
             for nm_item in inner {
                 if let syn::NestedMetaItem::MetaItem(ref item) = *nm_item {
@@ -79,6 +87,11 @@ impl<'a> TemplateMeta<'a> {
                             } else {
                                 panic!("escape value must be string literal");
                             },
+                            "ext" => if let syn::Lit::Str(ref s, _) = *val {
+                                ext = Some((s.as_ref() as &str).into());
+                            } else {
+                                panic!("ext value must be string literal");
+                            },
                             _ => { panic!("unsupported annotation key found") }
                         }
                     }
@@ -87,7 +100,14 @@ impl<'a> TemplateMeta<'a> {
         }
 
         match source {
-            Some(s) => TemplateMeta { source: s, print, escaping },
+            Some(s) => {
+                if let Source::Path(_) = s {
+                    if ext.is_some() {
+                        panic!("'ext' attribute cannot be used with 'path' attribute");
+                    }
+                }
+                TemplateMeta { source: s, print, escaping, ext }
+            },
             None => panic!("template path or source not found in struct attributes"),
         }
     }
