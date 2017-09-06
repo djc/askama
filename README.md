@@ -20,6 +20,7 @@ Many thanks to [David Tolnay][dtolnay] for his support in improving Askama.
 
 * Construct templates using a familiar, easy-to-use syntax
 * Benefit from the safety provided by Rust's type system
+* Optional built-in support for Rocket and Iron web frameworks
 * Template code is compiled into your crate for optimal performance
 * Templates only convert your data as needed
 * Templates can access your Rust types directly, according to Rust's
@@ -31,14 +32,16 @@ Many thanks to [David Tolnay][dtolnay] for his support in improving Askama.
 ### Supported in templates
 
 * Template inheritance (one level only)
-* Basic loops, if/else statements and include support
+* Loops, if/else statements and include support
+* Macro support (no `import` blocks yet)
+* Variables (no mutability allowed)
+* Some built-in filters, and the ability to use your own
 * Whitespace suppressing with '-' markers
-* Some built-in filters
+* Opt-out HTML escaping
 
 ### Limitations
 
-* Only a small number of built-in template filters have been implemented
-* User-defined template filters are not supported yet
+* A limited number of built-in filters have been implemented
 
 [docs]: https://docs.rs/askama
 [mitsuhiko]: http://lucumr.pocoo.org/
