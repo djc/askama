@@ -49,10 +49,8 @@
 //!
 //! ## Variables
 //!
-//! Template variables are defined by the template context linked to the
-//! template by deriving a `struct`'s implementation for `Template` from
-//! a template file's contents.
-//! You can use a dot (`.`) to get a variable's attributes.
+//! Top-level template variables are defined by the template's context type.
+//! You can use a dot (`.`) to access variable's attributes or methods.
 //! Reading from variables is subject to the usual borrowing policies.
 //! For example, `{{ name }}` will get the ``name`` field from the template
 //! context,
