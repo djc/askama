@@ -9,9 +9,10 @@
 //!
 //! # Creating Askama templates
 //!
-//! An Askama template is just a text file, in the UTF-8 encoding.
-//! It can be used to generate any kind of text-based format.
-//! You can use whatever extension you like.
+//! An Askama template is a `struct` definition which provides the template
+//! context combined with a UTF-8 encoded text file (or inline source, see
+//! below). Askama can be used to generate any kind of text-based format.
+//! The template file's extension may can be used to provide content type hints.
 //!
 //! A template consists of **text contents**, which are passed through as-is,
 //! **expressions**, which get replaced with content while being rendered, and
