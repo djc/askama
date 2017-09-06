@@ -68,12 +68,12 @@
 //! and print the resulting string as a Rust literal.
 //!
 //! Consult the [filters module documentation](filters/index.html) for a list
-//! of available filters. User-defined filters are currently not supported.
+//! of available filters.
 //!
 //! ## Whitespace control
 //!
 //! Askama preserves all whitespace in template code by default,
-//! except that final trailing newline characters are suppressed.
+//! except that a single trailing newline characters are suppressed.
 //! However, whitespace before and after expression and block delimiters
 //! can be suppressed by writing a minus sign directly following a
 //! start delimiter or leading into an end delimiter.
@@ -106,7 +106,8 @@
 //! The `block` tags define three blocks that can be filled in by child
 //! templates. The base template defines a default version of the block.
 //! A base template must define one or more blocks in order to be enable
-//! inheritance.
+//! inheritance. Blocks can only be specified at the top level of a template,
+//! not inside `if`/`else` branches or in `for`-loop bodies.
 //!
 //! ### Child template
 //!
@@ -199,7 +200,9 @@
 //! ```
 //!
 //! The path to include must be a string literal, so that it is known at
-//! compile time. You can use include within the branches of an if/else
+//! compile time. Askama will try to find the specified template relative
+//! to the including template's path before falling back to the absolute
+//! template path. Use `include` within the branches of an `if`/`else`
 //! block to use includes more dynamically.
 //!
 //! ## Expressions
@@ -209,6 +212,8 @@
 //! including arithmetic, comparison and logic operators.
 //! The parser applies the same precedence order as the Rust compiler.
 //! Expressions can be grouped using parentheses.
+//! The HTML special characters `&`, `<` and `>` will be replaced with their
+//! character entities unless the `escape` mode is disabled for a template.
 
 #![allow(unused_imports)]
 #[macro_use]
