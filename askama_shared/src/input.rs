@@ -25,7 +25,7 @@ impl<'a> TemplateInput<'a> {
                 (path, Cow::Borrowed(s))
             },
             Source::Path(s) => {
-                let path = path::find_template_from_path(&s, None);
+                let path = path::find_template_from_path(s, None);
                 let src = path::get_template_source(&path);
                 (path, Cow::Owned(src))
             },

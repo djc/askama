@@ -10,7 +10,7 @@ pub fn get_template_source(tpl_path: &Path) -> String {
         Err(_) => {
             let msg = format!("unable to open template file '{}'",
                               &path.to_str().unwrap());
-            panic!(msg);
+            panic!(msg)
         },
         Ok(f) => f,
     };
@@ -22,7 +22,7 @@ pub fn get_template_source(tpl_path: &Path) -> String {
     s
 }
 
-pub fn find_template_from_path<'a>(path: &str, start_at: Option<&Path>) -> PathBuf {
+pub fn find_template_from_path(path: &str, start_at: Option<&Path>) -> PathBuf {
     let root = template_dir();
     if let Some(rel) = start_at {
         let mut fs_rel_path = root.clone();

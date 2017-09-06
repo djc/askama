@@ -121,7 +121,7 @@ impl<'a> Generator<'a> {
         Self::new(SetChain::new(), 0)
     }
 
-    fn child<'n>(&'n mut self) -> Generator<'n> {
+    fn child(&mut self) -> Generator {
         let locals = SetChain::with_parent(&self.locals);
         Self::new(locals, self.indent)
     }
@@ -472,7 +472,7 @@ impl<'a> Generator<'a> {
 
     fn write_block_defs(&mut self, state: &'a State) {
         for b in &state.blocks {
-            if let &&Node::BlockDef(ref ws1, ref name, ref nodes, ref ws2) = b {
+            if let Node::BlockDef(ref ws1, name, ref nodes, ref ws2) = **b {
                 self.writeln("#[allow(unused_variables)]");
                 self.writeln(&format!(
                     "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
@@ -495,7 +495,7 @@ impl<'a> Generator<'a> {
 
     fn handle_include(&mut self, state: &'a State, ws: &WS, path: &str) {
         self.prepare_ws(ws);
-        let path = path::find_template_from_path(&path, Some(&state.input.path));
+        let path = path::find_template_from_path(path, Some(&state.input.path));
         let src = path::get_template_source(&path);
         let nodes = parser::parse(&src);
         let nested = {
@@ -527,7 +527,7 @@ impl<'a> Generator<'a> {
                     }
                     self.write_block(ws1, name, ws2);
                 },
-                Node::Include(ref ws, ref path) => {
+                Node::Include(ref ws, path) => {
                     self.handle_include(state, ws, path);
                 },
                 Node::Call(ref ws, name, ref args) => self.write_call(state, ws, name, args),
@@ -546,9 +546,9 @@ impl<'a> Generator<'a> {
     fn write_header(&mut self, state: &'a State, target: &str, extra_anno: &[&str]) {
         let mut full_anno = Tokens::new();
         let mut orig_anno = Tokens::new();
-        let need_anno = state.input.ast.generics.lifetimes.len() > 0 ||
-                        state.input.ast.generics.ty_params.len() > 0 ||
-                        extra_anno.len() > 0;
+        let need_anno = !state.input.ast.generics.lifetimes.is_empty() ||
+                        !state.input.ast.generics.ty_params.is_empty() ||
+                        !extra_anno.is_empty();
         if need_anno {
             full_anno.append("<");
             orig_anno.append("<");
@@ -605,7 +605,7 @@ impl<'a> Generator<'a> {
 
     // Implement `Template` for the given context struct.
     fn impl_template(&mut self, state: &'a State) {
-        self.write_header(state, "::askama::Template", &vec![]);
+        self.write_header(state, "::askama::Template", &[]);
         self.writeln("fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
                       ::askama::Result<()> {");
         self.handle(state, state.nodes, AstLevel::Top);
@@ -617,7 +617,7 @@ impl<'a> Generator<'a> {
 
     // Implement `Display` for the given context struct.
     fn impl_display(&mut self, state: &'a State) {
-        self.write_header(state, "::std::fmt::Display", &vec![]);
+        self.write_header(state, "::std::fmt::Display", &[]);
         self.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {");
         self.writeln("self.render_into(f).map_err(|_| ::std::fmt::Error {})");
         self.writeln("}");
@@ -626,7 +626,7 @@ impl<'a> Generator<'a> {
 
     // Implement `Deref<Parent>` for an inheriting context struct.
     fn deref_to_parent(&mut self, state: &'a State, parent_type: &syn::Ty) {
-        self.write_header(state, "::std::ops::Deref", &vec![]);
+        self.write_header(state, "::std::ops::Deref", &[]);
         let mut tokens = Tokens::new();
         parent_type.to_tokens(&mut tokens);
         self.writeln(&format!("type Target = {};", tokens.as_str()));
@@ -638,7 +638,7 @@ impl<'a> Generator<'a> {
 
     // Implement `TraitFromPathName` for the given context struct.
     fn impl_trait(&mut self, state: &'a State, nodes: Option<&'a [Node]>) {
-        self.write_header(state, &state.trait_name, &vec![]);
+        self.write_header(state, &state.trait_name, &[]);
         self.write_block_defs(state);
 
         self.writeln("#[allow(unused_variables)]");
@@ -662,7 +662,7 @@ impl<'a> Generator<'a> {
 
     // Implement `Template` for templates that implement a template trait.
     fn impl_template_for_trait(&mut self, state: &'a State) {
-        self.write_header(state, "::askama::Template", &vec![]);
+        self.write_header(state, "::askama::Template", &[]);
         self.writeln("fn render_into(&self, writer: &mut ::std::fmt::Write) \
                       -> ::askama::Result<()> {");
         if state.derived {
@@ -688,7 +688,7 @@ impl<'a> Generator<'a> {
 
     // Implement iron's Modifier<Response> if enabled
     fn impl_modifier_response(&mut self, state: &'a State) {
-        self.write_header(state, "::askama::iron::Modifier<::askama::iron::Response>", &vec![]);
+        self.write_header(state, "::askama::iron::Modifier<::askama::iron::Response>", &[]);
         self.writeln("fn modify(self, res: &mut ::askama::iron::Response) {");
         self.writeln("res.body = Some(Box::new(self.render().unwrap().into_bytes()));");
         self.writeln("}");
@@ -697,7 +697,7 @@ impl<'a> Generator<'a> {
 
     // Implement Rocket's `Responder`.
     fn impl_responder(&mut self, state: &'a State) {
-        self.write_header(state, "::askama::rocket::Responder<'r>", &vec!["'r"]);
+        self.write_header(state, "::askama::rocket::Responder<'r>", &["'r"]);
         self.writeln("fn respond_to(self, _: &::askama::rocket::Request) \
                       -> ::askama::rocket::Result<'r> {");
 
@@ -715,25 +715,25 @@ impl<'a> Generator<'a> {
     fn result(mut self, state: &'a State) -> String {
         if !state.blocks.is_empty() {
             if !state.derived {
-                self.define_trait(&state);
+                self.define_trait(state);
             } else {
                 let parent_type = get_parent_type(state.input.ast)
                     .expect("expected field '_parent' in extending template struct");
-                self.deref_to_parent(&state, &parent_type);
+                self.deref_to_parent(state, parent_type);
             }
 
             let trait_nodes = if !state.derived { Some(&state.nodes[..]) } else { None };
-            self.impl_trait(&state, trait_nodes);
-            self.impl_template_for_trait(&state);
+            self.impl_trait(state, trait_nodes);
+            self.impl_template_for_trait(state);
         } else {
-            self.impl_template(&state);
+            self.impl_template(state);
         }
-        self.impl_display(&state);
+        self.impl_display(state);
         if cfg!(feature = "iron") {
-            self.impl_modifier_response(&state);
+            self.impl_modifier_response(state);
         }
         if cfg!(feature = "rocket") {
-            self.impl_responder(&state);
+            self.impl_responder(state);
         }
         self.buf
     }
@@ -766,7 +766,7 @@ impl<'a, T: 'a> SetChain<'a, T> where T: cmp::Eq + hash::Hash {
     }
     fn pop(&mut self) {
         self.scopes.pop().unwrap();
-        assert!(self.scopes.len() > 0);
+        assert!(!self.scopes.is_empty());
     }
 }
 

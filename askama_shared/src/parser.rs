@@ -85,10 +85,10 @@ fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
     for (idx, c) in i.iter().enumerate() {
         state = match (state, *c) {
             (Any, b'{') => Brace(idx),
-            (Any, _) => Any,
             (Brace(start), b'{') |
             (Brace(start), b'%') |
             (Brace(start), b'#') => End(start),
+            (Any, _) |
             (Brace(_), _) => Any,
             (End(_), _) => panic!("cannot happen"),
         };
@@ -151,7 +151,7 @@ named!(arguments<Vec<Expr>>, do_parse!(
         })
     )) >>
     tag_s!(")") >>
-    (args.unwrap_or(Vec::new()))
+    (args.unwrap_or_default())
 ));
 
 named!(parameters<Vec<&'a str>>, do_parse!(
@@ -170,7 +170,7 @@ named!(parameters<Vec<&'a str>>, do_parse!(
         })
     )) >>
     tag_s!(")") >>
-    (vals.unwrap_or(Vec::new()))
+    (vals.unwrap_or_default())
 ));
 
 named!(expr_group<Expr>, map!(
@@ -440,7 +440,7 @@ named!(parse_template<Vec<Node<'a>>>, many0!(alt!(
 pub fn parse(src: &str) -> Vec<Node> {
     match parse_template(src.as_bytes()) {
         IResult::Done(left, res) => {
-            if left.len() > 0 {
+            if !left.is_empty() {
                 let s = str::from_utf8(left).unwrap();
                 panic!("unable to parse template:\n\n{:?}", s);
             } else {
