@@ -41,14 +41,17 @@ impl<T> Display for MarkupDisplay<T> where T: Display {
 }
 
 
-fn escapable(b: &u8) -> bool {
-    *b == b'<' || *b == b'>' || *b == b'&' || *b == b'"' || *b == b'\'' || *b == b'/'
+fn escapable(b: u8) -> bool {
+    match b {
+        b'<' | b'>' | b'&' | b'"' | b'\'' | b'/' => true,
+        _ => false,
+    }
 }
 
 pub fn escape(s: String) -> String {
     let mut found = Vec::new();
     for (i, b) in s.as_bytes().iter().enumerate() {
-        if escapable(b) {
+        if escapable(*b) {
             found.push(i);
         }
     }
