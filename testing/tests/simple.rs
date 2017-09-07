@@ -220,3 +220,16 @@ fn test_unescaped() {
     let t = UnescapedTemplate { foo: "foo & bar" };
     assert_eq!(t.render().unwrap(), "foo & bar");
 }
+
+
+#[derive(Template)]
+#[template(path = "hello.html")]
+struct PathBasedEscapedTemplate<'a> {
+    name: &'a str,
+}
+
+#[test]
+fn test_path_based_escaped() {
+    let t = PathBasedEscapedTemplate { name: "you & me" };
+    assert_eq!(t.render().unwrap(), "Hello, you &amp; me!");
+}
