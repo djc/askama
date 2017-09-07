@@ -1,6 +1,8 @@
 use serde::Serialize;
 use serde_json;
 use errors::{Error, Result};
+use MarkupDisplay;
+
 
 /// Serialize to JSON (requires `serde-json` feature)
 ///
@@ -8,8 +10,11 @@ use errors::{Error, Result};
 ///
 /// This will panic if `S`'s implementation of `Serialize` decides to fail,
 /// or if `T` contains a map with non-string keys.
-pub fn json<S: Serialize>(s: &S) -> Result<String> {
-    serde_json::to_string_pretty(s).map_err(Error::from)
+pub fn json<S: Serialize>(s: &S) -> Result<MarkupDisplay<String>> {
+    match serde_json::to_string_pretty(s) {
+        Ok(s) => Ok(MarkupDisplay::Safe(s)),
+        Err(e) => Err(Error::from(e)),
+    }
 }
 
 
@@ -19,9 +24,9 @@ mod tests {
 
     #[test]
     fn test_json() {
-        assert_eq!(json(&true).unwrap(), "true");
-        assert_eq!(json(&"foo").unwrap(), r#""foo""#);
-        assert_eq!(json(&vec!["foo", "bar"]).unwrap(),
+        assert_eq!(json(&true).unwrap().unsafe_string(), "true");
+        assert_eq!(json(&"foo").unwrap().unsafe_string(), r#""foo""#);
+        assert_eq!(json(&vec!["foo", "bar"]).unwrap().unsafe_string(),
 r#"[
   "foo",
   "bar"

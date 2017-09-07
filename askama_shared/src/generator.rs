@@ -270,7 +270,7 @@ impl<'a> Generator<'a> {
 
         self._visit_filter_args(args);
         self.write(")?");
-        if name == "safe" || name == "escape" || name == "e" {
+        if name == "safe" || name == "escape" || name == "e" || name == "json" {
             DisplayWrap::Wrapped
         } else {
             DisplayWrap::Unwrapped
