@@ -44,10 +44,13 @@
 //!   (`none`), the parsed syntax tree (`ast`), the generated code (`code`)
 //!   or `all` for both. The requested data will be printed to stdout at
 //!   compile time.
-//! * `escape` (as `escape = "none"`): disable escaping of expression output.
-//!   By default, Askama escapes `&`, `<` and `>` to their corresponding
-//!   HTML character entities. This can be enabled explicitly by setting this
-//!   value to `html` or disabled by setting it to `none`.
+//! * `escape` (as `escape = "none"`): change escape mode for expression
+//!   output. By default, Askama escapes content according to the [OWASP
+//!   escaping recommendations][owasp]. This can be enabled explicitly by
+//!   setting this value to `html` or disabled by setting it to `none`.
+//!
+//! [owasp]: https://www.owasp.org/index.php/XSS_(Cross_Site_Scripting)_Prevention_Cheat_Sheet#RULE_.231_-_HTML_Escape_Before_Inserting_Untrusted_Data_into_HTML_Element_Content
+//!
 //!
 //! ## Variables
 //!

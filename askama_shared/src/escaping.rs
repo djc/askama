@@ -42,7 +42,7 @@ impl<T> Display for MarkupDisplay<T> where T: Display {
 
 
 fn escapable(b: &u8) -> bool {
-    *b == b'<' || *b == b'>' || *b == b'&'
+    *b == b'<' || *b == b'>' || *b == b'&' || *b == b'"' || *b == b'\'' || *b == b'/'
 }
 
 pub fn escape(s: String) -> String {
@@ -57,7 +57,7 @@ pub fn escape(s: String) -> String {
     }
 
     let bytes = s.as_bytes();
-    let max_len = bytes.len() + found.len() * 3;
+    let max_len = bytes.len() + found.len() * 5;
     let mut res = Vec::<u8>::with_capacity(max_len);
     let mut start = 0;
     for idx in &found {
@@ -69,6 +69,9 @@ pub fn escape(s: String) -> String {
             b'<' => { res.extend(b"&lt;"); },
             b'>' => { res.extend(b"&gt;"); },
             b'&' => { res.extend(b"&amp;"); },
+            b'"' => { res.extend(b"&quot;"); },
+            b'\'' => { res.extend(b"&#x27;"); },
+            b'/' => { res.extend(b"&#x2f;"); },
             _ => panic!("incorrect indexing"),
         }
     }

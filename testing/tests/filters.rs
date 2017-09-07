@@ -16,15 +16,16 @@ struct TestTemplate {
 #[test]
 fn filter_escape() {
     let s = TestTemplate {
-        strvar: "my <html> is unsafe & should be escaped".to_string(),
+        strvar: "// my <html> is \"unsafe\" & should be 'escaped'".to_string(),
     };
     assert_eq!(s.render().unwrap(),
-               "my &lt;html&gt; is unsafe &amp; should be escaped");
+               "&#x2f;&#x2f; my &lt;html&gt; is &quot;unsafe&quot; &amp; \
+                should be &#x27;escaped&#x27;");
 }
 
 
 #[derive(Template)]
-#[template(path = "format.html")]
+#[template(path = "format.html", escape = "none")]
 struct FormatTemplate<'a> {
     var: &'a str,
 }
