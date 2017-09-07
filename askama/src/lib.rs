@@ -31,23 +31,30 @@
 //!
 //! * `path` (as `path = "foo.html"`): sets the path to the template file. The
 //!   path is interpreted as relative to the `templates` dir in the directory
-//!   where the originating crate's `Cargo.toml` resides. In web framework
-//!   integrations, the path's extension may be used to infer the content type
-//!   of the resulting response. Cannot be used together with `source`.
+//!   where the originating crate's `Cargo.toml` resides. The file name
+//!   extension is used to infer an escape mode (see below). In web framework
+//!   integrations, the path's extension may also be used to infer the content
+//!   type of the resulting response. Cannot be used together with `source`.
 //! * `source` (as `source = "{{ foo }}"`): directly sets the template source.
 //!   This can be useful for test cases or short templates. The generated path
 //!   is empty, which generally makes it impossible to refer to this template
 //!   from other templates. Cannot be used together with `path`.
-//! * `ext` (as `ext = "txt"`): lets you specify the template extension for
-//!   use in web framework integrations. Cannot be used together with `path`.
+//! * `ext` (as `ext = "txt"`): lets you specify the content type as a file
+//!   extension. This is used to infer an escape mode (see below), and some
+//!   web framework integrations use it to determine the content type.
+//!   Cannot be used together with `path`.
 //! * `print` (as `print = "code"`): enable debugging by printing nothing
 //!   (`none`), the parsed syntax tree (`ast`), the generated code (`code`)
 //!   or `all` for both. The requested data will be printed to stdout at
 //!   compile time.
 //! * `escape` (as `escape = "none"`): change escape mode for expression
-//!   output. By default, Askama escapes content according to the [OWASP
-//!   escaping recommendations][owasp]. This can be enabled explicitly by
-//!   setting this value to `html` or disabled by setting it to `none`.
+//!   output. By default, Askama infers the escape mode from the template
+//!   file name (with `path`) or specified extension (`ext`): if the extension
+//!   is `html`, `htm` or `xml`, the `html` escape mode is used; otherwise,
+//!   no implicit escaping is done. The escape mode can be overridden by
+//!   specifying it manually, enabling it with `escape = "html"` or disabling
+//!   with `escape = "none"`. The `html` escape mode escapes content according
+//!   to the [OWASP escaping recommendations][owasp].
 //!
 //! [owasp]: https://www.owasp.org/index.php/XSS_(Cross_Site_Scripting)_Prevention_Cheat_Sheet#RULE_.231_-_HTML_Escape_Before_Inserting_Untrusted_Data_into_HTML_Element_Content
 //!
