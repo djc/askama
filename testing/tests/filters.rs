@@ -33,7 +33,7 @@ fn filter_format() {
 
 
 #[derive(Template)]
-#[template(source = "{{ s|myfilter }}")]
+#[template(source = "{{ s|myfilter }}", ext = "txt")]
 struct MyFilterTemplate<'a> {
     s: &'a str,
 }

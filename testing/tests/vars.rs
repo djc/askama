@@ -4,7 +4,7 @@ extern crate askama;
 use askama::Template;
 
 #[derive(Template)]
-#[template(source = "{% let v = s %}{{ v }}")]
+#[template(source = "{% let v = s %}{{ v }}", ext = "txt")]
 struct LetTemplate<'a> {
     s: &'a str,
 }

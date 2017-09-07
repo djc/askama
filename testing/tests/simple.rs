@@ -184,7 +184,7 @@ fn test_composition() {
 
 
 #[derive(Template)]
-#[template(source = "{{ foo }}")]
+#[template(source = "{{ foo }}", ext = "html")]
 struct ImplicitEscapedTemplate<'a> {
     foo: &'a str,
 }
@@ -197,7 +197,7 @@ fn test_implicit_escaped() {
 
 
 #[derive(Template)]
-#[template(source = "{{ foo }}", escape = "html")]
+#[template(source = "{{ foo }}", ext = "html", escape = "html")]
 struct ExplicitEscapedTemplate<'a> {
     foo: &'a str,
 }
@@ -210,7 +210,7 @@ fn test_explicit_escaped() {
 
 
 #[derive(Template)]
-#[template(source = "{{ foo }}", escape = "none")]
+#[template(source = "{{ foo }}", ext = "txt")]
 struct UnescapedTemplate<'a> {
     foo: &'a str,
 }

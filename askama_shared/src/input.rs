@@ -101,10 +101,14 @@ impl<'a> TemplateMeta<'a> {
 
         match source {
             Some(s) => {
-                if let Source::Path(_) = s {
-                    if ext.is_some() {
-                        panic!("'ext' attribute cannot be used with 'path' attribute");
-                    }
+                match (&s, ext.is_some()) {
+                    (&Source::Path(_), true) => {
+                        panic!("'ext' attribute cannot be used with 'path' attribute")
+                    },
+                    (&Source::Source(_), false) => {
+                        panic!("must include 'ext' attribute when using 'source' attribute")
+                    },
+                    _ => {},
                 }
                 TemplateMeta { source: s, print, escaping, ext }
             },
