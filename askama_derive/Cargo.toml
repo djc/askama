@@ -1,6 +1,6 @@
 [package]
 name = "askama_derive"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Procedural macro package for Askama"
 homepage = "https://github.com/djc/askama"
@@ -17,5 +17,5 @@ iron = ["askama_shared/iron"]
 rocket = ["askama_shared/rocket"]
 
 [dependencies]
-askama_shared = { version = "0.4.0", path = "../askama_shared" }
+askama_shared = { version = "0.5.0", path = "../askama_shared" }
 syn = "0.11"
