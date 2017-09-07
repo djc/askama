@@ -1,7 +1,7 @@
 use path;
 
 use std::borrow::Cow;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use syn;
 
@@ -54,7 +54,7 @@ impl<'a> TemplateMeta<'a> {
         let attr = attr.unwrap();
         let mut source = None;
         let mut print = Print::None;
-        let mut escaping = EscapeMode::Html;
+        let mut escaping = None;
         let mut ext = None;
         if let syn::MetaItem::List(_, ref inner) = attr.value {
             for nm_item in inner {
@@ -83,7 +83,7 @@ impl<'a> TemplateMeta<'a> {
                                 panic!("print value must be string literal");
                             },
                             "escape" => if let syn::Lit::Str(ref s, _) = *val {
-                                escaping = (s.as_ref() as &str).into();
+                                escaping = Some((s.as_ref() as &str).into());
                             } else {
                                 panic!("escape value must be string literal");
                             },
@@ -109,6 +109,22 @@ impl<'a> TemplateMeta<'a> {
             },
             _ => {},
         }
+        let escaping = match escaping {
+            Some(m) => m,
+            None => {
+                let ext = match source {
+                    Source::Path(p) => {
+                        Path::new(p).extension().map(|s| s.to_str().unwrap()).unwrap_or("")
+                    },
+                    Source::Source(_) => ext.unwrap(), // Already panicked if None
+                };
+                if HTML_EXTENSIONS.contains(&ext) {
+                    EscapeMode::Html
+                } else {
+                    EscapeMode::None
+                }
+            }
+        };
         TemplateMeta { source, print, escaping, ext }
     }
 }
@@ -155,3 +171,5 @@ impl<'a> From<&'a str> for Print {
         }
     }
 }
+
+const HTML_EXTENSIONS: [&str; 3] = ["html", "htm", "xml"];
