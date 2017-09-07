@@ -13,7 +13,7 @@ use syn;
 
 
 pub fn generate(input: &TemplateInput, nodes: &[Node]) -> String {
-    Generator::default().result(&State::new(input, nodes))
+    Generator::default().build(&State::new(input, nodes))
 }
 
 struct State<'a> {
@@ -126,7 +126,8 @@ impl<'a> Generator<'a> {
         Self::new(locals, self.indent)
     }
 
-    fn result(mut self, state: &'a State) -> String {
+    // Takes a State and generates the relevant implementations.
+    fn build(mut self, state: &'a State) -> String {
         if !state.blocks.is_empty() {
             if !state.derived {
                 self.define_trait(state);
