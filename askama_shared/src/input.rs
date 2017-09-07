@@ -99,21 +99,17 @@ impl<'a> TemplateMeta<'a> {
             }
         }
 
-        match source {
-            Some(s) => {
-                match (&s, ext.is_some()) {
-                    (&Source::Path(_), true) => {
-                        panic!("'ext' attribute cannot be used with 'path' attribute")
-                    },
-                    (&Source::Source(_), false) => {
-                        panic!("must include 'ext' attribute when using 'source' attribute")
-                    },
-                    _ => {},
-                }
-                TemplateMeta { source: s, print, escaping, ext }
+        let source = source.expect("template path or source not found in attributes");
+        match (&source, ext.is_some()) {
+            (&Source::Path(_), true) => {
+                panic!("'ext' attribute cannot be used with 'path' attribute")
             },
-            None => panic!("template path or source not found in struct attributes"),
+            (&Source::Source(_), false) => {
+                panic!("must include 'ext' attribute when using 'source' attribute")
+            },
+            _ => {},
         }
+        TemplateMeta { source, print, escaping, ext }
     }
 }
 
