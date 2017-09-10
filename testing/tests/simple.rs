@@ -93,6 +93,18 @@ fn test_attr() {
     assert_eq!(t.render().unwrap(), "5");
 }
 
+#[derive(Template)]
+#[template(path = "tuple-attr.html")]
+struct TupleAttrTemplate<'a> {
+    tuple: (&'a str, &'a str),
+}
+
+#[test]
+fn test_tuple_attr() {
+    let t = TupleAttrTemplate { tuple: ("foo", "bar") };
+    assert_eq!(t.render().unwrap(), "foobar");
+}
+
 
 struct NestedHolder {
     holder: Holder,
