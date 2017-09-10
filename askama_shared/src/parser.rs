@@ -118,8 +118,12 @@ fn identifier(input: &[u8]) -> IResult<&[u8], &str> {
     IResult::Done(&input[1..], str::from_utf8(&input[..1]).unwrap())
 }
 
-named!(expr_num_lit<Expr>, map!(nom::digit,
-    |s| Expr::NumLit(str::from_utf8(s).unwrap())
+named!(num_lit<&str>, map!(nom::digit,
+    |s| str::from_utf8(s).unwrap()
+));
+
+named!(expr_num_lit<Expr>, map!(num_lit,
+    |s| Expr::NumLit(s)
 ));
 
 named!(expr_str_lit<Expr>, map!(
@@ -187,7 +191,7 @@ named!(expr_single<Expr>, alt!(
 
 named!(attr<(&str, Option<Vec<Expr>>)>, do_parse!(
     tag_s!(".") >>
-    attr: identifier >>
+    attr: alt!(num_lit | identifier) >>
     args: opt!(arguments) >>
     (attr, args)
 ));
