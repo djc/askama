@@ -33,10 +33,12 @@ use input::Print;
 pub fn build_template(ast: &syn::DeriveInput) -> String {
     let data = input::TemplateInput::new(ast);
     let nodes = parser::parse(data.source.as_ref());
+    let imports = input::Imports::new(&nodes, &data.path);
+    let imported_nodes = imports.parse();
     if data.meta.print == Print::Ast || data.meta.print == Print::All {
         println!("{:?}", nodes);
     }
-    let code = generator::generate(&data, &nodes);
+    let code = generator::generate(&data, &nodes, &imported_nodes);
     if data.meta.print == Print::Code || data.meta.print == Print::All {
         println!("{}", code);
     }

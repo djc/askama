@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 
 use syn;
 
+use parser::{self, Node};
+
 
 pub struct TemplateInput<'a> {
     pub ast: &'a syn::DeriveInput,
@@ -126,6 +128,34 @@ impl<'a> TemplateMeta<'a> {
             }
         };
         TemplateMeta { source, print, escaping, ext }
+    }
+}
+
+pub struct Imports<'a> {
+    pub sources: Vec<Cow<'a, str>>
+}
+
+impl <'a> Imports<'a> {
+    pub fn new(parent_nodes: &'a [Node], parent_path: &'a Path) -> Imports<'a> {
+        let sources = parent_nodes.iter().filter_map(|n| {
+            match *n {
+                Node::Import(_, ref import_path) => {
+                    let path = path::find_template_from_path(import_path, Some(parent_path));
+                    let src = path::get_template_source(&path);
+                    Some(Cow::Owned(src))
+                },
+                _ => None,
+            }
+        }).collect();
+        Imports {
+            sources,
+        }
+    }
+
+    pub fn parse(&'a self) -> Vec<Node<'a>> {
+        self.sources.iter()
+            .flat_map(|s| parser::parse(s.as_ref()))
+            .collect()
     }
 }
 

@@ -42,6 +42,7 @@ pub enum Node<'a> {
     Extends(Expr<'a>),
     BlockDef(WS, &'a str, Vec<Node<'a>>, WS),
     Include(WS, &'a str),
+    Import(WS, &'a str),
     Macro(&'a str, Macro<'a>),
 }
 
@@ -388,6 +389,17 @@ named!(block_include<Node>, do_parse!(
     }))
 ));
 
+named!(block_import<Node>, do_parse!(
+    pws: opt!(tag_s!("-")) >>
+    ws!(tag_s!("import")) >>
+    name: ws!(expr_str_lit) >>
+    nws: opt!(tag_s!("-")) >>
+    (Node::Import(WS(pws.is_some(), nws.is_some()), match name {
+        Expr::StrLit(s) => s,
+        _ => panic!("import path must be a string literal"),
+    }))
+));
+
 named!(block_macro<Node>, do_parse!(
     pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("macro")) >>
@@ -420,6 +432,7 @@ named!(block_node<Node>, do_parse!(
         block_for |
         block_extends |
         block_include |
+        block_import |
         block_block |
         block_macro
     ) >>
