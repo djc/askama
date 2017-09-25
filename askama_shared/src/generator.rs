@@ -12,8 +12,8 @@ use std::collections::{HashMap, HashSet};
 use syn;
 
 
-pub fn generate(input: &TemplateInput, nodes: &[Node], imported_nodes: &[Node]) -> String {
-    Generator::default().build(&State::new(input, nodes, imported_nodes))
+pub fn generate(input: &TemplateInput, nodes: &[Node], imported: &HashMap<&str, Macro>) -> String {
+    Generator::default().build(&State::new(input, nodes, imported))
 }
 
 struct State<'a> {
@@ -26,7 +26,7 @@ struct State<'a> {
 }
 
 impl<'a> State<'a> {
-    fn new<'n>(input: &'n TemplateInput, nodes: &'n [Node], imported_nodes: &'n [Node]) -> State<'n> {
+    fn new<'n>(input: &'n TemplateInput, nodes: &'n [Node], imported: &'n HashMap<&'n str, Macro<'n>>) -> State<'n> {
         let mut base: Option<&Expr> = None;
         let mut blocks = Vec::new();
         let mut macros = HashMap::new();
@@ -47,13 +47,8 @@ impl<'a> State<'a> {
                 _ => {},
             }
         }
-        for n in imported_nodes.iter() {
-            match *n {
-                Node::Macro(name, ref m) => {
-                    macros.insert(name, m);
-                },
-                _ => {},
-            }
+        for (name, ref m) in imported {
+            macros.insert(name, m);
         }
         State {
             input,
