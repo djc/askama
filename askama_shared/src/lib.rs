@@ -68,7 +68,7 @@ impl <'a> Imports<'a> {
         Imports { sources }
     }
 
-    pub fn parse(&'a self) -> HashMap<&'a str, Macro<'a>> {
+    pub fn macro_map(&'a self) -> HashMap<&'a str, Macro<'a>> {
         self.sources.iter()
             .flat_map(|s| parser::parse(s.as_ref()))
             .filter_map(|n| {
