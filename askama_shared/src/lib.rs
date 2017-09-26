@@ -38,11 +38,10 @@ pub fn build_template(ast: &syn::DeriveInput) -> String {
     let data = input::TemplateInput::new(ast);
     let nodes = parser::parse(data.source.as_ref());
     let imports = Imports::new(&nodes, &data.path);
-    let imported = imports.parse();
     if data.meta.print == Print::Ast || data.meta.print == Print::All {
         println!("{:?}", nodes);
     }
-    let code = generator::generate(&data, &nodes, &imported);
+    let code = generator::generate(&data, &nodes, &imports.macro_map());
     if data.meta.print == Print::Code || data.meta.print == Print::All {
         println!("{}", code);
     }
@@ -66,9 +65,7 @@ impl <'a> Imports<'a> {
                 _ => None,
             }
         }).collect();
-        Imports {
-            sources,
-        }
+        Imports { sources }
     }
 
     pub fn parse(&'a self) -> HashMap<&'a str, Macro<'a>> {
