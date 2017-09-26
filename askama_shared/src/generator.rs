@@ -12,8 +12,8 @@ use std::collections::{HashMap, HashSet};
 use syn;
 
 
-pub fn generate(input: &TemplateInput, nodes: &[Node]) -> String {
-    Generator::default().build(&State::new(input, nodes))
+pub fn generate(input: &TemplateInput, nodes: &[Node], imported: &HashMap<&str, Macro>) -> String {
+    Generator::default().build(&State::new(input, nodes, imported))
 }
 
 struct State<'a> {
@@ -26,7 +26,7 @@ struct State<'a> {
 }
 
 impl<'a> State<'a> {
-    fn new<'n>(input: &'n TemplateInput, nodes: &'n [Node]) -> State<'n> {
+    fn new<'n>(input: &'n TemplateInput, nodes: &'n [Node], imported: &'n HashMap<&'n str, Macro<'n>>) -> State<'n> {
         let mut base: Option<&Expr> = None;
         let mut blocks = Vec::new();
         let mut macros = HashMap::new();
@@ -46,6 +46,9 @@ impl<'a> State<'a> {
                 },
                 _ => {},
             }
+        }
+        for (name, ref m) in imported {
+            macros.insert(name, m);
         }
         State {
             input,
@@ -351,6 +354,7 @@ impl<'a> Generator<'a> {
                 },
                 Node::Call(ref ws, name, ref args) => self.write_call(state, ws, name, args),
                 Node::Macro(_, _) |
+                Node::Import(_, _) |
                 Node::Extends(_) => {
                     if let AstLevel::Nested = level {
                         panic!("macro or extend blocks only allowed at the top level");
