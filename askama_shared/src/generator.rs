@@ -442,10 +442,10 @@ impl<'a> Generator<'a> {
         self.prepare_ws(&def.ws1);
         for (i, arg) in def.args.iter().enumerate() {
             self.write(&format!("let {} = &", arg));
-            self.locals.insert(arg);
             self.visit_expr(args.get(i)
                 .expect(&format!("macro '{}' takes more than {} arguments", name, i)));
             self.writeln(";");
+            self.locals.insert(arg);
         }
         self.handle(state, &def.nodes, AstLevel::Nested);
         self.flush_ws(&def.ws2);
