@@ -40,6 +40,7 @@ pub enum Node<'a> {
     LetDecl(WS, Target<'a>),
     Let(WS, Target<'a>, Expr<'a>),
     Cond(Vec<(WS, Option<Expr<'a>>, Vec<Node<'a>>)>, WS),
+    Match(WS, Expr<'a>, &'a str, Vec<When<'a>>, WS),
     Loop(WS, Target<'a>, Expr<'a>, Vec<Node<'a>>, WS),
     Extends(Expr<'a>),
     BlockDef(WS, &'a str, Vec<Node<'a>>, WS),
@@ -49,6 +50,7 @@ pub enum Node<'a> {
 }
 
 pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
+pub type When<'a> = (WS, &'a str, Vec<&'a str>, Vec<Node<'a>>);
 
 fn split_ws_parts(s: &[u8]) -> Node {
     if s.is_empty() {
@@ -210,6 +212,12 @@ named!(parameters<Vec<&'a str>>, do_parse!(
     (vals.unwrap_or_default())
 ));
 
+named!(with_parameters<Vec<&'a str>>, do_parse!(
+    tag_s!("with") >>
+    params: ws!(parameters) >>
+    (params)
+));
+
 named!(expr_group<Expr>, map!(
     delimited!(char!('('), expr_any, char!(')')),
     |s| Expr::Group(Box::new(s))
@@ -359,6 +367,51 @@ named!(block_if<Node>, do_parse!(
     })
 ));
 
+named!(when_block<When>, do_parse!(
+    tag_s!("{%") >>
+    pws: opt!(tag_s!("-")) >>
+    ws!(tag_s!("when")) >>
+    variant: ws!(identifier) >>
+    params: opt!(ws!(with_parameters)) >>
+    nws: opt!(tag_s!("-")) >>
+    tag_s!("%}") >>
+    block: parse_template >>
+    (WS(pws.is_some(), nws.is_some()), variant, params.unwrap_or_default(), block)
+));
+
+named!(block_match<Node>, do_parse!(
+    pws1: opt!(tag_s!("-")) >>
+    ws!(tag_s!("match")) >>
+    expr: ws!(expr_any) >>
+    nws1: opt!(tag_s!("-")) >>
+    tag_s!("%}") >>
+    inter: take_content >>
+    arms: many1!(when_block) >>
+    ws!(tag_s!("{%")) >>
+    pws2: opt!(tag_s!("-")) >>
+    ws!(tag_s!("endmatch")) >>
+    nws2: opt!(tag_s!("-")) >>
+    ({
+        let inter = match inter {
+            Node::Lit(lws, val, rws) => {
+                assert!(val.is_empty(),
+                        "only whitespace allowed between match and first when, found {}", val);
+                assert!(rws.is_empty(),
+                        "only whitespace allowed between match and first when, found {}", rws);
+                lws
+            },
+            _ => panic!("only literals allowed between match and first when"),
+        };
+        Node::Match(
+            WS(pws1.is_some(), nws1.is_some()),
+            expr,
+            inter,
+            arms,
+            WS(pws2.is_some(), nws2.is_some()),
+        )
+    })
+));
+
 named!(block_let<Node>, do_parse!(
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("let")) >>
@@ -471,6 +524,7 @@ named!(block_node<Node>, do_parse!(
         block_let |
         block_if |
         block_for |
+        block_match |
         block_extends |
         block_include |
         block_import |
