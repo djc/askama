@@ -1,6 +1,6 @@
 use filters;
 use input::TemplateInput;
-use parser::{self, Cond, Expr, Macro, Node, Target, WS};
+use parser::{self, Cond, Expr, Macro, Node, Target, When, WS};
 use path;
 
 use quote::{Tokens, ToTokens};
@@ -339,6 +339,9 @@ impl<'a> Generator<'a> {
                 Node::Cond(ref conds, ref ws) => {
                     self.write_cond(state, conds, ws);
                 },
+                Node::Match(ref ws1, ref expr, ref arms, ref ws2) => {
+                    self.write_match(state, ws1, expr, arms, ws2);
+                },
                 Node::Loop(ref ws1, ref var, ref iter, ref body, ref ws2) => {
                     self.write_loop(state, ws1, var, iter, body, ws2);
                 },
@@ -426,6 +429,38 @@ impl<'a> Generator<'a> {
         }
         self.handle_ws(ws);
         self.writeln("}");
+    }
+
+    fn write_match(&mut self, state: &'a State, ws1: &WS, expr: &Expr, arms: &'a [When], ws2: &WS) {
+        self.handle_ws(ws1);
+        self.locals.push();
+        self.write("match ");
+        self.visit_expr(expr);
+        self.writeln(" {");
+
+        for arm in arms {
+            let &(ref ws, ref variant, ref params, ref body) = arm;
+            self.locals.push();
+            self.write(variant);
+            if params.len() > 0 {
+                self.write("(");
+                for param in params {
+                    self.locals.insert(param);
+                    self.write(param);
+                    self.write(", ");
+                }
+                self.write(")");
+            }
+            self.writeln(" => {");
+            self.flush_ws(ws);
+            self.handle(state, body, AstLevel::Nested);
+            self.writeln("}");
+            self.locals.pop();
+        }
+
+        self.writeln("}");
+        self.handle_ws(ws2);
+        self.locals.pop();
     }
 
     fn write_loop(&mut self, state: &'a State, ws1: &WS, var: &'a Target, iter: &Expr,
