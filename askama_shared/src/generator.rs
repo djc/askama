@@ -353,11 +353,21 @@ impl<'a> Generator<'a> {
                     self.handle_include(state, ws, path);
                 },
                 Node::Call(ref ws, name, ref args) => self.write_call(state, ws, name, args),
-                Node::Macro(_, _) |
-                Node::Import(_, _) |
+                Node::Macro(_, ref m) => {
+                    if let AstLevel::Nested = level {
+                        panic!("macro blocks only allowed at the top level");
+                    }
+                    self.write_macro(m);
+                },
+                Node::Import(ref ws, _) => {
+                    if let AstLevel::Nested = level {
+                        panic!("import blocks only allowed at the top level");
+                    }
+                    self.write_import(ws);
+                },
                 Node::Extends(_) => {
                     if let AstLevel::Nested = level {
-                        panic!("macro or extend blocks only allowed at the top level");
+                        panic!("extend blocks only allowed at the top level");
                     }
                 },
             }
@@ -436,7 +446,7 @@ impl<'a> Generator<'a> {
 
     fn write_call(&mut self, state: &'a State, ws: &WS, name: &str, args: &[Expr]) {
         let def = state.macros.get(name).expect(&format!("macro '{}' not found", name));
-        self.handle_ws(ws);
+        self.flush_ws(ws);
         self.locals.push();
         self.writeln("{");
         self.prepare_ws(&def.ws1);
@@ -451,6 +461,7 @@ impl<'a> Generator<'a> {
         self.flush_ws(&def.ws2);
         self.writeln("}");
         self.locals.pop();
+        self.prepare_ws(ws);
     }
 
     fn handle_include(&mut self, state: &'a State, ws: &WS, path: &str) {
@@ -493,6 +504,15 @@ impl<'a> Generator<'a> {
         self.write(" = ");
         self.visit_expr(val);
         self.writeln(";");
+    }
+
+    fn write_macro(&mut self, m: &Macro) {
+        self.flush_ws(&m.ws1);
+        self.prepare_ws(&m.ws2);
+    }
+
+    fn write_import(&mut self, ws: &WS) {
+        self.handle_ws(ws);
     }
 
     fn write_block(&mut self, ws1: &WS, name: &str, ws2: &WS) {
