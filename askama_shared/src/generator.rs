@@ -357,13 +357,14 @@ impl<'a> Generator<'a> {
                     if let AstLevel::Nested = level {
                         panic!("macro blocks only allowed at the top level");
                     }
-                    self.write_macro(m);
+                    self.flush_ws(&m.ws1);
+                    self.prepare_ws(&m.ws2);
                 },
                 Node::Import(ref ws, _) => {
                     if let AstLevel::Nested = level {
                         panic!("import blocks only allowed at the top level");
                     }
-                    self.write_import(ws);
+                    self.handle_ws(ws);
                 },
                 Node::Extends(_) => {
                     if let AstLevel::Nested = level {
@@ -504,15 +505,6 @@ impl<'a> Generator<'a> {
         self.write(" = ");
         self.visit_expr(val);
         self.writeln(";");
-    }
-
-    fn write_macro(&mut self, m: &Macro) {
-        self.flush_ws(&m.ws1);
-        self.prepare_ws(&m.ws2);
-    }
-
-    fn write_import(&mut self, ws: &WS) {
-        self.handle_ws(ws);
     }
 
     fn write_block(&mut self, ws1: &WS, name: &str, ws2: &WS) {
