@@ -370,6 +370,8 @@ impl<'a> Generator<'a> {
                     if let AstLevel::Nested = level {
                         panic!("extend blocks only allowed at the top level");
                     }
+                    // No whitespace handling: child template top-level is not used,
+                    // except for the blocks defined in it.
                 },
             }
         }
