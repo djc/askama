@@ -12,7 +12,7 @@ struct MacroTemplate<'a> {
 #[test]
 fn test_macro() {
     let t = MacroTemplate { s: "foo" };
-    assert_eq!(t.render().unwrap(), "foo foo foo");
+    assert_eq!(t.render().unwrap(), "12foo foo foo3");
 }
 
 #[derive(Template)]
