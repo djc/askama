@@ -449,7 +449,7 @@ impl<'a> Generator<'a> {
 
     fn write_call(&mut self, state: &'a State, ws: &WS, name: &str, args: &[Expr]) {
         let def = state.macros.get(name).expect(&format!("macro '{}' not found", name));
-        self.flush_ws(ws);
+        self.flush_ws(ws); // Cannot handle_ws() here: whitespace from macro definition comes first
         self.locals.push();
         self.writeln("{");
         self.prepare_ws(&def.ws1);
