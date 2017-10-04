@@ -6,6 +6,7 @@ pub enum Expr<'a> {
     NumLit(&'a str),
     StrLit(&'a str),
     Var(&'a str),
+    Path(Vec<&'a str>),
     Attr(Box<Expr<'a>>, &'a str),
     Filter(&'a str, Vec<Expr<'a>>),
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
@@ -136,6 +137,22 @@ named!(expr_var<Expr>, map!(identifier,
     |s| Expr::Var(s))
 );
 
+named!(expr_path<Expr>, do_parse!(
+    start: call!(identifier) >>
+    rest: many1!(do_parse!(
+        tag_s!("::") >>
+        part: identifier >>
+        (part)
+    )) >>
+    ({
+        let mut path = vec![ start ];
+        for part in rest.iter() {
+            path.push(part);
+        }
+        Expr::Path(path)
+    })
+));
+
 named!(target_single<Target>, map!(identifier,
     |s| Target::Name(s)
 ));
@@ -186,6 +203,7 @@ named!(expr_group<Expr>, map!(
 named!(expr_single<Expr>, alt!(
     expr_num_lit |
     expr_str_lit |
+    expr_path |
     expr_var |
     expr_group
 ));
