@@ -166,3 +166,21 @@ fn test_composition() {
     let t = CompositionTemplate { foo: IfTemplate { cond: true } };
     assert_eq!(t.render().unwrap(), "composed: true");
 }
+
+
+#[derive(PartialEq, Eq)]
+enum Alphabet {
+    Alpha,
+}
+
+#[derive(Template)]
+#[template(source = "{% if x == Alphabet::Alpha %}true{% endif %}", ext = "txt")]
+struct PathCompareTemplate {
+    x: Alphabet,
+}
+
+#[test]
+fn test_path_compare() {
+    let t = PathCompareTemplate { x: Alphabet::Alpha };
+    assert_eq!(t.render().unwrap(), "true");
+}
