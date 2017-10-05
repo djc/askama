@@ -367,6 +367,16 @@ named!(block_if<Node>, do_parse!(
     })
 ));
 
+named!(match_else_block<When>, do_parse!(
+    tag_s!("{%") >>
+    pws: opt!(tag_s!("-")) >>
+    ws!(tag_s!("else")) >>
+    nws: opt!(tag_s!("-")) >>
+    tag_s!("%}") >>
+    block: parse_template >>
+    (WS(pws.is_some(), nws.is_some()), "_", vec![], block)
+));
+
 named!(when_block<When>, do_parse!(
     tag_s!("{%") >>
     pws: opt!(tag_s!("-")) >>
@@ -386,13 +396,18 @@ named!(block_match<Node>, do_parse!(
     nws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("%}")) >>
     arms: many1!(when_block) >>
+    else_arm: opt!(match_else_block) >>
     ws!(tag_s!("{%")) >>
     pws2: opt!(tag_s!("-")) >>
     ws!(tag_s!("endmatch")) >>
     nws2: opt!(tag_s!("-")) >>
-    (Node::Match(
-        WS(pws1.is_some(), nws1.is_some()), expr, arms, WS(pws2.is_some(), nws2.is_some())
-    ))
+    ({
+        let mut arms = arms;
+        if let Some(arm) = else_arm {
+            arms.push(arm);
+        }
+        Node::Match(WS(pws1.is_some(), nws1.is_some()), expr, arms, WS(pws2.is_some(), nws2.is_some()))
+    })
 ));
 
 named!(block_let<Node>, do_parse!(
