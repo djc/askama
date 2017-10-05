@@ -433,7 +433,6 @@ impl<'a> Generator<'a> {
 
     fn write_match(&mut self, state: &'a State, ws1: &WS, expr: &Expr, arms: &'a [When], ws2: &WS) {
         self.handle_ws(ws1);
-        self.locals.push();
         self.write("match ");
         self.visit_expr(expr);
         self.writeln(" {");
@@ -444,15 +443,17 @@ impl<'a> Generator<'a> {
             self.write(variant);
             if params.len() > 0 {
                 self.write("(");
-                for param in params {
+                for (i, param) in params.iter().enumerate() {
                     self.locals.insert(param);
+                    if i > 0 {
+                        self.write(", ");
+                    }
                     self.write(param);
-                    self.write(", ");
                 }
                 self.write(")");
             }
             self.writeln(" => {");
-            self.flush_ws(ws);
+            self.handle_ws(ws);
             self.handle(state, body, AstLevel::Nested);
             self.writeln("}");
             self.locals.pop();
@@ -460,7 +461,6 @@ impl<'a> Generator<'a> {
 
         self.writeln("}");
         self.handle_ws(ws2);
-        self.locals.pop();
     }
 
     fn write_loop(&mut self, state: &'a State, ws1: &WS, var: &'a Target, iter: &Expr,

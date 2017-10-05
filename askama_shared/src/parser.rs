@@ -368,7 +368,7 @@ named!(block_if<Node>, do_parse!(
 ));
 
 named!(when_block<When>, do_parse!(
-    ws!(tag_s!("{%")) >>
+    tag_s!("{%") >>
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("when")) >>
     variant: ws!(identifier) >>
@@ -384,7 +384,7 @@ named!(block_match<Node>, do_parse!(
     ws!(tag_s!("match")) >>
     expr: ws!(expr_any) >>
     nws1: opt!(tag_s!("-")) >>
-    tag_s!("%}") >>
+    ws!(tag_s!("%}")) >>
     arms: many1!(when_block) >>
     ws!(tag_s!("{%")) >>
     pws2: opt!(tag_s!("-")) >>

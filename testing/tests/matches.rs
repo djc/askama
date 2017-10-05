@@ -4,7 +4,7 @@ extern crate askama;
 use askama::Template;
 
 #[derive(Template)]
-#[template(path = "match.html", print = "code")]
+#[template(path = "match.html")]
 struct MatchTemplate<'a> {
     item: Option<&'a str>,
 }
