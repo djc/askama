@@ -16,6 +16,13 @@ pub enum Expr<'a> {
 }
 
 #[derive(Debug)]
+pub enum MatchParameter<'a> {
+    Name(&'a str),
+    NumLit(&'a str),
+    StrLit(&'a str),
+}
+
+#[derive(Debug)]
 pub enum Target<'a> {
     Name(&'a str),
 }
@@ -50,7 +57,7 @@ pub enum Node<'a> {
 }
 
 pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
-pub type When<'a> = (WS, &'a str, Vec<&'a str>, Vec<Node<'a>>);
+pub type When<'a> = (WS, Option<MatchParameter<'a>>, Vec<MatchParameter<'a>>, Vec<Node<'a>>);
 
 fn split_ws_parts(s: &[u8]) -> Node {
     if s.is_empty() {
@@ -147,9 +154,18 @@ named!(expr_array_lit<Expr>, do_parse!(
     })
 ));
 
+named!(param_num_lit<MatchParameter>, map!(num_lit,
+    |s| MatchParameter::NumLit(s)
+));
+
 named!(expr_str_lit<Expr>, map!(
     delimited!(char!('"'), take_until!("\""), char!('"')),
     |s| Expr::StrLit(str::from_utf8(s).unwrap())
+));
+
+named!(param_str_lit<MatchParameter>, map!(
+    delimited!(char!('"'), is_not!("\""), char!('"')),
+    |s| MatchParameter::StrLit(str::from_utf8(s).unwrap())
 ));
 
 named!(expr_var<Expr>, map!(identifier,
@@ -172,6 +188,10 @@ named!(expr_path<Expr>, do_parse!(
 
 named!(target_single<Target>, map!(identifier,
     |s| Target::Name(s)
+));
+
+named!(param_name<MatchParameter>, map!(identifier,
+    |s| MatchParameter::Name(s)
 ));
 
 named!(arguments<Vec<Expr>>, do_parse!(
@@ -212,10 +232,24 @@ named!(parameters<Vec<&'a str>>, do_parse!(
     (vals.unwrap_or_default())
 ));
 
-named!(with_parameters<Vec<&'a str>>, do_parse!(
+named!(with_parameters<Vec<MatchParameter>>, do_parse!(
     tag_s!("with") >>
-    params: ws!(parameters) >>
-    (params)
+    ws!(tag_s!("(")) >>
+    vals: opt!(do_parse!(
+        arg0: ws!(match_parameter) >>
+        args: many0!(do_parse!(
+            tag_s!(",") >>
+            argn: ws!(match_parameter) >>
+            (argn)
+        )) >>
+        ({
+            let mut res = vec![arg0];
+            res.extend(args);
+            res
+        })
+    )) >>
+    tag_s!(")") >>
+    (vals.unwrap_or_default())
 ));
 
 named!(expr_group<Expr>, map!(
@@ -230,6 +264,12 @@ named!(expr_single<Expr>, alt!(
     expr_array_lit |
     expr_var |
     expr_group
+));
+
+named!(match_parameter<MatchParameter>, alt!(
+    param_name |
+    param_num_lit |
+    param_str_lit
 ));
 
 named!(attr<(&str, Option<Vec<Expr>>)>, do_parse!(
@@ -374,19 +414,19 @@ named!(match_else_block<When>, do_parse!(
     nws: opt!(tag_s!("-")) >>
     tag_s!("%}") >>
     block: parse_template >>
-    (WS(pws.is_some(), nws.is_some()), "_", vec![], block)
+    (WS(pws.is_some(), nws.is_some()), None, vec![], block)
 ));
 
 named!(when_block<When>, do_parse!(
     tag_s!("{%") >>
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("when")) >>
-    variant: ws!(identifier) >>
+    variant: ws!(match_parameter) >>
     params: opt!(ws!(with_parameters)) >>
     nws: opt!(tag_s!("-")) >>
     tag_s!("%}") >>
     block: parse_template >>
-    (WS(pws.is_some(), nws.is_some()), variant, params.unwrap_or_default(), block)
+    (WS(pws.is_some(), nws.is_some()), Some(variant), params.unwrap_or_default(), block)
 ));
 
 named!(block_match<Node>, do_parse!(

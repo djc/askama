@@ -1,6 +1,6 @@
 use filters;
 use input::TemplateInput;
-use parser::{self, Cond, Expr, Macro, Node, Target, When, WS};
+use parser::{self, Cond, Expr, Macro, MatchParameter, Node, Target, When, WS};
 use path;
 
 use quote::{Tokens, ToTokens};
@@ -440,15 +440,20 @@ impl<'a> Generator<'a> {
         for arm in arms {
             let &(ref ws, ref variant, ref params, ref body) = arm;
             self.locals.push();
-            self.write(variant);
+            match *variant {
+                Some(ref param) => { self.visit_match_param(param); },
+                None => self.write("_"),
+            };
             if params.len() > 0 {
                 self.write("(");
                 for (i, param) in params.iter().enumerate() {
-                    self.locals.insert(param);
+                    if let MatchParameter::Name(ref p) = *param {
+                        self.locals.insert(p);
+                    }
                     if i > 0 {
                         self.write(", ");
                     }
-                    self.write(param);
+                    self.visit_match_param(param);
                 }
                 self.write(")");
             }
@@ -616,6 +621,17 @@ impl<'a> Generator<'a> {
             Expr::Group(ref inner) => self.visit_group(inner),
             Expr::MethodCall(ref obj, method, ref args) =>
                 self.visit_method_call(obj, method, args),
+        }
+    }
+
+    fn visit_match_param(&mut self, param: &MatchParameter) -> DisplayWrap {
+        match *param {
+            MatchParameter::NumLit(s) => self.visit_num_lit(s),
+            MatchParameter::StrLit(s) => self.visit_str_lit(s),
+            MatchParameter::Name(s) => {
+                self.write(s);
+                DisplayWrap::Unwrapped
+            }
         }
     }
 
