@@ -161,6 +161,7 @@ impl<'a> Generator<'a> {
         self.write_header(state, "::askama::Template", &[]);
         self.writeln("fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
                       ::askama::Result<()> {");
+        self.writeln("#[allow(unused_imports)] use ::std::ops::Deref as HiddenDerefTrait;");
         self.handle(state, state.nodes, AstLevel::Top);
         self.flush_ws(&WS(false, false));
         self.writeln("Ok(())");
@@ -199,6 +200,7 @@ impl<'a> Generator<'a> {
             "fn render_trait_into(&self, timpl: &{}, writer: &mut ::std::fmt::Write) \
              -> ::askama::Result<()> {{",
             state.trait_name));
+        self.writeln("#[allow(unused_imports)] use ::std::ops::Deref as HiddenDerefTrait;");
 
         if let Some(nodes) = nodes {
             self.handle(state, nodes, AstLevel::Top);
@@ -434,14 +436,18 @@ impl<'a> Generator<'a> {
     fn write_match(&mut self, state: &'a State, ws1: &WS, expr: &Expr, arms: &'a [When], ws2: &WS) {
         self.handle_ws(ws1);
         self.write("match ");
+        self.write("(&");
         self.visit_expr(expr);
+        self.write(").deref()");
         self.writeln(" {");
 
         for arm in arms {
             let &(ref ws, ref variant, ref params, ref body) = arm;
             self.locals.push();
             match *variant {
-                Some(ref param) => { self.visit_match_param(param); },
+                Some(ref param) => {
+                    self.visit_match_variant(param);
+                },
                 None => self.write("_"),
             };
             if params.len() > 0 {
@@ -624,11 +630,28 @@ impl<'a> Generator<'a> {
         }
     }
 
+    fn visit_match_variant(&mut self, param: &MatchParameter) -> DisplayWrap {
+        match *param {
+            MatchParameter::StrLit(s) => self.visit_str_lit(s),
+            MatchParameter::NumLit(s) => {
+                // Variants need to be references until match-modes land
+                self.write("&");
+                self.visit_num_lit(s)
+            },
+            MatchParameter::Name(s) => {
+                self.write("&");
+                self.write(s);
+                DisplayWrap::Unwrapped
+            }
+        }
+    }
+
     fn visit_match_param(&mut self, param: &MatchParameter) -> DisplayWrap {
         match *param {
             MatchParameter::NumLit(s) => self.visit_num_lit(s),
             MatchParameter::StrLit(s) => self.visit_str_lit(s),
             MatchParameter::Name(s) => {
+                self.write("ref ");
                 self.write(s);
                 DisplayWrap::Unwrapped
             }
