@@ -765,6 +765,9 @@ impl<'a> Generator<'a> {
     }
 
     fn dedent(&mut self) {
+        if self.indent == 0 {
+            panic!("dedent() called while indentation == 0");
+        }
         self.indent -= 1;
     }
 }
