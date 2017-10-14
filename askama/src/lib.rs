@@ -301,13 +301,13 @@ pub mod rocket {
     extern crate rocket;
 
     use self::rocket::http::{ContentType, Status};
-    use self::rocket::request::Request;
+    pub use self::rocket::request::Request;
     use self::rocket::response::Response;
     use std::io::Cursor;
 
     pub use self::rocket::response::{Responder, Result};
 
-    pub fn respond(t: &super::Template, ext: &str) -> Result {
+    pub fn respond(t: &super::Template, ext: &str) -> Result<'static> {
         let rsp = t.render().map_err(|_| Status::InternalServerError)?;
         let ctype = ContentType::from_extension(ext).ok_or(Status::InternalServerError)?;
         Response::build()
