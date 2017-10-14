@@ -260,7 +260,6 @@ impl<'a> Generator<'a> {
         };
         self.writeln(&format!("::askama::rocket::respond(&self, {:?})", ext));
 
-        self.dedent();
         self.writeln("}");
         self.writeln("}");
     }
