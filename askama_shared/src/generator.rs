@@ -351,7 +351,9 @@ impl<'a> Generator<'a> {
                 Node::Include(ref ws, path) => {
                     self.handle_include(state, ws, path);
                 },
-                Node::Call(ref ws, scope, name, ref args) => self.write_call(state, ws, scope, name, args),
+                Node::Call(ref ws, scope, name, ref args) => {
+                    self.write_call(state, ws, scope, name, args);
+                },
                 Node::Macro(_, ref m) => {
                     if let AstLevel::Nested = level {
                         panic!("macro blocks only allowed at the top level");
@@ -446,7 +448,8 @@ impl<'a> Generator<'a> {
         self.locals.pop();
     }
 
-    fn write_call(&mut self, state: &'a State, ws: &WS, scope: Option<&str>, name: &str, args: &[Expr]) {
+    fn write_call(&mut self, state: &'a State, ws: &WS, scope: Option<&str>, name: &str,
+                  args: &[Expr]) {
         let def = state.macros.get(&(scope, name)).unwrap_or_else(|| {
             if let Some(ref s) = scope {
                 panic!(format!("macro '{}::{}' not found", s, name));
