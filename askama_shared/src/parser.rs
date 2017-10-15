@@ -35,7 +35,7 @@ pub enum Node<'a> {
     Lit(&'a str, &'a str, &'a str),
     Comment(),
     Expr(WS, Expr<'a>),
-    Call(WS, &'a str, Vec<Expr<'a>>),
+    Call(WS, Option<& 'a str>, &'a str, Vec<Expr<'a>>),
     LetDecl(WS, Target<'a>),
     Let(WS, Target<'a>, Expr<'a>),
     Cond(Vec<(WS, Option<Expr<'a>>, Vec<Node<'a>>)>, WS),
@@ -43,7 +43,7 @@ pub enum Node<'a> {
     Extends(Expr<'a>),
     BlockDef(WS, &'a str, Vec<Node<'a>>, WS),
     Include(WS, &'a str),
-    Import(WS, &'a str),
+    Import(WS, &'a str, &'a str),
     Macro(&'a str, Macro<'a>),
 }
 
@@ -296,10 +296,15 @@ named!(expr_node<Node>, do_parse!(
 named!(block_call<Node>, do_parse!(
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("call")) >>
+    scope: opt!(do_parse!(
+        scope: ws!(identifier) >>
+        ws!(tag_s!("::")) >>
+        (scope)
+    )) >>
     name: ws!(identifier) >>
     args: ws!(arguments) >>
     nws: opt!(tag_s!("-")) >>
-    (Node::Call(WS(pws.is_some(), nws.is_some()), name, args))
+    (Node::Call(WS(pws.is_some(), nws.is_some()), scope, name, args))
 ));
 
 named!(cond_if<Expr>, do_parse!(
@@ -411,11 +416,13 @@ named!(block_import<Node>, do_parse!(
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("import")) >>
     name: ws!(expr_str_lit) >>
+    ws!(tag_s!("as")) >>
+    scope: ws!(identifier) >>
     nws: opt!(tag_s!("-")) >>
     (Node::Import(WS(pws.is_some(), nws.is_some()), match name {
         Expr::StrLit(s) => s,
         _ => panic!("import path must be a string literal"),
-    }))
+    }, scope))
 ));
 
 named!(block_macro<Node>, do_parse!(

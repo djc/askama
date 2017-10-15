@@ -12,7 +12,7 @@ use std::collections::{HashMap, HashSet};
 use syn;
 
 
-pub fn generate(input: &TemplateInput, nodes: &[Node], imported: &HashMap<&str, Macro>) -> String {
+pub fn generate(input: &TemplateInput, nodes: &[Node], imported: &HashMap<(&str, &str), Macro>) -> String {
     Generator::default().build(&State::new(input, nodes, imported))
 }
 
@@ -26,7 +26,7 @@ struct State<'a> {
 }
 
 impl<'a> State<'a> {
-    fn new<'n>(input: &'n TemplateInput, nodes: &'n [Node], imported: &'n HashMap<&'n str, Macro<'n>>) -> State<'n> {
+    fn new<'n>(input: &'n TemplateInput, nodes: &'n [Node], imported: &'n HashMap<(&'n str, &'n str), Macro<'n>>) -> State<'n> {
         let mut base: Option<&Expr> = None;
         let mut blocks = Vec::new();
         let mut macros = HashMap::new();
@@ -42,13 +42,13 @@ impl<'a> State<'a> {
                     blocks.push(def);
                 },
                 Node::Macro(name, ref m) => {
-                    macros.insert(name, m);
+                    macros.insert((None, name), m);
                 },
                 _ => {},
             }
         }
-        for (name, ref m) in imported {
-            macros.insert(name, m);
+        for (&(scope, name), ref m) in imported {
+            macros.insert((Some(scope), name), m);
         }
         State {
             input,
@@ -351,7 +351,7 @@ impl<'a> Generator<'a> {
                 Node::Include(ref ws, path) => {
                     self.handle_include(state, ws, path);
                 },
-                Node::Call(ref ws, name, ref args) => self.write_call(state, ws, name, args),
+                Node::Call(ref ws, scope, name, ref args) => self.write_call(state, ws, scope, name, args),
                 Node::Macro(_, ref m) => {
                     if let AstLevel::Nested = level {
                         panic!("macro blocks only allowed at the top level");
@@ -359,7 +359,7 @@ impl<'a> Generator<'a> {
                     self.flush_ws(&m.ws1);
                     self.prepare_ws(&m.ws2);
                 },
-                Node::Import(ref ws, _) => {
+                Node::Import(ref ws, _, _) => {
                     if let AstLevel::Nested = level {
                         panic!("import blocks only allowed at the top level");
                     }
@@ -446,8 +446,14 @@ impl<'a> Generator<'a> {
         self.locals.pop();
     }
 
-    fn write_call(&mut self, state: &'a State, ws: &WS, name: &str, args: &[Expr]) {
-        let def = state.macros.get(name).expect(&format!("macro '{}' not found", name));
+    fn write_call(&mut self, state: &'a State, ws: &WS, scope: Option<&str>, name: &str, args: &[Expr]) {
+        let def = state.macros.get(&(scope, name)).unwrap_or_else(|| {
+            if let Some(ref s) = scope {
+                panic!(format!("macro '{}::{}' not found", s, name));
+            } else {
+                panic!(format!("macro '{}' not found", name));
+            }
+        });
         self.flush_ws(ws); // Cannot handle_ws() here: whitespace from macro definition comes first
         self.locals.push();
         self.writeln("{");
@@ -812,4 +818,4 @@ enum DisplayWrap {
     Unwrapped,
 }
 
-type MacroMap<'a> = HashMap<&'a str, &'a Macro<'a>>;
+type MacroMap<'a> = HashMap<(Option<&'a str>, &'a str), &'a Macro<'a>>;

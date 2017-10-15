@@ -50,17 +50,17 @@ pub fn build_template(ast: &syn::DeriveInput) -> String {
 
 
 pub struct Imports<'a> {
-    pub sources: Vec<Cow<'a, str>>
+    pub sources: HashMap<&'a str, Cow<'a, str>>
 }
 
 impl <'a> Imports<'a> {
     pub fn new(parent_nodes: &'a [Node], parent_path: &'a Path) -> Imports<'a> {
         let sources = parent_nodes.iter().filter_map(|n| {
             match *n {
-                Node::Import(_, ref import_path) => {
+                Node::Import(_, ref import_path, scope) => {
                     let path = path::find_template_from_path(import_path, Some(parent_path));
                     let src = path::get_template_source(&path);
-                    Some(Cow::Owned(src))
+                    Some((scope, Cow::Owned(src)))
                 },
                 _ => None,
             }
@@ -68,15 +68,17 @@ impl <'a> Imports<'a> {
         Imports { sources }
     }
 
-    pub fn macro_map(&'a self) -> HashMap<&'a str, Macro<'a>> {
-        self.sources.iter()
-            .flat_map(|s| parser::parse(s.as_ref()))
-            .filter_map(|n| {
+    pub fn macro_map(&'a self) -> HashMap<(&'a str, &'a str), Macro<'a>> {
+        let mut macro_map = HashMap::new();
+        for (scope, s) in self.sources.iter() {
+            for n in parser::parse(&s.as_ref()) {
                 match n {
-                    Node::Macro(name, m) => Some((name, m)),
+                    Node::Macro(name, m) => macro_map.insert((*scope, name), m),
                     _ => None,
-                }})
-            .collect()
+                };
+            }
+        }
+        macro_map
     }
 }
 
