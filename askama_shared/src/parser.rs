@@ -162,10 +162,8 @@ named!(expr_path<Expr>, do_parse!(
         (part)
     )) >>
     ({
-        let mut path = vec![ start ];
-        for part in rest.iter() {
-            path.push(part);
-        }
+        let mut path = vec![start];
+        path.extend(rest);
         Expr::Path(path)
     })
 ));
