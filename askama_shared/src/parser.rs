@@ -7,6 +7,7 @@ pub enum Expr<'a> {
     StrLit(&'a str),
     Var(&'a str),
     Path(Vec<&'a str>),
+    Array(Vec<Expr<'a>>),
     Attr(Box<Expr<'a>>, &'a str),
     Filter(&'a str, Vec<Expr<'a>>),
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
@@ -128,6 +129,22 @@ named!(expr_num_lit<Expr>, map!(num_lit,
     |s| Expr::NumLit(s)
 ));
 
+named!(expr_array_lit<Expr>, do_parse!(
+    ws!(tag_s!("[")) >>
+    first: expr_any >>
+    rest: many0!(do_parse!(
+        ws!(tag_s!(",")) >>
+        part: expr_any >>
+        (part)
+    )) >>
+    ws!(tag_s!("]")) >>
+    ({
+        let mut elements = vec![first];
+        elements.extend(rest);
+        Expr::Array(elements)
+    })
+));
+
 named!(expr_str_lit<Expr>, map!(
     delimited!(char!('"'), is_not!("\""), char!('"')),
     |s| Expr::StrLit(str::from_utf8(s).unwrap())
@@ -204,6 +221,7 @@ named!(expr_single<Expr>, alt!(
     expr_num_lit |
     expr_str_lit |
     expr_path |
+    expr_array_lit |
     expr_var |
     expr_group
 ));

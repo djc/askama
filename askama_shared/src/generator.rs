@@ -573,6 +573,7 @@ impl<'a> Generator<'a> {
             Expr::StrLit(s) => self.visit_str_lit(s),
             Expr::Var(s) => self.visit_var(s),
             Expr::Path(ref path) => self.visit_path(path),
+            Expr::Array(ref elements) => self.visit_array(elements),
             Expr::Attr(ref obj, name) => self.visit_attr(obj, name),
             Expr::Filter(name, ref args) => self.visit_filter(name, args),
             Expr::BinOp(op, ref left, ref right) =>
@@ -680,6 +681,18 @@ impl<'a> Generator<'a> {
         self.write("(");
         self.visit_expr(inner);
         self.write(")");
+        DisplayWrap::Unwrapped
+    }
+
+    fn visit_array(&mut self, elements: &Vec<Expr>) -> DisplayWrap {
+        self.write("[");
+        for (i, el) in elements.iter().enumerate() {
+            if i > 0 {
+                self.write(", ");
+            }
+            self.visit_expr(el);
+        }
+        self.write("]");
         DisplayWrap::Unwrapped
     }
 

@@ -184,3 +184,14 @@ fn test_path_compare() {
     let t = PathCompareTemplate { x: Alphabet::Alpha };
     assert_eq!(t.render().unwrap(), "true");
 }
+
+
+#[derive(Template)]
+#[template(source = "{% for i in [1, 2] %}{{ i }}{% endfor %}", ext = "txt")]
+struct ArrayTemplate {}
+
+#[test]
+fn test_slice_literal() {
+    let t = ArrayTemplate {};
+    assert_eq!(t.render().unwrap(), "12");
+}
