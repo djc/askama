@@ -187,11 +187,11 @@ fn test_path_compare() {
 
 
 #[derive(Template)]
-#[template(source = "{% for i in [1, 2] %}{{ i }}{% endfor %}", ext = "txt")]
+#[template(source = "{% for i in [\"a\", \"\"] %}{{ i }}{% endfor %}", ext = "txt")]
 struct ArrayTemplate {}
 
 #[test]
 fn test_slice_literal() {
     let t = ArrayTemplate {};
-    assert_eq!(t.render().unwrap(), "12");
+    assert_eq!(t.render().unwrap(), "a");
 }

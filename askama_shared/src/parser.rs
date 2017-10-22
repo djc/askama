@@ -146,7 +146,7 @@ named!(expr_array_lit<Expr>, do_parse!(
 ));
 
 named!(expr_str_lit<Expr>, map!(
-    delimited!(char!('"'), is_not!("\""), char!('"')),
+    delimited!(char!('"'), take_until!("\""), char!('"')),
     |s| Expr::StrLit(str::from_utf8(s).unwrap())
 ));
 
