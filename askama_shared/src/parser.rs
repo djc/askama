@@ -16,6 +16,14 @@ pub enum Expr<'a> {
 }
 
 #[derive(Debug)]
+pub enum MatchVariant<'a> {
+    Path(Vec<&'a str>),
+    Name(&'a str),
+    NumLit(&'a str),
+    StrLit(&'a str),
+}
+
+#[derive(Debug)]
 pub enum MatchParameter<'a> {
     Name(&'a str),
     NumLit(&'a str),
@@ -57,7 +65,7 @@ pub enum Node<'a> {
 }
 
 pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
-pub type When<'a> = (WS, Option<MatchParameter<'a>>, Vec<MatchParameter<'a>>, Vec<Node<'a>>);
+pub type When<'a> = (WS, Option<MatchVariant<'a>>, Vec<MatchParameter<'a>>, Vec<Node<'a>>);
 
 fn split_ws_parts(s: &[u8]) -> Node {
     if s.is_empty() {
@@ -154,6 +162,10 @@ named!(expr_array_lit<Expr>, do_parse!(
     })
 ));
 
+named!(variant_num_lit<MatchVariant>, map!(num_lit,
+    |s| MatchVariant::NumLit(s)
+));
+
 named!(param_num_lit<MatchParameter>, map!(num_lit,
     |s| MatchParameter::NumLit(s)
 ));
@@ -161,6 +173,11 @@ named!(param_num_lit<MatchParameter>, map!(num_lit,
 named!(expr_str_lit<Expr>, map!(
     delimited!(char!('"'), take_until!("\""), char!('"')),
     |s| Expr::StrLit(str::from_utf8(s).unwrap())
+));
+
+named!(variant_str_lit<MatchVariant>, map!(
+    delimited!(char!('"'), is_not!("\""), char!('"')),
+    |s| MatchVariant::StrLit(str::from_utf8(s).unwrap())
 ));
 
 named!(param_str_lit<MatchParameter>, map!(
@@ -186,8 +203,26 @@ named!(expr_path<Expr>, do_parse!(
     })
 ));
 
+named!(variant_path<MatchVariant>, do_parse!(
+    start: call!(identifier) >>
+    rest: many1!(do_parse!(
+        tag_s!("::") >>
+        part: identifier >>
+        (part)
+    )) >>
+    ({
+        let mut path = vec![start];
+        path.extend(rest);
+        MatchVariant::Path(path)
+    })
+));
+
 named!(target_single<Target>, map!(identifier,
     |s| Target::Name(s)
+));
+
+named!(variant_name<MatchVariant>, map!(identifier,
+    |s| MatchVariant::Name(s)
 ));
 
 named!(param_name<MatchParameter>, map!(identifier,
@@ -264,6 +299,13 @@ named!(expr_single<Expr>, alt!(
     expr_array_lit |
     expr_var |
     expr_group
+));
+
+named!(match_variant<MatchVariant>, alt!(
+    variant_path |
+    variant_name |
+    variant_num_lit |
+    variant_str_lit
 ));
 
 named!(match_parameter<MatchParameter>, alt!(
@@ -421,7 +463,7 @@ named!(when_block<When>, do_parse!(
     tag_s!("{%") >>
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("when")) >>
-    variant: ws!(match_parameter) >>
+    variant: ws!(match_variant) >>
     params: opt!(ws!(with_parameters)) >>
     nws: opt!(tag_s!("-")) >>
     tag_s!("%}") >>
