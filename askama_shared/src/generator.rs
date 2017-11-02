@@ -1,6 +1,6 @@
 use filters;
 use input::TemplateInput;
-use parser::{self, Cond, Expr, Macro, MatchParameter, Node, Target, When, WS};
+use parser::{self, Cond, Expr, Macro, MatchParameter, MatchVariant, Node, Target, When, WS};
 use path;
 
 use quote::{Tokens, ToTokens};
@@ -635,17 +635,22 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn visit_match_variant(&mut self, param: &MatchParameter) -> DisplayWrap {
+    fn visit_match_variant(&mut self, param: &MatchVariant) -> DisplayWrap {
         match *param {
-            MatchParameter::StrLit(s) => self.visit_str_lit(s),
-            MatchParameter::NumLit(s) => {
+            MatchVariant::StrLit(s) => self.visit_str_lit(s),
+            MatchVariant::NumLit(s) => {
                 // Variants need to be references until match-modes land
                 self.write("&");
                 self.visit_num_lit(s)
             },
-            MatchParameter::Name(s) => {
+            MatchVariant::Name(s) => {
                 self.write("&");
                 self.write(s);
+                DisplayWrap::Unwrapped
+            }
+            MatchVariant::Path(ref s) => {
+                self.write("&");
+                self.write(&s.join("::"));
                 DisplayWrap::Unwrapped
             }
         }

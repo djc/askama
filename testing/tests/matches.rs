@@ -63,3 +63,22 @@ fn test_match_literal_num() {
     let s = MatchLitNumTemplate { item: 23 };
     assert_eq!(s.render().unwrap(), "\n\nElse found 23\n");
 }
+
+#[allow(dead_code)]
+enum Color {
+    Rgb(u32, u32, u32),
+    GrayScale(u32),
+    Cmyk(u32, u32, u32, u32)
+}
+
+#[derive(Template)]
+#[template(path = "match-custom-enum.html")]
+struct MatchCustomEnumTemplate {
+    color: Color,
+}
+
+#[test]
+fn test_match_custom_enum() {
+    let s = MatchCustomEnumTemplate { color: Color::Rgb(160, 0, 255) };
+    assert_eq!(s.render().unwrap(), "\n\nColorful: #A000FF\n");
+}

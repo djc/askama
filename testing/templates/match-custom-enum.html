@@ -1,0 +1,8 @@
+{% match color %}
+{% when Color::Rgb with (r, g, b) %}
+Colorful: #{{ "{:02X}"|format(r) }}{{ "{:02X}"|format(g) }}{{ "{:02X}"|format(b) }}
+{% when Color::GrayScale with (val) %}
+Gray: #{{ "{:02X}"|format(val) }}{{ "{:02X}"|format(val) }}{{ "{:02X}"|format(val) }}
+{% else %}
+CMYK not supported
+{% endmatch %}
