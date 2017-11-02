@@ -1,6 +1,6 @@
 use filters;
 use input::TemplateInput;
-use parser::{self, Cond, Expr, Macro, Node, Target, WS};
+use parser::{self, Cond, Expr, Macro, MatchParameter, MatchVariant, Node, Target, When, WS};
 use path;
 
 use quote::{Tokens, ToTokens};
@@ -161,6 +161,7 @@ impl<'a> Generator<'a> {
         self.write_header(state, "::askama::Template", &[]);
         self.writeln("fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
                       ::askama::Result<()> {");
+        self.writeln("#[allow(unused_imports)] use ::std::ops::Deref as HiddenDerefTrait;");
         self.handle(state, state.nodes, AstLevel::Top);
         self.flush_ws(&WS(false, false));
         self.writeln("Ok(())");
@@ -199,6 +200,7 @@ impl<'a> Generator<'a> {
             "fn render_trait_into(&self, timpl: &{}, writer: &mut ::std::fmt::Write) \
              -> ::askama::Result<()> {{",
             state.trait_name));
+        self.writeln("#[allow(unused_imports)] use ::std::ops::Deref as HiddenDerefTrait;");
 
         if let Some(nodes) = nodes {
             self.handle(state, nodes, AstLevel::Top);
@@ -339,6 +341,9 @@ impl<'a> Generator<'a> {
                 Node::Cond(ref conds, ref ws) => {
                     self.write_cond(state, conds, ws);
                 },
+                Node::Match(ref ws1, ref expr, ref arms, ref ws2) => {
+                    self.write_match(state, ws1, expr, arms, ws2);
+                },
                 Node::Loop(ref ws1, ref var, ref iter, ref body, ref ws2) => {
                     self.write_loop(state, ws1, var, iter, body, ws2);
                 },
@@ -426,6 +431,47 @@ impl<'a> Generator<'a> {
         }
         self.handle_ws(ws);
         self.writeln("}");
+    }
+
+    fn write_match(&mut self, state: &'a State, ws1: &WS, expr: &Expr, arms: &'a [When], ws2: &WS) {
+        self.handle_ws(ws1);
+        self.write("match ");
+        self.write("(&");
+        self.visit_expr(expr);
+        self.write(").deref()");
+        self.writeln(" {");
+
+        for arm in arms {
+            let &(ref ws, ref variant, ref params, ref body) = arm;
+            self.locals.push();
+            match *variant {
+                Some(ref param) => {
+                    self.visit_match_variant(param);
+                },
+                None => self.write("_"),
+            };
+            if params.len() > 0 {
+                self.write("(");
+                for (i, param) in params.iter().enumerate() {
+                    if let MatchParameter::Name(ref p) = *param {
+                        self.locals.insert(p);
+                    }
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.visit_match_param(param);
+                }
+                self.write(")");
+            }
+            self.writeln(" => {");
+            self.handle_ws(ws);
+            self.handle(state, body, AstLevel::Nested);
+            self.writeln("}");
+            self.locals.pop();
+        }
+
+        self.writeln("}");
+        self.handle_ws(ws2);
     }
 
     fn write_loop(&mut self, state: &'a State, ws1: &WS, var: &'a Target, iter: &Expr,
@@ -581,6 +627,39 @@ impl<'a> Generator<'a> {
             Expr::Group(ref inner) => self.visit_group(inner),
             Expr::MethodCall(ref obj, method, ref args) =>
                 self.visit_method_call(obj, method, args),
+        }
+    }
+
+    fn visit_match_variant(&mut self, param: &MatchVariant) -> DisplayWrap {
+        match *param {
+            MatchVariant::StrLit(s) => self.visit_str_lit(s),
+            MatchVariant::NumLit(s) => {
+                // Variants need to be references until match-modes land
+                self.write("&");
+                self.visit_num_lit(s)
+            },
+            MatchVariant::Name(s) => {
+                self.write("&");
+                self.write(s);
+                DisplayWrap::Unwrapped
+            }
+            MatchVariant::Path(ref s) => {
+                self.write("&");
+                self.write(&s.join("::"));
+                DisplayWrap::Unwrapped
+            }
+        }
+    }
+
+    fn visit_match_param(&mut self, param: &MatchParameter) -> DisplayWrap {
+        match *param {
+            MatchParameter::NumLit(s) => self.visit_num_lit(s),
+            MatchParameter::StrLit(s) => self.visit_str_lit(s),
+            MatchParameter::Name(s) => {
+                self.write("ref ");
+                self.write(s);
+                DisplayWrap::Unwrapped
+            }
         }
     }
 

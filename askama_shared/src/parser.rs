@@ -16,6 +16,21 @@ pub enum Expr<'a> {
 }
 
 #[derive(Debug)]
+pub enum MatchVariant<'a> {
+    Path(Vec<&'a str>),
+    Name(&'a str),
+    NumLit(&'a str),
+    StrLit(&'a str),
+}
+
+#[derive(Debug)]
+pub enum MatchParameter<'a> {
+    Name(&'a str),
+    NumLit(&'a str),
+    StrLit(&'a str),
+}
+
+#[derive(Debug)]
 pub enum Target<'a> {
     Name(&'a str),
 }
@@ -40,6 +55,7 @@ pub enum Node<'a> {
     LetDecl(WS, Target<'a>),
     Let(WS, Target<'a>, Expr<'a>),
     Cond(Vec<(WS, Option<Expr<'a>>, Vec<Node<'a>>)>, WS),
+    Match(WS, Expr<'a>, Vec<When<'a>>, WS),
     Loop(WS, Target<'a>, Expr<'a>, Vec<Node<'a>>, WS),
     Extends(Expr<'a>),
     BlockDef(WS, &'a str, Vec<Node<'a>>, WS),
@@ -49,6 +65,7 @@ pub enum Node<'a> {
 }
 
 pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
+pub type When<'a> = (WS, Option<MatchVariant<'a>>, Vec<MatchParameter<'a>>, Vec<Node<'a>>);
 
 fn split_ws_parts(s: &[u8]) -> Node {
     if s.is_empty() {
@@ -145,9 +162,27 @@ named!(expr_array_lit<Expr>, do_parse!(
     })
 ));
 
+named!(variant_num_lit<MatchVariant>, map!(num_lit,
+    |s| MatchVariant::NumLit(s)
+));
+
+named!(param_num_lit<MatchParameter>, map!(num_lit,
+    |s| MatchParameter::NumLit(s)
+));
+
 named!(expr_str_lit<Expr>, map!(
     delimited!(char!('"'), take_until!("\""), char!('"')),
     |s| Expr::StrLit(str::from_utf8(s).unwrap())
+));
+
+named!(variant_str_lit<MatchVariant>, map!(
+    delimited!(char!('"'), is_not!("\""), char!('"')),
+    |s| MatchVariant::StrLit(str::from_utf8(s).unwrap())
+));
+
+named!(param_str_lit<MatchParameter>, map!(
+    delimited!(char!('"'), is_not!("\""), char!('"')),
+    |s| MatchParameter::StrLit(str::from_utf8(s).unwrap())
 ));
 
 named!(expr_var<Expr>, map!(identifier,
@@ -168,8 +203,30 @@ named!(expr_path<Expr>, do_parse!(
     })
 ));
 
+named!(variant_path<MatchVariant>, do_parse!(
+    start: call!(identifier) >>
+    rest: many1!(do_parse!(
+        tag_s!("::") >>
+        part: identifier >>
+        (part)
+    )) >>
+    ({
+        let mut path = vec![start];
+        path.extend(rest);
+        MatchVariant::Path(path)
+    })
+));
+
 named!(target_single<Target>, map!(identifier,
     |s| Target::Name(s)
+));
+
+named!(variant_name<MatchVariant>, map!(identifier,
+    |s| MatchVariant::Name(s)
+));
+
+named!(param_name<MatchParameter>, map!(identifier,
+    |s| MatchParameter::Name(s)
 ));
 
 named!(arguments<Vec<Expr>>, do_parse!(
@@ -210,6 +267,26 @@ named!(parameters<Vec<&'a str>>, do_parse!(
     (vals.unwrap_or_default())
 ));
 
+named!(with_parameters<Vec<MatchParameter>>, do_parse!(
+    tag_s!("with") >>
+    ws!(tag_s!("(")) >>
+    vals: opt!(do_parse!(
+        arg0: ws!(match_parameter) >>
+        args: many0!(do_parse!(
+            tag_s!(",") >>
+            argn: ws!(match_parameter) >>
+            (argn)
+        )) >>
+        ({
+            let mut res = vec![arg0];
+            res.extend(args);
+            res
+        })
+    )) >>
+    tag_s!(")") >>
+    (vals.unwrap_or_default())
+));
+
 named!(expr_group<Expr>, map!(
     delimited!(char!('('), expr_any, char!(')')),
     |s| Expr::Group(Box::new(s))
@@ -222,6 +299,19 @@ named!(expr_single<Expr>, alt!(
     expr_array_lit |
     expr_var |
     expr_group
+));
+
+named!(match_variant<MatchVariant>, alt!(
+    variant_path |
+    variant_name |
+    variant_num_lit |
+    variant_str_lit
+));
+
+named!(match_parameter<MatchParameter>, alt!(
+    param_name |
+    param_num_lit |
+    param_str_lit
 ));
 
 named!(attr<(&str, Option<Vec<Expr>>)>, do_parse!(
@@ -359,6 +449,49 @@ named!(block_if<Node>, do_parse!(
     })
 ));
 
+named!(match_else_block<When>, do_parse!(
+    tag_s!("{%") >>
+    pws: opt!(tag_s!("-")) >>
+    ws!(tag_s!("else")) >>
+    nws: opt!(tag_s!("-")) >>
+    tag_s!("%}") >>
+    block: parse_template >>
+    (WS(pws.is_some(), nws.is_some()), None, vec![], block)
+));
+
+named!(when_block<When>, do_parse!(
+    tag_s!("{%") >>
+    pws: opt!(tag_s!("-")) >>
+    ws!(tag_s!("when")) >>
+    variant: ws!(match_variant) >>
+    params: opt!(ws!(with_parameters)) >>
+    nws: opt!(tag_s!("-")) >>
+    tag_s!("%}") >>
+    block: parse_template >>
+    (WS(pws.is_some(), nws.is_some()), Some(variant), params.unwrap_or_default(), block)
+));
+
+named!(block_match<Node>, do_parse!(
+    pws1: opt!(tag_s!("-")) >>
+    ws!(tag_s!("match")) >>
+    expr: ws!(expr_any) >>
+    nws1: opt!(tag_s!("-")) >>
+    ws!(tag_s!("%}")) >>
+    arms: many1!(when_block) >>
+    else_arm: opt!(match_else_block) >>
+    ws!(tag_s!("{%")) >>
+    pws2: opt!(tag_s!("-")) >>
+    ws!(tag_s!("endmatch")) >>
+    nws2: opt!(tag_s!("-")) >>
+    ({
+        let mut arms = arms;
+        if let Some(arm) = else_arm {
+            arms.push(arm);
+        }
+        Node::Match(WS(pws1.is_some(), nws1.is_some()), expr, arms, WS(pws2.is_some(), nws2.is_some()))
+    })
+));
+
 named!(block_let<Node>, do_parse!(
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("let")) >>
@@ -471,6 +604,7 @@ named!(block_node<Node>, do_parse!(
         block_let |
         block_if |
         block_for |
+        block_match |
         block_extends |
         block_include |
         block_import |
