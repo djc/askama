@@ -92,7 +92,7 @@ impl<'a> TemplateMeta<'a> {
                             } else {
                                 panic!("ext value must be string literal");
                             },
-                            _ => { panic!("unsupported annotation key found") }
+                            attr @ _ => { panic!("unsupported annotation key '{}' found", attr) }
                         }
                     }
                 }
