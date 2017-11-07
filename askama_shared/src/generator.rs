@@ -821,11 +821,16 @@ impl<'a> Generator<'a> {
 
     /* Helper methods for dealing with whitespace nodes */
 
+    // Combines `flush_ws()` and `prepare_ws()` to handle both trailing whitespace from the
+    // preceding literal and leading whitespace from the succeeding literal.
     fn handle_ws(&mut self, ws: &WS) {
         self.flush_ws(ws);
         self.prepare_ws(ws);
     }
 
+    // If the previous literal left some trailing whitespace in `next_ws` and the
+    // prefix whitespace suppressor from the given argument, flush that whitespace.
+    // In either case, `next_ws` is reset to `None` (no trailing whitespace).
     fn flush_ws(&mut self, ws: &WS) {
         if self.next_ws.is_some() && !ws.0 {
             let val = self.next_ws.unwrap();
@@ -837,6 +842,9 @@ impl<'a> Generator<'a> {
         self.next_ws = None;
     }
 
+    // Sets `skip_ws` to match the suffix whitespace suppressor from the given
+    // argument, to determine whether to suppress leading whitespace from the
+    // next literal.
     fn prepare_ws(&mut self, ws: &WS) {
         self.skip_ws = ws.1;
     }
