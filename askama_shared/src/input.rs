@@ -92,7 +92,7 @@ impl<'a> TemplateMeta<'a> {
                             } else {
                                 panic!("ext value must be string literal");
                             },
-                            attr @ _ => { panic!("unsupported annotation key '{}' found", attr) }
+                            attr @ _ => panic!("unsupported annotation key '{}' found", attr),
                         }
                     }
                 }
@@ -123,7 +123,7 @@ impl<'a> TemplateMeta<'a> {
                 } else {
                     EscapeMode::None
                 }
-            }
+            },
         };
         TemplateMeta { source, print, escaping, ext }
     }

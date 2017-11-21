@@ -21,7 +21,7 @@ mod input;
 mod parser;
 
 use input::Print;
-use parser::{Node, Macro};
+use parser::{Macro, Node};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -50,10 +50,10 @@ pub fn build_template(ast: &syn::DeriveInput) -> String {
 
 
 pub struct Imports<'a> {
-    pub sources: HashMap<&'a str, Cow<'a, str>>
+    pub sources: HashMap<&'a str, Cow<'a, str>>,
 }
 
-impl <'a> Imports<'a> {
+impl<'a> Imports<'a> {
     pub fn new(parent_nodes: &'a [Node], parent_path: &'a Path) -> Imports<'a> {
         let sources = parent_nodes.iter().filter_map(|n| {
             match *n {

@@ -18,9 +18,11 @@ fn filter_escape() {
     let s = TestTemplate {
         strvar: "// my <html> is \"unsafe\" & should be 'escaped'".to_string(),
     };
-    assert_eq!(s.render().unwrap(),
-               "&#x2f;&#x2f; my &lt;html&gt; is &quot;unsafe&quot; &amp; \
-                should be &#x27;escaped&#x27;");
+    assert_eq!(
+        s.render().unwrap(),
+        "&#x2f;&#x2f; my &lt;html&gt; is &quot;unsafe&quot; &amp; \
+         should be &#x27;escaped&#x27;"
+    );
 }
 
 
@@ -57,7 +59,7 @@ fn test_my_filter() {
 
 
 #[derive(Template)]
-#[template(path= "filters_join.html")]
+#[template(path = "filters_join.html")]
 struct JoinTemplate<'a> {
     s: &'a [&'a str],
 }
@@ -69,9 +71,9 @@ fn test_join() {
 }
 
 #[derive(Template)]
-#[template(path= "filters_join.html")]
+#[template(path = "filters_join.html")]
 struct VecJoinTemplate {
-    s: Vec<String>
+    s: Vec<String>,
 }
 
 #[test]
@@ -90,10 +92,12 @@ struct JsonTemplate<'a> {
 
 #[test]
 fn test_json() {
-    let val =  json!({"arr": [ "one", 2, true, null ]});
+    let val = json!({"arr": [ "one", 2, true, null ]});
     let t = JsonTemplate { foo: "a", bar: &val };
     // Note: the json filter lacks a way to specify initial indentation
-    assert_eq!(t.render().unwrap(), r#"{
+    assert_eq!(
+        t.render().unwrap(),
+        r#"{
   "foo": "a",
   "bar": {
   "arr": [
@@ -103,5 +107,6 @@ fn test_json() {
     null
   ]
 }
-}"#);
+}"#
+    );
 }

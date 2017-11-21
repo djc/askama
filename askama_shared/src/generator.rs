@@ -3,7 +3,7 @@ use input::TemplateInput;
 use parser::{self, Cond, Expr, Macro, MatchParameter, MatchVariant, Node, Target, When, WS};
 use path;
 
-use quote::{Tokens, ToTokens};
+use quote::{ToTokens, Tokens};
 
 use std::{cmp, hash, str};
 use std::path::Path;
@@ -34,11 +34,11 @@ impl<'a> State<'a> {
         let mut macros = HashMap::new();
         for n in nodes.iter() {
             match *n {
-                Node::Extends(ref path) => {
-                    match base {
-                        Some(_) => panic!("multiple extend blocks found"),
-                        None => { base = Some(path); },
-                    }
+                Node::Extends(ref path) => match base {
+                    Some(_) => panic!("multiple extend blocks found"),
+                    None => {
+                        base = Some(path);
+                    },
                 },
                 ref def @ Node::BlockDef(_, _, _, _) => {
                     blocks.push(def);
@@ -65,9 +65,7 @@ impl<'a> State<'a> {
 
 fn trait_name_for_path(base: &Option<&Expr>, path: &Path) -> String {
     let rooted_path = match *base {
-        Some(&Expr::StrLit(user_path)) => {
-            path::find_template_from_path(user_path, Some(path))
-        },
+        Some(&Expr::StrLit(user_path)) => path::find_template_from_path(user_path, Some(path)),
         _ => path.to_path_buf(),
     };
 
@@ -85,17 +83,15 @@ fn trait_name_for_path(base: &Option<&Expr>, path: &Path) -> String {
 
 fn get_parent_type(ast: &syn::DeriveInput) -> Option<&syn::Ty> {
     match ast.body {
-        syn::Body::Struct(ref data) => {
-            data.fields().iter().filter_map(|f| {
-                f.ident.as_ref().and_then(|name| {
-                    if name.as_ref() == "_parent" {
-                        Some(&f.ty)
-                    } else {
-                        None
-                    }
-                })
+        syn::Body::Struct(ref data) => data.fields().iter().filter_map(|f| {
+            f.ident.as_ref().and_then(|name| {
+                if name.as_ref() == "_parent" {
+                    Some(&f.ty)
+                } else {
+                    None
+                }
             })
-        },
+        }),
         _ => panic!("derive(Template) only works for struct items"),
     }.next()
 }
@@ -110,7 +106,6 @@ struct Generator<'a> {
 }
 
 impl<'a> Generator<'a> {
-
     fn new<'n>(locals: SetChain<'n, &'n str>, indent: u8) -> Generator<'n> {
         Generator {
             buf: String::new(),
@@ -142,7 +137,11 @@ impl<'a> Generator<'a> {
                 self.deref_to_parent(state, parent_type);
             }
 
-            let trait_nodes = if !state.derived { Some(&state.nodes[..]) } else { None };
+            let trait_nodes = if !state.derived {
+                Some(&state.nodes[..])
+            } else {
+                None
+            };
             self.impl_trait(state, trait_nodes);
             self.impl_template_for_trait(state);
         } else {
@@ -201,7 +200,8 @@ impl<'a> Generator<'a> {
         self.writeln(&format!(
             "fn render_trait_into(&self, timpl: &{}, writer: &mut ::std::fmt::Write) \
              -> ::askama::Result<()> {{",
-            state.trait_name));
+            state.trait_name
+        ));
         self.writeln("#[allow(unused_imports)] use ::std::ops::Deref as HiddenDerefTrait;");
 
         if let Some(nodes) = nodes {
@@ -335,11 +335,19 @@ impl<'a> Generator<'a> {
     fn handle(&mut self, state: &'a State, nodes: &'a [Node], level: AstLevel) {
         for n in nodes {
             match *n {
-                Node::Lit(lws, val, rws) => { self.write_lit(lws, val, rws); }
+                Node::Lit(lws, val, rws) => {
+                    self.write_lit(lws, val, rws);
+                },
                 Node::Comment() => {},
-                Node::Expr(ref ws, ref val) => { self.write_expr(state, ws, val); },
-                Node::LetDecl(ref ws, ref var) => { self.write_let_decl(ws, var); },
-                Node::Let(ref ws, ref var, ref val) => { self.write_let(ws, var, val); },
+                Node::Expr(ref ws, ref val) => {
+                    self.write_expr(state, ws, val);
+                },
+                Node::LetDecl(ref ws, ref var) => {
+                    self.write_let_decl(ws, var);
+                },
+                Node::Let(ref ws, ref var, ref val) => {
+                    self.write_let(ws, var, val);
+                },
                 Node::Cond(ref conds, ref ws) => {
                     self.write_cond(state, conds, ws);
                 },
@@ -392,7 +400,8 @@ impl<'a> Generator<'a> {
                 self.writeln(&format!(
                     "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
                      -> ::askama::Result<()> {{",
-                    name));
+                    name
+                ));
                 self.prepare_ws(ws1);
 
                 self.locals.push();
@@ -606,8 +615,7 @@ impl<'a> Generator<'a> {
                 assert!(rws.is_empty());
                 self.next_ws = Some(lws);
             } else {
-                self.writeln(&format!("writer.write_str({:#?})?;",
-                                      lws));
+                self.writeln(&format!("writer.write_str({:#?})?;", lws));
             }
         }
         if !val.is_empty() {
@@ -629,11 +637,11 @@ impl<'a> Generator<'a> {
             Expr::Array(ref elements) => self.visit_array(elements),
             Expr::Attr(ref obj, name) => self.visit_attr(obj, name),
             Expr::Filter(name, ref args) => self.visit_filter(name, args),
-            Expr::BinOp(op, ref left, ref right) =>
-                self.visit_binop(op, left, right),
+            Expr::BinOp(op, ref left, ref right) => self.visit_binop(op, left, right),
             Expr::Group(ref inner) => self.visit_group(inner),
-            Expr::MethodCall(ref obj, method, ref args) =>
-                self.visit_method_call(obj, method, args),
+            Expr::MethodCall(ref obj, method, ref args) => {
+                self.visit_method_call(obj, method, args)
+            },
         }
     }
 
@@ -649,12 +657,12 @@ impl<'a> Generator<'a> {
                 self.write("&");
                 self.write(s);
                 DisplayWrap::Unwrapped
-            }
+            },
             MatchVariant::Path(ref s) => {
                 self.write("&");
                 self.write(&s.join("::"));
                 DisplayWrap::Unwrapped
-            }
+            },
         }
     }
 
@@ -666,7 +674,7 @@ impl<'a> Generator<'a> {
                 self.write("ref ");
                 self.write(s);
                 DisplayWrap::Unwrapped
-            }
+            },
         }
     }
 
@@ -817,7 +825,7 @@ impl<'a> Generator<'a> {
 
     fn visit_target<'t>(&mut self, target: &'t Target) -> Vec<&'t str> {
         match *target {
-            Target::Name(s) => { self.visit_target_single(s) },
+            Target::Name(s) => self.visit_target_single(s),
         }
     }
 
@@ -837,8 +845,7 @@ impl<'a> Generator<'a> {
         if self.next_ws.is_some() && !ws.0 {
             let val = self.next_ws.unwrap();
             if !val.is_empty() {
-                self.writeln(&format!("writer.write_str({:#?})?;",
-                                      val));
+                self.writeln(&format!("writer.write_str({:#?})?;", val));
             }
         }
         self.next_ws = None;
@@ -903,11 +910,10 @@ impl<'a, T: 'a> SetChain<'a, T> where T: cmp::Eq + hash::Hash {
         SetChain { parent: Some(parent), scopes: vec![HashSet::new()] }
     }
     fn contains(&self, val: T) -> bool {
-        self.scopes.iter().rev().any(|set| set.contains(&val)) ||
-            match self.parent {
-                Some(set) => set.contains(val),
-                None => false,
-            }
+        self.scopes.iter().rev().any(|set| set.contains(&val)) || match self.parent {
+            Some(set) => set.contains(val),
+            None => false,
+        }
     }
     fn insert(&mut self, val: T) {
         self.scopes.last_mut().unwrap().insert(val);

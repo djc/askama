@@ -35,10 +35,10 @@ fn test_operators() {
 
 #[derive(Template)]
 #[template(path = "precedence.html")]
-struct PrecedenceTemplate { }
+struct PrecedenceTemplate {}
 
 #[test]
 fn test_precedence() {
-    let t = PrecedenceTemplate { };
+    let t = PrecedenceTemplate {};
     assert_eq!(t.render().unwrap(), "6".repeat(7));
 }

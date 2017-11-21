@@ -26,10 +26,12 @@ mod tests {
     fn test_json() {
         assert_eq!(json(&true).unwrap().unsafe_string(), "true");
         assert_eq!(json(&"foo").unwrap().unsafe_string(), r#""foo""#);
-        assert_eq!(json(&vec!["foo", "bar"]).unwrap().unsafe_string(),
-r#"[
+        assert_eq!(
+            json(&vec!["foo", "bar"]).unwrap().unsafe_string(),
+            r#"[
   "foo",
   "bar"
-]"#);
+]"#
+        );
     }
 }

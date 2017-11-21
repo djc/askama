@@ -67,7 +67,7 @@ where
 /// Rust). All arguments are passed through to the `format!()`
 /// [macro](https://doc.rust-lang.org/stable/std/macro.format.html) by
 /// the Askama code generator.
-pub fn format() { }
+pub fn format() {}
 
 /// Converts to lowercase.
 pub fn lower(s: &fmt::Display) -> Result<String> {
@@ -145,16 +145,28 @@ mod tests {
 
     #[test]
     fn test_join() {
-        assert_eq!(join((&["hello", "world"]).into_iter(), ", ").unwrap(), "hello, world");
+        assert_eq!(
+            join((&["hello", "world"]).into_iter(), ", ").unwrap(),
+            "hello, world"
+        );
         assert_eq!(join((&["hello"]).into_iter(), ", ").unwrap(), "hello");
 
         let empty: &[&str] = &[];
         assert_eq!(join(empty.into_iter(), ", ").unwrap(), "");
 
         let input: Vec<String> = vec!["foo".into(), "bar".into(), "bazz".into()];
-        assert_eq!(join((&input).into_iter(), ":".to_string()).unwrap(), "foo:bar:bazz");
-        assert_eq!(join(input.clone().into_iter(), ":").unwrap(), "foo:bar:bazz");
-        assert_eq!(join(input.clone().into_iter(), ":".to_string()).unwrap(), "foo:bar:bazz");
+        assert_eq!(
+            join((&input).into_iter(), ":".to_string()).unwrap(),
+            "foo:bar:bazz"
+        );
+        assert_eq!(
+            join(input.clone().into_iter(), ":").unwrap(),
+            "foo:bar:bazz"
+        );
+        assert_eq!(
+            join(input.clone().into_iter(), ":".to_string()).unwrap(),
+            "foo:bar:bazz"
+        );
 
         let input: &[String] = &["foo".into(), "bar".into()];
         assert_eq!(join(input.into_iter(), ":").unwrap(), "foo:bar");
@@ -164,6 +176,9 @@ mod tests {
         let input: Vec<&str> = vec![&real];
         assert_eq!(join(input.into_iter(), ";").unwrap(), "blah");
 
-        assert_eq!(join((&&&&&["foo", "bar"]).into_iter(), ", ").unwrap(), "foo, bar");
+        assert_eq!(
+            join((&&&&&["foo", "bar"]).into_iter(), ", ").unwrap(),
+            "foo, bar"
+        );
     }
 }

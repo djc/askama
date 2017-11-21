@@ -68,7 +68,7 @@ fn test_match_literal_num() {
 enum Color {
     Rgb(u32, u32, u32),
     GrayScale(u32),
-    Cmyk(u32, u32, u32, u32)
+    Cmyk(u32, u32, u32, u32),
 }
 
 #[derive(Template)]

@@ -19,10 +19,13 @@ fn test_variables() {
         num: 42,
         i18n: "Iñtërnâtiônàlizætiøn".to_string(),
     };
-    assert_eq!(s.render().unwrap(), "\nhello world, foo\n\
-                                     with number: 42\n\
-                                     Iñtërnâtiônàlizætiøn is important\n\
-                                     in vars too: Iñtërnâtiônàlizætiøn");
+    assert_eq!(
+        s.render().unwrap(),
+        "\nhello world, foo\n\
+         with number: 42\n\
+         Iñtërnâtiônàlizætiøn is important\n\
+         in vars too: Iñtërnâtiônàlizætiøn"
+    );
 }
 
 
@@ -118,9 +121,7 @@ struct NestedAttrTemplate {
 
 #[test]
 fn test_nested_attr() {
-    let t = NestedAttrTemplate {
-        inner: NestedHolder { holder: Holder { a: 5 } }
-    };
+    let t = NestedAttrTemplate { inner: NestedHolder { holder: Holder { a: 5 } } };
     assert_eq!(t.render().unwrap(), "5");
 }
 

@@ -8,8 +8,7 @@ pub fn get_template_source(tpl_path: &Path) -> String {
     path.push(tpl_path);
     let mut f = match File::open(&path) {
         Err(_) => {
-            let msg = format!("unable to open template file '{}'",
-                              &path.to_str().unwrap());
+            let msg = format!("unable to open template file '{}'", &path.to_str().unwrap());
             panic!(msg)
         },
         Ok(f) => f,

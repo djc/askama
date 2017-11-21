@@ -11,12 +11,12 @@ impl<T> MarkupDisplay<T> where T: Display {
     pub fn mark_safe(self) -> MarkupDisplay<T> {
         match self {
             MarkupDisplay::Unsafe(t) => MarkupDisplay::Safe(t),
-            _ => { self },
+            _ => self,
         }
     }
     pub fn unsafe_string(&self) -> String {
         match *self {
-            MarkupDisplay::Safe(ref t) | MarkupDisplay::Unsafe(ref t) => format!("{}", t)
+            MarkupDisplay::Safe(ref t) | MarkupDisplay::Unsafe(ref t) => format!("{}", t),
         }
     }
 }
@@ -30,12 +30,8 @@ impl<T> From<T> for MarkupDisplay<T> where T: Display {
 impl<T> Display for MarkupDisplay<T> where T: Display {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            MarkupDisplay::Unsafe(_) => {
-                write!(f, "{}", escape(self.unsafe_string()))
-            },
-            MarkupDisplay::Safe(ref t) => {
-                t.fmt(f)
-            },
+            MarkupDisplay::Unsafe(_) => write!(f, "{}", escape(self.unsafe_string())),
+            MarkupDisplay::Safe(ref t) => t.fmt(f),
         }
     }
 }
