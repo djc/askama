@@ -47,16 +47,12 @@
 //!   (`none`), the parsed syntax tree (`ast`), the generated code (`code`)
 //!   or `all` for both. The requested data will be printed to stdout at
 //!   compile time.
-//! * `escape` (as `escape = "none"`): change escape mode for expression
-//!   output. By default, Askama infers the escape mode from the template
-//!   file name (with `path`) or specified extension (`ext`): if the extension
-//!   is `html`, `htm` or `xml`, the `html` escape mode is used; otherwise,
-//!   no implicit escaping is done. The escape mode can be overridden by
-//!   specifying it manually, enabling it with `escape = "html"` or disabling
-//!   with `escape = "none"`. The `html` escape mode escapes content according
-//!   to the [OWASP escaping recommendations][owasp].
-//!
-//! [owasp]: https://www.owasp.org/index.php/XSS_(Cross_Site_Scripting)_Prevention_Cheat_Sheet#RULE_.231_-_HTML_Escape_Before_Inserting_Untrusted_Data_into_HTML_Element_Content
+//! * `escape` (as `escape = "none"`): set the escape mode for expression
+//!   output; the currently implemented modes are `none` and `html`. Askama
+//!   infers the escape mode from the template file name (with `path`) or
+//!   specified extension (`ext`): if the extension is `html`, `htm` or `xml`,
+//!   the `html` escape mode is used; otherwise, no implicit escaping is done.
+//!   Setting an escape mode explicitly overrides the inferred value.
 //!
 //!
 //! ## Variables
@@ -160,9 +156,20 @@
 //!
 //! ## HTML escaping
 //!
-//! Askama does not yet support automatic escaping. Care must be taken to
-//! escape content that may contain HTML control characters. You can use
-//! the `escape` filter (or its `e` alias) to escape data for use in HTML.
+//! Askama by default escapes variables if it thinks it is rendering HTML
+//! content. It infers the escaping context from the extension of template
+//! filenames, escaping by default if the extension is one of `html`, `htm`,
+//! or `xml`. When specifying a template as `source` in an attribute, the
+//! `ext` attribute parameter must be used to specify a type. Additionally,
+//! you can specify an escape mode explicitly for your template by setting
+//! the `escape` attribute parameter value (to `none` or `html`).
+//!
+//! Askama escapes `<`, `>`, `&`, `"`, `'`, `\` and `/`, according to the
+//! [OWASP escaping recommendations][owasp]. Use the `safe` filter to
+//! prevent escaping for a single expression, or the `escape` (or `e`)
+//! filter to escape a single expression in an unescaped context.
+//!
+//! [owasp]: https://www.owasp.org/index.php/XSS_(Cross_Site_Scripting)_Prevention_Cheat_Sheet#RULE_.231_-_HTML_Escape_Before_Inserting_Untrusted_Data_into_HTML_Element_Content
 //!
 //! ## Control structures
 //!
