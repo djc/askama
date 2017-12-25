@@ -3,3 +3,4 @@ fn_args_density = "Compressed"
 match_block_trailing_comma = true
 struct_lit_width = 60
 use_try_shorthand = true
+error_on_line_overflow_comments = false
