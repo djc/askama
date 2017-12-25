@@ -234,7 +234,7 @@ impl<'a> Generator<'a> {
 
     // Defines the `TraitFromPathName` trait.
     fn define_trait(&mut self, state: &'a State) {
-        self.writeln(&format!("trait {} {{", state.trait_name));
+        self.writeln(&format!("pub trait {} {{", state.trait_name));
         self.write_block_defs(state);
         self.writeln(&format!(
             "fn render_trait_into(&self, timpl: &{}, writer: &mut ::std::fmt::Write) \
