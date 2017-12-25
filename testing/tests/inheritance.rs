@@ -29,3 +29,32 @@ fn test_simple_extends() {
         "Bar\n(Bar) Content goes here\nFoo\nCopyright 2017"
     );
 }
+
+
+pub mod parent {
+    use askama::Template;
+    #[derive(Template)]
+    #[template(path = "base.html")]
+    pub struct BaseTemplate<'a> {
+        pub title: &'a str,
+    }
+}
+
+pub mod child {
+    use askama::Template;
+    use super::parent::*;
+    #[derive(Template)]
+    #[template(path = "child.html")]
+    pub struct ChildTemplate<'a> {
+        pub _parent: BaseTemplate<'a>,
+    }
+}
+
+#[test]
+fn test_different_module() {
+    let t = child::ChildTemplate { _parent: parent::BaseTemplate { title: "a" } };
+    assert_eq!(
+        t.render().unwrap(),
+        "a\n(a) Content goes here\nFoo\nCopyright 2017"
+    );
+}
