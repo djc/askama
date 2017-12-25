@@ -1,6 +1,5 @@
 // rustfmt doesn't do a very good job on nom parser invocations.
-//#![rustfmt_skip]
-//#![config_attr(rustfmt, rustfmt_skip)]
+#![cfg_attr(rustfmt, rustfmt_skip)]
 
 use nom::{self, IResult};
 use std::str;
