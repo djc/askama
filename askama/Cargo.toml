@@ -24,7 +24,7 @@ with-rocket = ["rocket", "askama_derive/rocket"]
 [dependencies]
 askama_derive = { path = "../askama_derive", version = "0.5.0" }
 askama_shared = { version = "0.5.0", path = "../askama_shared" }
-iron = { version = "0.5", optional = true }
+iron = { version = ">= 0.5", optional = true }
 rocket = { version = "0.3", optional = true }
 
 [package.metadata.docs.rs]
