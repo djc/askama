@@ -2,7 +2,9 @@
 extern crate error_chain;
 #[macro_use]
 extern crate nom;
+#[macro_use]
 extern crate quote;
+#[macro_use(parse_quote)]
 extern crate syn;
 
 #[cfg(feature = "serde-json")]

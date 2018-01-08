@@ -81,9 +81,12 @@ fn trait_name_for_path(base: &Option<&Expr>, path: &Path) -> String {
     res
 }
 
-fn get_parent_type(ast: &syn::DeriveInput) -> Option<&syn::Ty> {
-    match ast.body {
-        syn::Body::Struct(ref data) => data.fields().iter().filter_map(|f| {
+fn get_parent_type<'a>(ast: &'a syn::DeriveInput) -> Option<&'a syn::Type> {
+    match ast.data {
+        syn::Data::Struct(syn::DataStruct {
+            fields: syn::Fields::Named(ref fields),
+            ..
+        }) => fields.named.iter().filter_map(|f| {
             f.ident.as_ref().and_then(|name| {
                 if name.as_ref() == "_parent" {
                     Some(&f.ty)
@@ -180,11 +183,11 @@ impl<'a> Generator<'a> {
     }
 
     // Implement `Deref<Parent>` for an inheriting context struct.
-    fn deref_to_parent(&mut self, state: &'a State, parent_type: &syn::Ty) {
+    fn deref_to_parent(&mut self, state: &'a State, parent_type: &syn::Type) {
         self.write_header(state, "::std::ops::Deref", &[]);
         let mut tokens = Tokens::new();
         parent_type.to_tokens(&mut tokens);
-        self.writeln(&format!("type Target = {};", tokens.as_str()));
+        self.writeln(&format!("type Target = {};", tokens));
         self.writeln("fn deref(&self) -> &Self::Target {");
         self.writeln("&self._parent");
         self.writeln("}");
@@ -254,7 +257,7 @@ impl<'a> Generator<'a> {
 
     // Implement Rocket's `Responder`.
     fn impl_responder(&mut self, state: &'a State) {
-        self.write_header(state, "::askama::rocket::Responder<'r>", &["'r"]);
+        self.write_header(state, "::askama::rocket::Responder<'r>", &[quote!('r)]);
         self.writeln("fn respond_to(self, _: &::askama::rocket::Request) \
                       -> ::askama::rocket::Result<'r> {");
 
@@ -270,64 +273,22 @@ impl<'a> Generator<'a> {
 
     // Writes header for the `impl` for `TraitFromPathName` or `Template`
     // for the given context struct.
-    fn write_header(&mut self, state: &'a State, target: &str, extra_anno: &[&str]) {
-        let mut full_anno = Tokens::new();
-        let mut orig_anno = Tokens::new();
-        let need_anno = !state.input.ast.generics.lifetimes.is_empty() ||
-                        !state.input.ast.generics.ty_params.is_empty() ||
-                        !extra_anno.is_empty();
-        if need_anno {
-            full_anno.append("<");
-            orig_anno.append("<");
+    fn write_header(&mut self, state: &'a State, target: &str, vars: &[Tokens]) {
+        let mut generics = state.input.ast.generics.clone();
+        for v in vars.iter() {
+            generics.params.push_value(parse_quote!(#v));
         }
-
-        let (mut full_sep, mut orig_sep) = (false, false);
-        for lt in &state.input.ast.generics.lifetimes {
-            if full_sep {
-                full_anno.append(",");
-            }
-            if orig_sep {
-                orig_anno.append(",");
-            }
-            lt.to_tokens(&mut full_anno);
-            lt.to_tokens(&mut orig_anno);
-            full_sep = true;
-            orig_sep = true;
-        }
-
-        for anno in extra_anno {
-            if full_sep {
-                full_anno.append(",");
-            }
-            full_anno.append(anno);
-            full_sep = true;
-        }
-
-        for param in &state.input.ast.generics.ty_params {
-            if full_sep {
-                full_anno.append(",");
-            }
-            if orig_sep {
-                orig_anno.append(",");
-            }
-            let mut impl_param = param.clone();
-            impl_param.default = None;
-            impl_param.to_tokens(&mut full_anno);
-            param.ident.to_tokens(&mut orig_anno);
-            full_sep = true;
-            orig_sep = true;
-        }
-
-        if need_anno {
-            full_anno.append(">");
-            orig_anno.append(">");
-        }
-
-        let mut where_clause = Tokens::new();
-        state.input.ast.generics.where_clause.to_tokens(&mut where_clause);
-        self.writeln(&format!("impl{} {} for {}{}{} {{",
-                              full_anno.as_str(), target, state.input.ast.ident.as_ref(),
-                              orig_anno.as_str(), where_clause.as_str()));
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+        let ident = state.input.ast.ident.as_ref();
+        self.writeln(
+            format!(
+                "{} {} for {}{} {{",
+                quote!(impl#impl_generics),
+                target,
+                ident,
+                quote!(#ty_generics #where_clause),
+            ).as_ref(),
+        );
     }
 
     /* Helper methods for handling node types */

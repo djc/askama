@@ -1,6 +1,5 @@
 use path;
 
-use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use syn;
@@ -8,26 +7,26 @@ use syn;
 
 pub struct TemplateInput<'a> {
     pub ast: &'a syn::DeriveInput,
-    pub meta: TemplateMeta<'a>,
+    pub meta: TemplateMeta,
     pub path: PathBuf,
-    pub source: Cow<'a, str>,
+    pub source: String,
 }
 
 impl<'a> TemplateInput<'a> {
     pub fn new(ast: &'a syn::DeriveInput) -> TemplateInput<'a> {
         let meta = TemplateMeta::new(ast);
         let (path, source) = match meta.source {
-            Source::Source(s) => {
+            Source::Source(ref s) => {
                 let path = match meta.ext {
-                    Some(v) => PathBuf::from(format!("_.{}", v)),
+                    Some(ref v) => PathBuf::from(format!("_.{}", v)),
                     None => PathBuf::new(),
                 };
-                (path, Cow::Borrowed(s))
+                (path, s.clone())
             },
-            Source::Path(s) => {
-                let path = path::find_template_from_path(s, None);
+            Source::Path(ref s) => {
+                let path = path::find_template_from_path(&s, None);
                 let src = path::get_template_source(&path);
-                (path, Cow::Owned(src))
+                (path, src)
             },
         };
         TemplateInput { ast, meta, path, source }
@@ -35,16 +34,18 @@ impl<'a> TemplateInput<'a> {
 }
 
 // Holds metadata for the template, based on the `template()` attribute.
-pub struct TemplateMeta<'a> {
-    source: Source<'a>,
+pub struct TemplateMeta {
+    source: Source,
     pub print: Print,
     pub escaping: EscapeMode,
-    pub ext: Option<&'a str>,
+    pub ext: Option<String>,
 }
 
-impl<'a> TemplateMeta<'a> {
-    fn new(ast: &'a syn::DeriveInput) -> TemplateMeta<'a> {
-        let attr = ast.attrs.iter().find(|a| a.name() == "template");
+impl TemplateMeta {
+    fn new(ast: &syn::DeriveInput) -> TemplateMeta {
+        let attr = ast.attrs
+            .iter()
+            .find(|a| a.interpret_meta().unwrap().name() == "template");
         if attr.is_none() {
             let msg = format!("'template' attribute not found on struct '{}'",
                               ast.ident.as_ref());
@@ -56,39 +57,39 @@ impl<'a> TemplateMeta<'a> {
         let mut print = Print::None;
         let mut escaping = None;
         let mut ext = None;
-        if let syn::MetaItem::List(_, ref inner) = attr.value {
-            for nm_item in inner {
-                if let syn::NestedMetaItem::MetaItem(ref item) = *nm_item {
-                    if let syn::MetaItem::NameValue(ref key, ref val) = *item {
-                        match key.as_ref() {
-                            "path" => if let syn::Lit::Str(ref s, _) = *val {
+        if let syn::Meta::List(ref inner) = attr.interpret_meta().unwrap() {
+            for nm_item in inner.nested.iter() {
+                if let syn::NestedMeta::Meta(ref item) = *nm_item {
+                    if let syn::Meta::NameValue(ref pair) = *item {
+                        match pair.ident.as_ref() {
+                            "path" => if let syn::Lit::Str(ref s) = pair.lit {
                                 if source.is_some() {
                                     panic!("must specify 'source' or 'path', not both");
                                 }
-                                source = Some(Source::Path(s.as_ref()));
+                                source = Some(Source::Path(s.value()));
                             } else {
                                 panic!("template path must be string literal");
                             },
-                            "source" => if let syn::Lit::Str(ref s, _) = *val {
+                            "source" => if let syn::Lit::Str(ref s) = pair.lit {
                                 if source.is_some() {
                                     panic!("must specify 'source' or 'path', not both");
                                 }
-                                source = Some(Source::Source(s.as_ref()));
+                                source = Some(Source::Source(s.value()));
                             } else {
                                 panic!("template source must be string literal");
                             },
-                            "print" => if let syn::Lit::Str(ref s, _) = *val {
-                                print = (s.as_ref() as &str).into();
+                            "print" => if let syn::Lit::Str(ref s) = pair.lit {
+                                print = s.value().into();
                             } else {
                                 panic!("print value must be string literal");
                             },
-                            "escape" => if let syn::Lit::Str(ref s, _) = *val {
-                                escaping = Some((s.as_ref() as &str).into());
+                            "escape" => if let syn::Lit::Str(ref s) = pair.lit {
+                                escaping = Some(s.value().into());
                             } else {
                                 panic!("escape value must be string literal");
                             },
-                            "ext" => if let syn::Lit::Str(ref s, _) = *val {
-                                ext = Some((s.as_ref() as &str).into());
+                            "ext" => if let syn::Lit::Str(ref s) = pair.lit {
+                                ext = Some(s.value());
                             } else {
                                 panic!("ext value must be string literal");
                             },
@@ -113,10 +114,9 @@ impl<'a> TemplateMeta<'a> {
             Some(m) => m,
             None => {
                 let ext = match source {
-                    Source::Path(p) => {
-                        Path::new(p).extension().map(|s| s.to_str().unwrap()).unwrap_or("")
-                    },
-                    Source::Source(_) => ext.unwrap(), // Already panicked if None
+                    Source::Path(ref p) =>
+                        Path::new(p).extension().map(|s| s.to_str().unwrap()).unwrap_or(""),
+                    Source::Source(_) => ext.as_ref().unwrap(), // Already panicked if None
                 };
                 if HTML_EXTENSIONS.contains(&ext) {
                     EscapeMode::Html
@@ -129,9 +129,9 @@ impl<'a> TemplateMeta<'a> {
     }
 }
 
-enum Source<'a> {
-    Path(&'a str),
-    Source(&'a str),
+enum Source {
+    Path(String),
+    Source(String),
 }
 
 #[derive(PartialEq)]
@@ -140,10 +140,10 @@ pub enum EscapeMode {
     None,
 }
 
-impl<'a> From<&'a str> for EscapeMode {
-    fn from(s: &'a str) -> EscapeMode {
+impl From<String> for EscapeMode {
+    fn from(s: String) -> EscapeMode {
         use self::EscapeMode::*;
-        match s {
+        match s.as_ref() {
             "html" => Html,
             "none" => None,
             v => panic!("invalid value for escape option: {}", v),
@@ -159,10 +159,10 @@ pub enum Print {
     None,
 }
 
-impl<'a> From<&'a str> for Print {
-    fn from(s: &'a str) -> Print {
+impl From<String> for Print {
+    fn from(s: String) -> Print {
         use self::Print::*;
-        match s {
+        match s.as_ref() {
             "all" => All,
             "ast" => Ast,
             "code" => Code,
