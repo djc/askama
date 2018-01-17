@@ -251,6 +251,15 @@ impl<'a> Generator<'a> {
         self.write_header(state, "::askama::iron::Modifier<::askama::iron::Response>", &[]);
         self.writeln("fn modify(self, res: &mut ::askama::iron::Response) {");
         self.writeln("res.body = Some(Box::new(self.render().unwrap().into_bytes()));");
+
+        let ext = state.input.path.extension().map_or("", |s| s.to_str().unwrap_or(""));
+        match ext {
+            "html" | "htm" => {
+                self.writeln("::askama::iron::ContentType::html().0.modify(res);");
+            },
+            _ => (),
+        };
+
         self.writeln("}");
         self.writeln("}");
     }

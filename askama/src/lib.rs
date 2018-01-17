@@ -301,6 +301,7 @@ pub mod iron {
     extern crate iron;
     pub use self::iron::modifier::Modifier;
     pub use self::iron::response::Response;
+    pub use self::iron::headers::ContentType;
 }
 
 #[cfg(feature = "with-rocket")]
