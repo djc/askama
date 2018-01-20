@@ -285,7 +285,7 @@ impl<'a> Generator<'a> {
     fn write_header(&mut self, state: &'a State, target: &str, vars: &[Tokens]) {
         let mut generics = state.input.ast.generics.clone();
         for v in vars.iter() {
-            generics.params.push_value(parse_quote!(#v));
+            generics.params.push(parse_quote!(#v));
         }
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
         let ident = state.input.ast.ident.as_ref();
