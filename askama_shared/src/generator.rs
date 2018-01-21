@@ -287,7 +287,8 @@ impl<'a> Generator<'a> {
         for v in vars.iter() {
             generics.params.push(parse_quote!(#v));
         }
-        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+        let (_, orig_ty_generics, _) = state.input.ast.generics.split_for_impl();
+        let (impl_generics, _, where_clause) = generics.split_for_impl();
         let ident = state.input.ast.ident.as_ref();
         self.writeln(
             format!(
@@ -295,7 +296,7 @@ impl<'a> Generator<'a> {
                 quote!(impl#impl_generics),
                 target,
                 ident,
-                quote!(#ty_generics #where_clause),
+                quote!(#orig_ty_generics #where_clause),
             ).as_ref(),
         );
     }
