@@ -2,33 +2,16 @@ language: rust
 rust:
   - stable
   - beta
-  - nightly
 script:
   - cargo test --all
-before_install:
-  - sudo apt-get update
-addons:
-  apt:
-    packages:
-      - libcurl4-openssl-dev
-      - libelf-dev
-      - libdw-dev
-      - cmake
-      - gcc
-      - binutils-dev
-after_success: |
-  wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
-  tar xzf master.tar.gz &&
-  cd kcov-master &&
-  mkdir build &&
-  cd build &&
-  cmake .. &&
-  make &&
-  sudo make install &&
-  cd ../.. &&
-  rm -rf kcov-master &&
-  cargo clean &&
-  mkdir -p target/cov &&
-  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov cargo test --all &&
-  bash <(curl -s https://codecov.io/bash) &&
-  echo "Uploaded code coverage"
+cache: cargo
+matrix:
+  include:
+    - rust: nightly-2018-01-13
+      env:
+        - CLIPPY_VERSION=0.0.179
+      before_script:
+        - rustup component add rustfmt-preview
+        - cargo install clippy --version $CLIPPY_VERSION || echo "clippy already installed"
+      script:
+        - cargo test --all-features
