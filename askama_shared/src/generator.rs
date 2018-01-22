@@ -49,7 +49,7 @@ impl<'a> State<'a> {
                 _ => {},
             }
         }
-        for (&(scope, name), ref m) in imported {
+        for (&(scope, name), m) in imported {
             macros.insert((Some(scope), name), m);
         }
         State {
@@ -81,7 +81,7 @@ fn trait_name_for_path(base: &Option<&Expr>, path: &Path) -> String {
     res
 }
 
-fn get_parent_type<'a>(ast: &'a syn::DeriveInput) -> Option<&'a syn::Type> {
+fn get_parent_type(ast: &syn::DeriveInput) -> Option<&syn::Type> {
     match ast.data {
         syn::Data::Struct(syn::DataStruct {
             fields: syn::Fields::Named(ref fields),
@@ -322,7 +322,7 @@ impl<'a> Generator<'a> {
                 Node::Cond(ref conds, ref ws) => {
                     self.write_cond(state, conds, ws);
                 },
-                Node::Match(ref ws1, ref expr, ref inter, ref arms, ref ws2) => {
+                Node::Match(ref ws1, ref expr, inter, ref arms, ref ws2) => {
                     self.write_match(state, ws1, expr, inter, arms, ws2);
                 },
                 Node::Loop(ref ws1, ref var, ref iter, ref body, ref ws2) => {
@@ -437,10 +437,10 @@ impl<'a> Generator<'a> {
                 },
                 None => self.write("_"),
             };
-            if params.len() > 0 {
+            if !params.is_empty() {
                 self.write("(");
                 for (i, param) in params.iter().enumerate() {
-                    if let MatchParameter::Name(ref p) = *param {
+                    if let MatchParameter::Name(p) = *param {
                         self.locals.insert(p);
                     }
                     if i > 0 {
@@ -484,7 +484,7 @@ impl<'a> Generator<'a> {
     fn write_call(&mut self, state: &'a State, ws: &WS, scope: Option<&str>, name: &str,
                   args: &[Expr]) {
         let def = state.macros.get(&(scope, name)).unwrap_or_else(|| {
-            if let Some(ref s) = scope {
+            if let Some(s) = scope {
                 panic!(format!("macro '{}::{}' not found", s, name));
             } else {
                 panic!(format!("macro '{}' not found", name));
@@ -749,7 +749,7 @@ impl<'a> Generator<'a> {
         DisplayWrap::Unwrapped
     }
 
-    fn visit_array(&mut self, elements: &Vec<Expr>) -> DisplayWrap {
+    fn visit_array(&mut self, elements: &[Expr]) -> DisplayWrap {
         self.write("[");
         for (i, el) in elements.iter().enumerate() {
             if i > 0 {
@@ -761,7 +761,7 @@ impl<'a> Generator<'a> {
         DisplayWrap::Unwrapped
     }
 
-    fn visit_path(&mut self, path: &Vec<&str>) -> DisplayWrap {
+    fn visit_path(&mut self, path: &[&str]) -> DisplayWrap {
         for (i, part) in path.iter().enumerate() {
             if i > 0 {
                 self.write("::");
@@ -898,14 +898,20 @@ impl<'a, T: 'a> SetChain<'a, T> where T: cmp::Eq + hash::Hash {
     }
 }
 
+#[derive(Clone)]
 enum AstLevel {
     Top,
     Nested,
 }
 
+impl Copy for AstLevel {}
+
+#[derive(Clone)]
 enum DisplayWrap {
     Wrapped,
     Unwrapped,
 }
+
+impl Copy for DisplayWrap {}
 
 type MacroMap<'a> = HashMap<(Option<&'a str>, &'a str), &'a Macro<'a>>;

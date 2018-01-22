@@ -24,7 +24,7 @@ impl<'a> TemplateInput<'a> {
                 (path, s.clone())
             },
             Source::Path(ref s) => {
-                let path = path::find_template_from_path(&s, None);
+                let path = path::find_template_from_path(s, None);
                 let src = path::get_template_source(&path);
                 (path, src)
             },
@@ -93,7 +93,7 @@ impl TemplateMeta {
                             } else {
                                 panic!("ext value must be string literal");
                             },
-                            attr @ _ => panic!("unsupported annotation key '{}' found", attr),
+                            attr => panic!("unsupported annotation key '{}' found", attr),
                         }
                     }
                 }

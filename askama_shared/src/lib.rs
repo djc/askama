@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "cargo-clippy", allow(unused_parens))]
+
 #[macro_use]
 extern crate error_chain;
 #[macro_use]
@@ -59,7 +61,7 @@ impl<'a> Imports<'a> {
     pub fn new(parent_nodes: &'a [Node], parent_path: &'a Path) -> Imports<'a> {
         let sources = parent_nodes.iter().filter_map(|n| {
             match *n {
-                Node::Import(_, ref import_path, scope) => {
+                Node::Import(_, import_path, scope) => {
                     let path = path::find_template_from_path(import_path, Some(parent_path));
                     let src = path::get_template_source(&path);
                     Some((scope, Cow::Owned(src)))
@@ -72,8 +74,8 @@ impl<'a> Imports<'a> {
 
     pub fn macro_map(&'a self) -> HashMap<(&'a str, &'a str), Macro<'a>> {
         let mut macro_map = HashMap::new();
-        for (scope, s) in self.sources.iter() {
-            for n in parser::parse(&s.as_ref()) {
+        for (scope, s) in &self.sources {
+            for n in parser::parse(s.as_ref()) {
                 match n {
                     Node::Macro(name, m) => macro_map.insert((*scope, name), m),
                     _ => None,
