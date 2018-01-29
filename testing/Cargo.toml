@@ -3,7 +3,6 @@ name = "askama_testing"
 version = "0.1.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 workspace = ".."
-build = "build.rs"
 
 [features]
 default = []

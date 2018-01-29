@@ -56,9 +56,6 @@ How to get started
 First, add the following to your crate's `Cargo.toml`:
 
 ```toml
-# in section [package]
-build = "build.rs"
-
 # in section [dependencies]
 askama = "0.5"
 
