@@ -205,6 +205,28 @@
 //! {% endif %}
 //! ```
 //!
+//! ### Match
+//!
+//! In order to deal with Rust `enum`s in a type-safe way, templates support
+//! match blocks from version 0.6. Here is a simple example showing how to
+//! expand an `Option`:
+//!
+//! ```text
+//! {% match item %}
+//!   {% when Some with ("foo") %}
+//!     Found literal foo
+//!   {% when Some with (val) %}
+//!     Found {{ val }}
+//!   {% when None %}
+//! {% endmatch %}
+//! ```
+//!
+//! That is, a `match` block can optionally contain some whitespace (but
+//! no other literal content), followed by a number of `when` blocks and
+//! and an optional `else` block. Each `when` block must name a list of
+//! matches (`(val)`), optionally introduced with a variant name. The
+//! `else` block is equivalent to matching on `_` (matching anything).
+//!
 //! ### Include
 //!
 //! The *include* statement lets you split large or repetitive blocks into
