@@ -17,7 +17,7 @@ rocket = []
 [dependencies]
 error-chain = "0.11"
 nom = "3"
-quote = "0.4"
+quote = "0.5"
 serde = { version = "1.0", optional = true }
 serde_json = { version = "1.0", optional = true }
-syn = "0.12"
+syn = "0.13"

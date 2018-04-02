@@ -18,4 +18,4 @@ rocket = ["askama_shared/rocket"]
 
 [dependencies]
 askama_shared = { version = "0.5.0", path = "../askama_shared" }
-syn = "0.12"
+syn = "0.13"
