@@ -512,7 +512,7 @@ impl<'a> Generator<'a> {
     }
 
     fn handle_include(&mut self, state: &'a State, ws: &WS, path: &str) {
-        self.prepare_ws(ws);
+        self.flush_ws(ws);
         let path = path::find_template_from_path(path, Some(&state.input.path));
         let src = path::get_template_source(&path);
         let nodes = parser::parse(&src);
@@ -522,7 +522,7 @@ impl<'a> Generator<'a> {
             gen.buf
         };
         self.buf.push_str(&nested);
-        self.flush_ws(ws);
+        self.prepare_ws(ws);
     }
 
     fn write_let_decl(&mut self, ws: &WS, var: &'a Target) {
