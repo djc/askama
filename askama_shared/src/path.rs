@@ -38,7 +38,7 @@ pub fn find_template_from_path(path: &str, start_at: Option<&Path>) -> PathBuf {
     if fs_abs_path.exists() {
         path.to_owned()
     } else {
-        panic!(format!("template '{:?}' not found", path.to_str()));
+        panic!(format!("template {:?} not found at {:?}", path.to_str().unwrap(), fs_abs_path));
     }
 }
 
