@@ -1,4 +1,4 @@
-use path;
+use shared::path;
 
 use std::path::{Path, PathBuf};
 

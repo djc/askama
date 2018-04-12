@@ -1,7 +1,6 @@
-use filters;
 use input::TemplateInput;
 use parser::{self, Cond, Expr, Macro, MatchParameter, MatchVariant, Node, Target, When, WS};
-use path;
+use shared::{filters, path};
 
 use quote::{ToTokens, Tokens};
 
