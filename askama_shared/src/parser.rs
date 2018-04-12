@@ -58,7 +58,7 @@ pub enum Node<'a> {
     LetDecl(WS, Target<'a>),
     Let(WS, Target<'a>, Expr<'a>),
     Cond(Vec<(WS, Option<Expr<'a>>, Vec<Node<'a>>)>, WS),
-    Match(WS, Expr<'a>, &'a str, Vec<When<'a>>, WS),
+    Match(WS, Expr<'a>, Option<&'a str>, Vec<When<'a>>, WS),
     Loop(WS, Target<'a>, Expr<'a>, Vec<Node<'a>>, WS),
     Extends(Expr<'a>),
     BlockDef(WS, &'a str, Vec<Node<'a>>, WS),
@@ -480,7 +480,7 @@ named!(block_match<Node>, do_parse!(
     expr: ws!(expr_any) >>
     nws1: opt!(tag_s!("-")) >>
     tag_s!("%}") >>
-    inter: take_content >>
+    inter: opt!(take_content) >>
     arms: many1!(when_block) >>
     else_arm: opt!(match_else_block) >>
     ws!(tag_s!("{%")) >>
@@ -493,13 +493,14 @@ named!(block_match<Node>, do_parse!(
             arms.push(arm);
         }
         let inter = match inter {
-            Node::Lit(lws, val, rws) => {
+            Some(Node::Lit(lws, val, rws)) => {
                 assert!(val.is_empty(),
                         "only whitespace allowed between match and first when, found {}", val);
                 assert!(rws.is_empty(),
                         "only whitespace allowed between match and first when, found {}", rws);
-                lws
+                Some(lws)
             },
+            None => None,
             _ => panic!("only literals allowed between match and first when"),
         };
         Node::Match(

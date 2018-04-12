@@ -415,11 +415,13 @@ impl<'a> Generator<'a> {
         self.writeln("}");
     }
 
-    fn write_match(&mut self, state: &'a State, ws1: &WS, expr: &Expr, inter: &'a str, arms:
-                   &'a [When], ws2: &WS) {
+    fn write_match(&mut self, state: &'a State, ws1: &WS, expr: &Expr, inter: Option<&'a str>,
+                   arms: &'a [When], ws2: &WS) {
         self.flush_ws(ws1);
-        if !inter.is_empty() {
-            self.next_ws = Some(inter);
+        if let Some(inter) = inter {
+            if !inter.is_empty() {
+                self.next_ws = Some(inter);
+            }
         }
 
         self.write("match ");

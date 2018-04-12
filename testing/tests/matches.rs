@@ -82,3 +82,15 @@ fn test_match_custom_enum() {
     let s = MatchCustomEnumTemplate { color: Color::Rgb(160, 0, 255) };
     assert_eq!(s.render().unwrap(), "\n\nColorful: #A000FF\n");
 }
+
+#[derive(Template)]
+#[template(path = "match-no-ws.html")]
+struct MatchNoWhitespace {
+    foo: Option<usize>,
+}
+
+#[test]
+fn test_match_no_whitespace() {
+    let s = MatchNoWhitespace { foo: Some(1) };
+    assert_eq!(s.render().unwrap(), "1");
+}
