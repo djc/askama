@@ -49,6 +49,11 @@ mod filters {
     pub fn myfilter(s: &str) -> ::askama::Result<String> {
         Ok(s.replace("oo", "aa").to_string())
     }
+    // for test_nested_filter_ref
+    pub fn mytrim(s: &::std::fmt::Display) -> ::askama::Result<String> {
+        let s = format!("{}", s);
+        Ok(s.trim().to_owned())
+    }
 }
 
 #[test]
@@ -109,4 +114,17 @@ fn test_json() {
 }
 }"#
     );
+}
+
+
+#[derive(Template)]
+#[template(source = "{{ x|mytrim|safe }}", ext = "html")]
+struct NestedFilterTemplate {
+    x: String,
+}
+
+#[test]
+fn test_nested_filter_ref() {
+    let t = NestedFilterTemplate { x: " floo & bar".to_string() };
+    assert_eq!(t.render().unwrap(), "floo & bar");
 }
