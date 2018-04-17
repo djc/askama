@@ -105,6 +105,7 @@ struct Generator<'a> {
     locals: SetChain<'a, &'a str>,
     next_ws: Option<&'a str>,
     skip_ws: bool,
+    vars: usize,
 }
 
 impl<'a> Generator<'a> {
@@ -116,6 +117,7 @@ impl<'a> Generator<'a> {
             locals: locals,
             next_ws: None,
             skip_ws: false,
+            vars: 0,
         }
     }
 
@@ -562,9 +564,9 @@ impl<'a> Generator<'a> {
 
     fn write_expr(&mut self, state: &'a State, ws: &WS, s: &Expr) {
         self.handle_ws(ws);
-        self.write("let askama_expr = &");
-        let wrapped = self.visit_expr_root(s);
-        self.writeln(";");
+        let mut code = String::new();
+        let wrapped = self.visit_expr(s, &mut code);
+        self.writeln(&format!("let askama_expr = &{};", code));
 
         use self::DisplayWrap::*;
         use super::input::EscapeMode::*;
@@ -679,7 +681,7 @@ impl<'a> Generator<'a> {
             code.push_str(&format!("filters::{}(&", name));
         }
 
-        self._visit_filter_args(args, code);
+        self._visit_args(args, code);
         code.push_str(")?");
         if name == "safe" || name == "escape" || name == "e" || name == "json" {
             DisplayWrap::Wrapped
@@ -690,7 +692,7 @@ impl<'a> Generator<'a> {
 
     fn _visit_format_filter(&mut self, args: &[Expr], code: &mut String) {
         code.push_str("format!(");
-        self._visit_filter_args(args, code);
+        self._visit_args(args, code);
         code.push_str(")");
     }
 
@@ -709,12 +711,28 @@ impl<'a> Generator<'a> {
         code.push_str(")?");
     }
 
-    fn _visit_filter_args(&mut self, args: &[Expr], code: &mut String) {
+    fn _visit_args(&mut self, args: &[Expr], code: &mut String) {
         for (i, arg) in args.iter().enumerate() {
             if i > 0 {
                 code.push_str(", &");
             }
-            self.visit_expr(arg, code);
+
+            let intercept = match *arg {
+                Expr::Filter(_, _) | Expr::MethodCall(_, _, _) => true,
+                _ => false,
+            };
+
+            if intercept {
+                let offset = code.len();
+                self.visit_expr(arg, code);
+                let idx = self.vars;
+                self.vars += 1;
+                self.writeln(&format!("let var{} = {};", idx, &code[offset..]));
+                code.truncate(offset);
+                code.push_str(&format!("var{}", idx));
+            } else {
+                self.visit_expr(arg, code);
+            }
         }
     }
 
@@ -741,12 +759,7 @@ impl<'a> Generator<'a> {
                          -> DisplayWrap {
         self.visit_expr(obj, code);
         code.push_str(&format!(".{}(", method));
-        for (i, arg) in args.iter().enumerate() {
-            if i > 0 {
-                code.push_str(", ");
-            }
-            self.visit_expr(arg, code);
-        }
+        self._visit_args(args, code);
         code.push_str(")");
         DisplayWrap::Unwrapped
     }
