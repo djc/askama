@@ -259,6 +259,10 @@
 //! The HTML special characters `&`, `<` and `>` will be replaced with their
 //! character entities unless the `escape` mode is disabled for a template.
 //!
+//! ## Comments
+//!
+//! Askama supports block comments delimited by `{#` and `#}`.
+//!
 //! # Optional functionality
 //!
 //! ## Rocket integration
