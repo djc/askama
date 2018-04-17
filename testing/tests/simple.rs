@@ -196,3 +196,14 @@ fn test_slice_literal() {
     let t = ArrayTemplate {};
     assert_eq!(t.render().unwrap(), "a");
 }
+
+
+#[derive(Template)]
+#[template(source = "  {# foo -#} ", ext = "txt")]
+struct CommentTemplate {}
+
+#[test]
+fn test_comment() {
+    let t = CommentTemplate {};
+    assert_eq!(t.render().unwrap(), "  ");
+}

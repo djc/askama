@@ -52,7 +52,7 @@ pub struct Macro<'a> {
 #[derive(Debug)]
 pub enum Node<'a> {
     Lit(&'a str, &'a str, &'a str),
-    Comment(),
+    Comment(WS),
     Expr(WS, Expr<'a>),
     Call(WS, Option<& 'a str>, &'a str, Vec<Expr<'a>>),
     LetDecl(WS, Target<'a>),
@@ -638,9 +638,10 @@ named!(block_node<Node>, do_parse!(
 
 named!(block_comment<Node>, do_parse!(
     tag_s!("{#") >>
-    take_until_s!("#}") >>
+    pws: opt!(tag_s!("-")) >>
+    inner: take_until_s!("#}") >>
     tag_s!("#}") >>
-    (Node::Comment())
+    (Node::Comment(WS(pws.is_some(), inner.len() > 1 && inner[inner.len() - 1] == b'-')))
 ));
 
 named!(parse_template<Vec<Node<'a>>>, many0!(alt!(

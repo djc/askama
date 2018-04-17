@@ -310,7 +310,9 @@ impl<'a> Generator<'a> {
                 Node::Lit(lws, val, rws) => {
                     self.write_lit(lws, val, rws);
                 },
-                Node::Comment() => {},
+                Node::Comment(ref ws) => {
+                    self.write_comment(ws);
+                },
                 Node::Expr(ref ws, ref val) => {
                     self.write_expr(state, ws, val);
                 },
@@ -598,6 +600,10 @@ impl<'a> Generator<'a> {
         if !rws.is_empty() {
             self.next_ws = Some(rws);
         }
+    }
+
+    fn write_comment(&mut self, ws: &WS) {
+        self.handle_ws(ws);
     }
 
     /* Visitor methods for expression types */
