@@ -396,13 +396,14 @@ impl<'a> Generator<'a> {
             self.handle_ws(cws);
             match *cond {
                 Some(ref expr) => {
+                    let expr_code = self.visit_expr_root(expr);
                     if i == 0 {
                         self.write("if ");
                     } else {
                         self.dedent();
                         self.write("} else if ");
                     }
-                    self.visit_expr_root(expr);
+                    self.write(&expr_code);
                 },
                 None => {
                     self.dedent();
@@ -427,12 +428,8 @@ impl<'a> Generator<'a> {
             }
         }
 
-        self.write("match ");
-        self.write("(&");
-        self.visit_expr_root(expr);
-        self.write(").deref()");
-        self.writeln(" {");
-
+        let expr_code = self.visit_expr_root(expr);
+        self.writeln(&format!("match (&{}).deref() {{", expr_code));
         for arm in arms {
             let &(ref ws, ref variant, ref params, ref body) = arm;
             self.locals.push();
@@ -470,15 +467,15 @@ impl<'a> Generator<'a> {
                   body: &'a [Node], ws2: &WS) {
         self.handle_ws(ws1);
         self.locals.push();
+
+        let expr_code = self.visit_expr_root(iter);
         self.write("for (_loop_index, ");
         let targets = self.visit_target(var);
         for name in &targets {
             self.locals.insert(name);
             self.write(name);
         }
-        self.write(") in (&");
-        self.visit_expr_root(iter);
-        self.writeln(").into_iter().enumerate() {");
+        self.writeln(&format!(") in (&{}).into_iter().enumerate() {{", expr_code));
 
         self.handle(state, body, AstLevel::Nested);
         self.handle_ws(ws2);
@@ -502,10 +499,9 @@ impl<'a> Generator<'a> {
         self.prepare_ws(&def.ws1);
 
         for (i, arg) in def.args.iter().enumerate() {
-            self.write(&format!("let {} = &", arg));
-            self.visit_expr_root(args.get(i)
+            let expr_code = self.visit_expr_root(args.get(i)
                 .expect(&format!("macro '{}' takes more than {} arguments", name, i)));
-            self.writeln(";");
+            self.write(&format!("let {} = &{};", arg, expr_code));
             self.locals.insert(arg);
         }
         self.handle(state, &def.nodes, AstLevel::Nested);
@@ -544,6 +540,9 @@ impl<'a> Generator<'a> {
 
     fn write_let(&mut self, ws: &WS, var: &'a Target, val: &Expr) {
         self.handle_ws(ws);
+        let mut code = String::new();
+        self.visit_expr(val, &mut code);
+
         match *var {
             Target::Name(name) => {
                 if !self.locals.contains(name) {
@@ -553,9 +552,7 @@ impl<'a> Generator<'a> {
                 self.write(name);
             },
         }
-        self.write(" = ");
-        self.visit_expr_root(val);
-        self.writeln(";");
+        self.write(&format!(" = {};", &code));
     }
 
     fn write_block(&mut self, ws1: &WS, name: &str, ws2: &WS) {
@@ -608,11 +605,10 @@ impl<'a> Generator<'a> {
 
     /* Visitor methods for expression types */
 
-    fn visit_expr_root(&mut self, expr: &Expr) -> DisplayWrap {
+    fn visit_expr_root(&mut self, expr: &Expr) -> String {
         let mut code = String::new();
-        let wrapped = self.visit_expr(expr, &mut code);
-        self.write(&code);
-        wrapped
+        self.visit_expr(expr, &mut code);
+        code
     }
 
     fn visit_expr(&mut self, expr: &Expr, code: &mut String) -> DisplayWrap {
