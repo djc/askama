@@ -128,3 +128,25 @@ fn test_nested_filter_ref() {
     let t = NestedFilterTemplate { x: " floo & bar".to_string() };
     assert_eq!(t.render().unwrap(), "floo & bar");
 }
+
+
+#[derive(Template)]
+#[template(source = "{% let p = baz.print(foo.as_ref()) %}{{ p|upper }}", ext = "html")]
+struct FilterLetFilterTemplate {
+    foo: String,
+    baz: Baz,
+}
+
+struct Baz {}
+
+impl Baz {
+    fn print(&self, s: &str) -> String {
+        s.trim().to_owned()
+    }
+}
+
+#[test]
+fn test_filter_let_filter() {
+    let t = FilterLetFilterTemplate { foo: " bar ".to_owned(), baz: Baz {} };
+    assert_eq!(t.render().unwrap(), "BAR");
+}
