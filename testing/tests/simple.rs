@@ -207,3 +207,16 @@ fn test_comment() {
     let t = CommentTemplate {};
     assert_eq!(t.render().unwrap(), "  ");
 }
+
+
+#[derive(Template)]
+#[template(source = "{% if !foo %}Hello{% endif %}", ext = "txt")]
+struct NegationTemplate {
+    foo: bool,
+}
+
+#[test]
+fn test_negation() {
+    let t = NegationTemplate { foo: false };
+    assert_eq!(t.render().unwrap(), "Hello");
+}
