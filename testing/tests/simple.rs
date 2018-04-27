@@ -220,3 +220,16 @@ fn test_negation() {
     let t = NegationTemplate { foo: false };
     assert_eq!(t.render().unwrap(), "Hello");
 }
+
+
+#[derive(Template)]
+#[template(source = "{% if foo > -2 %}Hello{% endif %}", ext = "txt")]
+struct MinusTemplate {
+    foo: i8,
+}
+
+#[test]
+fn test_minus() {
+    let t = MinusTemplate { foo: 1 };
+    assert_eq!(t.render().unwrap(), "Hello");
+}
