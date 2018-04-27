@@ -620,6 +620,7 @@ impl<'a> Generator<'a> {
             Expr::Array(ref elements) => self.visit_array(elements, code),
             Expr::Attr(ref obj, name) => self.visit_attr(obj, name, code),
             Expr::Filter(name, ref args) => self.visit_filter(name, args, code),
+            Expr::Unary(op, ref inner) => self.visit_unary(op, inner, code),
             Expr::BinOp(op, ref left, ref right) => self.visit_binop(op, left, right, code),
             Expr::Group(ref inner) => self.visit_group(inner, code),
             Expr::MethodCall(ref obj, method, ref args) => {
@@ -763,6 +764,12 @@ impl<'a> Generator<'a> {
         code.push_str(&format!(".{}(", method));
         self._visit_args(args, code);
         code.push_str(")");
+        DisplayWrap::Unwrapped
+    }
+
+    fn visit_unary(&mut self, op: &str, inner: &Expr, code: &mut String) -> DisplayWrap {
+        code.push_str(op);
+        self.visit_expr(inner, code);
         DisplayWrap::Unwrapped
     }
 

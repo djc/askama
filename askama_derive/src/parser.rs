@@ -13,6 +13,7 @@ pub enum Expr<'a> {
     Array(Vec<Expr<'a>>),
     Attr(Box<Expr<'a>>, &'a str),
     Filter(&'a str, Vec<Expr<'a>>),
+    Unary(&'a str, Box<Expr<'a>>),
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
     Group(Box<Expr<'a>>),
     MethodCall(Box<Expr<'a>>, &'a str, Vec<Expr<'a>>),
@@ -366,6 +367,15 @@ named!(expr_filtered<Expr>, do_parse!(
     })
 ));
 
+named!(expr_unary<Expr>, do_parse!(
+    op: opt!(alt!(tag_s!("!") | tag_s!("-"))) >>
+    expr: expr_filtered >>
+    (match op {
+        Some(op) => Expr::Unary(str::from_utf8(op).unwrap(), Box::new(expr)),
+        None => expr,
+    })
+));
+
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $( $op:expr ),* ) => {
         named!($name<Expr>, do_parse!(
@@ -381,7 +391,7 @@ macro_rules! expr_prec_layer {
     }
 }
 
-expr_prec_layer!(expr_muldivmod, expr_filtered, "*", "/", "%");
+expr_prec_layer!(expr_muldivmod, expr_unary, "*", "/", "%");
 expr_prec_layer!(expr_addsub, expr_muldivmod, "+", "-");
 expr_prec_layer!(expr_shifts, expr_addsub, ">>", "<<");
 expr_prec_layer!(expr_band, expr_shifts, "&");
