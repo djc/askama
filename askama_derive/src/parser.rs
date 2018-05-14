@@ -1,7 +1,7 @@
 // rustfmt doesn't do a very good job on nom parser invocations.
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
-use nom::{self, IResult};
+use nom;
 use std::str;
 
 #[derive(Debug)]
@@ -71,9 +71,15 @@ pub enum Node<'a> {
 pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
 pub type When<'a> = (WS, Option<MatchVariant<'a>>, Vec<MatchParameter<'a>>, Vec<Node<'a>>);
 
+type Input<'a> = nom::types::CompleteByteSlice<'a>;
+#[allow(non_snake_case)]
+fn Input<'a>(input: &'a [u8]) -> Input<'a> {
+    nom::types::CompleteByteSlice(input)
+}
+
 fn split_ws_parts(s: &[u8]) -> Node {
     if s.is_empty() {
-        let rs = str::from_utf8(s).unwrap();
+        let rs = str::from_utf8(&s).unwrap();
         return Node::Lit(rs, rs, rs);
     }
     let is_ws = |c: &u8| {
@@ -103,7 +109,7 @@ enum ContentState {
     End(usize),
 }
 
-fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
+fn take_content(i: Input) -> Result<(Input, Node), nom::Err<Input>> {
     use parser::ContentState::*;
     let mut state = Any;
     for (idx, c) in i.iter().enumerate() {
@@ -122,35 +128,35 @@ fn take_content(i: &[u8]) -> IResult<&[u8], Node> {
     }
     match state {
         Any |
-        Brace(_) => IResult::Done(&i[..0], split_ws_parts(i)),
-        End(0) => IResult::Error(nom::ErrorKind::Custom(0)),
-        End(start) => IResult::Done(&i[start..], split_ws_parts(&i[..start])),
+        Brace(_) => Ok((Input(&i[..0]), split_ws_parts(i.0))),
+        End(0) => Err(nom::Err::Error(error_position!(i, nom::ErrorKind::Custom(0)))),
+        End(start) => Ok((Input(&i[start..]), split_ws_parts(&i[..start]))),
     }
 }
 
-fn identifier(input: &[u8]) -> IResult<&[u8], &str> {
+fn identifier(input: Input) -> Result<(Input, &str), nom::Err<Input>> {
     if !nom::is_alphabetic(input[0]) && input[0] != b'_' {
-        return IResult::Error(nom::ErrorKind::Custom(0));
+        return Err(nom::Err::Error(error_position!(input, nom::ErrorKind::Custom(0))));
     }
     for (i, ch) in input.iter().enumerate() {
         if i == 0 || nom::is_alphanumeric(*ch) || *ch == b'_' {
             continue;
         }
-        return IResult::Done(&input[i..],
-                             str::from_utf8(&input[..i]).unwrap());
+        return Ok((Input(&input[i..]),
+                   str::from_utf8(&input[..i]).unwrap()));
     }
-    IResult::Done(&input[1..], str::from_utf8(&input[..1]).unwrap())
+    Ok((Input(&input[1..]), str::from_utf8(&input[..1]).unwrap()))
 }
 
-named!(num_lit<&str>, map!(nom::digit,
-    |s| str::from_utf8(s).unwrap()
+named!(num_lit<Input, &str>, map!(nom::digit,
+    |s| str::from_utf8(s.0).unwrap()
 ));
 
-named!(expr_num_lit<Expr>, map!(num_lit,
+named!(expr_num_lit<Input, Expr>, map!(num_lit,
     |s| Expr::NumLit(s)
 ));
 
-named!(expr_array_lit<Expr>, do_parse!(
+named!(expr_array_lit<Input, Expr>, do_parse!(
     ws!(tag_s!("[")) >>
     first: expr_any >>
     rest: many0!(do_parse!(
@@ -166,34 +172,34 @@ named!(expr_array_lit<Expr>, do_parse!(
     })
 ));
 
-named!(variant_num_lit<MatchVariant>, map!(num_lit,
+named!(variant_num_lit<Input, MatchVariant>, map!(num_lit,
     |s| MatchVariant::NumLit(s)
 ));
 
-named!(param_num_lit<MatchParameter>, map!(num_lit,
+named!(param_num_lit<Input, MatchParameter>, map!(num_lit,
     |s| MatchParameter::NumLit(s)
 ));
 
-named!(expr_str_lit<Expr>, map!(
+named!(expr_str_lit<Input, Expr>, map!(
     delimited!(char!('"'), take_until!("\""), char!('"')),
-    |s| Expr::StrLit(str::from_utf8(s).unwrap())
+    |s| Expr::StrLit(str::from_utf8(&s).unwrap())
 ));
 
-named!(variant_str_lit<MatchVariant>, map!(
+named!(variant_str_lit<Input, MatchVariant>, map!(
     delimited!(char!('"'), is_not!("\""), char!('"')),
-    |s| MatchVariant::StrLit(str::from_utf8(s).unwrap())
+    |s| MatchVariant::StrLit(str::from_utf8(&s).unwrap())
 ));
 
-named!(param_str_lit<MatchParameter>, map!(
+named!(param_str_lit<Input, MatchParameter>, map!(
     delimited!(char!('"'), is_not!("\""), char!('"')),
-    |s| MatchParameter::StrLit(str::from_utf8(s).unwrap())
+    |s| MatchParameter::StrLit(str::from_utf8(&s).unwrap())
 ));
 
-named!(expr_var<Expr>, map!(identifier,
+named!(expr_var<Input, Expr>, map!(identifier,
     |s| Expr::Var(s))
 );
 
-named!(expr_path<Expr>, do_parse!(
+named!(expr_path<Input, Expr>, do_parse!(
     start: call!(identifier) >>
     rest: many1!(do_parse!(
         tag_s!("::") >>
@@ -207,7 +213,7 @@ named!(expr_path<Expr>, do_parse!(
     })
 ));
 
-named!(variant_path<MatchVariant>, do_parse!(
+named!(variant_path<Input, MatchVariant>, do_parse!(
     start: call!(identifier) >>
     rest: many1!(do_parse!(
         tag_s!("::") >>
@@ -221,19 +227,19 @@ named!(variant_path<MatchVariant>, do_parse!(
     })
 ));
 
-named!(target_single<Target>, map!(identifier,
+named!(target_single<Input, Target>, map!(identifier,
     |s| Target::Name(s)
 ));
 
-named!(variant_name<MatchVariant>, map!(identifier,
+named!(variant_name<Input, MatchVariant>, map!(identifier,
     |s| MatchVariant::Name(s)
 ));
 
-named!(param_name<MatchParameter>, map!(identifier,
+named!(param_name<Input, MatchParameter>, map!(identifier,
     |s| MatchParameter::Name(s)
 ));
 
-named!(arguments<Vec<Expr>>, do_parse!(
+named!(arguments<Input, Vec<Expr>>, do_parse!(
     tag_s!("(") >>
     args: opt!(do_parse!(
         arg0: ws!(expr_any) >>
@@ -252,7 +258,7 @@ named!(arguments<Vec<Expr>>, do_parse!(
     (args.unwrap_or_default())
 ));
 
-named!(parameters<Vec<&'a str>>, do_parse!(
+named!(parameters<Input, Vec<&str>>, do_parse!(
     tag_s!("(") >>
     vals: opt!(do_parse!(
         arg0: ws!(identifier) >>
@@ -271,7 +277,7 @@ named!(parameters<Vec<&'a str>>, do_parse!(
     (vals.unwrap_or_default())
 ));
 
-named!(with_parameters<Vec<MatchParameter>>, do_parse!(
+named!(with_parameters<Input, Vec<MatchParameter>>, do_parse!(
     tag_s!("with") >>
     ws!(tag_s!("(")) >>
     vals: opt!(do_parse!(
@@ -291,12 +297,12 @@ named!(with_parameters<Vec<MatchParameter>>, do_parse!(
     (vals.unwrap_or_default())
 ));
 
-named!(expr_group<Expr>, map!(
+named!(expr_group<Input, Expr>, map!(
     delimited!(char!('('), expr_any, char!(')')),
     |s| Expr::Group(Box::new(s))
 ));
 
-named!(expr_single<Expr>, alt!(
+named!(expr_single<Input, Expr>, alt!(
     expr_num_lit |
     expr_str_lit |
     expr_path |
@@ -305,27 +311,27 @@ named!(expr_single<Expr>, alt!(
     expr_group
 ));
 
-named!(match_variant<MatchVariant>, alt!(
+named!(match_variant<Input, MatchVariant>, alt!(
     variant_path |
     variant_name |
     variant_num_lit |
     variant_str_lit
 ));
 
-named!(match_parameter<MatchParameter>, alt!(
+named!(match_parameter<Input, MatchParameter>, alt!(
     param_name |
     param_num_lit |
     param_str_lit
 ));
 
-named!(attr<(&str, Option<Vec<Expr>>)>, do_parse!(
+named!(attr<Input, (&str, Option<Vec<Expr>>)>, do_parse!(
     tag_s!(".") >>
     attr: alt!(num_lit | identifier) >>
     args: opt!(arguments) >>
     (attr, args)
 ));
 
-named!(expr_attr<Expr>, do_parse!(
+named!(expr_attr<Input, Expr>, do_parse!(
     obj: expr_single >>
     attrs: many0!(attr) >>
     ({
@@ -341,14 +347,14 @@ named!(expr_attr<Expr>, do_parse!(
     })
 ));
 
-named!(filter<(&str, Option<Vec<Expr>>)>, do_parse!(
+named!(filter<Input, (&str, Option<Vec<Expr>>)>, do_parse!(
     tag_s!("|") >>
     fname: identifier >>
     args: opt!(arguments) >>
     (fname, args)
 ));
 
-named!(expr_filtered<Expr>, do_parse!(
+named!(expr_filtered<Input, Expr>, do_parse!(
     obj: expr_attr >>
     filters: many0!(filter) >>
     ({
@@ -367,23 +373,23 @@ named!(expr_filtered<Expr>, do_parse!(
     })
 ));
 
-named!(expr_unary<Expr>, do_parse!(
+named!(expr_unary<Input, Expr>, do_parse!(
     op: opt!(alt!(tag_s!("!") | tag_s!("-"))) >>
     expr: expr_filtered >>
     (match op {
-        Some(op) => Expr::Unary(str::from_utf8(op).unwrap(), Box::new(expr)),
+        Some(op) => Expr::Unary(str::from_utf8(op.0).unwrap(), Box::new(expr)),
         None => expr,
     })
 ));
 
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $( $op:expr ),* ) => {
-        named!($name<Expr>, do_parse!(
+        named!($name<Input, Expr>, do_parse!(
             left: $inner >>
             op_and_right: opt!(pair!(ws!(alt!($( tag_s!($op) )|*)), expr_any)) >>
             (match op_and_right {
                 Some((op, right)) => Expr::BinOp(
-                    str::from_utf8(op).unwrap(), Box::new(left), Box::new(right)
+                    str::from_utf8(op.0).unwrap(), Box::new(left), Box::new(right)
                 ),
                 None => left,
             })
@@ -403,7 +409,7 @@ expr_prec_layer!(expr_compare, expr_bor,
 expr_prec_layer!(expr_and, expr_compare, "&&");
 expr_prec_layer!(expr_any, expr_and, "||");
 
-named!(expr_node<Node>, do_parse!(
+named!(expr_node<Input, Node>, do_parse!(
     tag_s!("{{") >>
     pws: opt!(tag_s!("-")) >>
     expr: ws!(expr_any) >>
@@ -412,7 +418,7 @@ named!(expr_node<Node>, do_parse!(
     (Node::Expr(WS(pws.is_some(), nws.is_some()), expr))
 ));
 
-named!(block_call<Node>, do_parse!(
+named!(block_call<Input, Node>, do_parse!(
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("call")) >>
     scope: opt!(do_parse!(
@@ -426,13 +432,13 @@ named!(block_call<Node>, do_parse!(
     (Node::Call(WS(pws.is_some(), nws.is_some()), scope, name, args))
 ));
 
-named!(cond_if<Expr>, do_parse!(
+named!(cond_if<Input, Expr>, do_parse!(
     ws!(tag_s!("if")) >>
     cond: ws!(expr_any) >>
     (cond)
 ));
 
-named!(cond_block<Cond>, do_parse!(
+named!(cond_block<Input, Cond>, do_parse!(
     tag_s!("{%") >>
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("else")) >>
@@ -443,7 +449,7 @@ named!(cond_block<Cond>, do_parse!(
     (WS(pws.is_some(), nws.is_some()), cond, block)
 ));
 
-named!(block_if<Node>, do_parse!(
+named!(block_if<Input, Node>, do_parse!(
     pws1: opt!(tag_s!("-")) >>
     cond: ws!(cond_if) >>
     nws1: opt!(tag_s!("-")) >>
@@ -462,7 +468,7 @@ named!(block_if<Node>, do_parse!(
     })
 ));
 
-named!(match_else_block<When>, do_parse!(
+named!(match_else_block<Input, When>, do_parse!(
     tag_s!("{%") >>
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("else")) >>
@@ -472,7 +478,7 @@ named!(match_else_block<When>, do_parse!(
     (WS(pws.is_some(), nws.is_some()), None, vec![], block)
 ));
 
-named!(when_block<When>, do_parse!(
+named!(when_block<Input, When>, do_parse!(
     tag_s!("{%") >>
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("when")) >>
@@ -484,7 +490,7 @@ named!(when_block<When>, do_parse!(
     (WS(pws.is_some(), nws.is_some()), Some(variant), params.unwrap_or_default(), block)
 ));
 
-named!(block_match<Node>, do_parse!(
+named!(block_match<Input, Node>, do_parse!(
     pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("match")) >>
     expr: ws!(expr_any) >>
@@ -523,7 +529,7 @@ named!(block_match<Node>, do_parse!(
     })
 ));
 
-named!(block_let<Node>, do_parse!(
+named!(block_let<Input, Node>, do_parse!(
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("let")) >>
     var: ws!(target_single) >>
@@ -540,7 +546,7 @@ named!(block_let<Node>, do_parse!(
     })
 ));
 
-named!(block_for<Node>, do_parse!(
+named!(block_for<Input, Node>, do_parse!(
     pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("for")) >>
     var: ws!(target_single) >>
@@ -558,13 +564,13 @@ named!(block_for<Node>, do_parse!(
                 WS(pws2.is_some(), nws2.is_some())))
 ));
 
-named!(block_extends<Node>, do_parse!(
+named!(block_extends<Input, Node>, do_parse!(
     ws!(tag_s!("extends")) >>
     name: ws!(expr_str_lit) >>
     (Node::Extends(name))
 ));
 
-named!(block_block<Node>, do_parse!(
+named!(block_block<Input, Node>, do_parse!(
     pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("block")) >>
     name: ws!(identifier) >>
@@ -581,7 +587,7 @@ named!(block_block<Node>, do_parse!(
                     WS(pws2.is_some(), nws2.is_some())))
 ));
 
-named!(block_include<Node>, do_parse!(
+named!(block_include<Input, Node>, do_parse!(
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("include")) >>
     name: ws!(expr_str_lit) >>
@@ -592,7 +598,7 @@ named!(block_include<Node>, do_parse!(
     }))
 ));
 
-named!(block_import<Node>, do_parse!(
+named!(block_import<Input, Node>, do_parse!(
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("import")) >>
     name: ws!(expr_str_lit) >>
@@ -605,7 +611,7 @@ named!(block_import<Node>, do_parse!(
     }, scope))
 ));
 
-named!(block_macro<Node>, do_parse!(
+named!(block_macro<Input, Node>, do_parse!(
     pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("macro")) >>
     name: ws!(identifier) >>
@@ -628,7 +634,7 @@ named!(block_macro<Node>, do_parse!(
     ))
 ));
 
-named!(block_node<Node>, do_parse!(
+named!(block_node<Input, Node>, do_parse!(
     tag_s!("{%") >>
     contents: alt!(
         block_call |
@@ -646,7 +652,7 @@ named!(block_node<Node>, do_parse!(
     (contents)
 ));
 
-named!(block_comment<Node>, do_parse!(
+named!(block_comment<Input, Node>, do_parse!(
     tag_s!("{#") >>
     pws: opt!(tag_s!("-")) >>
     inner: take_until_s!("#}") >>
@@ -654,7 +660,7 @@ named!(block_comment<Node>, do_parse!(
     (Node::Comment(WS(pws.is_some(), inner.len() > 1 && inner[inner.len() - 1] == b'-')))
 ));
 
-named!(parse_template<Vec<Node<'a>>>, many0!(alt!(
+named!(parse_template<Input, Vec<Node>>, many0!(alt!(
     take_content |
     block_comment |
     expr_node |
@@ -662,17 +668,18 @@ named!(parse_template<Vec<Node<'a>>>, many0!(alt!(
 )));
 
 pub fn parse(src: &str) -> Vec<Node> {
-    match parse_template(src.as_bytes()) {
-        IResult::Done(left, res) => {
+    match parse_template(Input(src.as_bytes())) {
+        Ok((left, res)) => {
             if !left.is_empty() {
-                let s = str::from_utf8(left).unwrap();
+                let s = str::from_utf8(left.0).unwrap();
                 panic!("unable to parse template:\n\n{:?}", s);
             } else {
                 res
             }
         },
-        IResult::Error(err) => panic!("problems parsing template source: {}", err),
-        IResult::Incomplete(_) => panic!("parsing incomplete"),
+        Err(nom::Err::Error(err)) => panic!("problems parsing template source: {:?}", err),
+        Err(nom::Err::Failure(err)) => panic!("problems parsing template source: {:?}", err),
+        Err(nom::Err::Incomplete(_)) => panic!("parsing incomplete"),
     }
 }
 
@@ -701,5 +708,10 @@ mod tests {
     #[should_panic]
     fn test_invalid_block() {
         super::parse("{% extend \"blah\" %}");
+    }
+
+    #[test]
+    fn test_parse_filter() {
+        super::parse("{{ strvar|e }}");
     }
 }
