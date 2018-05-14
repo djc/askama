@@ -555,7 +555,7 @@ named!(block_for<Node>, do_parse!(
     nws2: opt!(tag_s!("-")) >>
     (Node::Loop(WS(pws1.is_some(), nws1.is_some()),
                 var, iter, block,
-                WS(pws2.is_some(), pws2.is_some())))
+                WS(pws2.is_some(), nws2.is_some())))
 ));
 
 named!(block_extends<Node>, do_parse!(
@@ -578,7 +578,7 @@ named!(block_block<Node>, do_parse!(
     nws2: opt!(tag_s!("-")) >>
     (Node::BlockDef(WS(pws1.is_some(), nws1.is_some()),
                     name, contents,
-                    WS(pws2.is_some(), pws2.is_some())))
+                    WS(pws2.is_some(), nws2.is_some())))
 ));
 
 named!(block_include<Node>, do_parse!(
