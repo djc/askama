@@ -112,9 +112,9 @@ impl<'a> Generator<'a> {
     fn new<'n>(locals: SetChain<'n, &'n str>, indent: u8) -> Generator<'n> {
         Generator {
             buf: String::new(),
-            indent: indent,
+            indent,
             start: true,
-            locals: locals,
+            locals,
             next_ws: None,
             skip_ws: false,
             vars: 0,
@@ -612,7 +612,7 @@ impl<'a> Generator<'a> {
     }
 
     fn visit_expr(&mut self, expr: &Expr, code: &mut String) -> DisplayWrap {
-        let wrapped = match *expr {
+        match *expr {
             Expr::NumLit(s) => self.visit_num_lit(s, code),
             Expr::StrLit(s) => self.visit_str_lit(s, code),
             Expr::Var(s) => self.visit_var(s, code),
@@ -626,8 +626,7 @@ impl<'a> Generator<'a> {
             Expr::MethodCall(ref obj, method, ref args) => {
                 self.visit_method_call(obj, method, args, code)
             },
-        };
-        wrapped
+        }
     }
 
     fn visit_match_variant(&mut self, param: &MatchVariant) -> DisplayWrap {
