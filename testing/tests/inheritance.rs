@@ -58,3 +58,21 @@ fn test_different_module() {
         "a\n(a) Content goes here\nFoo\nCopyright 2017"
     );
 }
+
+
+
+#[derive(Template)]
+#[template(path = "nested-base.html", print = "code")]
+struct NestedBaseTemplate {}
+
+#[derive(Template)]
+#[template(path = "nested-child.html", print = "code")]
+struct NestedChildTemplate {
+    _parent: NestedBaseTemplate,
+}
+
+#[test]
+fn test_nested_blocks() {
+    let t = NestedChildTemplate { _parent: NestedBaseTemplate {} };
+    assert_eq!(t.render().unwrap(), "\ndurpy\n");
+}

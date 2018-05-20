@@ -31,6 +31,7 @@ impl<'a> State<'a> {
         let mut base: Option<&Expr> = None;
         let mut blocks = Vec::new();
         let mut macros = HashMap::new();
+
         for n in nodes.iter() {
             match *n {
                 Node::Extends(ref path) => match base {
@@ -48,9 +49,30 @@ impl<'a> State<'a> {
                 _ => {},
             }
         }
+
+        let mut check_nested = 0;
+        let mut nested_blocks = Vec::new();
+        while check_nested < blocks.len() {
+            if let Node::BlockDef(_, _, ref nodes, _) = blocks[check_nested] {
+                for n in nodes {
+                    match n {
+                        def @ Node::BlockDef(_, _, _, _) => {
+                            nested_blocks.push(def);
+                        },
+                        _ => {},
+                    }
+                }
+            } else {
+                panic!("non block found in list of blocks");
+            }
+            blocks.append(&mut nested_blocks);
+            check_nested += 1;
+        }
+
         for (&(scope, name), m) in imported {
             macros.insert((Some(scope), name), m);
         }
+
         State {
             input,
             nodes,
@@ -106,6 +128,7 @@ struct Generator<'a> {
     next_ws: Option<&'a str>,
     skip_ws: bool,
     vars: usize,
+    impl_blocks: bool,
 }
 
 impl<'a> Generator<'a> {
@@ -118,6 +141,7 @@ impl<'a> Generator<'a> {
             next_ws: None,
             skip_ws: false,
             vars: 0,
+            impl_blocks: false,
         }
     }
 
@@ -209,8 +233,10 @@ impl<'a> Generator<'a> {
         self.writeln("#[allow(unused_imports)] use ::std::ops::Deref as HiddenDerefTrait;");
 
         if let Some(nodes) = nodes {
+            self.impl_blocks = true;
             self.handle(state, nodes, AstLevel::Top);
             self.flush_ws(&WS(false, false));
+            self.impl_blocks = false;
         } else {
             self.writeln("self._parent.render_trait_into(self, writer)?;");
         }
@@ -332,9 +358,6 @@ impl<'a> Generator<'a> {
                     self.write_loop(state, ws1, var, iter, body, ws2);
                 },
                 Node::BlockDef(ref ws1, name, _, ref ws2) => {
-                    if let AstLevel::Nested = level {
-                        panic!("blocks ('{}') are only allowed at the top level", name);
-                    }
                     self.write_block(ws1, name, ws2);
                 },
                 Node::Include(ref ws, path) => {
@@ -557,7 +580,12 @@ impl<'a> Generator<'a> {
 
     fn write_block(&mut self, ws1: &WS, name: &str, ws2: &WS) {
         self.flush_ws(ws1);
-        self.writeln(&format!("timpl.render_block_{}_into(writer)?;", name));
+        let ctx = if self.impl_blocks {
+            "timpl"
+        } else {
+            "self"
+        };
+        self.writeln(&format!("{}.render_block_{}_into(writer)?;", ctx, name));
         self.prepare_ws(ws2);
     }
 
