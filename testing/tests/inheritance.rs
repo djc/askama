@@ -62,11 +62,11 @@ fn test_different_module() {
 
 
 #[derive(Template)]
-#[template(path = "nested-base.html", print = "code")]
+#[template(path = "nested-base.html")]
 struct NestedBaseTemplate {}
 
 #[derive(Template)]
-#[template(path = "nested-child.html", print = "code")]
+#[template(path = "nested-child.html")]
 struct NestedChildTemplate {
     _parent: NestedBaseTemplate,
 }
