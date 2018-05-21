@@ -20,4 +20,4 @@ rocket = ["askama_shared/rocket"]
 askama_shared = { version = "0.6.2", path = "../askama_shared" }
 nom = "3"
 quote = "0.5"
-syn = "0.13"
+syn = "0.14"
