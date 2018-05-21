@@ -2,7 +2,8 @@ use input::TemplateInput;
 use parser::{self, Cond, Expr, Macro, MatchParameter, MatchVariant, Node, Target, When, WS};
 use shared::{filters, path};
 
-use quote::{ToTokens, Tokens};
+use quote::ToTokens;
+use proc_macro2::Span;
 
 use std::{cmp, hash, str};
 use std::path::Path;
@@ -109,7 +110,7 @@ fn get_parent_type(ast: &syn::DeriveInput) -> Option<&syn::Type> {
             ..
         }) => fields.named.iter().filter_map(|f| {
             f.ident.as_ref().and_then(|name| {
-                if name.as_ref() == "_parent" {
+                if name == "_parent" {
                     Some(&f.ty)
                 } else {
                     None
@@ -187,7 +188,7 @@ impl<'a> Generator<'a> {
 
     // Implement `Template` for the given context struct.
     fn impl_template(&mut self, state: &'a State) {
-        self.write_header(state, "::askama::Template", &[]);
+        self.write_header(state, "::askama::Template", None);
         self.writeln("fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
                       ::askama::Result<()> {");
         self.writeln("#[allow(unused_imports)] use ::std::ops::Deref as HiddenDerefTrait;");
@@ -200,7 +201,7 @@ impl<'a> Generator<'a> {
 
     // Implement `Display` for the given context struct.
     fn impl_display(&mut self, state: &'a State) {
-        self.write_header(state, "::std::fmt::Display", &[]);
+        self.write_header(state, "::std::fmt::Display", None);
         self.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {");
         self.writeln("self.render_into(f).map_err(|_| ::std::fmt::Error {})");
         self.writeln("}");
@@ -209,10 +210,8 @@ impl<'a> Generator<'a> {
 
     // Implement `Deref<Parent>` for an inheriting context struct.
     fn deref_to_parent(&mut self, state: &'a State, parent_type: &syn::Type) {
-        self.write_header(state, "::std::ops::Deref", &[]);
-        let mut tokens = Tokens::new();
-        parent_type.to_tokens(&mut tokens);
-        self.writeln(&format!("type Target = {};", tokens));
+        self.write_header(state, "::std::ops::Deref", None);
+        self.writeln(&format!("type Target = {};", parent_type.into_token_stream()));
         self.writeln("fn deref(&self) -> &Self::Target {");
         self.writeln("&self._parent");
         self.writeln("}");
@@ -221,7 +220,7 @@ impl<'a> Generator<'a> {
 
     // Implement `TraitFromPathName` for the given context struct.
     fn impl_trait(&mut self, state: &'a State, nodes: Option<&'a [Node]>) {
-        self.write_header(state, &state.trait_name, &[]);
+        self.write_header(state, &state.trait_name, None);
         self.write_block_defs(state);
 
         self.writeln("#[allow(unused_variables)]");
@@ -249,7 +248,7 @@ impl<'a> Generator<'a> {
 
     // Implement `Template` for templates that implement a template trait.
     fn impl_template_for_trait(&mut self, state: &'a State) {
-        self.write_header(state, "::askama::Template", &[]);
+        self.write_header(state, "::askama::Template", None);
         self.writeln("fn render_into(&self, writer: &mut ::std::fmt::Write) \
                       -> ::askama::Result<()> {");
         if state.derived {
@@ -275,7 +274,7 @@ impl<'a> Generator<'a> {
 
     // Implement iron's Modifier<Response> if enabled
     fn impl_modifier_response(&mut self, state: &'a State) {
-        self.write_header(state, "::askama::iron::Modifier<::askama::iron::Response>", &[]);
+        self.write_header(state, "::askama::iron::Modifier<::askama::iron::Response>", None);
         self.writeln("fn modify(self, res: &mut ::askama::iron::Response) {");
         self.writeln("res.body = Some(Box::new(self.render().unwrap().into_bytes()));");
 
@@ -293,7 +292,9 @@ impl<'a> Generator<'a> {
 
     // Implement Rocket's `Responder`.
     fn impl_responder(&mut self, state: &'a State) {
-        self.write_header(state, "::askama::rocket::Responder<'r>", &[quote!('r)]);
+        let lifetime = syn::Lifetime::new("r", Span::call_site());
+        let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
+        self.write_header(state, "::askama::rocket::Responder<'r>", Some(vec![param]));
         self.writeln("fn respond_to(self, _: &::askama::rocket::Request) \
                       -> ::askama::rocket::Result<'r> {");
 
@@ -309,20 +310,22 @@ impl<'a> Generator<'a> {
 
     // Writes header for the `impl` for `TraitFromPathName` or `Template`
     // for the given context struct.
-    fn write_header(&mut self, state: &'a State, target: &str, vars: &[Tokens]) {
+    fn write_header(&mut self, state: &'a State, target: &str,
+                    params: Option<Vec<syn::GenericParam>>) {
         let mut generics = state.input.ast.generics.clone();
-        for v in vars.iter() {
-            generics.params.push(parse_quote!(#v));
+        if let Some(params) = params {
+            for param in params {
+                generics.params.push(param);
+            }
         }
         let (_, orig_ty_generics, _) = state.input.ast.generics.split_for_impl();
         let (impl_generics, _, where_clause) = generics.split_for_impl();
-        let ident = state.input.ast.ident.as_ref();
         self.writeln(
             format!(
                 "{} {} for {}{} {{",
                 quote!(impl#impl_generics),
                 target,
-                ident,
+                state.input.ast.ident,
                 quote!(#orig_ty_generics #where_clause),
             ).as_ref(),
         );

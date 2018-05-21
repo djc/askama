@@ -2,9 +2,9 @@ extern crate askama_shared as shared;
 #[macro_use]
 extern crate nom;
 extern crate proc_macro;
+extern crate proc_macro2;
 #[macro_use]
 extern crate quote;
-#[macro_use(parse_quote)]
 extern crate syn;
 
 mod input;

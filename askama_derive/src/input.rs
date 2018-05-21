@@ -47,9 +47,7 @@ impl TemplateMeta {
             .iter()
             .find(|a| a.interpret_meta().unwrap().name() == "template");
         if attr.is_none() {
-            let msg = format!("'template' attribute not found on struct '{}'",
-                              ast.ident.as_ref());
-            panic!(msg);
+            panic!(format!("'template' attribute not found on struct '{}'", ast.ident));
         }
 
         let attr = attr.unwrap();
@@ -61,7 +59,7 @@ impl TemplateMeta {
             for nm_item in inner.nested.iter() {
                 if let syn::NestedMeta::Meta(ref item) = *nm_item {
                     if let syn::Meta::NameValue(ref pair) = *item {
-                        match pair.ident.as_ref() {
+                        match pair.ident.to_string().as_ref() {
                             "path" => if let syn::Lit::Str(ref s) = pair.lit {
                                 if source.is_some() {
                                     panic!("must specify 'source' or 'path', not both");
