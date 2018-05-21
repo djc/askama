@@ -361,6 +361,10 @@ impl<'a> Generator<'a> {
                     self.write_loop(state, ws1, var, iter, body, ws2);
                 },
                 Node::BlockDef(ref ws1, name, _, ref ws2) => {
+                    if let AstLevel::Nested = level {
+                        panic!("blocks ('{}') are only allowed at the top level of a template \
+                                or another block", name);
+                    }
                     self.write_block(ws1, name, ws2);
                 },
                 Node::Include(ref ws, path) => {
@@ -405,7 +409,7 @@ impl<'a> Generator<'a> {
                 self.prepare_ws(ws1);
 
                 self.locals.push();
-                self.handle(state, nodes, AstLevel::Nested);
+                self.handle(state, nodes, AstLevel::Block);
                 self.locals.pop();
 
                 self.flush_ws(ws2);
@@ -970,6 +974,7 @@ impl<'a, T: 'a> SetChain<'a, T> where T: cmp::Eq + hash::Hash {
 #[derive(Clone)]
 enum AstLevel {
     Top,
+    Block,
     Nested,
 }
 
