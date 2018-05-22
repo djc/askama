@@ -3,7 +3,7 @@
 [![Latest version](https://img.shields.io/crates/v/askama.svg)](https://crates.io/crates/askama)
 [![Build status](https://api.travis-ci.org/djc/askama.svg?branch=master)](https://travis-ci.org/djc/askama)
 [![Code coverage](https://codecov.io/gh/djc/askama/branch/master/graph/badge.svg)](https://codecov.io/gh/djc/askama)
-[![Chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/djc/askama)
+[![Chat](https://badges.gitter.im/gitterHQ/gitter.svg)](https://gitter.im/djc/askama)
 
 Askama implements a template rendering engine based on Jinja.
 It generates Rust code from your templates at compile time
