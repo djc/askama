@@ -12,6 +12,7 @@ See below for an example, or read [the documentation][docs].
 
 **"I use Askama for actix's TechEmpower benchmarks."** --
 [Nikolay Kim][fafhrd91], creator of actix-web
+
 **"Pretty exciting. I would love to use this already."** --
 [Armin Ronacher][mitsuhiko], creator of Jinja
 
