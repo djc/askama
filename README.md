@@ -10,6 +10,8 @@ It generates Rust code from your templates at compile time
 based on a user-defined `struct` to hold the template's context.
 See below for an example, or read [the documentation][docs].
 
+**"I use Askama for actix's TechEmpower benchmarks."** --
+[Nikolay Kim][fafhrd91], creator of actix-web
 **"Pretty exciting. I would love to use this already."** --
 [Armin Ronacher][mitsuhiko], creator of Jinja
 
@@ -44,6 +46,7 @@ Many thanks to [David Tolnay][dtolnay] for his support in improving Askama.
 * A limited number of built-in filters have been implemented
 
 [docs]: https://docs.rs/askama
+[fafhrd91]: https://github.com/fafhrd91
 [mitsuhiko]: http://lucumr.pocoo.org/
 [issues]: https://github.com/djc/askama/issues
 [twitter]: https://twitter.com/djco/
