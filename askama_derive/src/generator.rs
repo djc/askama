@@ -292,7 +292,7 @@ impl<'a> Generator<'a> {
 
     // Implement Rocket's `Responder`.
     fn impl_responder(&mut self, state: &'a State) {
-        let lifetime = syn::Lifetime::new("r", Span::call_site());
+        let lifetime = syn::Lifetime::new("'r", Span::call_site());
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
         self.write_header(state, "::askama::rocket::Responder<'r>", Some(vec![param]));
         self.writeln("fn respond_to(self, _: &::askama::rocket::Request) \
