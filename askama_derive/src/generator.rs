@@ -292,11 +292,11 @@ impl<'a> Generator<'a> {
 
     // Implement Rocket's `Responder`.
     fn impl_responder(&mut self, state: &'a State) {
-        let lifetime = syn::Lifetime::new("'r", Span::call_site());
+        let lifetime = syn::Lifetime::new("'askama", Span::call_site());
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
-        self.write_header(state, "::askama::rocket::Responder<'r>", Some(vec![param]));
+        self.write_header(state, "::askama::rocket::Responder<'askama>", Some(vec![param]));
         self.writeln("fn respond_to(self, _: &::askama::rocket::Request) \
-                      -> ::askama::rocket::Result<'r> {");
+                      -> ::askama::rocket::Result<'askama> {");
 
         let ext = match state.input.path.extension() {
             Some(s) => s.to_str().unwrap(),
