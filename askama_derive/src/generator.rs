@@ -79,21 +79,21 @@ impl<'a> State<'a> {
             nodes,
             blocks,
             macros,
-            trait_name: trait_name_for_path(&base, &input.path),
+            trait_name: match base {
+                Some(user_path) => trait_name_for_path(
+                    &path::find_template_from_path(user_path, Some(&input.path))
+                ),
+                None => trait_name_for_path(&input.path),
+            },
             derived: base.is_some(),
         }
     }
 }
 
-fn trait_name_for_path(base: &Option<&str>, path: &Path) -> String {
-    let rooted_path = match *base {
-        Some(user_path) => path::find_template_from_path(user_path, Some(path)),
-        _ => path.to_path_buf(),
-    };
-
+fn trait_name_for_path(path: &Path) -> String {
     let mut res = String::new();
     res.push_str("TraitFrom");
-    for c in rooted_path.to_string_lossy().chars() {
+    for c in path.to_string_lossy().chars() {
         if c.is_alphanumeric() {
             res.push(c);
         } else {
