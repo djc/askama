@@ -236,11 +236,11 @@ impl<'a> Generator<'a> {
             self.handle(state, nodes, AstLevel::Top);
             self.flush_ws(&WS(false, false));
             self.impl_blocks = false;
+            self.writeln("Ok(())");
         } else {
-            self.writeln("self._parent.render_trait_into(self, writer)?;");
+            self.writeln("self._parent.render_trait_into(self, writer)");
         }
 
-        self.writeln("Ok(())");
         self.writeln("}");
         self.flush_ws(&WS(false, false));
         self.writeln("}");
@@ -252,11 +252,10 @@ impl<'a> Generator<'a> {
         self.writeln("fn render_into(&self, writer: &mut ::std::fmt::Write) \
                       -> ::askama::Result<()> {");
         if state.derived {
-            self.writeln("self._parent.render_trait_into(self, writer)?;");
+            self.writeln("self._parent.render_trait_into(self, writer)");
         } else {
-            self.writeln("self.render_trait_into(self, writer)?;");
+            self.writeln("self.render_trait_into(self, writer)");
         }
-        self.writeln("Ok(())");
         self.writeln("}");
         self.writeln("}");
     }
