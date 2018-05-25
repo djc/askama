@@ -29,23 +29,23 @@ struct State<'a> {
 impl<'a> State<'a> {
     fn new<'n>(input: &'n TemplateInput, nodes: &'n [Node], imported:
                &'n HashMap<(&'n str, &'n str), Macro<'n>>) -> State<'n> {
-        let mut base: Option<&Expr> = None;
+        let mut base = None;
         let mut blocks = Vec::new();
         let mut macros = HashMap::new();
 
-        for n in nodes.iter() {
-            match *n {
-                Node::Extends(ref path) => match base {
+        for n in nodes {
+            match n {
+                Node::Extends(Expr::StrLit(path)) => match base {
                     Some(_) => panic!("multiple extend blocks found"),
                     None => {
-                        base = Some(path);
+                        base = Some(*path);
                     },
                 },
-                ref def @ Node::BlockDef(_, _, _, _) => {
+                def @ Node::BlockDef(_, _, _, _) => {
                     blocks.push(def);
                 },
-                Node::Macro(name, ref m) => {
-                    macros.insert((None, name), m);
+                Node::Macro(name, m) => {
+                    macros.insert((None, *name), m);
                 },
                 _ => {},
             }
@@ -85,9 +85,9 @@ impl<'a> State<'a> {
     }
 }
 
-fn trait_name_for_path(base: &Option<&Expr>, path: &Path) -> String {
+fn trait_name_for_path(base: &Option<&str>, path: &Path) -> String {
     let rooted_path = match *base {
-        Some(&Expr::StrLit(user_path)) => path::find_template_from_path(user_path, Some(path)),
+        Some(user_path) => path::find_template_from_path(user_path, Some(path)),
         _ => path.to_path_buf(),
     };
 
