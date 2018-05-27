@@ -258,6 +258,12 @@
 //! Expressions can be grouped using parentheses.
 //! The HTML special characters `&`, `<` and `>` will be replaced with their
 //! character entities unless the `escape` mode is disabled for a template.
+//! Methods can be called on variables that are in scope, including `self`.
+//!
+//! **Warning**: if the result of an expression (a `{{ }}` block) is
+//! equivalent to `self`, this can result in a stack overflow from infinite
+//! recursion. This is because the `Display` implementation for that expression
+//! will in turn evaluate the expression and yield `self` again.
 //!
 //! ## Comments
 //!
