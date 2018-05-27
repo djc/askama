@@ -793,7 +793,12 @@ impl<'a> Generator<'a> {
 
     fn visit_method_call(&mut self, obj: &Expr, method: &str, args: &[Expr], code: &mut String)
                          -> DisplayWrap {
-        self.visit_expr(obj, code);
+        if let &Expr::Var("self") = obj {
+            code.push_str("self");
+        } else {
+            self.visit_expr(obj, code);
+        }
+
         code.push_str(&format!(".{}(", method));
         self._visit_args(args, code);
         code.push_str(")");
