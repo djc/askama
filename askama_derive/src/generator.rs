@@ -56,11 +56,8 @@ impl<'a> State<'a> {
         while check_nested < blocks.len() {
             if let Node::BlockDef(_, _, ref nodes, _) = blocks[check_nested] {
                 for n in nodes {
-                    match n {
-                        def @ Node::BlockDef(_, _, _, _) => {
-                            nested_blocks.push(def);
-                        },
-                        _ => {},
+                    if let def @ Node::BlockDef(_, _, _, _) = n {
+                        nested_blocks.push(def);
                     }
                 }
             } else {
@@ -793,7 +790,7 @@ impl<'a> Generator<'a> {
 
     fn visit_method_call(&mut self, obj: &Expr, method: &str, args: &[Expr], code: &mut String)
                          -> DisplayWrap {
-        if let &Expr::Var("self") = obj {
+        if let Expr::Var("self") = obj {
             code.push_str("self");
         } else {
             self.visit_expr(obj, code);
