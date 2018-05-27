@@ -103,7 +103,7 @@
 //! <!DOCTYPE html>
 //! <html lang="en">
 //!   <head>
-//!     <title>{{ block title %}{{ title }}{% endblock %} - My Site</title>
+//!     <title>{% block title %}{{ title }}{% endblock %} - My Site</title>
 //!     {% block head %}{% endblock %}
 //!   </head>
 //!   <body>
