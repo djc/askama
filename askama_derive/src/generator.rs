@@ -147,7 +147,9 @@ impl<'a> Generator<'a> {
     }
 
     fn default<'n>() -> Generator<'n> {
-        Self::new(SetChain::new(), 0)
+        let mut chain = SetChain::new();
+        chain.insert("self");
+        Self::new(chain, 0)
     }
 
     fn child(&mut self) -> Generator {
