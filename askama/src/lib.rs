@@ -83,13 +83,27 @@
 //!
 //! ## Whitespace control
 //!
-//! Askama preserves all whitespace in template code by default,
-//! except that a single trailing newline characters are suppressed.
+//! Askama considers all tabs, spaces, newlines and carriage returns to be
+//! whitespace. By default, it preserves all whitespace in template code,
+//! except that a single trailing newline character is suppressed.
 //! However, whitespace before and after expression and block delimiters
 //! can be suppressed by writing a minus sign directly following a
 //! start delimiter or leading into an end delimiter.
-//! Askama considers all tabs, spaces, newlines and carriage returns to be
-//! whitespace.
+//!
+//! Here is an example:
+//!
+//! ```text
+//! {% if foo %}
+//!   {{- bar -}}
+//! {% else if -%}
+//!   nothing
+//! {%- endif %}
+//! ```
+//!
+//! This discards all whitespace inside the if/else block. If a literal
+//! (any part of the template not surrounded by `{% %}` or `{{ }}`)
+//! includes only whitespace, whitespace suppression on either side will
+//! completely suppress that literal content.
 //!
 //! ## Template inheritance
 //!
