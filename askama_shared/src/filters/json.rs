@@ -1,6 +1,6 @@
 use serde::Serialize;
 use serde_json;
-use errors::{Error, Result};
+use error::{Error, Result};
 use MarkupDisplay;
 
 
