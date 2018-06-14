@@ -188,7 +188,6 @@ impl<'a> Generator<'a> {
         self.write_header(state, "::askama::Template", None);
         self.writeln("fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
                       ::askama::Result<()> {");
-        self.writeln("#[allow(unused_imports)] use ::std::ops::Deref as HiddenDerefTrait;");
         self.handle(state, state.nodes, AstLevel::Top);
         self.flush_ws(&WS(false, false));
         self.writeln("Ok(())");
@@ -226,7 +225,6 @@ impl<'a> Generator<'a> {
              -> ::askama::Result<()> {{",
             state.trait_name
         ));
-        self.writeln("#[allow(unused_imports)] use ::std::ops::Deref as HiddenDerefTrait;");
 
         if let Some(nodes) = nodes {
             self.impl_blocks = true;
@@ -455,7 +453,7 @@ impl<'a> Generator<'a> {
         }
 
         let expr_code = self.visit_expr_root(expr);
-        self.writeln(&format!("match (&{}).deref() {{", expr_code));
+        self.writeln(&format!("match &{} {{", expr_code));
         for arm in arms {
             let &(ref ws, ref variant, ref params, ref body) = arm;
             self.locals.push();
@@ -663,19 +661,16 @@ impl<'a> Generator<'a> {
     fn visit_match_variant(&mut self, param: &MatchVariant) -> DisplayWrap {
         let mut code = String::new();
         let wrapped = match *param {
-            MatchVariant::StrLit(s) => self.visit_str_lit(s, &mut code),
-            MatchVariant::NumLit(s) => {
-                // Variants need to be references until match-modes land
+            MatchVariant::StrLit(s) => {
                 code.push_str("&");
-                self.visit_num_lit(s, &mut code)
-            },
+                self.visit_str_lit(s, &mut code)
+            }
+            MatchVariant::NumLit(s) => self.visit_num_lit(s, &mut code),
             MatchVariant::Name(s) => {
-                code.push_str("&");
                 code.push_str(s);
                 DisplayWrap::Unwrapped
             },
             MatchVariant::Path(ref s) => {
-                code.push_str("&");
                 code.push_str(&s.join("::"));
                 DisplayWrap::Unwrapped
             },
@@ -690,7 +685,6 @@ impl<'a> Generator<'a> {
             MatchParameter::NumLit(s) => self.visit_num_lit(s, &mut code),
             MatchParameter::StrLit(s) => self.visit_str_lit(s, &mut code),
             MatchParameter::Name(s) => {
-                code.push_str("ref ");
                 code.push_str(s);
                 DisplayWrap::Unwrapped
             },
