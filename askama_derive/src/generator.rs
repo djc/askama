@@ -14,77 +14,70 @@ use syn;
 
 pub fn generate(input: &TemplateInput, nodes: &[Node], imported: &HashMap<(&str, &str), Macro>)
                 -> String {
-    Generator::default().build(&State::new(input, nodes, imported))
+    let mut base = None;
+    let mut blocks = Vec::new();
+    let mut macros = HashMap::new();
+
+    for n in nodes {
+        match n {
+            Node::Extends(Expr::StrLit(path)) => match base {
+                Some(_) => panic!("multiple extend blocks found"),
+                None => {
+                    base = Some(*path);
+                },
+            },
+            def @ Node::BlockDef(_, _, _, _) => {
+                blocks.push(def);
+            },
+            Node::Macro(name, m) => {
+                macros.insert((None, *name), m);
+            },
+            _ => {},
+        }
+    }
+
+    let mut check_nested = 0;
+    let mut nested_blocks = Vec::new();
+    while check_nested < blocks.len() {
+        if let Node::BlockDef(_, _, ref nodes, _) = blocks[check_nested] {
+            for n in nodes {
+                if let def @ Node::BlockDef(_, _, _, _) = n {
+                    nested_blocks.push(def);
+                }
+            }
+        } else {
+            panic!("non block found in list of blocks");
+        }
+        blocks.append(&mut nested_blocks);
+        check_nested += 1;
+    }
+
+    for (&(scope, name), m) in imported {
+        macros.insert((Some(scope), name), m);
+    }
+
+    Generator::default().build(&State {
+        input,
+        nodes,
+        blocks: &blocks,
+        macros: &macros,
+        trait_name: match base {
+            Some(user_path) => trait_name_for_path(
+                &path::find_template_from_path(user_path, Some(&input.path))
+            ),
+            None => trait_name_for_path(&input.path),
+        },
+        derived: base.is_some(),
+    })
 }
 
 struct State<'a> {
     input: &'a TemplateInput<'a>,
     nodes: &'a [Node<'a>],
-    blocks: Vec<&'a Node<'a>>,
-    macros: MacroMap<'a>,
+    blocks: &'a [&'a Node<'a>],
+    macros: &'a MacroMap<'a>,
     trait_name: String,
     derived: bool,
-}
-
-impl<'a> State<'a> {
-    fn new<'n>(input: &'n TemplateInput, nodes: &'n [Node], imported:
-               &'n HashMap<(&'n str, &'n str), Macro<'n>>) -> State<'n> {
-        let mut base = None;
-        let mut blocks = Vec::new();
-        let mut macros = HashMap::new();
-
-        for n in nodes {
-            match n {
-                Node::Extends(Expr::StrLit(path)) => match base {
-                    Some(_) => panic!("multiple extend blocks found"),
-                    None => {
-                        base = Some(*path);
-                    },
-                },
-                def @ Node::BlockDef(_, _, _, _) => {
-                    blocks.push(def);
-                },
-                Node::Macro(name, m) => {
-                    macros.insert((None, *name), m);
-                },
-                _ => {},
-            }
-        }
-
-        let mut check_nested = 0;
-        let mut nested_blocks = Vec::new();
-        while check_nested < blocks.len() {
-            if let Node::BlockDef(_, _, ref nodes, _) = blocks[check_nested] {
-                for n in nodes {
-                    if let def @ Node::BlockDef(_, _, _, _) = n {
-                        nested_blocks.push(def);
-                    }
-                }
-            } else {
-                panic!("non block found in list of blocks");
-            }
-            blocks.append(&mut nested_blocks);
-            check_nested += 1;
-        }
-
-        for (&(scope, name), m) in imported {
-            macros.insert((Some(scope), name), m);
-        }
-
-        State {
-            input,
-            nodes,
-            blocks,
-            macros,
-            trait_name: match base {
-                Some(user_path) => trait_name_for_path(
-                    &path::find_template_from_path(user_path, Some(&input.path))
-                ),
-                None => trait_name_for_path(&input.path),
-            },
-            derived: base.is_some(),
-        }
-    }
 }
 
 fn trait_name_for_path(path: &Path) -> String {
@@ -392,7 +385,7 @@ impl<'a> Generator<'a> {
     }
 
     fn write_block_defs(&mut self, state: &'a State) {
-        for b in &state.blocks {
+        for b in state.blocks.iter() {
             if let Node::BlockDef(ref ws1, name, ref nodes, ref ws2) = **b {
                 self.writeln("#[allow(unused_variables)]");
                 self.writeln(&format!(
