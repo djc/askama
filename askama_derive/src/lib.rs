@@ -12,13 +12,7 @@ mod generator;
 mod parser;
 
 use input::Print;
-use parser::{Macro, Node};
 use proc_macro::TokenStream;
-use shared::path;
-
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::path::Path;
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
@@ -40,46 +34,12 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 fn build_template(ast: &syn::DeriveInput) -> String {
     let data = input::TemplateInput::new(ast);
     let nodes = parser::parse(data.source.as_ref());
-    let imports = Imports::new(&nodes, &data.path);
     if data.meta.print == Print::Ast || data.meta.print == Print::All {
         println!("{:?}", nodes);
     }
-    let code = generator::generate(&data, &nodes, &imports.macro_map());
+    let code = generator::generate(&data, &nodes);
     if data.meta.print == Print::Code || data.meta.print == Print::All {
         println!("{}", code);
     }
     code
-}
-
-struct Imports<'a> {
-    sources: HashMap<&'a str, Cow<'a, str>>,
-}
-
-impl<'a> Imports<'a> {
-    fn new(parent_nodes: &'a [Node], parent_path: &'a Path) -> Imports<'a> {
-        let sources = parent_nodes.iter().filter_map(|n| {
-            match *n {
-                Node::Import(_, import_path, scope) => {
-                    let path = path::find_template_from_path(import_path, Some(parent_path));
-                    let src = path::get_template_source(&path);
-                    Some((scope, Cow::Owned(src)))
-                },
-                _ => None,
-            }
-        }).collect();
-        Imports { sources }
-    }
-
-    fn macro_map(&'a self) -> HashMap<(&'a str, &'a str), Macro<'a>> {
-        let mut macro_map = HashMap::new();
-        for (scope, s) in &self.sources {
-            for n in parser::parse(s.as_ref()) {
-                match n {
-                    Node::Macro(name, m) => macro_map.insert((*scope, name), m),
-                    _ => None,
-                };
-            }
-        }
-        macro_map
-    }
 }

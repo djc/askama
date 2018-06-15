@@ -12,10 +12,11 @@ use std::collections::{HashMap, HashSet};
 use syn;
 
 
-pub fn generate(input: &TemplateInput, nodes: &[Node], imported: &HashMap<(&str, &str), Macro>)
-                -> String {
+pub fn generate(input: &TemplateInput, nodes: &[Node]) -> String {
     let mut base = None;
     let mut blocks = Vec::new();
+    let mut imported = Vec::new();
+    let mut parsed = Vec::new();
     let mut macros = HashMap::new();
 
     for n in nodes {
@@ -32,9 +33,15 @@ pub fn generate(input: &TemplateInput, nodes: &[Node], imported: &HashMap<(&str,
             Node::Macro(name, m) => {
                 macros.insert((None, *name), m);
             },
+            Node::Import(_, import_path, scope) => {
+                let path = path::find_template_from_path(import_path, Some(&input.path));
+                let src = path::get_template_source(&path);
+                imported.push((*scope, src));
+            }
             _ => {},
         }
     }
+    parsed.extend(imported.iter().map(|(scope, src)| (*scope, parser::parse(&src))));
 
     let mut check_nested = 0;
     let mut nested_blocks = Vec::new();
@@ -52,8 +59,13 @@ pub fn generate(input: &TemplateInput, nodes: &[Node], imported: &HashMap<(&str,
         check_nested += 1;
     }
 
-    for (&(scope, name), m) in imported {
-        macros.insert((Some(scope), name), m);
+    for (scope, ast) in &parsed {
+        for n in ast {
+            match n {
+                Node::Macro(name, m) => macros.insert((Some(*scope), name), &m),
+                _ => None,
+            };
+        }
     }
 
     Generator::default().build(&State {
