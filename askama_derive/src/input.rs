@@ -18,7 +18,7 @@ impl<'a> TemplateInput<'a> {
         let (path, source) = match meta.source {
             Source::Source(ref s) => {
                 let path = match meta.ext {
-                    Some(ref v) => PathBuf::from(format!("_.{}", v)),
+                    Some(ref v) => PathBuf::from(format!("{}.{}", ast.ident, v)),
                     None => PathBuf::new(),
                 };
                 (path, s.clone())
