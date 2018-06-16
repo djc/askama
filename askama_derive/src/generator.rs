@@ -358,20 +358,20 @@ impl<'a> Generator<'a> {
                     self.write_call(state, ws, scope, name, args);
                 },
                 Node::Macro(_, ref m) => {
-                    if let AstLevel::Nested = level {
+                    if level != AstLevel::Top {
                         panic!("macro blocks only allowed at the top level");
                     }
                     self.flush_ws(&m.ws1);
                     self.prepare_ws(&m.ws2);
                 },
                 Node::Import(ref ws, _, _) => {
-                    if let AstLevel::Nested = level {
+                    if level != AstLevel::Top {
                         panic!("import blocks only allowed at the top level");
                     }
                     self.handle_ws(ws);
                 },
                 Node::Extends(_) => {
-                    if let AstLevel::Nested = level {
+                    if level != AstLevel::Top {
                         panic!("extend blocks only allowed at the top level");
                     }
                     // No whitespace handling: child template top-level is not used,
@@ -974,7 +974,7 @@ fn get_parent_type(ast: &syn::DeriveInput) -> Option<&syn::Type> {
     }.next()
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 enum AstLevel {
     Top,
     Block,
