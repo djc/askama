@@ -108,24 +108,6 @@ fn trait_name_for_path(path: &Path) -> String {
     res
 }
 
-fn get_parent_type(ast: &syn::DeriveInput) -> Option<&syn::Type> {
-    match ast.data {
-        syn::Data::Struct(syn::DataStruct {
-            fields: syn::Fields::Named(ref fields),
-            ..
-        }) => fields.named.iter().filter_map(|f| {
-            f.ident.as_ref().and_then(|name| {
-                if name == "_parent" {
-                    Some(&f.ty)
-                } else {
-                    None
-                }
-            })
-        }),
-        _ => panic!("derive(Template) only works for struct items"),
-    }.next()
-}
-
 struct Generator<'a> {
     buf: String,
     indent: u8,
@@ -972,6 +954,24 @@ impl<'a, T: 'a> SetChain<'a, T> where T: cmp::Eq + hash::Hash {
         self.scopes.pop().unwrap();
         assert!(!self.scopes.is_empty());
     }
+}
+
+fn get_parent_type(ast: &syn::DeriveInput) -> Option<&syn::Type> {
+    match ast.data {
+        syn::Data::Struct(syn::DataStruct {
+            fields: syn::Fields::Named(ref fields),
+            ..
+        }) => fields.named.iter().filter_map(|f| {
+            f.ident.as_ref().and_then(|name| {
+                if name == "_parent" {
+                    Some(&f.ty)
+                } else {
+                    None
+                }
+            })
+        }),
+        _ => panic!("derive(Template) only works for struct items"),
+    }.next()
 }
 
 #[derive(Clone)]
