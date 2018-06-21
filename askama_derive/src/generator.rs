@@ -94,7 +94,7 @@ impl<'a> Generator<'a> {
              ::askama::Result<()> {",
         );
         self.handle(ctx, &ctx.nodes, AstLevel::Top);
-        self.flush_ws(&WS(false, false));
+        self.flush_ws(WS(false, false));
         self.writeln("Ok(())");
         self.writeln("}");
         self.writeln("}");
@@ -137,7 +137,7 @@ impl<'a> Generator<'a> {
         if let Some(nodes) = nodes {
             self.impl_blocks = true;
             self.handle(ctx, nodes, AstLevel::Top);
-            self.flush_ws(&WS(false, false));
+            self.flush_ws(WS(false, false));
             self.impl_blocks = false;
             self.writeln("Ok(())");
         } else {
@@ -145,7 +145,7 @@ impl<'a> Generator<'a> {
         }
 
         self.writeln("}");
-        self.flush_ws(&WS(false, false));
+        self.flush_ws(WS(false, false));
         self.writeln("}");
     }
 
@@ -248,28 +248,28 @@ impl<'a> Generator<'a> {
                 Node::Lit(lws, val, rws) => {
                     self.write_lit(lws, val, rws);
                 }
-                Node::Comment(ref ws) => {
+                Node::Comment(ws) => {
                     self.write_comment(ws);
                 }
-                Node::Expr(ref ws, ref val) => {
+                Node::Expr(ws, ref val) => {
                     self.write_expr(ws, val);
                 }
-                Node::LetDecl(ref ws, ref var) => {
+                Node::LetDecl(ws, ref var) => {
                     self.write_let_decl(ws, var);
                 }
-                Node::Let(ref ws, ref var, ref val) => {
+                Node::Let(ws, ref var, ref val) => {
                     self.write_let(ws, var, val);
                 }
-                Node::Cond(ref conds, ref ws) => {
+                Node::Cond(ref conds, ws) => {
                     self.write_cond(ctx, conds, ws);
                 }
-                Node::Match(ref ws1, ref expr, inter, ref arms, ref ws2) => {
+                Node::Match(ws1, ref expr, inter, ref arms, ws2) => {
                     self.write_match(ctx, ws1, expr, inter, arms, ws2);
                 }
-                Node::Loop(ref ws1, ref var, ref iter, ref body, ref ws2) => {
+                Node::Loop(ws1, ref var, ref iter, ref body, ws2) => {
                     self.write_loop(ctx, ws1, var, iter, body, ws2);
                 }
-                Node::BlockDef(ref ws1, name, _, ref ws2) => {
+                Node::BlockDef(ws1, name, _, ws2) => {
                     if let AstLevel::Nested = level {
                         panic!(
                             "blocks ('{}') are only allowed at the top level of a template \
@@ -279,20 +279,20 @@ impl<'a> Generator<'a> {
                     }
                     self.write_block(ws1, name, ws2);
                 }
-                Node::Include(ref ws, path) => {
+                Node::Include(ws, path) => {
                     self.handle_include(ctx, ws, path);
                 }
-                Node::Call(ref ws, scope, name, ref args) => {
+                Node::Call(ws, scope, name, ref args) => {
                     self.write_call(ctx, ws, scope, name, args);
                 }
                 Node::Macro(_, ref m) => {
                     if level != AstLevel::Top {
                         panic!("macro blocks only allowed at the top level");
                     }
-                    self.flush_ws(&m.ws1);
-                    self.prepare_ws(&m.ws2);
+                    self.flush_ws(m.ws1);
+                    self.prepare_ws(m.ws2);
                 }
-                Node::Import(ref ws, _, _) => {
+                Node::Import(ws, _, _) => {
                     if level != AstLevel::Top {
                         panic!("import blocks only allowed at the top level");
                     }
@@ -310,21 +310,21 @@ impl<'a> Generator<'a> {
     }
 
     fn write_block_defs(&mut self, ctx: &'a Context) {
-        for b in ctx.blocks.iter() {
-            if let Node::BlockDef(ref ws1, name, ref nodes, ref ws2) = *b {
+        for b in &ctx.blocks {
+            if let Node::BlockDef(ws1, name, nodes, ws2) = b {
                 self.writeln("#[allow(unused_variables)]");
                 self.writeln(&format!(
                     "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
                      -> ::askama::Result<()> {{",
                     name
                 ));
-                self.prepare_ws(ws1);
+                self.prepare_ws(*ws1);
 
                 self.locals.push();
                 self.handle(ctx, nodes, AstLevel::Block);
                 self.locals.pop();
 
-                self.flush_ws(ws2);
+                self.flush_ws(*ws2);
                 self.writeln("Ok(())");
                 self.writeln("}");
             } else {
@@ -333,8 +333,8 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn write_cond(&mut self, ctx: &'a Context, conds: &'a [Cond], ws: &WS) {
-        for (i, &(ref cws, ref cond, ref nodes)) in conds.iter().enumerate() {
+    fn write_cond(&mut self, ctx: &'a Context, conds: &'a [Cond], ws: WS) {
+        for (i, &(cws, ref cond, ref nodes)) in conds.iter().enumerate() {
             self.handle_ws(cws);
             match *cond {
                 Some(ref expr) => {
@@ -364,11 +364,11 @@ impl<'a> Generator<'a> {
     fn write_match(
         &mut self,
         ctx: &'a Context,
-        ws1: &WS,
+        ws1: WS,
         expr: &Expr,
         inter: Option<&'a str>,
         arms: &'a [When],
-        ws2: &WS,
+        ws2: WS,
     ) {
         self.flush_ws(ws1);
         if let Some(inter) = inter {
@@ -380,7 +380,7 @@ impl<'a> Generator<'a> {
         let expr_code = self.visit_expr_root(expr);
         self.writeln(&format!("match &{} {{", expr_code));
         for arm in arms {
-            let &(ref ws, ref variant, ref params, ref body) = arm;
+            let &(ws, ref variant, ref params, ref body) = arm;
             self.locals.push();
             match *variant {
                 Some(ref param) => {
@@ -415,11 +415,11 @@ impl<'a> Generator<'a> {
     fn write_loop(
         &mut self,
         ctx: &'a Context,
-        ws1: &WS,
+        ws1: WS,
         var: &'a Target,
         iter: &Expr,
         body: &'a [Node],
-        ws2: &WS,
+        ws2: WS,
     ) {
         self.handle_ws(ws1);
         self.locals.push();
@@ -442,7 +442,7 @@ impl<'a> Generator<'a> {
     fn write_call(
         &mut self,
         ctx: &'a Context,
-        ws: &WS,
+        ws: WS,
         scope: Option<&str>,
         name: &str,
         args: &[Expr],
@@ -466,25 +466,25 @@ impl<'a> Generator<'a> {
         self.flush_ws(ws); // Cannot handle_ws() here: whitespace from macro definition comes first
         self.locals.push();
         self.writeln("{");
-        self.prepare_ws(&def.ws1);
+        self.prepare_ws(def.ws1);
 
         for (i, arg) in def.args.iter().enumerate() {
             let expr_code = self.visit_expr_root(
                 args.get(i)
-                    .expect(&format!("macro '{}' takes more than {} arguments", name, i)),
+                    .unwrap_or_else(|| panic!("macro '{}' takes more than {} arguments", name, i)),
             );
             self.write(&format!("let {} = &{};", arg, expr_code));
             self.locals.insert(arg);
         }
         self.handle(ctx, &def.nodes, AstLevel::Nested);
 
-        self.flush_ws(&def.ws2);
+        self.flush_ws(def.ws2);
         self.writeln("}");
         self.locals.pop();
         self.prepare_ws(ws);
     }
 
-    fn handle_include(&mut self, ctx: &'a Context, ws: &WS, path: &str) {
+    fn handle_include(&mut self, ctx: &'a Context, ws: WS, path: &str) {
         self.flush_ws(ws);
         let path = path::find_template_from_path(path, Some(&self.input.path));
         let src = path::get_template_source(&path);
@@ -498,7 +498,7 @@ impl<'a> Generator<'a> {
         self.prepare_ws(ws);
     }
 
-    fn write_let_decl(&mut self, ws: &WS, var: &'a Target) {
+    fn write_let_decl(&mut self, ws: WS, var: &'a Target) {
         self.handle_ws(ws);
         self.write("let ");
         match *var {
@@ -510,7 +510,7 @@ impl<'a> Generator<'a> {
         self.writeln(";");
     }
 
-    fn write_let(&mut self, ws: &WS, var: &'a Target, val: &Expr) {
+    fn write_let(&mut self, ws: WS, var: &'a Target, val: &Expr) {
         self.handle_ws(ws);
         let mut code = String::new();
         self.visit_expr(val, &mut code);
@@ -527,14 +527,14 @@ impl<'a> Generator<'a> {
         self.write(&format!(" = {};", &code));
     }
 
-    fn write_block(&mut self, ws1: &WS, name: &str, ws2: &WS) {
+    fn write_block(&mut self, ws1: WS, name: &str, ws2: WS) {
         self.flush_ws(ws1);
         let ctx = if self.impl_blocks { "timpl" } else { "self" };
         self.writeln(&format!("{}.render_block_{}_into(writer)?;", ctx, name));
         self.prepare_ws(ws2);
     }
 
-    fn write_expr(&mut self, ws: &WS, s: &Expr) {
+    fn write_expr(&mut self, ws: WS, s: &Expr) {
         self.handle_ws(ws);
         let mut code = String::new();
         let wrapped = self.visit_expr(s, &mut code);
@@ -570,7 +570,7 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn write_comment(&mut self, ws: &WS) {
+    fn write_comment(&mut self, ws: WS) {
         self.handle_ws(ws);
     }
 
@@ -824,7 +824,7 @@ impl<'a> Generator<'a> {
 
     // Combines `flush_ws()` and `prepare_ws()` to handle both trailing whitespace from the
     // preceding literal and leading whitespace from the succeeding literal.
-    fn handle_ws(&mut self, ws: &WS) {
+    fn handle_ws(&mut self, ws: WS) {
         self.flush_ws(ws);
         self.prepare_ws(ws);
     }
@@ -832,7 +832,7 @@ impl<'a> Generator<'a> {
     // If the previous literal left some trailing whitespace in `next_ws` and the
     // prefix whitespace suppressor from the given argument, flush that whitespace.
     // In either case, `next_ws` is reset to `None` (no trailing whitespace).
-    fn flush_ws(&mut self, ws: &WS) {
+    fn flush_ws(&mut self, ws: WS) {
         if self.next_ws.is_some() && !ws.0 {
             let val = self.next_ws.unwrap();
             if !val.is_empty() {
@@ -845,7 +845,7 @@ impl<'a> Generator<'a> {
     // Sets `skip_ws` to match the suffix whitespace suppressor from the given
     // argument, to determine whether to suppress leading whitespace from the
     // next literal.
-    fn prepare_ws(&mut self, ws: &WS) {
+    fn prepare_ws(&mut self, ws: WS) {
         self.skip_ws = ws.1;
     }
 

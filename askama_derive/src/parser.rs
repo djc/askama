@@ -73,7 +73,7 @@ pub type When<'a> = (WS, Option<MatchVariant<'a>>, Vec<MatchParameter<'a>>, Vec<
 
 type Input<'a> = nom::types::CompleteByteSlice<'a>;
 #[allow(non_snake_case)]
-fn Input<'a>(input: &'a [u8]) -> Input<'a> {
+fn Input(input: &[u8]) -> Input {
     nom::types::CompleteByteSlice(input)
 }
 
