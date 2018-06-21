@@ -70,7 +70,7 @@ pub fn generate(input: &TemplateInput, nodes: &[Node]) -> String {
         }
     }
 
-    Generator::default().build(&State {
+    Generator::default().build(&Context {
         input,
         nodes,
         blocks: &blocks,
@@ -85,7 +85,7 @@ pub fn generate(input: &TemplateInput, nodes: &[Node]) -> String {
     })
 }
 
-struct State<'a> {
+struct Context<'a> {
     input: &'a TemplateInput<'a>,
     nodes: &'a [Node<'a>],
     blocks: &'a [&'a Node<'a>],
@@ -141,45 +141,45 @@ impl<'a> Generator<'a> {
         Self::new(locals, self.indent)
     }
 
-    // Takes a State and generates the relevant implementations.
-    fn build(mut self, state: &'a State) -> String {
-        if !state.blocks.is_empty() {
-            if !state.derived {
-                self.define_trait(state);
+    // Takes a Context and generates the relevant implementations.
+    fn build(mut self, ctx: &'a Context) -> String {
+        if !ctx.blocks.is_empty() {
+            if !ctx.derived {
+                self.define_trait(ctx);
             } else {
-                let parent_type = get_parent_type(state.input.ast)
+                let parent_type = get_parent_type(ctx.input.ast)
                     .expect("expected field '_parent' in extending template struct");
-                self.deref_to_parent(state, parent_type);
+                self.deref_to_parent(ctx, parent_type);
             }
 
-            let trait_nodes = if !state.derived {
-                Some(&state.nodes[..])
+            let trait_nodes = if !ctx.derived {
+                Some(&ctx.nodes[..])
             } else {
                 None
             };
-            self.impl_trait(state, trait_nodes);
-            self.impl_template_for_trait(state);
+            self.impl_trait(ctx, trait_nodes);
+            self.impl_template_for_trait(ctx);
         } else {
-            self.impl_template(state);
+            self.impl_template(ctx);
         }
-        self.impl_display(state);
+        self.impl_display(ctx);
         if cfg!(feature = "iron") {
-            self.impl_modifier_response(state);
+            self.impl_modifier_response(ctx);
         }
         if cfg!(feature = "rocket") {
-            self.impl_responder(state);
+            self.impl_responder(ctx);
         }
         self.buf
     }
 
     // Implement `Template` for the given context struct.
-    fn impl_template(&mut self, state: &'a State) {
-        self.write_header(state, "::askama::Template", None);
+    fn impl_template(&mut self, ctx: &'a Context) {
+        self.write_header(ctx, "::askama::Template", None);
         self.writeln(
             "fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
              ::askama::Result<()> {",
         );
-        self.handle(state, state.nodes, AstLevel::Top);
+        self.handle(ctx, ctx.nodes, AstLevel::Top);
         self.flush_ws(&WS(false, false));
         self.writeln("Ok(())");
         self.writeln("}");
@@ -187,8 +187,8 @@ impl<'a> Generator<'a> {
     }
 
     // Implement `Display` for the given context struct.
-    fn impl_display(&mut self, state: &'a State) {
-        self.write_header(state, "::std::fmt::Display", None);
+    fn impl_display(&mut self, ctx: &'a Context) {
+        self.write_header(ctx, "::std::fmt::Display", None);
         self.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {");
         self.writeln("self.render_into(f).map_err(|_| ::std::fmt::Error {})");
         self.writeln("}");
@@ -196,8 +196,8 @@ impl<'a> Generator<'a> {
     }
 
     // Implement `Deref<Parent>` for an inheriting context struct.
-    fn deref_to_parent(&mut self, state: &'a State, parent_type: &syn::Type) {
-        self.write_header(state, "::std::ops::Deref", None);
+    fn deref_to_parent(&mut self, ctx: &'a Context, parent_type: &syn::Type) {
+        self.write_header(ctx, "::std::ops::Deref", None);
         self.writeln(&format!(
             "type Target = {};",
             parent_type.into_token_stream()
@@ -209,20 +209,20 @@ impl<'a> Generator<'a> {
     }
 
     // Implement `TraitFromPathName` for the given context struct.
-    fn impl_trait(&mut self, state: &'a State, nodes: Option<&'a [Node]>) {
-        self.write_header(state, &state.trait_name, None);
-        self.write_block_defs(state);
+    fn impl_trait(&mut self, ctx: &'a Context, nodes: Option<&'a [Node]>) {
+        self.write_header(ctx, &ctx.trait_name, None);
+        self.write_block_defs(ctx);
 
         self.writeln("#[allow(unused_variables)]");
         self.writeln(&format!(
             "fn render_trait_into(&self, timpl: &{}, writer: &mut ::std::fmt::Write) \
              -> ::askama::Result<()> {{",
-            state.trait_name
+            ctx.trait_name
         ));
 
         if let Some(nodes) = nodes {
             self.impl_blocks = true;
-            self.handle(state, nodes, AstLevel::Top);
+            self.handle(ctx, nodes, AstLevel::Top);
             self.flush_ws(&WS(false, false));
             self.impl_blocks = false;
             self.writeln("Ok(())");
@@ -236,13 +236,13 @@ impl<'a> Generator<'a> {
     }
 
     // Implement `Template` for templates that implement a template trait.
-    fn impl_template_for_trait(&mut self, state: &'a State) {
-        self.write_header(state, "::askama::Template", None);
+    fn impl_template_for_trait(&mut self, ctx: &'a Context) {
+        self.write_header(ctx, "::askama::Template", None);
         self.writeln(
             "fn render_into(&self, writer: &mut ::std::fmt::Write) \
              -> ::askama::Result<()> {",
         );
-        if state.derived {
+        if ctx.derived {
             self.writeln("self._parent.render_trait_into(self, writer)");
         } else {
             self.writeln("self.render_trait_into(self, writer)");
@@ -252,28 +252,28 @@ impl<'a> Generator<'a> {
     }
 
     // Defines the `TraitFromPathName` trait.
-    fn define_trait(&mut self, state: &'a State) {
-        self.writeln(&format!("pub trait {} {{", state.trait_name));
-        self.write_block_defs(state);
+    fn define_trait(&mut self, ctx: &'a Context) {
+        self.writeln(&format!("pub trait {} {{", ctx.trait_name));
+        self.write_block_defs(ctx);
         self.writeln(&format!(
             "fn render_trait_into(&self, timpl: &{}, writer: &mut ::std::fmt::Write) \
              -> ::askama::Result<()>;",
-            state.trait_name
+            ctx.trait_name
         ));
         self.writeln("}");
     }
 
     // Implement iron's Modifier<Response> if enabled
-    fn impl_modifier_response(&mut self, state: &'a State) {
+    fn impl_modifier_response(&mut self, ctx: &'a Context) {
         self.write_header(
-            state,
+            ctx,
             "::askama::iron::Modifier<::askama::iron::Response>",
             None,
         );
         self.writeln("fn modify(self, res: &mut ::askama::iron::Response) {");
         self.writeln("res.body = Some(Box::new(self.render().unwrap().into_bytes()));");
 
-        let ext = state
+        let ext = ctx
             .input
             .path
             .extension()
@@ -290,11 +290,11 @@ impl<'a> Generator<'a> {
     }
 
     // Implement Rocket's `Responder`.
-    fn impl_responder(&mut self, state: &'a State) {
+    fn impl_responder(&mut self, ctx: &'a Context) {
         let lifetime = syn::Lifetime::new("'askama", Span::call_site());
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
         self.write_header(
-            state,
+            ctx,
             "::askama::rocket::Responder<'askama>",
             Some(vec![param]),
         );
@@ -303,7 +303,7 @@ impl<'a> Generator<'a> {
              -> ::askama::rocket::Result<'askama> {",
         );
 
-        let ext = match state.input.path.extension() {
+        let ext = match ctx.input.path.extension() {
             Some(s) => s.to_str().unwrap(),
             None => "txt",
         };
@@ -317,24 +317,24 @@ impl<'a> Generator<'a> {
     // for the given context struct.
     fn write_header(
         &mut self,
-        state: &'a State,
+        ctx: &'a Context,
         target: &str,
         params: Option<Vec<syn::GenericParam>>,
     ) {
-        let mut generics = state.input.ast.generics.clone();
+        let mut generics = ctx.input.ast.generics.clone();
         if let Some(params) = params {
             for param in params {
                 generics.params.push(param);
             }
         }
-        let (_, orig_ty_generics, _) = state.input.ast.generics.split_for_impl();
+        let (_, orig_ty_generics, _) = ctx.input.ast.generics.split_for_impl();
         let (impl_generics, _, where_clause) = generics.split_for_impl();
         self.writeln(
             format!(
                 "{} {} for {}{} {{",
                 quote!(impl#impl_generics),
                 target,
-                state.input.ast.ident,
+                ctx.input.ast.ident,
                 quote!(#orig_ty_generics #where_clause),
             ).as_ref(),
         );
@@ -342,7 +342,7 @@ impl<'a> Generator<'a> {
 
     /* Helper methods for handling node types */
 
-    fn handle(&mut self, state: &'a State, nodes: &'a [Node], level: AstLevel) {
+    fn handle(&mut self, ctx: &'a Context, nodes: &'a [Node], level: AstLevel) {
         for n in nodes {
             match *n {
                 Node::Lit(lws, val, rws) => {
@@ -352,7 +352,7 @@ impl<'a> Generator<'a> {
                     self.write_comment(ws);
                 }
                 Node::Expr(ref ws, ref val) => {
-                    self.write_expr(state, ws, val);
+                    self.write_expr(ctx, ws, val);
                 }
                 Node::LetDecl(ref ws, ref var) => {
                     self.write_let_decl(ws, var);
@@ -361,13 +361,13 @@ impl<'a> Generator<'a> {
                     self.write_let(ws, var, val);
                 }
                 Node::Cond(ref conds, ref ws) => {
-                    self.write_cond(state, conds, ws);
+                    self.write_cond(ctx, conds, ws);
                 }
                 Node::Match(ref ws1, ref expr, inter, ref arms, ref ws2) => {
-                    self.write_match(state, ws1, expr, inter, arms, ws2);
+                    self.write_match(ctx, ws1, expr, inter, arms, ws2);
                 }
                 Node::Loop(ref ws1, ref var, ref iter, ref body, ref ws2) => {
-                    self.write_loop(state, ws1, var, iter, body, ws2);
+                    self.write_loop(ctx, ws1, var, iter, body, ws2);
                 }
                 Node::BlockDef(ref ws1, name, _, ref ws2) => {
                     if let AstLevel::Nested = level {
@@ -380,10 +380,10 @@ impl<'a> Generator<'a> {
                     self.write_block(ws1, name, ws2);
                 }
                 Node::Include(ref ws, path) => {
-                    self.handle_include(state, ws, path);
+                    self.handle_include(ctx, ws, path);
                 }
                 Node::Call(ref ws, scope, name, ref args) => {
-                    self.write_call(state, ws, scope, name, args);
+                    self.write_call(ctx, ws, scope, name, args);
                 }
                 Node::Macro(_, ref m) => {
                     if level != AstLevel::Top {
@@ -409,8 +409,8 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn write_block_defs(&mut self, state: &'a State) {
-        for b in state.blocks.iter() {
+    fn write_block_defs(&mut self, ctx: &'a Context) {
+        for b in ctx.blocks.iter() {
             if let Node::BlockDef(ref ws1, name, ref nodes, ref ws2) = **b {
                 self.writeln("#[allow(unused_variables)]");
                 self.writeln(&format!(
@@ -421,7 +421,7 @@ impl<'a> Generator<'a> {
                 self.prepare_ws(ws1);
 
                 self.locals.push();
-                self.handle(state, nodes, AstLevel::Block);
+                self.handle(ctx, nodes, AstLevel::Block);
                 self.locals.pop();
 
                 self.flush_ws(ws2);
@@ -433,7 +433,7 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn write_cond(&mut self, state: &'a State, conds: &'a [Cond], ws: &WS) {
+    fn write_cond(&mut self, ctx: &'a Context, conds: &'a [Cond], ws: &WS) {
         for (i, &(ref cws, ref cond, ref nodes)) in conds.iter().enumerate() {
             self.handle_ws(cws);
             match *cond {
@@ -454,7 +454,7 @@ impl<'a> Generator<'a> {
             }
             self.writeln(" {");
             self.locals.push();
-            self.handle(state, nodes, AstLevel::Nested);
+            self.handle(ctx, nodes, AstLevel::Nested);
             self.locals.pop();
         }
         self.handle_ws(ws);
@@ -463,7 +463,7 @@ impl<'a> Generator<'a> {
 
     fn write_match(
         &mut self,
-        state: &'a State,
+        ctx: &'a Context,
         ws1: &WS,
         expr: &Expr,
         inter: Option<&'a str>,
@@ -503,7 +503,7 @@ impl<'a> Generator<'a> {
             }
             self.writeln(" => {");
             self.handle_ws(ws);
-            self.handle(state, body, AstLevel::Nested);
+            self.handle(ctx, body, AstLevel::Nested);
             self.writeln("}");
             self.locals.pop();
         }
@@ -514,7 +514,7 @@ impl<'a> Generator<'a> {
 
     fn write_loop(
         &mut self,
-        state: &'a State,
+        ctx: &'a Context,
         ws1: &WS,
         var: &'a Target,
         iter: &Expr,
@@ -533,7 +533,7 @@ impl<'a> Generator<'a> {
         }
         self.writeln(&format!(") in (&{}).into_iter().enumerate() {{", expr_code));
 
-        self.handle(state, body, AstLevel::Nested);
+        self.handle(ctx, body, AstLevel::Nested);
         self.handle_ws(ws2);
         self.writeln("}");
         self.locals.pop();
@@ -541,13 +541,13 @@ impl<'a> Generator<'a> {
 
     fn write_call(
         &mut self,
-        state: &'a State,
+        ctx: &'a Context,
         ws: &WS,
         scope: Option<&str>,
         name: &str,
         args: &[Expr],
     ) {
-        let def = state.macros.get(&(scope, name)).unwrap_or_else(|| {
+        let def = ctx.macros.get(&(scope, name)).unwrap_or_else(|| {
             if let Some(s) = scope {
                 panic!(format!("macro '{}::{}' not found", s, name));
             } else {
@@ -568,7 +568,7 @@ impl<'a> Generator<'a> {
             self.write(&format!("let {} = &{};", arg, expr_code));
             self.locals.insert(arg);
         }
-        self.handle(state, &def.nodes, AstLevel::Nested);
+        self.handle(ctx, &def.nodes, AstLevel::Nested);
 
         self.flush_ws(&def.ws2);
         self.writeln("}");
@@ -576,14 +576,14 @@ impl<'a> Generator<'a> {
         self.prepare_ws(ws);
     }
 
-    fn handle_include(&mut self, state: &'a State, ws: &WS, path: &str) {
+    fn handle_include(&mut self, ctx: &'a Context, ws: &WS, path: &str) {
         self.flush_ws(ws);
-        let path = path::find_template_from_path(path, Some(&state.input.path));
+        let path = path::find_template_from_path(path, Some(&ctx.input.path));
         let src = path::get_template_source(&path);
         let nodes = parser::parse(&src);
         let nested = {
             let mut gen = self.child();
-            gen.handle(state, &nodes, AstLevel::Nested);
+            gen.handle(ctx, &nodes, AstLevel::Nested);
             gen.buf
         };
         self.buf.push_str(&nested);
@@ -626,7 +626,7 @@ impl<'a> Generator<'a> {
         self.prepare_ws(ws2);
     }
 
-    fn write_expr(&mut self, state: &'a State, ws: &WS, s: &Expr) {
+    fn write_expr(&mut self, ctx: &'a Context, ws: &WS, s: &Expr) {
         self.handle_ws(ws);
         let mut code = String::new();
         let wrapped = self.visit_expr(s, &mut code);
@@ -635,7 +635,7 @@ impl<'a> Generator<'a> {
         use self::DisplayWrap::*;
         use super::input::EscapeMode::*;
         self.write("writer.write_fmt(format_args!(\"{}\", ");
-        self.write(match (wrapped, &state.input.escaping) {
+        self.write(match (wrapped, &ctx.input.escaping) {
             (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => "askama_expr",
             (Unwrapped, &Html) => "&::askama::MarkupDisplay::from(askama_expr)",
         });
