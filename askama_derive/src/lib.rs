@@ -17,7 +17,7 @@ use proc_macro::TokenStream;
 use shared::path;
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
@@ -92,10 +92,9 @@ fn find_used_templates(map: &mut HashMap<PathBuf, String>, path: PathBuf, source
 pub(crate) struct Context<'a> {
     nodes: &'a [Node<'a>],
     extends: Option<PathBuf>,
-    blocks: Vec<&'a Node<'a>>,
+    blocks: HashMap<&'a str, &'a Node<'a>>,
     macros: HashMap<&'a str, &'a Macro<'a>>,
     imports: HashMap<&'a str, PathBuf>,
-    trait_name: String,
 }
 
 impl<'a> Context<'a> {
@@ -143,10 +142,14 @@ impl<'a> Context<'a> {
             check_nested += 1;
         }
 
-        let trait_name = match extends {
-            Some(ref path) => trait_name_for_path(path),
-            None => trait_name_for_path(&input.path),
-        };
+        let blocks: HashMap<_, _> = blocks
+            .iter()
+            .map(|def| if let Node::BlockDef(_, name, _, _) = def {
+                (*name, *def)
+            } else {
+                unreachable!()
+            })
+            .collect();
 
         Context {
             nodes,
@@ -154,20 +157,6 @@ impl<'a> Context<'a> {
             blocks,
             macros,
             imports,
-            trait_name,
         }
     }
-}
-
-fn trait_name_for_path(path: &Path) -> String {
-    let mut res = String::new();
-    res.push_str("TraitFrom");
-    for c in path.to_string_lossy().chars() {
-        if c.is_alphanumeric() {
-            res.push(c);
-        } else {
-            res.push_str(&format!("{:x}", c as u32));
-        }
-    }
-    res
 }

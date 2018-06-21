@@ -4,10 +4,9 @@ use parser::{self, Cond, Expr, MatchParameter, MatchVariant, Node, Target, When,
 use shared::{filters, path};
 
 use proc_macro2::Span;
-use quote::ToTokens;
 
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{cmp, hash, str};
 
 use syn;
@@ -26,7 +25,7 @@ struct Generator<'a> {
     next_ws: Option<&'a str>,
     skip_ws: bool,
     vars: usize,
-    impl_blocks: bool,
+    inherited: usize,
 }
 
 impl<'a> Generator<'a> {
@@ -46,7 +45,7 @@ impl<'a> Generator<'a> {
             next_ws: None,
             skip_ws: false,
             vars: 0,
-            impl_blocks: false,
+            inherited: 0,
         }
     }
 
@@ -57,26 +56,18 @@ impl<'a> Generator<'a> {
 
     // Takes a Context and generates the relevant implementations.
     fn build(mut self, ctx: &'a Context) -> String {
-        if !ctx.blocks.is_empty() {
-            if ctx.extends.is_none() {
-                self.define_trait(ctx);
-            } else {
-                match self.input.parent {
-                    Some(ty) => self.deref_to_parent(ty),
-                    None => panic!("expected field '_parent' in extending template struct"),
-                }
+        let heritage = if !ctx.blocks.is_empty() {
+            if ctx.extends.is_some() && self.input.parent.is_none() {
+                panic!("expected field '_parent' in extending template struct");
             }
-
-            let trait_nodes = if ctx.extends.is_none() {
-                Some(&ctx.nodes[..])
-            } else {
-                None
-            };
-            self.impl_trait(ctx, trait_nodes);
-            self.impl_template_for_trait(ctx);
+            let heritage = Heritage::new(ctx, self.contexts);
+            self.trait_blocks(&heritage);
+            Some(heritage)
         } else {
-            self.impl_template(ctx);
-        }
+            None
+        };
+
+        self.impl_template(ctx, &heritage);
         self.impl_display();
         if cfg!(feature = "iron") {
             self.impl_modifier_response();
@@ -87,14 +78,62 @@ impl<'a> Generator<'a> {
         self.buf
     }
 
+    fn trait_blocks(&mut self, heritage: &Heritage<'a>) {
+        let trait_name = trait_name_for_path(&self.input.path);
+        self.writeln(&format!("pub trait {} {{", trait_name));
+        for name in heritage.blocks.keys() {
+            self.writeln(&format!(
+                "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
+                 -> ::askama::Result<()>;",
+                name
+            ));
+        }
+        self.writeln("}");
+
+        self.write_header(&trait_name, None);
+        for (level, ctx, def) in heritage.blocks.values() {
+            if let Node::BlockDef(ws1, name, nodes, ws2) = def {
+                self.writeln("#[allow(unused_variables)]");
+                self.writeln(&format!(
+                    "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
+                     -> ::askama::Result<()> {{",
+                    name
+                ));
+                self.prepare_ws(*ws1);
+
+                self.inherited = heritage.levels - *level;
+                self.locals.push();
+                self.handle(ctx, nodes, AstLevel::Block);
+                self.locals.pop();
+
+                self.flush_ws(*ws2);
+                self.writeln("Ok(())");
+                self.writeln("}");
+            } else {
+                panic!("only block definitions allowed here");
+            }
+        }
+        self.writeln("}");
+
+        self.inherited = 0;
+    }
+
     // Implement `Template` for the given context struct.
-    fn impl_template(&mut self, ctx: &'a Context) {
+    fn impl_template(&mut self, ctx: &'a Context, heritage: &Option<Heritage<'a>>) {
         self.write_header("::askama::Template", None);
         self.writeln(
             "fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
              ::askama::Result<()> {",
         );
-        self.handle(ctx, &ctx.nodes, AstLevel::Top);
+
+        if let Some(heritage) = heritage {
+            self.inherited = heritage.levels;
+            self.handle(heritage.root, heritage.root.nodes, AstLevel::Top);
+            self.inherited = 0;
+        } else {
+            self.handle(ctx, &ctx.nodes, AstLevel::Top);
+        }
+
         self.flush_ws(WS(false, false));
         self.writeln("Ok(())");
         self.writeln("}");
@@ -107,74 +146,6 @@ impl<'a> Generator<'a> {
         self.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {");
         self.writeln("self.render_into(f).map_err(|_| ::std::fmt::Error {})");
         self.writeln("}");
-        self.writeln("}");
-    }
-
-    // Implement `Deref<Parent>` for an inheriting context struct.
-    fn deref_to_parent(&mut self, parent_type: &syn::Type) {
-        self.write_header("::std::ops::Deref", None);
-        self.writeln(&format!(
-            "type Target = {};",
-            parent_type.into_token_stream()
-        ));
-        self.writeln("fn deref(&self) -> &Self::Target {");
-        self.writeln("&self._parent");
-        self.writeln("}");
-        self.writeln("}");
-    }
-
-    // Implement `TraitFromPathName` for the given context struct.
-    fn impl_trait(&mut self, ctx: &'a Context, nodes: Option<&'a [Node]>) {
-        self.write_header(&ctx.trait_name, None);
-        self.write_block_defs(ctx);
-
-        self.writeln("#[allow(unused_variables)]");
-        self.writeln(&format!(
-            "fn render_trait_into(&self, timpl: &{}, writer: &mut ::std::fmt::Write) \
-             -> ::askama::Result<()> {{",
-            ctx.trait_name
-        ));
-
-        if let Some(nodes) = nodes {
-            self.impl_blocks = true;
-            self.handle(ctx, nodes, AstLevel::Top);
-            self.flush_ws(WS(false, false));
-            self.impl_blocks = false;
-            self.writeln("Ok(())");
-        } else {
-            self.writeln("self._parent.render_trait_into(self, writer)");
-        }
-
-        self.writeln("}");
-        self.flush_ws(WS(false, false));
-        self.writeln("}");
-    }
-
-    // Implement `Template` for templates that implement a template trait.
-    fn impl_template_for_trait(&mut self, ctx: &'a Context) {
-        self.write_header("::askama::Template", None);
-        self.writeln(
-            "fn render_into(&self, writer: &mut ::std::fmt::Write) \
-             -> ::askama::Result<()> {",
-        );
-        if ctx.extends.is_some() {
-            self.writeln("self._parent.render_trait_into(self, writer)");
-        } else {
-            self.writeln("self.render_trait_into(self, writer)");
-        }
-        self.writeln("}");
-        self.writeln("}");
-    }
-
-    // Defines the `TraitFromPathName` trait.
-    fn define_trait(&mut self, ctx: &'a Context) {
-        self.writeln(&format!("pub trait {} {{", ctx.trait_name));
-        self.write_block_defs(ctx);
-        self.writeln(&format!(
-            "fn render_trait_into(&self, timpl: &{}, writer: &mut ::std::fmt::Write) \
-             -> ::askama::Result<()>;",
-            ctx.trait_name
-        ));
         self.writeln("}");
     }
 
@@ -306,30 +277,6 @@ impl<'a> Generator<'a> {
                     // No whitespace handling: child template top-level is not used,
                     // except for the blocks defined in it.
                 }
-            }
-        }
-    }
-
-    fn write_block_defs(&mut self, ctx: &'a Context) {
-        for b in &ctx.blocks {
-            if let Node::BlockDef(ws1, name, nodes, ws2) = b {
-                self.writeln("#[allow(unused_variables)]");
-                self.writeln(&format!(
-                    "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
-                     -> ::askama::Result<()> {{",
-                    name
-                ));
-                self.prepare_ws(*ws1);
-
-                self.locals.push();
-                self.handle(ctx, nodes, AstLevel::Block);
-                self.locals.pop();
-
-                self.flush_ws(*ws2);
-                self.writeln("Ok(())");
-                self.writeln("}");
-            } else {
-                panic!("only block definitions allowed here");
             }
         }
     }
@@ -530,8 +477,7 @@ impl<'a> Generator<'a> {
 
     fn write_block(&mut self, ws1: WS, name: &str, ws2: WS) {
         self.flush_ws(ws1);
-        let ctx = if self.impl_blocks { "timpl" } else { "self" };
-        self.writeln(&format!("{}.render_block_{}_into(writer)?;", ctx, name));
+        self.writeln(&format!("self.render_block_{}_into(writer)?;", name));
         self.prepare_ws(ws2);
     }
 
@@ -796,7 +742,11 @@ impl<'a> Generator<'a> {
         if self.locals.contains(s) {
             code.push_str(s);
         } else {
-            code.push_str(&format!("self.{}", s));
+            code.push_str("self.");
+            for _ in 0..self.inherited {
+                code.push_str("_parent.");
+            }
+            code.push_str(s);
         }
         DisplayWrap::Unwrapped
     }
@@ -929,6 +879,54 @@ where
         self.scopes.pop().unwrap();
         assert!(!self.scopes.is_empty());
     }
+}
+
+struct Heritage<'a> {
+    root: &'a Context<'a>,
+    levels: usize,
+    blocks: HashMap<&'a str, (usize, &'a Context<'a>, &'a Node<'a>)>,
+}
+
+impl<'a> Heritage<'a> {
+    fn new<'n>(
+        mut ctx: &'n Context<'n>,
+        contexts: &'n HashMap<&'n PathBuf, Context<'n>>,
+    ) -> Heritage<'n> {
+        let mut levels = 0;
+        let mut blocks: HashMap<_, (usize, _, _)> = ctx.blocks
+            .iter()
+            .map(|(name, def)| (*name, (levels, ctx, *def)))
+            .collect();
+
+        while let Some(ref path) = ctx.extends {
+            ctx = &contexts[&path];
+            levels += 1;
+            for (name, def) in &ctx.blocks {
+                if !blocks.contains_key(name) {
+                    blocks.insert(name, (levels, ctx, def));
+                }
+            }
+        }
+
+        Heritage {
+            root: ctx,
+            levels,
+            blocks
+        }
+    }
+}
+
+fn trait_name_for_path(path: &Path) -> String {
+    let mut res = String::new();
+    res.push_str("TraitFrom");
+    for c in path.to_string_lossy().chars() {
+        if c.is_alphanumeric() {
+            res.push(c);
+        } else {
+            res.push_str(&format!("{:x}", c as u32));
+        }
+    }
+    res
 }
 
 #[derive(Clone, PartialEq)]
