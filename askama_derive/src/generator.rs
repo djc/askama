@@ -61,9 +61,10 @@ impl<'a> Generator<'a> {
             if ctx.extends.is_none() {
                 self.define_trait(ctx);
             } else {
-                let parent_type = get_parent_type(self.input.ast)
-                    .expect("expected field '_parent' in extending template struct");
-                self.deref_to_parent(parent_type);
+                match self.input.parent {
+                    Some(ty) => self.deref_to_parent(ty),
+                    None => panic!("expected field '_parent' in extending template struct"),
+                }
             }
 
             let trait_nodes = if ctx.extends.is_none() {
@@ -928,20 +929,6 @@ where
         self.scopes.pop().unwrap();
         assert!(!self.scopes.is_empty());
     }
-}
-
-fn get_parent_type(ast: &syn::DeriveInput) -> Option<&syn::Type> {
-    match ast.data {
-        syn::Data::Struct(syn::DataStruct {
-            fields: syn::Fields::Named(ref fields),
-            ..
-        }) => fields.named.iter().filter_map(|f| {
-            f.ident
-                .as_ref()
-                .and_then(|name| if name == "_parent" { Some(&f.ty) } else { None })
-        }),
-        _ => panic!("derive(Template) only works for struct items"),
-    }.next()
 }
 
 #[derive(Clone, PartialEq)]

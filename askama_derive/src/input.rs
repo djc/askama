@@ -10,6 +10,7 @@ pub struct TemplateInput<'a> {
     pub print: Print,
     pub escaping: EscapeMode,
     pub ext: Option<String>,
+    pub parent: Option<&'a syn::Type>,
     pub path: PathBuf,
 }
 
@@ -83,6 +84,7 @@ impl<'a> TemplateInput<'a> {
             }
             _ => {}
         }
+
         let escaping = match escaping {
             Some(m) => m,
             None => {
@@ -101,6 +103,18 @@ impl<'a> TemplateInput<'a> {
             }
         };
 
+        let parent = match ast.data {
+            syn::Data::Struct(syn::DataStruct {
+                fields: syn::Fields::Named(ref fields),
+                ..
+            }) => fields.named.iter().filter_map(|f| {
+                f.ident
+                    .as_ref()
+                    .and_then(|name| if name == "_parent" { Some(&f.ty) } else { None })
+            }),
+            _ => panic!("derive(Template) only works for struct items"),
+        }.next();
+
         let path = match source {
             Source::Source(_) => match ext {
                 Some(ref v) => PathBuf::from(format!("{}.{}", ast.ident, v)),
@@ -115,6 +129,7 @@ impl<'a> TemplateInput<'a> {
             print,
             escaping,
             ext,
+            parent,
             path,
         }
     }
