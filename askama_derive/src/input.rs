@@ -7,34 +7,15 @@ use syn;
 
 pub struct TemplateInput<'a> {
     pub ast: &'a syn::DeriveInput,
-    pub meta: TemplateMeta,
+    pub source: Source,
+    pub print: Print,
+    pub escaping: EscapeMode,
+    pub ext: Option<String>,
     pub path: PathBuf,
 }
 
 impl<'a> TemplateInput<'a> {
     pub fn new(ast: &'a syn::DeriveInput) -> TemplateInput<'a> {
-        let meta = TemplateMeta::new(ast);
-        let path = match meta.source {
-            Source::Source(_) => match meta.ext {
-                Some(ref v) => PathBuf::from(format!("{}.{}", ast.ident, v)),
-                None => PathBuf::new(),
-            },
-            Source::Path(ref s) => path::find_template_from_path(s, None),
-        };
-        TemplateInput { ast, meta, path }
-    }
-}
-
-// Holds metadata for the template, based on the `template()` attribute.
-pub struct TemplateMeta {
-    pub source: Source,
-    pub print: Print,
-    pub escaping: EscapeMode,
-    pub ext: Option<String>,
-}
-
-impl TemplateMeta {
-    fn new(ast: &syn::DeriveInput) -> TemplateMeta {
         let attr = ast.attrs
             .iter()
             .find(|a| a.interpret_meta().unwrap().name() == "template");
@@ -115,7 +96,23 @@ impl TemplateMeta {
                 }
             },
         };
-        TemplateMeta { source, print, escaping, ext }
+
+        let path = match source {
+            Source::Source(_) => match ext {
+                Some(ref v) => PathBuf::from(format!("{}.{}", ast.ident, v)),
+                None => PathBuf::new(),
+            },
+            Source::Path(ref s) => path::find_template_from_path(s, None),
+        };
+
+        TemplateInput {
+            ast,
+            source,
+            print,
+            escaping,
+            ext,
+            path,
+        }
     }
 }
 

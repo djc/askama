@@ -34,18 +34,18 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 /// value as passed to the `template()` attribute.
 fn build_template(ast: &syn::DeriveInput) -> String {
     let input = input::TemplateInput::new(ast);
-    let source = match input.meta.source {
+    let source = match input.source {
         Source::Source(ref s) => s.clone(),
         Source::Path(_) => path::get_template_source(&input.path)
     };
 
     let nodes = parser::parse(&source);
-    if input.meta.print == Print::Ast || input.meta.print == Print::All {
+    if input.print == Print::Ast || input.print == Print::All {
         println!("{:?}", nodes);
     }
 
     let code = generator::generate(&input, &nodes);
-    if input.meta.print == Print::Code || input.meta.print == Print::All {
+    if input.print == Print::Code || input.print == Print::All {
         println!("{}", code);
     }
     code

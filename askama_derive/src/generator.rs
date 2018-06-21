@@ -589,7 +589,7 @@ impl<'a> Generator<'a> {
         use self::DisplayWrap::*;
         use super::input::EscapeMode::*;
         self.write("writer.write_fmt(format_args!(\"{}\", ");
-        self.write(match (wrapped, &state.input.meta.escaping) {
+        self.write(match (wrapped, &state.input.escaping) {
             (Wrapped, &Html) |
             (Wrapped, &None) |
             (Unwrapped, &None) => "askama_expr",
