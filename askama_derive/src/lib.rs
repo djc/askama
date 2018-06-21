@@ -32,13 +32,13 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 /// the parse tree and/or generated source according to the `print` key's
 /// value as passed to the `template()` attribute.
 fn build_template(ast: &syn::DeriveInput) -> String {
-    let data = input::TemplateInput::new(ast);
-    let nodes = parser::parse(data.source.as_ref());
-    if data.meta.print == Print::Ast || data.meta.print == Print::All {
+    let input = input::TemplateInput::new(ast);
+    let nodes = parser::parse(input.source.as_ref());
+    if input.meta.print == Print::Ast || input.meta.print == Print::All {
         println!("{:?}", nodes);
     }
-    let code = generator::generate(&data, &nodes);
-    if data.meta.print == Print::Code || data.meta.print == Print::All {
+    let code = generator::generate(&input, &nodes);
+    if input.meta.print == Print::Code || input.meta.print == Print::All {
         println!("{}", code);
     }
     code
