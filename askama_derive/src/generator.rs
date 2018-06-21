@@ -70,7 +70,7 @@ pub fn generate(input: &TemplateInput, nodes: &[Node]) -> String {
         }
     }
 
-    Generator::default().build(&Context {
+    Generator::new(SetChain::new(), 0).build(&Context {
         input,
         nodes,
         blocks: &blocks,
@@ -130,10 +130,6 @@ impl<'a> Generator<'a> {
             vars: 0,
             impl_blocks: false,
         }
-    }
-
-    fn default<'n>() -> Generator<'n> {
-        Self::new(SetChain::new(), 0)
     }
 
     fn child(&mut self) -> Generator {
