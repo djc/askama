@@ -70,8 +70,7 @@ pub fn generate(input: &TemplateInput, nodes: &[Node]) -> String {
         }
     }
 
-    Generator::new(SetChain::new(), 0).build(&Context {
-        input,
+    Generator::new(input, SetChain::new(), 0).build(&Context {
         nodes,
         blocks: &blocks,
         macros: &macros,
@@ -86,7 +85,6 @@ pub fn generate(input: &TemplateInput, nodes: &[Node]) -> String {
 }
 
 struct Context<'a> {
-    input: &'a TemplateInput<'a>,
     nodes: &'a [Node<'a>],
     blocks: &'a [&'a Node<'a>],
     macros: &'a MacroMap<'a>,
@@ -108,6 +106,7 @@ fn trait_name_for_path(path: &Path) -> String {
 }
 
 struct Generator<'a> {
+    input: &'a TemplateInput<'a>,
     buf: String,
     indent: u8,
     start: bool,
@@ -119,8 +118,13 @@ struct Generator<'a> {
 }
 
 impl<'a> Generator<'a> {
-    fn new<'n>(locals: SetChain<'n, &'n str>, indent: u8) -> Generator<'n> {
+    fn new<'n>(
+        input: &'n TemplateInput,
+        locals: SetChain<'n, &'n str>,
+        indent: u8,
+    ) -> Generator<'n> {
         Generator {
+            input,
             buf: String::new(),
             indent,
             start: true,
@@ -134,7 +138,7 @@ impl<'a> Generator<'a> {
 
     fn child(&mut self) -> Generator {
         let locals = SetChain::with_parent(&self.locals);
-        Self::new(locals, self.indent)
+        Self::new(self.input, locals, self.indent)
     }
 
     // Takes a Context and generates the relevant implementations.
@@ -143,9 +147,9 @@ impl<'a> Generator<'a> {
             if !ctx.derived {
                 self.define_trait(ctx);
             } else {
-                let parent_type = get_parent_type(ctx.input.ast)
+                let parent_type = get_parent_type(self.input.ast)
                     .expect("expected field '_parent' in extending template struct");
-                self.deref_to_parent(ctx, parent_type);
+                self.deref_to_parent(parent_type);
             }
 
             let trait_nodes = if !ctx.derived {
@@ -158,19 +162,19 @@ impl<'a> Generator<'a> {
         } else {
             self.impl_template(ctx);
         }
-        self.impl_display(ctx);
+        self.impl_display();
         if cfg!(feature = "iron") {
-            self.impl_modifier_response(ctx);
+            self.impl_modifier_response();
         }
         if cfg!(feature = "rocket") {
-            self.impl_responder(ctx);
+            self.impl_responder();
         }
         self.buf
     }
 
     // Implement `Template` for the given context struct.
     fn impl_template(&mut self, ctx: &'a Context) {
-        self.write_header(ctx, "::askama::Template", None);
+        self.write_header("::askama::Template", None);
         self.writeln(
             "fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
              ::askama::Result<()> {",
@@ -183,8 +187,8 @@ impl<'a> Generator<'a> {
     }
 
     // Implement `Display` for the given context struct.
-    fn impl_display(&mut self, ctx: &'a Context) {
-        self.write_header(ctx, "::std::fmt::Display", None);
+    fn impl_display(&mut self) {
+        self.write_header("::std::fmt::Display", None);
         self.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {");
         self.writeln("self.render_into(f).map_err(|_| ::std::fmt::Error {})");
         self.writeln("}");
@@ -192,8 +196,8 @@ impl<'a> Generator<'a> {
     }
 
     // Implement `Deref<Parent>` for an inheriting context struct.
-    fn deref_to_parent(&mut self, ctx: &'a Context, parent_type: &syn::Type) {
-        self.write_header(ctx, "::std::ops::Deref", None);
+    fn deref_to_parent(&mut self, parent_type: &syn::Type) {
+        self.write_header("::std::ops::Deref", None);
         self.writeln(&format!(
             "type Target = {};",
             parent_type.into_token_stream()
@@ -206,7 +210,7 @@ impl<'a> Generator<'a> {
 
     // Implement `TraitFromPathName` for the given context struct.
     fn impl_trait(&mut self, ctx: &'a Context, nodes: Option<&'a [Node]>) {
-        self.write_header(ctx, &ctx.trait_name, None);
+        self.write_header(&ctx.trait_name, None);
         self.write_block_defs(ctx);
 
         self.writeln("#[allow(unused_variables)]");
@@ -233,7 +237,7 @@ impl<'a> Generator<'a> {
 
     // Implement `Template` for templates that implement a template trait.
     fn impl_template_for_trait(&mut self, ctx: &'a Context) {
-        self.write_header(ctx, "::askama::Template", None);
+        self.write_header("::askama::Template", None);
         self.writeln(
             "fn render_into(&self, writer: &mut ::std::fmt::Write) \
              -> ::askama::Result<()> {",
@@ -260,17 +264,12 @@ impl<'a> Generator<'a> {
     }
 
     // Implement iron's Modifier<Response> if enabled
-    fn impl_modifier_response(&mut self, ctx: &'a Context) {
-        self.write_header(
-            ctx,
-            "::askama::iron::Modifier<::askama::iron::Response>",
-            None,
-        );
+    fn impl_modifier_response(&mut self) {
+        self.write_header("::askama::iron::Modifier<::askama::iron::Response>", None);
         self.writeln("fn modify(self, res: &mut ::askama::iron::Response) {");
         self.writeln("res.body = Some(Box::new(self.render().unwrap().into_bytes()));");
 
-        let ext = ctx
-            .input
+        let ext = self.input
             .path
             .extension()
             .map_or("", |s| s.to_str().unwrap_or(""));
@@ -286,20 +285,16 @@ impl<'a> Generator<'a> {
     }
 
     // Implement Rocket's `Responder`.
-    fn impl_responder(&mut self, ctx: &'a Context) {
+    fn impl_responder(&mut self) {
         let lifetime = syn::Lifetime::new("'askama", Span::call_site());
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
-        self.write_header(
-            ctx,
-            "::askama::rocket::Responder<'askama>",
-            Some(vec![param]),
-        );
+        self.write_header("::askama::rocket::Responder<'askama>", Some(vec![param]));
         self.writeln(
             "fn respond_to(self, _: &::askama::rocket::Request) \
              -> ::askama::rocket::Result<'askama> {",
         );
 
-        let ext = match ctx.input.path.extension() {
+        let ext = match self.input.path.extension() {
             Some(s) => s.to_str().unwrap(),
             None => "txt",
         };
@@ -311,26 +306,21 @@ impl<'a> Generator<'a> {
 
     // Writes header for the `impl` for `TraitFromPathName` or `Template`
     // for the given context struct.
-    fn write_header(
-        &mut self,
-        ctx: &'a Context,
-        target: &str,
-        params: Option<Vec<syn::GenericParam>>,
-    ) {
-        let mut generics = ctx.input.ast.generics.clone();
+    fn write_header(&mut self, target: &str, params: Option<Vec<syn::GenericParam>>) {
+        let mut generics = self.input.ast.generics.clone();
         if let Some(params) = params {
             for param in params {
                 generics.params.push(param);
             }
         }
-        let (_, orig_ty_generics, _) = ctx.input.ast.generics.split_for_impl();
+        let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
         let (impl_generics, _, where_clause) = generics.split_for_impl();
         self.writeln(
             format!(
                 "{} {} for {}{} {{",
                 quote!(impl#impl_generics),
                 target,
-                ctx.input.ast.ident,
+                self.input.ast.ident,
                 quote!(#orig_ty_generics #where_clause),
             ).as_ref(),
         );
@@ -348,7 +338,7 @@ impl<'a> Generator<'a> {
                     self.write_comment(ws);
                 }
                 Node::Expr(ref ws, ref val) => {
-                    self.write_expr(ctx, ws, val);
+                    self.write_expr(ws, val);
                 }
                 Node::LetDecl(ref ws, ref var) => {
                     self.write_let_decl(ws, var);
@@ -574,7 +564,7 @@ impl<'a> Generator<'a> {
 
     fn handle_include(&mut self, ctx: &'a Context, ws: &WS, path: &str) {
         self.flush_ws(ws);
-        let path = path::find_template_from_path(path, Some(&ctx.input.path));
+        let path = path::find_template_from_path(path, Some(&self.input.path));
         let src = path::get_template_source(&path);
         let nodes = parser::parse(&src);
         let nested = {
@@ -622,7 +612,7 @@ impl<'a> Generator<'a> {
         self.prepare_ws(ws2);
     }
 
-    fn write_expr(&mut self, ctx: &'a Context, ws: &WS, s: &Expr) {
+    fn write_expr(&mut self, ws: &WS, s: &Expr) {
         self.handle_ws(ws);
         let mut code = String::new();
         let wrapped = self.visit_expr(s, &mut code);
@@ -631,7 +621,7 @@ impl<'a> Generator<'a> {
         use self::DisplayWrap::*;
         use super::input::EscapeMode::*;
         self.write("writer.write_fmt(format_args!(\"{}\", ");
-        self.write(match (wrapped, &ctx.input.escaping) {
+        self.write(match (wrapped, &self.input.escaping) {
             (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => "askama_expr",
             (Unwrapped, &Html) => "&::askama::MarkupDisplay::from(askama_expr)",
         });
