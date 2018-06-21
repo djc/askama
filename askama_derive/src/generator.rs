@@ -58,7 +58,7 @@ impl<'a> Generator<'a> {
     // Takes a Context and generates the relevant implementations.
     fn build(mut self, ctx: &'a Context) -> String {
         if !ctx.blocks.is_empty() {
-            if !ctx.derived {
+            if ctx.extends.is_none() {
                 self.define_trait(ctx);
             } else {
                 let parent_type = get_parent_type(self.input.ast)
@@ -66,7 +66,7 @@ impl<'a> Generator<'a> {
                 self.deref_to_parent(parent_type);
             }
 
-            let trait_nodes = if !ctx.derived {
+            let trait_nodes = if ctx.extends.is_none() {
                 Some(&ctx.nodes[..])
             } else {
                 None
@@ -156,7 +156,7 @@ impl<'a> Generator<'a> {
             "fn render_into(&self, writer: &mut ::std::fmt::Write) \
              -> ::askama::Result<()> {",
         );
-        if ctx.derived {
+        if ctx.extends.is_some() {
             self.writeln("self._parent.render_trait_into(self, writer)");
         } else {
             self.writeln("self.render_trait_into(self, writer)");

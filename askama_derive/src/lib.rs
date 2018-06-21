@@ -91,26 +91,26 @@ fn find_used_templates(map: &mut HashMap<PathBuf, String>, path: PathBuf, source
 
 pub(crate) struct Context<'a> {
     nodes: &'a [Node<'a>],
+    extends: Option<PathBuf>,
     blocks: Vec<&'a Node<'a>>,
     macros: HashMap<&'a str, &'a Macro<'a>>,
     imports: HashMap<&'a str, PathBuf>,
     trait_name: String,
-    derived: bool,
 }
 
 impl<'a> Context<'a> {
     fn new<'n>(input: &'n TemplateInput, nodes: &'n [Node<'n>]) -> Context<'n> {
-        let mut base = None;
+        let mut extends = None;
         let mut blocks = Vec::new();
         let mut macros = HashMap::new();
         let mut imports = HashMap::new();
 
         for n in nodes {
             match n {
-                Node::Extends(Expr::StrLit(path)) => match base {
+                Node::Extends(Expr::StrLit(path)) => match extends {
                     Some(_) => panic!("multiple extend blocks found"),
                     None => {
-                        base = Some(*path);
+                        extends = Some(path::find_template_from_path(path, Some(&input.path)));
                     }
                 },
                 def @ Node::BlockDef(_, _, _, _) => {
@@ -143,19 +143,18 @@ impl<'a> Context<'a> {
             check_nested += 1;
         }
 
+        let trait_name = match extends {
+            Some(ref path) => trait_name_for_path(path),
+            None => trait_name_for_path(&input.path),
+        };
+
         Context {
             nodes,
+            extends,
             blocks,
             macros,
             imports,
-            trait_name: match base {
-                Some(user_path) => trait_name_for_path(&path::find_template_from_path(
-                    user_path,
-                    Some(&input.path),
-                )),
-                None => trait_name_for_path(&input.path),
-            },
-            derived: base.is_some(),
+            trait_name,
         }
     }
 }
