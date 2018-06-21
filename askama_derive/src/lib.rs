@@ -7,8 +7,8 @@ extern crate proc_macro2;
 extern crate quote;
 extern crate syn;
 
-mod input;
 mod generator;
+mod input;
 mod parser;
 
 use input::{Print, Source};
@@ -36,7 +36,7 @@ fn build_template(ast: &syn::DeriveInput) -> String {
     let input = input::TemplateInput::new(ast);
     let source = match input.source {
         Source::Source(ref s) => s.clone(),
-        Source::Path(_) => path::get_template_source(&input.path)
+        Source::Path(_) => path::get_template_source(&input.path),
     };
 
     let nodes = parser::parse(&source);

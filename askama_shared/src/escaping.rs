@@ -1,13 +1,18 @@
 use std::fmt::{self, Display, Formatter};
 
-
 #[derive(Debug, PartialEq)]
-pub enum MarkupDisplay<T> where T: Display {
+pub enum MarkupDisplay<T>
+where
+    T: Display,
+{
     Safe(T),
     Unsafe(T),
 }
 
-impl<T> MarkupDisplay<T> where T: Display {
+impl<T> MarkupDisplay<T>
+where
+    T: Display,
+{
     pub fn mark_safe(self) -> MarkupDisplay<T> {
         match self {
             MarkupDisplay::Unsafe(t) => MarkupDisplay::Safe(t),
@@ -21,13 +26,19 @@ impl<T> MarkupDisplay<T> where T: Display {
     }
 }
 
-impl<T> From<T> for MarkupDisplay<T> where T: Display {
+impl<T> From<T> for MarkupDisplay<T>
+where
+    T: Display,
+{
     fn from(t: T) -> MarkupDisplay<T> {
         MarkupDisplay::Unsafe(t)
     }
 }
 
-impl<T> Display for MarkupDisplay<T> where T: Display {
+impl<T> Display for MarkupDisplay<T>
+where
+    T: Display,
+{
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
             MarkupDisplay::Unsafe(_) => write!(f, "{}", escape(self.unsafe_string())),
@@ -35,7 +46,6 @@ impl<T> Display for MarkupDisplay<T> where T: Display {
         }
     }
 }
-
 
 fn escapable(b: u8) -> bool {
     match b {
@@ -65,12 +75,24 @@ pub fn escape(s: String) -> String {
         }
         start = *idx + 1;
         match bytes[*idx] {
-            b'<' => { res.extend(b"&lt;"); },
-            b'>' => { res.extend(b"&gt;"); },
-            b'&' => { res.extend(b"&amp;"); },
-            b'"' => { res.extend(b"&quot;"); },
-            b'\'' => { res.extend(b"&#x27;"); },
-            b'/' => { res.extend(b"&#x2f;"); },
+            b'<' => {
+                res.extend(b"&lt;");
+            }
+            b'>' => {
+                res.extend(b"&gt;");
+            }
+            b'&' => {
+                res.extend(b"&amp;");
+            }
+            b'"' => {
+                res.extend(b"&quot;");
+            }
+            b'\'' => {
+                res.extend(b"&#x27;");
+            }
+            b'/' => {
+                res.extend(b"&#x2f;");
+            }
             _ => panic!("incorrect indexing"),
         }
     }
@@ -80,7 +102,6 @@ pub fn escape(s: String) -> String {
 
     String::from_utf8(res).unwrap()
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -338,16 +338,16 @@ pub trait Template {
     }
 }
 
-pub use shared::filters;
 pub use askama_derive::*;
+pub use shared::filters;
 pub use shared::{Error, MarkupDisplay, Result};
 
 #[cfg(feature = "with-iron")]
 pub mod iron {
     extern crate iron;
+    pub use self::iron::headers::ContentType;
     pub use self::iron::modifier::Modifier;
     pub use self::iron::response::Response;
-    pub use self::iron::headers::ContentType;
 }
 
 #[cfg(feature = "with-rocket")]

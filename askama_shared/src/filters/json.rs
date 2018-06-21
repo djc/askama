@@ -1,8 +1,7 @@
+use error::{Error, Result};
 use serde::Serialize;
 use serde_json;
-use error::{Error, Result};
 use MarkupDisplay;
-
 
 /// Serialize to JSON (requires `serde-json` feature)
 ///
@@ -16,7 +15,6 @@ pub fn json<S: Serialize>(s: &S) -> Result<MarkupDisplay<String>> {
         Err(e) => Err(Error::from(e)),
     }
 }
-
 
 #[cfg(test)]
 mod tests {

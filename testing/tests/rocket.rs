@@ -8,8 +8,8 @@ extern crate rocket;
 
 use askama::Template;
 
-use rocket::local::Client;
 use rocket::http::{ContentType, Status};
+use rocket::local::Client;
 
 #[derive(Template)]
 #[template(path = "hello.html")]

@@ -5,8 +5,8 @@ extern crate serde;
 #[cfg(feature = "serde-json")]
 extern crate serde_json;
 
-pub use escaping::MarkupDisplay;
 pub use error::{Error, Result};
+pub use escaping::MarkupDisplay;
 mod error;
 pub mod filters;
 pub mod path;

@@ -15,7 +15,6 @@ struct MatchOptRefTemplate<'a> {
     item: &'a Option<&'a str>,
 }
 
-
 #[test]
 fn test_match_option() {
     let s = MatchOptTemplate { item: Some("foo") };
@@ -79,7 +78,9 @@ struct MatchCustomEnumTemplate {
 
 #[test]
 fn test_match_custom_enum() {
-    let s = MatchCustomEnumTemplate { color: Color::Rgb(160, 0, 255) };
+    let s = MatchCustomEnumTemplate {
+        color: Color::Rgb(160, 0, 255),
+    };
     assert_eq!(s.render().unwrap(), "\n\nColorful: #A000FF\n");
 }
 

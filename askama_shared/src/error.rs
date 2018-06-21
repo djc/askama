@@ -1,5 +1,5 @@
+use std::error::Error as ErrorTrait;
 use std::fmt::{self, Display};
-use std::error::{Error as ErrorTrait};
 
 pub type Result<I> = ::std::result::Result<I, Error>;
 
@@ -23,7 +23,7 @@ pub type Result<I> = ::std::result::Result<I, Error>;
 /// bring to this crate are small, which is why
 /// `std::error::Error` was used.
 ///
-#[derive(Debug, )]
+#[derive(Debug)]
 pub enum Error {
     /// formatting error
     Fmt(fmt::Error),
@@ -40,22 +40,21 @@ pub enum Error {
 }
 
 impl ErrorTrait for Error {
-
     fn description(&self) -> &str {
         match *self {
             Error::Fmt(ref err) => err.description(),
             #[cfg(feature = "serde-json")]
             Error::Json(ref err) => err.description(),
-            _ => "unknown error: __Nonexhaustive"
+            _ => "unknown error: __Nonexhaustive",
         }
     }
 
     fn cause(&self) -> Option<&ErrorTrait> {
         match *self {
             Error::Fmt(ref err) => err.cause(),
-             #[cfg(feature = "serde-json")]
+            #[cfg(feature = "serde-json")]
             Error::Json(ref err) => err.cause(),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -67,7 +66,7 @@ impl Display for Error {
 
             #[cfg(feature = "serde-json")]
             Error::Json(ref err) => write!(formatter, "json conversion error: {}", err),
-            _ => write!(formatter, "unknown error: __Nonexhaustive")
+            _ => write!(formatter, "unknown error: __Nonexhaustive"),
         }
     }
 }
@@ -84,7 +83,6 @@ impl From<::serde_json::Error> for Error {
         Error::Json(err)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

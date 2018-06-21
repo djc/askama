@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 
 use syn;
 
-
 pub struct TemplateInput<'a> {
     pub ast: &'a syn::DeriveInput,
     pub source: Source,
@@ -20,7 +19,10 @@ impl<'a> TemplateInput<'a> {
             .iter()
             .find(|a| a.interpret_meta().unwrap().name() == "template");
         if attr.is_none() {
-            panic!(format!("'template' attribute not found on struct '{}'", ast.ident));
+            panic!(format!(
+                "'template' attribute not found on struct '{}'",
+                ast.ident
+            ));
         }
 
         let attr = attr.unwrap();
@@ -75,18 +77,20 @@ impl<'a> TemplateInput<'a> {
         match (&source, ext.is_some()) {
             (&Source::Path(_), true) => {
                 panic!("'ext' attribute cannot be used with 'path' attribute")
-            },
+            }
             (&Source::Source(_), false) => {
                 panic!("must include 'ext' attribute when using 'source' attribute")
-            },
-            _ => {},
+            }
+            _ => {}
         }
         let escaping = match escaping {
             Some(m) => m,
             None => {
                 let ext = match source {
-                    Source::Path(ref p) =>
-                        Path::new(p).extension().map(|s| s.to_str().unwrap()).unwrap_or(""),
+                    Source::Path(ref p) => Path::new(p)
+                        .extension()
+                        .map(|s| s.to_str().unwrap())
+                        .unwrap_or(""),
                     Source::Source(_) => ext.as_ref().unwrap(), // Already panicked if None
                 };
                 if HTML_EXTENSIONS.contains(&ext) {
@@ -94,7 +98,7 @@ impl<'a> TemplateInput<'a> {
                 } else {
                     EscapeMode::None
                 }
-            },
+            }
         };
 
         let path = match source {

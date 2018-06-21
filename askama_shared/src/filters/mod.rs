@@ -11,9 +11,8 @@ pub use self::json::json;
 
 use std::fmt;
 
-use escaping::{self, MarkupDisplay};
 use super::Result;
-
+use escaping::{self, MarkupDisplay};
 
 // This is used by the code generator to decide whether a named filter is part of
 // Askama or should refer to a local `filters` module. It should contain all the
@@ -32,11 +31,10 @@ pub const BUILT_IN_FILTERS: [&str; 10] = [
     "json", // Optional feature; reserve the name anyway
 ];
 
-
 pub fn safe<D, I>(v: I) -> Result<MarkupDisplay<D>>
 where
     D: fmt::Display,
-    MarkupDisplay<D>: From<I>
+    MarkupDisplay<D>: From<I>,
 {
     let res: MarkupDisplay<D> = v.into();
     Ok(res.mark_safe())
@@ -46,7 +44,7 @@ where
 pub fn escape<D, I>(i: I) -> Result<MarkupDisplay<String>>
 where
     D: fmt::Display,
-    MarkupDisplay<D>: From<I>
+    MarkupDisplay<D>: From<I>,
 {
     let md: MarkupDisplay<D> = i.into();
     Ok(MarkupDisplay::Safe(escaping::escape(md.unsafe_string())))
@@ -56,7 +54,7 @@ where
 pub fn e<D, I>(i: I) -> Result<MarkupDisplay<String>>
 where
     D: fmt::Display,
-    MarkupDisplay<D>: From<I>
+    MarkupDisplay<D>: From<I>,
 {
     escape(i)
 }
@@ -99,9 +97,10 @@ pub fn trim(s: &fmt::Display) -> Result<String> {
 
 /// Joins iterable into a string separated by provided argument
 pub fn join<T, I, S>(input: I, separator: S) -> Result<String>
-    where T: fmt::Display,
-          I: Iterator<Item = T>,
-          S: AsRef<str>
+where
+    T: fmt::Display,
+    I: Iterator<Item = T>,
+    S: AsRef<str>,
 {
     let separator: &str = separator.as_ref();
 
@@ -117,7 +116,6 @@ pub fn join<T, I, S>(input: I, separator: S) -> Result<String>
 
     Ok(rv)
 }
-
 
 #[cfg(test)]
 mod tests {

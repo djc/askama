@@ -3,7 +3,6 @@ extern crate askama;
 
 use askama::Template;
 
-
 #[derive(Template)]
 #[template(path = "simple.html")]
 struct VariablesTemplate<'a> {
@@ -28,7 +27,6 @@ fn test_variables() {
     );
 }
 
-
 #[derive(Template)]
 #[template(path = "if.html")]
 struct IfTemplate {
@@ -40,7 +38,6 @@ fn test_if() {
     let s = IfTemplate { cond: true };
     assert_eq!(s.render().unwrap(), "true");
 }
-
 
 #[derive(Template)]
 #[template(path = "else.html")]
@@ -54,7 +51,6 @@ fn test_else() {
     assert_eq!(s.render().unwrap(), "false");
 }
 
-
 #[derive(Template)]
 #[template(path = "else-if.html")]
 struct ElseIfTemplate {
@@ -64,10 +60,12 @@ struct ElseIfTemplate {
 
 #[test]
 fn test_else_if() {
-    let s = ElseIfTemplate { cond: false, check: true };
+    let s = ElseIfTemplate {
+        cond: false,
+        check: true,
+    };
     assert_eq!(s.render().unwrap(), "checked");
 }
-
 
 #[derive(Template)]
 #[template(path = "literals.html")]
@@ -78,7 +76,6 @@ fn test_literals() {
     let s = LiteralsTemplate {};
     assert_eq!(s.render().unwrap(), "a");
 }
-
 
 struct Holder {
     a: usize,
@@ -92,7 +89,9 @@ struct AttrTemplate {
 
 #[test]
 fn test_attr() {
-    let t = AttrTemplate { inner: Holder { a: 5 } };
+    let t = AttrTemplate {
+        inner: Holder { a: 5 },
+    };
     assert_eq!(t.render().unwrap(), "5");
 }
 
@@ -104,10 +103,11 @@ struct TupleAttrTemplate<'a> {
 
 #[test]
 fn test_tuple_attr() {
-    let t = TupleAttrTemplate { tuple: ("foo", "bar") };
+    let t = TupleAttrTemplate {
+        tuple: ("foo", "bar"),
+    };
     assert_eq!(t.render().unwrap(), "foobar");
 }
-
 
 struct NestedHolder {
     holder: Holder,
@@ -121,10 +121,13 @@ struct NestedAttrTemplate {
 
 #[test]
 fn test_nested_attr() {
-    let t = NestedAttrTemplate { inner: NestedHolder { holder: Holder { a: 5 } } };
+    let t = NestedAttrTemplate {
+        inner: NestedHolder {
+            holder: Holder { a: 5 },
+        },
+    };
     assert_eq!(t.render().unwrap(), "5");
 }
-
 
 #[derive(Template)]
 #[template(path = "option.html")]
@@ -140,11 +143,12 @@ fn test_option() {
     assert_eq!(none.render().unwrap(), "none");
 }
 
-
 #[derive(Template)]
 #[template(path = "generics.html")]
 struct GenericsTemplate<T: std::fmt::Display, U = u8>
-    where U: std::fmt::Display {
+where
+    U: std::fmt::Display,
+{
     t: T,
     u: U,
 }
@@ -155,7 +159,6 @@ fn test_generics() {
     assert_eq!(t.render().unwrap(), "a42");
 }
 
-
 #[derive(Template)]
 #[template(path = "composition.html")]
 struct CompositionTemplate {
@@ -164,10 +167,11 @@ struct CompositionTemplate {
 
 #[test]
 fn test_composition() {
-    let t = CompositionTemplate { foo: IfTemplate { cond: true } };
+    let t = CompositionTemplate {
+        foo: IfTemplate { cond: true },
+    };
     assert_eq!(t.render().unwrap(), "composed: true");
 }
-
 
 #[derive(PartialEq, Eq)]
 enum Alphabet {
@@ -186,7 +190,6 @@ fn test_path_compare() {
     assert_eq!(t.render().unwrap(), "true");
 }
 
-
 #[derive(Template)]
 #[template(source = "{% for i in [\"a\", \"\"] %}{{ i }}{% endfor %}", ext = "txt")]
 struct ArrayTemplate {}
@@ -197,7 +200,6 @@ fn test_slice_literal() {
     assert_eq!(t.render().unwrap(), "a");
 }
 
-
 #[derive(Template)]
 #[template(source = "  {# foo -#} ", ext = "txt")]
 struct CommentTemplate {}
@@ -207,7 +209,6 @@ fn test_comment() {
     let t = CommentTemplate {};
     assert_eq!(t.render().unwrap(), "  ");
 }
-
 
 #[derive(Template)]
 #[template(source = "{% if !foo %}Hello{% endif %}", ext = "txt")]
@@ -220,7 +221,6 @@ fn test_negation() {
     let t = NegationTemplate { foo: false };
     assert_eq!(t.render().unwrap(), "Hello");
 }
-
 
 #[derive(Template)]
 #[template(source = "{% if foo > -2 %}Hello{% endif %}", ext = "txt")]

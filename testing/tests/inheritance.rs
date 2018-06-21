@@ -23,13 +23,14 @@ fn test_use_base_directly() {
 
 #[test]
 fn test_simple_extends() {
-    let t = ChildTemplate { _parent: BaseTemplate { title: "Bar" } };
+    let t = ChildTemplate {
+        _parent: BaseTemplate { title: "Bar" },
+    };
     assert_eq!(
         t.render().unwrap(),
         "Bar\n(Bar) Content goes here\nFoo\nCopyright 2017"
     );
 }
-
 
 pub mod parent {
     use askama::Template;
@@ -41,8 +42,8 @@ pub mod parent {
 }
 
 pub mod child {
-    use askama::Template;
     use super::parent::*;
+    use askama::Template;
     #[derive(Template)]
     #[template(path = "child.html")]
     pub struct ChildTemplate<'a> {
@@ -52,14 +53,14 @@ pub mod child {
 
 #[test]
 fn test_different_module() {
-    let t = child::ChildTemplate { _parent: parent::BaseTemplate { title: "a" } };
+    let t = child::ChildTemplate {
+        _parent: parent::BaseTemplate { title: "a" },
+    };
     assert_eq!(
         t.render().unwrap(),
         "a\n(a) Content goes here\nFoo\nCopyright 2017"
     );
 }
-
-
 
 #[derive(Template)]
 #[template(path = "nested-base.html")]
@@ -73,6 +74,8 @@ struct NestedChildTemplate {
 
 #[test]
 fn test_nested_blocks() {
-    let t = NestedChildTemplate { _parent: NestedBaseTemplate {} };
+    let t = NestedChildTemplate {
+        _parent: NestedBaseTemplate {},
+    };
     assert_eq!(t.render().unwrap(), "\ndurpy\n");
 }

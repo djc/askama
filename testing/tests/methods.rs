@@ -21,7 +21,6 @@ fn test_self_method() {
     assert_eq!(t.render().unwrap(), "foo");
 }
 
-
 #[derive(Template)]
 #[template(source = "{{ self.get_s() }} {{ t.get_s() }}", ext = "txt")]
 struct NestedSelfMethodTemplate<'a> {

@@ -10,7 +10,7 @@ pub fn get_template_source(tpl_path: &Path) -> String {
         Err(_) => {
             let msg = format!("unable to open template file '{}'", &path.to_str().unwrap());
             panic!(msg)
-        },
+        }
         Ok(f) => f,
     };
     let mut s = String::new();
@@ -38,7 +38,11 @@ pub fn find_template_from_path(path: &str, start_at: Option<&Path>) -> PathBuf {
     if fs_abs_path.exists() {
         path.to_owned()
     } else {
-        panic!(format!("template {:?} not found at {:?}", path.to_str().unwrap(), fs_abs_path));
+        panic!(format!(
+            "template {:?} not found at {:?}",
+            path.to_str().unwrap(),
+            fs_abs_path
+        ));
     }
 }
 
@@ -50,8 +54,8 @@ pub fn template_dir() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::{find_template_from_path, get_template_source};
     use super::Path;
+    use super::{find_template_from_path, get_template_source};
 
     #[test]
     fn get_source() {

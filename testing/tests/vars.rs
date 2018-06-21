@@ -15,7 +15,6 @@ fn test_let() {
     assert_eq!(t.render().unwrap(), "foo");
 }
 
-
 #[derive(Template)]
 #[template(path = "let-decl.html")]
 struct LetDeclTemplate<'a> {
@@ -25,6 +24,9 @@ struct LetDeclTemplate<'a> {
 
 #[test]
 fn test_let_decl() {
-    let t = LetDeclTemplate { cond: false, s: "bar" };
+    let t = LetDeclTemplate {
+        cond: false,
+        s: "bar",
+    };
     assert_eq!(t.render().unwrap(), "bar");
 }
