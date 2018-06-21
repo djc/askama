@@ -11,8 +11,9 @@ mod input;
 mod generator;
 mod parser;
 
-use input::Print;
+use input::{Print, Source};
 use proc_macro::TokenStream;
+use shared::path;
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
@@ -33,10 +34,16 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 /// value as passed to the `template()` attribute.
 fn build_template(ast: &syn::DeriveInput) -> String {
     let input = input::TemplateInput::new(ast);
-    let nodes = parser::parse(input.source.as_ref());
+    let source = match input.meta.source {
+        Source::Source(ref s) => s.clone(),
+        Source::Path(_) => path::get_template_source(&input.path)
+    };
+
+    let nodes = parser::parse(&source);
     if input.meta.print == Print::Ast || input.meta.print == Print::All {
         println!("{:?}", nodes);
     }
+
     let code = generator::generate(&input, &nodes);
     if input.meta.print == Print::Code || input.meta.print == Print::All {
         println!("{}", code);
