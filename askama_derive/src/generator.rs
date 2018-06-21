@@ -1,112 +1,24 @@
+use super::Context;
 use input::TemplateInput;
-use parser::{self, Cond, Expr, Macro, MatchParameter, MatchVariant, Node, Target, When, WS};
+use parser::{self, Cond, Expr, MatchParameter, MatchVariant, Node, Target, When, WS};
 use shared::{filters, path};
 
 use proc_macro2::Span;
 use quote::ToTokens;
 
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
+use std::path::PathBuf;
 use std::{cmp, hash, str};
 
 use syn;
 
-pub fn generate(input: &TemplateInput, nodes: &[Node]) -> String {
-    let mut sources = HashMap::new();
-    let mut parsed = HashMap::new();
-    let mut base = None;
-    let mut blocks = Vec::new();
-    let mut imported = Vec::new();
-    let mut macros = HashMap::new();
-
-    for n in nodes {
-        match n {
-            Node::Extends(Expr::StrLit(path)) => match base {
-                Some(_) => panic!("multiple extend blocks found"),
-                None => {
-                    base = Some(*path);
-                }
-            },
-            def @ Node::BlockDef(_, _, _, _) => {
-                blocks.push(def);
-            }
-            Node::Macro(name, m) => {
-                macros.insert((None, *name), m);
-            }
-            Node::Import(_, import_path, scope) => {
-                let path = path::find_template_from_path(import_path, Some(&input.path));
-                sources.insert(path.clone(), path::get_template_source(&path));
-                imported.push((*scope, path));
-            }
-            _ => {}
-        }
-    }
-    for (path, src) in &sources {
-        parsed.insert(path, parser::parse(&src));
-    }
-
-    let mut check_nested = 0;
-    let mut nested_blocks = Vec::new();
-    while check_nested < blocks.len() {
-        if let Node::BlockDef(_, _, ref nodes, _) = blocks[check_nested] {
-            for n in nodes {
-                if let def @ Node::BlockDef(_, _, _, _) = n {
-                    nested_blocks.push(def);
-                }
-            }
-        } else {
-            panic!("non block found in list of blocks");
-        }
-        blocks.append(&mut nested_blocks);
-        check_nested += 1;
-    }
-
-    for (scope, path) in &imported {
-        for n in &parsed[path] {
-            match n {
-                Node::Macro(name, m) => macros.insert((Some(*scope), name), &m),
-                _ => None,
-            };
-        }
-    }
-
-    Generator::new(input, SetChain::new(), 0).build(&Context {
-        nodes,
-        blocks: &blocks,
-        macros: &macros,
-        trait_name: match base {
-            Some(user_path) => {
-                trait_name_for_path(&path::find_template_from_path(user_path, Some(&input.path)))
-            }
-            None => trait_name_for_path(&input.path),
-        },
-        derived: base.is_some(),
-    })
-}
-
-struct Context<'a> {
-    nodes: &'a [Node<'a>],
-    blocks: &'a [&'a Node<'a>],
-    macros: &'a MacroMap<'a>,
-    trait_name: String,
-    derived: bool,
-}
-
-fn trait_name_for_path(path: &Path) -> String {
-    let mut res = String::new();
-    res.push_str("TraitFrom");
-    for c in path.to_string_lossy().chars() {
-        if c.is_alphanumeric() {
-            res.push(c);
-        } else {
-            res.push_str(&format!("{:x}", c as u32));
-        }
-    }
-    res
+pub(crate) fn generate(input: &TemplateInput, contexts: &HashMap<&PathBuf, Context>) -> String {
+    Generator::new(input, contexts, SetChain::new(), 0).build(&contexts[&input.path])
 }
 
 struct Generator<'a> {
     input: &'a TemplateInput<'a>,
+    contexts: &'a HashMap<&'a PathBuf, Context<'a>>,
     buf: String,
     indent: u8,
     start: bool,
@@ -120,11 +32,13 @@ struct Generator<'a> {
 impl<'a> Generator<'a> {
     fn new<'n>(
         input: &'n TemplateInput,
+        contexts: &'n HashMap<&'n PathBuf, Context<'n>>,
         locals: SetChain<'n, &'n str>,
         indent: u8,
     ) -> Generator<'n> {
         Generator {
             input,
+            contexts,
             buf: String::new(),
             indent,
             start: true,
@@ -138,7 +52,7 @@ impl<'a> Generator<'a> {
 
     fn child(&mut self) -> Generator {
         let locals = SetChain::with_parent(&self.locals);
-        Self::new(self.input, locals, self.indent)
+        Self::new(self.input, self.contexts, locals, self.indent)
     }
 
     // Takes a Context and generates the relevant implementations.
@@ -179,7 +93,7 @@ impl<'a> Generator<'a> {
             "fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
              ::askama::Result<()> {",
         );
-        self.handle(ctx, ctx.nodes, AstLevel::Top);
+        self.handle(ctx, &ctx.nodes, AstLevel::Top);
         self.flush_ws(&WS(false, false));
         self.writeln("Ok(())");
         self.writeln("}");
@@ -397,7 +311,7 @@ impl<'a> Generator<'a> {
 
     fn write_block_defs(&mut self, ctx: &'a Context) {
         for b in ctx.blocks.iter() {
-            if let Node::BlockDef(ref ws1, name, ref nodes, ref ws2) = **b {
+            if let Node::BlockDef(ref ws1, name, ref nodes, ref ws2) = *b {
                 self.writeln("#[allow(unused_variables)]");
                 self.writeln(&format!(
                     "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
@@ -533,13 +447,21 @@ impl<'a> Generator<'a> {
         name: &str,
         args: &[Expr],
     ) {
-        let def = ctx.macros.get(&(scope, name)).unwrap_or_else(|| {
-            if let Some(s) = scope {
-                panic!(format!("macro '{}::{}' not found", s, name));
-            } else {
-                panic!(format!("macro '{}' not found", name));
-            }
-        });
+        let def = if let Some(s) = scope {
+            let path = ctx.imports
+                .get(s)
+                .unwrap_or_else(|| panic!("no import found for scope '{}'", s));
+            let mctx = self.contexts
+                .get(path)
+                .unwrap_or_else(|| panic!("context for '{:?}' not found", path));
+            mctx.macros
+                .get(name)
+                .unwrap_or_else(|| panic!("macro '{}' not found in scope '{}'", s, name))
+        } else {
+            ctx.macros
+                .get(name)
+                .unwrap_or_else(|| panic!("macro '{}' not found", name))
+        };
 
         self.flush_ws(ws); // Cannot handle_ws() here: whitespace from macro definition comes first
         self.locals.push();
@@ -1038,5 +960,3 @@ enum DisplayWrap {
 }
 
 impl Copy for DisplayWrap {}
-
-type MacroMap<'a> = HashMap<(Option<&'a str>, &'a str), &'a Macro<'a>>;
