@@ -18,16 +18,31 @@ pub(crate) fn generate(input: &TemplateInput, contexts: &HashMap<&PathBuf, Conte
 }
 
 struct Generator<'a> {
+    // The template input state: original struct AST and attributes
     input: &'a TemplateInput<'a>,
+    // All contexts, keyed by the package-relative template path
     contexts: &'a HashMap<&'a PathBuf, Context<'a>>,
+    // The buffer to generate the code into
     buf: String,
+    // The current level of indentation (in spaces)
     indent: u8,
+    // Whether the output buffer is currently at the start of a line
     start: bool,
+    // Variables accessible directly from the current scope (not redirected to context)
     locals: SetChain<'a, &'a str>,
+    // Suffix whitespace from the previous literal. Will be flushed to the
+    // output buffer unless suppressed by whitespace suppression on the next
+    // non-literal.
     next_ws: Option<&'a str>,
+    // Whitespace suppression from the previous non-literal. Will be used to
+    // determine whether to flush prefix whitespace from the next literal.
     skip_ws: bool,
+    // Counter for askama-internal variable names allocated during code gen
     vars: usize,
+    // If currently in a block, this will contain the name of a potential parent block
     super_block: Option<String>,
+    // If the super macro is used; this determines whether code for the parent block
+    // is generated or not.
     used_super: bool,
 }
 
