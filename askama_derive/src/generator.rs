@@ -91,7 +91,8 @@ impl<'a> Generator<'a> {
         self.writeln("}");
 
         self.write_header(&trait_name, None);
-        for (ctx, def) in heritage.blocks.values() {
+        for blocks in heritage.blocks.values() {
+            let (ctx, def) = blocks[0];
             if let Node::BlockDef(ws1, name, nodes, ws2) = def {
                 self.writeln("#[allow(unused_variables)]");
                 self.writeln(&format!(
@@ -888,7 +889,7 @@ where
 
 struct Heritage<'a> {
     root: &'a Context<'a>,
-    blocks: HashMap<&'a str, (&'a Context<'a>, &'a Node<'a>)>,
+    blocks: BlockAncestry<'a>,
 }
 
 impl<'a> Heritage<'a> {
@@ -896,17 +897,15 @@ impl<'a> Heritage<'a> {
         mut ctx: &'n Context<'n>,
         contexts: &'n HashMap<&'n PathBuf, Context<'n>>,
     ) -> Heritage<'n> {
-        let mut blocks: HashMap<_, (_, _)> = ctx.blocks
+        let mut blocks: BlockAncestry<'n> = ctx.blocks
             .iter()
-            .map(|(name, def)| (*name, (ctx, *def)))
+            .map(|(name, def)| (*name, vec![(ctx, *def)]))
             .collect();
 
         while let Some(ref path) = ctx.extends {
             ctx = &contexts[&path];
             for (name, def) in &ctx.blocks {
-                if !blocks.contains_key(name) {
-                    blocks.insert(name, (ctx, def));
-                }
+                blocks.entry(name).or_insert(vec![]).push((ctx, def));
             }
         }
 
@@ -930,3 +929,5 @@ enum DisplayWrap {
 }
 
 impl Copy for DisplayWrap {}
+
+type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a Node<'a>)>>;
