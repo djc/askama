@@ -12,7 +12,7 @@
 //! An Askama template is a `struct` definition which provides the template
 //! context combined with a UTF-8 encoded text file (or inline source, see
 //! below). Askama can be used to generate any kind of text-based format.
-//! The template file's extension may can be used to provide content type hints.
+//! The template file's extension may be used to provide content type hints.
 //!
 //! A template consists of **text contents**, which are passed through as-is,
 //! **expressions**, which get replaced with content while being rendered, and
@@ -37,8 +37,9 @@
 //!   type of the resulting response. Cannot be used together with `source`.
 //! * `source` (as `source = "{{ foo }}"`): directly sets the template source.
 //!   This can be useful for test cases or short templates. The generated path
-//!   is empty, which generally makes it impossible to refer to this template
-//!   from other templates. Cannot be used together with `path`.
+//!   is undefined, which generally makes it impossible to refer to this
+//!   template from other templates. If `source` is specified, `ext` must also
+//!   be specified (see below). Cannot be used together with `path`.
 //! * `ext` (as `ext = "txt"`): lets you specify the content type as a file
 //!   extension. This is used to infer an escape mode (see below), and some
 //!   web framework integrations use it to determine the content type.
@@ -108,8 +109,8 @@
 //! ## Template inheritance
 //!
 //! Template inheritance allows you to build a base template with common
-//! elements that can then be shared by all inheriting templates.
-//! A base template defines **blocks** that child templates can then override.
+//! elements that can be shared by all inheriting templates.
+//! A base template defines **blocks** that child templates can override.
 //!
 //! ### Base template
 //!
@@ -130,9 +131,10 @@
 //!
 //! The `block` tags define three blocks that can be filled in by child
 //! templates. The base template defines a default version of the block.
-//! A base template must define one or more blocks in order to be enable
-//! inheritance. Blocks can only be specified at the top level of a template,
-//! not inside `if`/`else` branches or in `for`-loop bodies.
+//! A base template must define one or more blocks in order to enable
+//! inheritance. Blocks can only be specified at the top level of a template
+//! or inside other blocks, not inside `if`/`else` branches or in `for`-loop
+//! bodies.
 //!
 //! ### Child template
 //!
@@ -158,15 +160,9 @@
 //! from another template. It will search for the base template relative to
 //! itself before looking relative to the template base directory. It will
 //! render the top-level content from the base template, and substitute
-//! blocks from the base template with those from the child template. The
-//! inheriting template context `struct` must have a field called `_parent` of
-//! the type used as the base template context. Blocks can refer to the context
-//! of both parent and child template.
-//!
-//! Note that, if the base template lives in another module than the child
-//! template, the child template's module should import all symbols from the
-//! base template's module in order for it to find the trait definition that
-//! supports the inheritance mechanism.
+//! blocks from the base template with those from the child template. Inside
+//! a block in a child template, the `super()` macro can be called to render
+//! the parent block's contents.
 //!
 //! ## HTML escaping
 //!
