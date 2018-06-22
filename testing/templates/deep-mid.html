@@ -1,0 +1,19 @@
+{% extends "deep-base.html" %}
+{% import "macro.html" as libm %}
+
+{% block head %}
+  {{ title }}
+{% endblock %}
+
+{% block body %}
+  <div id="wrap">
+    <section id="content">
+    {% block content %}
+      No content found
+    {% endblock %}
+    </section>
+    <section id="nav">
+      {% call libm::thrice("nav") %}
+    </section>
+  </div>
+{% endblock %}

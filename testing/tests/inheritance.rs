@@ -79,3 +79,95 @@ fn test_nested_blocks() {
     };
     assert_eq!(t.render().unwrap(), "\ndurpy\n");
 }
+
+#[derive(Template)]
+#[template(path = "deep-base.html")]
+struct DeepBaseTemplate {
+    year: u16,
+}
+
+#[derive(Template)]
+#[template(path = "deep-mid.html")]
+struct DeepMidTemplate {
+    _parent: DeepBaseTemplate,
+    title: String,
+}
+
+#[derive(Template)]
+#[template(path = "deep-kid.html")]
+struct DeepKidTemplate {
+    _parent: DeepMidTemplate,
+    item: String,
+}
+
+#[test]
+fn test_deep() {
+    let t = DeepKidTemplate {
+        _parent: DeepMidTemplate {
+            _parent: DeepBaseTemplate {
+                year: 2018,
+            },
+            title: "Test".into(),
+        },
+        item: "Foo".into(),
+    };
+
+    assert_eq!(t.render().unwrap(), "
+<html>
+  <head>
+  
+  <script></script>
+
+  </head>
+  <body>
+  
+  <div id=\"wrap\">
+    <section id=\"content\">
+    
+  Foo Foo Foo
+
+    </section>
+    <section id=\"nav\">
+      nav nav nav
+    </section>
+  </div>
+
+  </body>
+</html>");
+    assert_eq!(t._parent.render().unwrap(), "
+<html>
+  <head>
+  
+  Test
+
+  </head>
+  <body>
+  
+  <div id=\"wrap\">
+    <section id=\"content\">
+    
+      No content found
+    
+    </section>
+    <section id=\"nav\">
+      nav nav nav
+    </section>
+  </div>
+
+  </body>
+</html>");
+    assert_eq!(t._parent._parent.render().unwrap(), "
+<html>
+  <head>
+  
+    <style></style>
+  
+  </head>
+  <body>
+  
+    nav nav nav
+    Copyright 2018
+  
+  </body>
+</html>");
+}

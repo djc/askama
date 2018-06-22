@@ -1,0 +1,14 @@
+{% import "macro.html" as libb %}
+<html>
+  <head>
+  {% block head %}
+    <style></style>
+  {% endblock %}
+  </head>
+  <body>
+  {% block body %}
+    {% call libb::thrice("nav") %}
+    Copyright {{ year }}
+  {% endblock %}
+  </body>
+</html>
