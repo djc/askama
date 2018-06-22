@@ -171,3 +171,95 @@ fn test_deep() {
   </body>
 </html>");
 }
+
+#[derive(Template)]
+#[template(path = "deep-base.html")]
+struct FlatDeepBaseTemplate {
+    year: u16,
+}
+
+#[derive(Template)]
+#[template(path = "deep-mid.html")]
+struct FlatDeepMidTemplate {
+    title: String,
+}
+
+#[derive(Template)]
+#[template(path = "deep-kid.html")]
+struct FlatDeepKidTemplate {
+    item: String,
+}
+
+#[test]
+fn test_flat_deep() {
+    let t = FlatDeepKidTemplate {
+        item: "Foo".into(),
+    };
+
+    assert_eq!(t.render().unwrap(), "
+<html>
+  <head>
+  
+  <script></script>
+
+  </head>
+  <body>
+  
+  <div id=\"wrap\">
+    <section id=\"content\">
+    
+  Foo Foo Foo
+
+    </section>
+    <section id=\"nav\">
+      nav nav nav
+    </section>
+  </div>
+
+  </body>
+</html>");
+
+    let t = FlatDeepMidTemplate {
+        title: "Test".into(),
+    };
+    assert_eq!(t.render().unwrap(), "
+<html>
+  <head>
+  
+  Test
+
+  </head>
+  <body>
+  
+  <div id=\"wrap\">
+    <section id=\"content\">
+    
+      No content found
+    
+    </section>
+    <section id=\"nav\">
+      nav nav nav
+    </section>
+  </div>
+
+  </body>
+</html>");
+
+    let t = FlatDeepBaseTemplate {
+        year: 2018,
+    };
+    assert_eq!(t.render().unwrap(), "
+<html>
+  <head>
+  
+    <style></style>
+  
+  </head>
+  <body>
+  
+    nav nav nav
+    Copyright 2018
+  
+  </body>
+</html>");
+}
