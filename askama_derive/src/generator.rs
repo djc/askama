@@ -97,6 +97,26 @@ impl<'a> Generator<'a> {
         self.buf
     }
 
+    // Implement `Template` for the given context struct.
+    fn impl_template(&mut self, ctx: &'a Context, heritage: &Option<Heritage<'a>>) {
+        self.write_header("::askama::Template", None);
+        self.writeln(
+            "fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
+             ::askama::Result<()> {",
+        );
+
+        if let Some(heritage) = heritage {
+            self.handle(heritage.root, heritage.root.nodes, AstLevel::Top);
+        } else {
+            self.handle(ctx, &ctx.nodes, AstLevel::Top);
+        }
+
+        self.flush_ws(WS(false, false));
+        self.writeln("Ok(())");
+        self.writeln("}");
+        self.writeln("}");
+    }
+
     fn trait_blocks(&mut self, heritage: &Heritage<'a>) {
         let trait_name = format!("{}Blocks", self.input.ast.ident);
         let mut methods = vec![];
@@ -149,26 +169,6 @@ impl<'a> Generator<'a> {
                 name
             ));
         }
-        self.writeln("}");
-    }
-
-    // Implement `Template` for the given context struct.
-    fn impl_template(&mut self, ctx: &'a Context, heritage: &Option<Heritage<'a>>) {
-        self.write_header("::askama::Template", None);
-        self.writeln(
-            "fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
-             ::askama::Result<()> {",
-        );
-
-        if let Some(heritage) = heritage {
-            self.handle(heritage.root, heritage.root.nodes, AstLevel::Top);
-        } else {
-            self.handle(ctx, &ctx.nodes, AstLevel::Top);
-        }
-
-        self.flush_ws(WS(false, false));
-        self.writeln("Ok(())");
-        self.writeln("}");
         self.writeln("}");
     }
 
