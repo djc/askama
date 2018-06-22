@@ -142,6 +142,9 @@ fn test_deep() {
   <head>
   
   Test
+  
+    <style></style>
+  
 
   </head>
   <body>
@@ -237,6 +240,9 @@ fn test_flat_deep() {
   <head>
   
   Test
+  
+    <style></style>
+  
 
   </head>
   <body>
