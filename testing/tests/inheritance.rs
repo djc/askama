@@ -104,15 +104,15 @@ struct DeepKidTemplate {
 fn test_deep() {
     let t = DeepKidTemplate {
         _parent: DeepMidTemplate {
-            _parent: DeepBaseTemplate {
-                year: 2018,
-            },
+            _parent: DeepBaseTemplate { year: 2018 },
             title: "Test".into(),
         },
         item: "Foo".into(),
     };
 
-    assert_eq!(t.render().unwrap(), "
+    assert_eq!(
+        t.render().unwrap(),
+        "
 <html>
   <head>
   
@@ -133,8 +133,11 @@ fn test_deep() {
   </div>
 
   </body>
-</html>");
-    assert_eq!(t._parent.render().unwrap(), "
+</html>"
+    );
+    assert_eq!(
+        t._parent.render().unwrap(),
+        "
 <html>
   <head>
   
@@ -155,8 +158,11 @@ fn test_deep() {
   </div>
 
   </body>
-</html>");
-    assert_eq!(t._parent._parent.render().unwrap(), "
+</html>"
+    );
+    assert_eq!(
+        t._parent._parent.render().unwrap(),
+        "
 <html>
   <head>
   
@@ -169,7 +175,8 @@ fn test_deep() {
     Copyright 2018
   
   </body>
-</html>");
+</html>"
+    );
 }
 
 #[derive(Template)]
@@ -192,11 +199,11 @@ struct FlatDeepKidTemplate {
 
 #[test]
 fn test_flat_deep() {
-    let t = FlatDeepKidTemplate {
-        item: "Foo".into(),
-    };
+    let t = FlatDeepKidTemplate { item: "Foo".into() };
 
-    assert_eq!(t.render().unwrap(), "
+    assert_eq!(
+        t.render().unwrap(),
+        "
 <html>
   <head>
   
@@ -217,12 +224,15 @@ fn test_flat_deep() {
   </div>
 
   </body>
-</html>");
+</html>"
+    );
 
     let t = FlatDeepMidTemplate {
         title: "Test".into(),
     };
-    assert_eq!(t.render().unwrap(), "
+    assert_eq!(
+        t.render().unwrap(),
+        "
 <html>
   <head>
   
@@ -243,12 +253,13 @@ fn test_flat_deep() {
   </div>
 
   </body>
-</html>");
+</html>"
+    );
 
-    let t = FlatDeepBaseTemplate {
-        year: 2018,
-    };
-    assert_eq!(t.render().unwrap(), "
+    let t = FlatDeepBaseTemplate { year: 2018 };
+    assert_eq!(
+        t.render().unwrap(),
+        "
 <html>
   <head>
   
@@ -261,5 +272,6 @@ fn test_flat_deep() {
     Copyright 2018
   
   </body>
-</html>");
+</html>"
+    );
 }

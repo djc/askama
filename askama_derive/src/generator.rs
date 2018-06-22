@@ -910,10 +910,7 @@ impl<'a> Heritage<'a> {
             }
         }
 
-        Heritage {
-            root: ctx,
-            blocks,
-        }
+        Heritage { root: ctx, blocks }
     }
 }
 
