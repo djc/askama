@@ -623,15 +623,20 @@ named!(block_macro<Input, Node>, do_parse!(
     pws2: opt!(tag_s!("-")) >>
     ws!(tag_s!("endmacro")) >>
     nws2: opt!(tag_s!("-")) >>
-    (Node::Macro(
-         name,
-         Macro {
-             ws1: WS(pws1.is_some(), nws1.is_some()),
-             args: params,
-             nodes: contents,
-             ws2: WS(pws2.is_some(), nws2.is_some())
-         }
-    ))
+    ({
+        if name == "super" {
+            panic!("invalid macro name 'super'");
+        }
+        Node::Macro(
+            name,
+            Macro {
+                ws1: WS(pws1.is_some(), nws1.is_some()),
+                args: params,
+                nodes: contents,
+                ws2: WS(pws2.is_some(), nws2.is_some())
+            }
+        )
+    })
 ));
 
 named!(block_node<Input, Node>, do_parse!(
