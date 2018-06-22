@@ -144,10 +144,12 @@ impl<'a> Context<'a> {
 
         let blocks: HashMap<_, _> = blocks
             .iter()
-            .map(|def| if let Node::BlockDef(_, name, _, _) = def {
-                (*name, *def)
-            } else {
-                unreachable!()
+            .map(|def| {
+                if let Node::BlockDef(_, name, _, _) = def {
+                    (*name, *def)
+                } else {
+                    unreachable!()
+                }
             })
             .collect();
 

@@ -911,7 +911,7 @@ impl<'a> Heritage<'a> {
         Heritage {
             root: ctx,
             levels,
-            blocks
+            blocks,
         }
     }
 }
