@@ -27,6 +27,8 @@ struct Generator<'a> {
     next_ws: Option<&'a str>,
     skip_ws: bool,
     vars: usize,
+    super_block: Option<String>,
+    used_super: bool,
 }
 
 impl<'a> Generator<'a> {
@@ -46,6 +48,8 @@ impl<'a> Generator<'a> {
             next_ws: None,
             skip_ws: false,
             vars: 0,
+            super_block: None,
+            used_super: false,
         }
     }
 
@@ -80,38 +84,55 @@ impl<'a> Generator<'a> {
 
     fn trait_blocks(&mut self, heritage: &Heritage<'a>) {
         let trait_name = format!("{}Blocks", self.input.ast.ident);
+        let mut methods = vec![];
+
+        self.write_header(&trait_name, None);
+        for blocks in heritage.blocks.values() {
+            for (gen, (ctx, def)) in blocks.iter().enumerate() {
+                self.used_super = false;
+                if let Node::BlockDef(ws1, name, nodes, ws2) = def {
+                    let fname = if gen == 0 {
+                        name.to_string()
+                    } else {
+                        format!("{}_g{}", name, gen)
+                    };
+
+                    self.writeln("#[allow(unused_variables)]");
+                    self.writeln(&format!(
+                        "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
+                         -> ::askama::Result<()> {{",
+                        fname
+                    ));
+                    methods.push(fname);
+                    self.prepare_ws(*ws1);
+
+                    self.locals.push();
+                    self.super_block = Some(format!("{}_g{}", name, gen + 1));
+                    self.handle(ctx, nodes, AstLevel::Block);
+                    self.super_block = None;
+                    self.locals.pop();
+
+                    self.flush_ws(*ws2);
+                    self.writeln("Ok(())");
+                    self.writeln("}");
+                } else {
+                    panic!("only block definitions allowed here");
+                }
+
+                if !self.used_super {
+                    break;
+                }
+            }
+        }
+        self.writeln("}");
+
         self.writeln(&format!("pub trait {} {{", trait_name));
-        for name in heritage.blocks.keys() {
+        for name in methods {
             self.writeln(&format!(
                 "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
                  -> ::askama::Result<()>;",
                 name
             ));
-        }
-        self.writeln("}");
-
-        self.write_header(&trait_name, None);
-        for blocks in heritage.blocks.values() {
-            let (ctx, def) = blocks[0];
-            if let Node::BlockDef(ws1, name, nodes, ws2) = def {
-                self.writeln("#[allow(unused_variables)]");
-                self.writeln(&format!(
-                    "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
-                     -> ::askama::Result<()> {{",
-                    name
-                ));
-                self.prepare_ws(*ws1);
-
-                self.locals.push();
-                self.handle(ctx, nodes, AstLevel::Block);
-                self.locals.pop();
-
-                self.flush_ws(*ws2);
-                self.writeln("Ok(())");
-                self.writeln("}");
-            } else {
-                panic!("only block definitions allowed here");
-            }
         }
         self.writeln("}");
     }
@@ -404,6 +425,18 @@ impl<'a> Generator<'a> {
         name: &str,
         args: &[Expr],
     ) {
+        if name == "super" {
+            self.flush_ws(ws);
+            let line = match self.super_block {
+                Some(ref name) => format!("self.render_block_{}_into(writer)?;", name),
+                None => panic!("cannot call 'super()' outside block"),
+            };
+            self.writeln(&line);
+            self.prepare_ws(ws);
+            self.used_super = true;
+            return;
+        }
+
         let def = if let Some(s) = scope {
             let path = ctx.imports
                 .get(s)
