@@ -5,6 +5,8 @@ use shared::{filters, path};
 
 use proc_macro2::Span;
 
+use quote::ToTokens;
+
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::{cmp, hash, str};
@@ -25,7 +27,6 @@ struct Generator<'a> {
     next_ws: Option<&'a str>,
     skip_ws: bool,
     vars: usize,
-    inherited: usize,
 }
 
 impl<'a> Generator<'a> {
@@ -45,7 +46,6 @@ impl<'a> Generator<'a> {
             next_ws: None,
             skip_ws: false,
             vars: 0,
-            inherited: 0,
         }
     }
 
@@ -59,6 +59,8 @@ impl<'a> Generator<'a> {
         let heritage = if !ctx.blocks.is_empty() {
             if ctx.extends.is_some() && self.input.parent.is_none() {
                 panic!("expected field '_parent' in extending template struct");
+            } else if let Some(parent) = self.input.parent {
+                self.deref_to_parent(parent);
             }
             let heritage = Heritage::new(ctx, self.contexts);
             self.trait_blocks(&heritage);
@@ -91,7 +93,7 @@ impl<'a> Generator<'a> {
         self.writeln("}");
 
         self.write_header(&trait_name, None);
-        for (level, ctx, def) in heritage.blocks.values() {
+        for (ctx, def) in heritage.blocks.values() {
             if let Node::BlockDef(ws1, name, nodes, ws2) = def {
                 self.writeln("#[allow(unused_variables)]");
                 self.writeln(&format!(
@@ -101,7 +103,6 @@ impl<'a> Generator<'a> {
                 ));
                 self.prepare_ws(*ws1);
 
-                self.inherited = heritage.levels - *level;
                 self.locals.push();
                 self.handle(ctx, nodes, AstLevel::Block);
                 self.locals.pop();
@@ -114,8 +115,6 @@ impl<'a> Generator<'a> {
             }
         }
         self.writeln("}");
-
-        self.inherited = 0;
     }
 
     // Implement `Template` for the given context struct.
@@ -127,15 +126,26 @@ impl<'a> Generator<'a> {
         );
 
         if let Some(heritage) = heritage {
-            self.inherited = heritage.levels;
             self.handle(heritage.root, heritage.root.nodes, AstLevel::Top);
-            self.inherited = 0;
         } else {
             self.handle(ctx, &ctx.nodes, AstLevel::Top);
         }
 
         self.flush_ws(WS(false, false));
         self.writeln("Ok(())");
+        self.writeln("}");
+        self.writeln("}");
+    }
+
+    // Implement `Deref<Parent>` for an inheriting context struct.
+    fn deref_to_parent(&mut self, parent_type: &syn::Type) {
+        self.write_header("::std::ops::Deref", None);
+        self.writeln(&format!(
+            "type Target = {};",
+            parent_type.into_token_stream()
+        ));
+        self.writeln("fn deref(&self) -> &Self::Target {");
+        self.writeln("&self._parent");
         self.writeln("}");
         self.writeln("}");
     }
@@ -743,9 +753,6 @@ impl<'a> Generator<'a> {
             code.push_str(s);
         } else {
             code.push_str("self.");
-            for _ in 0..self.inherited {
-                code.push_str("_parent.");
-            }
             code.push_str(s);
         }
         DisplayWrap::Unwrapped
@@ -883,8 +890,7 @@ where
 
 struct Heritage<'a> {
     root: &'a Context<'a>,
-    levels: usize,
-    blocks: HashMap<&'a str, (usize, &'a Context<'a>, &'a Node<'a>)>,
+    blocks: HashMap<&'a str, (&'a Context<'a>, &'a Node<'a>)>,
 }
 
 impl<'a> Heritage<'a> {
@@ -892,25 +898,22 @@ impl<'a> Heritage<'a> {
         mut ctx: &'n Context<'n>,
         contexts: &'n HashMap<&'n PathBuf, Context<'n>>,
     ) -> Heritage<'n> {
-        let mut levels = 0;
-        let mut blocks: HashMap<_, (usize, _, _)> = ctx.blocks
+        let mut blocks: HashMap<_, (_, _)> = ctx.blocks
             .iter()
-            .map(|(name, def)| (*name, (levels, ctx, *def)))
+            .map(|(name, def)| (*name, (ctx, *def)))
             .collect();
 
         while let Some(ref path) = ctx.extends {
             ctx = &contexts[&path];
-            levels += 1;
             for (name, def) in &ctx.blocks {
                 if !blocks.contains_key(name) {
-                    blocks.insert(name, (levels, ctx, def));
+                    blocks.insert(name, (ctx, def));
                 }
             }
         }
 
         Heritage {
             root: ctx,
-            levels,
             blocks,
         }
     }
