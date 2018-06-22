@@ -8,7 +8,7 @@ use proc_macro2::Span;
 use quote::ToTokens;
 
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::{cmp, hash, str};
 
 use syn;
@@ -81,7 +81,7 @@ impl<'a> Generator<'a> {
     }
 
     fn trait_blocks(&mut self, heritage: &Heritage<'a>) {
-        let trait_name = trait_name_for_path(&self.input.path);
+        let trait_name = format!("{}Blocks", self.input.ast.ident);
         self.writeln(&format!("pub trait {} {{", trait_name));
         for name in heritage.blocks.keys() {
             self.writeln(&format!(
@@ -917,19 +917,6 @@ impl<'a> Heritage<'a> {
             blocks,
         }
     }
-}
-
-fn trait_name_for_path(path: &Path) -> String {
-    let mut res = String::new();
-    res.push_str("TraitFrom");
-    for c in path.to_string_lossy().chars() {
-        if c.is_alphanumeric() {
-            res.push(c);
-        } else {
-            res.push_str(&format!("{:x}", c as u32));
-        }
-    }
-    res
 }
 
 #[derive(Clone, PartialEq)]
