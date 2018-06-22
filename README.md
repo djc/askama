@@ -20,9 +20,10 @@ All feedback welcome. Feel free to file bugs, requests for documentation and
 any other feedback to the [issue tracker][issues] or [tweet me][twitter].
 Many thanks to [David Tolnay][dtolnay] for his support in improving Askama.
 
-Askama was created by and is maintained by Dirkjan Ochtman. If you want to
-support ongoing maintenance and further development, please consider
-supporting my open source work on [Patreon][patreon].
+Askama was created by and is maintained by Dirkjan Ochtman. If you are in a
+position to support ongoing maintenance and further development or use it
+in a for-profit context, please consider supporting my open source work on
+[Patreon][patreon].
 
 ### Feature highlights
 
