@@ -57,9 +57,7 @@ impl<'a> Generator<'a> {
     // Takes a Context and generates the relevant implementations.
     fn build(mut self, ctx: &'a Context) -> String {
         let heritage = if !ctx.blocks.is_empty() {
-            if ctx.extends.is_some() && self.input.parent.is_none() {
-                panic!("expected field '_parent' in extending template struct");
-            } else if let Some(parent) = self.input.parent {
+            if let Some(parent) = self.input.parent {
                 self.deref_to_parent(parent);
             }
             let heritage = Heritage::new(ctx, self.contexts);
