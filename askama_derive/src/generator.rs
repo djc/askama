@@ -598,6 +598,7 @@ impl<'a> Generator<'a> {
             Expr::Filter(name, ref args) => self.visit_filter(name, args, code),
             Expr::Unary(op, ref inner) => self.visit_unary(op, inner, code),
             Expr::BinOp(op, ref left, ref right) => self.visit_binop(op, left, right, code),
+            Expr::Range(op, ref left, ref right) => self.visit_range(op, left, right, code),
             Expr::Group(ref inner) => self.visit_group(inner, code),
             Expr::MethodCall(ref obj, method, ref args) => {
                 self.visit_method_call(obj, method, args, code)
@@ -759,6 +760,23 @@ impl<'a> Generator<'a> {
     fn visit_unary(&mut self, op: &str, inner: &Expr, code: &mut String) -> DisplayWrap {
         code.push_str(op);
         self.visit_expr(inner, code);
+        DisplayWrap::Unwrapped
+    }
+
+    fn visit_range(
+        &mut self,
+        op: &str,
+        left: &Option<Box<Expr>>,
+        right: &Option<Box<Expr>>,
+        code: &mut String,
+    ) -> DisplayWrap {
+        if let Some(left) = left {
+            self.visit_expr(left, code);
+        }
+        code.push_str(op);
+        if let Some(right) = right {
+            self.visit_expr(right, code);
+        }
         DisplayWrap::Unwrapped
     }
 

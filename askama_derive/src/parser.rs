@@ -16,6 +16,7 @@ pub enum Expr<'a> {
     Filter(&'a str, Vec<Expr<'a>>),
     Unary(&'a str, Box<Expr<'a>>),
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
+    Range(&'a str, Option<Box<Expr<'a>>>, Option<Box<Expr<'a>>>),
     Group(Box<Expr<'a>>),
     MethodCall(Box<Expr<'a>>, &'a str, Vec<Expr<'a>>),
 }
@@ -422,7 +423,26 @@ expr_prec_layer!(expr_compare, expr_bor,
     "==", "!=", ">=", ">", "<=", "<"
 );
 expr_prec_layer!(expr_and, expr_compare, "&&");
-expr_prec_layer!(expr_any, expr_and, "||");
+expr_prec_layer!(expr_or, expr_and, "||");
+
+named!(range_right<Input, Expr>, do_parse!(
+    ws!(tag_s!("..")) >>
+    incl: opt!(ws!(tag_s!("="))) >>
+    right: opt!(expr_or) >>
+    (Expr::Range(if incl.is_some() { "..=" } else { ".." }, None, right.map(|v| Box::new(v))))
+));
+
+named!(expr_any<Input, Expr>, alt!(
+    range_right |
+    do_parse!(
+        left: expr_or >>
+        rest: range_right >> (match rest {
+            Expr::Range(op, _, right) => Expr::Range(op, Some(Box::new(left)), right),
+            _ => unreachable!(),
+        })
+    ) |
+    expr_or
+));
 
 named!(expr_node<Input, Node>, do_parse!(
     tag_s!("{{") >>
