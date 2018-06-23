@@ -237,7 +237,7 @@ fn test_minus() {
 }
 
 #[derive(Template)]
-#[template(source = "{{ foo[\"bar\"] }}", ext = "txt", print = "code")]
+#[template(source = "{{ foo[\"bar\"] }}", ext = "txt")]
 struct IndexTemplate {
     foo: HashMap<String, String>,
 }
