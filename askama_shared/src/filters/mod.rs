@@ -18,10 +18,11 @@ use escaping::{self, MarkupDisplay};
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 10] = [
+pub const BUILT_IN_FILTERS: [&str; 11] = [
     "e",
     "escape",
     "format",
+    "join",
     "lower",
     "lowercase",
     "safe",
