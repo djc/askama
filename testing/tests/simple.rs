@@ -3,6 +3,8 @@ extern crate askama;
 
 use askama::Template;
 
+use std::collections::HashMap;
+
 #[derive(Template)]
 #[template(path = "simple.html")]
 struct VariablesTemplate<'a> {
@@ -232,4 +234,18 @@ struct MinusTemplate {
 fn test_minus() {
     let t = MinusTemplate { foo: 1 };
     assert_eq!(t.render().unwrap(), "Hello");
+}
+
+#[derive(Template)]
+#[template(source = "{{ foo[\"bar\"] }}", ext = "txt", print = "code")]
+struct IndexTemplate {
+    foo: HashMap<String, String>,
+}
+
+#[test]
+fn test_index() {
+    let mut foo = HashMap::new();
+    foo.insert("bar".into(), "baz".into());
+    let t = IndexTemplate { foo };
+    assert_eq!(t.render().unwrap(), "baz");
 }
