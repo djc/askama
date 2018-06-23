@@ -12,6 +12,7 @@ pub enum Expr<'a> {
     Path(Vec<&'a str>),
     Array(Vec<Expr<'a>>),
     Attr(Box<Expr<'a>>, &'a str),
+    Index(Box<Expr<'a>>, Box<Expr<'a>>),
     Filter(&'a str, Vec<Expr<'a>>),
     Unary(&'a str, Box<Expr<'a>>),
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
@@ -347,6 +348,20 @@ named!(expr_attr<Input, Expr>, do_parse!(
     })
 ));
 
+named!(expr_index<Input, Expr>, do_parse!(
+    obj: expr_attr >>
+    key: opt!(do_parse!(
+        ws!(tag_s!("[")) >>
+        key: expr_any >>
+        ws!(tag_s!("]")) >>
+        (key)
+    )) >>
+    (match key {
+        Some(key) => Expr::Index(Box::new(obj), Box::new(key)),
+        None => obj,
+    })
+));
+
 named!(filter<Input, (&str, Option<Vec<Expr>>)>, do_parse!(
     tag_s!("|") >>
     fname: identifier >>
@@ -355,7 +370,7 @@ named!(filter<Input, (&str, Option<Vec<Expr>>)>, do_parse!(
 ));
 
 named!(expr_filtered<Input, Expr>, do_parse!(
-    obj: expr_attr >>
+    obj: expr_index >>
     filters: many0!(filter) >>
     ({
        let mut res = obj;

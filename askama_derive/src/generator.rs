@@ -594,6 +594,7 @@ impl<'a> Generator<'a> {
             Expr::Path(ref path) => self.visit_path(path, code),
             Expr::Array(ref elements) => self.visit_array(elements, code),
             Expr::Attr(ref obj, name) => self.visit_attr(obj, name, code),
+            Expr::Index(ref obj, ref key) => self.visit_index(obj, key, code),
             Expr::Filter(name, ref args) => self.visit_filter(name, args, code),
             Expr::Unary(op, ref inner) => self.visit_unary(op, inner, code),
             Expr::BinOp(op, ref left, ref right) => self.visit_binop(op, left, right, code),
@@ -725,6 +726,14 @@ impl<'a> Generator<'a> {
         }
         self.visit_expr(obj, code);
         code.push_str(&format!(".{}", attr));
+        DisplayWrap::Unwrapped
+    }
+
+    fn visit_index(&mut self, obj: &Expr, key: &Expr, code: &mut String) -> DisplayWrap {
+        self.visit_expr(obj, code);
+        code.push_str("[");
+        self.visit_expr(key, code);
+        code.push_str("]");
         DisplayWrap::Unwrapped
     }
 
