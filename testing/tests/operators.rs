@@ -40,3 +40,17 @@ fn test_precedence() {
     let t = PrecedenceTemplate {};
     assert_eq!(t.render().unwrap(), "6".repeat(7));
 }
+
+#[derive(Template)]
+#[template(path = "ranges.txt")]
+struct RangesTemplate<'a> {
+    foo: Vec<&'a str>,
+}
+
+#[test]
+fn test_ranges() {
+    let t = RangesTemplate {
+        foo: vec!["a", "b", "c", "d"],
+    };
+    assert_eq!(t.render().unwrap(), "abcd\nbcd\n\na\nab");
+}

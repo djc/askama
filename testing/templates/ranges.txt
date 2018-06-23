@@ -1,0 +1,5 @@
+{{ foo[..]|join("") }}
+{{ foo[0 + 1..]|join("") }}
+{% let bar = 1 %}
+{{ foo[..bar]|join("") }}
+{{ foo[..=bar]|join("") }}
