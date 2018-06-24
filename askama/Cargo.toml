@@ -8,7 +8,7 @@ keywords = ["markup", "template", "jinja2", "html"]
 categories = ["template-engine"]
 homepage = "https://github.com/djc/askama"
 repository = "https://github.com/djc/askama"
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 workspace = ".."
 readme = "../README.md"
 
