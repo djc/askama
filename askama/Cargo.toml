@@ -14,6 +14,7 @@ readme = "../README.md"
 
 [badges]
 travis-ci = { repository = "djc/askama" }
+maintenance = { status = "actively-developed" }
 
 [features]
 default = []
