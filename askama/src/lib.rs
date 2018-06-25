@@ -200,6 +200,7 @@
 //!
 //! * *loop.index*: current loop iteration (starting from 1)
 //! * *loop.index0*: current loop iteration (starting from 0)
+//! * *loop.first*: whether this is the first iteration of the loop
 //!
 //! ### If
 //!

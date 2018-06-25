@@ -720,6 +720,9 @@ impl<'a> Generator<'a> {
                     return DisplayWrap::Unwrapped;
                 } else if attr == "index0" {
                     return DisplayWrap::Unwrapped;
+                } else if attr == "first" {
+                    code.push_str(" == 0");
+                    return DisplayWrap::Unwrapped;
                 } else {
                     panic!("unknown loop variable");
                 }
