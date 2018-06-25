@@ -155,3 +155,17 @@ fn test_filter_let_filter() {
     };
     assert_eq!(t.render().unwrap(), "BAR");
 }
+
+#[derive(Template)]
+#[template(source = "{{ foo|truncate(10) }}{{ foo|truncate(5) }}", ext = "txt", print = "code")]
+struct TruncateFilter {
+    foo: String,
+}
+
+#[test]
+fn test_filter_truncate() {
+    let t = TruncateFilter {
+        foo: "alpha bar".into(),
+    };
+    assert_eq!(t.render().unwrap(), "alpha baralpha...");
+}
