@@ -39,9 +39,9 @@ in a for-profit context, please consider supporting my open source work on
 
 ### Supported in templates
 
-* Template inheritance (one level only)
+* Template inheritance
 * Loops, if/else statements and include support
-* Macro support (no `import` blocks yet)
+* Macro support
 * Variables (no mutability allowed)
 * Some built-in filters, and the ability to use your own
 * Whitespace suppressing with '-' markers
