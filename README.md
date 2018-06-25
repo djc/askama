@@ -30,7 +30,7 @@ in a for-profit context, please consider supporting my open source work on
 * Construct templates using a familiar, easy-to-use syntax
 * Benefit from the safety provided by Rust's type system
 * Optional built-in support for Rocket and Iron web frameworks
-* Template code is compiled into your crate for optimal performance
+* Template code is compiled into your crate for [optimal performance][benchmarks]
 * Templates only convert your data as needed
 * Templates can access your Rust types directly, according to Rust's privacy rules
 * Debugging features to assist you in template development
@@ -58,6 +58,7 @@ in a for-profit context, please consider supporting my open source work on
 [twitter]: https://twitter.com/djco/
 [dtolnay]: https://github.com/dtolnay
 [patreon]: https://www.patreon.com/dochtman
+[benchmarks]: https://github.com/djc/template-benchmarks-rs
 
 
 How to get started
