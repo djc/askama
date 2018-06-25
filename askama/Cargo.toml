@@ -13,6 +13,7 @@ workspace = ".."
 readme = "../README.md"
 
 [badges]
+appveyor = { repository = "djc/askama" }
 travis-ci = { repository = "djc/askama" }
 maintenance = { status = "actively-developed" }
 
