@@ -18,7 +18,7 @@ use escaping::{self, MarkupDisplay};
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 11] = [
+pub const BUILT_IN_FILTERS: [&str; 12] = [
     "e",
     "escape",
     "format",
@@ -27,6 +27,7 @@ pub const BUILT_IN_FILTERS: [&str; 11] = [
     "lowercase",
     "safe",
     "trim",
+    "truncate",
     "upper",
     "uppercase",
     "json", // Optional feature; reserve the name anyway
@@ -94,6 +95,18 @@ pub fn uppercase(s: &fmt::Display) -> Result<String> {
 pub fn trim(s: &fmt::Display) -> Result<String> {
     let s = format!("{}", s);
     Ok(s.trim().to_owned())
+}
+
+/// Limit string length, appens '...' if truncated {
+pub fn truncate(s: &fmt::Display, len: &usize) -> Result<String> {
+    let mut s = format!("{}", s);
+    if s.len() < *len {
+        Ok(s)
+    } else {
+        s.truncate(*len);
+        s.push_str("...");
+        Ok(s)
+    }
 }
 
 /// Joins iterable into a string separated by provided argument
