@@ -1,0 +1,15 @@
+<html>
+  <head>
+    <title>{{ year }}</title>
+  </head>
+  <body>
+    <h1>CSL {{ year }}</h1>
+    <ul>
+    {% for team in teams %}
+      <li class="{% if loop.index0 == 0 %}champion{% endif %}">
+      <b>{{ team.name }}</b>: {{ team.score }}
+      </li>
+    {% endfor %}
+    </ul>
+  </body>
+</html>

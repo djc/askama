@@ -10,6 +10,7 @@ nightly = ["rocket", "rocket_codegen", "askama/with-rocket"]
 
 [dependencies]
 askama = { path = "../askama", version = "*", features = ["with-iron", "serde-json"] }
+criterion = "0.2"
 iron = "0.6"
 rocket = { version = "0.3", optional = true }
 rocket_codegen = { version = "0.3", optional = true }
@@ -17,3 +18,7 @@ serde_json = "1.0"
 
 [build-dependencies]
 askama = { path = "../askama", version = "*", features = ["with-iron", "serde-json"] }
+
+[[bench]]
+name = "all"
+harness = false
