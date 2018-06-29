@@ -393,7 +393,9 @@ fn visit_dirs(dir: &Path, cb: &Fn(&DirEntry)) -> io::Result<()> {
 /// that have templates, to make sure the crate gets rebuilt when template
 /// source code changes.
 pub fn rerun_if_templates_changed() {
-    visit_dirs(&path::template_dir(), &|e: &DirEntry| {
-        println!("cargo:rerun-if-changed={}", e.path().to_str().unwrap());
-    }).unwrap();
+    for template_dir in path::template_dirs().iter() {
+        visit_dirs(template_dir, &|e: &DirEntry| {
+            println!("cargo:rerun-if-changed={}", e.path().to_str().unwrap());
+        }).unwrap();
+    }
 }
