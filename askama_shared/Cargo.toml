@@ -10,10 +10,12 @@ workspace = ".."
 
 [features]
 default = []
-serde-json = ["serde", "serde_json"]
+serde-json = ["serde_json"]
 iron = []
 rocket = []
 
 [dependencies]
-serde = { version = "1.0", optional = true }
+serde = "1.0"
+serde_derive = "1.0"
 serde_json = { version = "1.0", optional = true }
+toml = "0.4"

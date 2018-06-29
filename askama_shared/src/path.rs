@@ -3,6 +3,8 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+use toml;
+
 pub fn get_template_source(tpl_path: &Path) -> String {
     let mut path = template_dir();
     path.push(tpl_path);
@@ -50,6 +52,36 @@ pub fn template_dir() -> PathBuf {
     let mut path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     path.push("templates");
     path
+}
+
+#[derive(Deserialize)]
+struct Config {
+    dirs: Option<Vec<String>>,
+}
+
+pub fn template_dirs() -> Vec<PathBuf> {
+    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let askama = root.join("askama.toml");
+    let default = vec![root.join("templates")];
+    if askama.exists() {
+        let mut contents = String::new();
+        File::open(askama).unwrap().read_to_string(&mut contents).unwrap();
+        let config: Config = toml::from_str(&contents).unwrap();
+        if let Some(dirs) = config.dirs {
+            let paths: Vec<PathBuf> = dirs.into_iter().map(|directory| {
+                root.join(directory)
+            }).collect();
+            if paths.len() > 0 {
+                paths
+            } else {
+                default
+            }
+        } else {
+            default
+        }
+    } else {
+        vec![root.join("templates")]
+    }
 }
 
 #[cfg(test)]
