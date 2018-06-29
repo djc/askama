@@ -53,7 +53,7 @@ fn build_template(ast: &syn::DeriveInput) -> String {
 
     let mut contexts = HashMap::new();
     for (path, nodes) in &parsed {
-        contexts.insert(*path, Context::new(&input, nodes));
+        contexts.insert(*path, Context::new(path, nodes));
     }
 
     if input.print == Print::Ast || input.print == Print::All {
@@ -98,7 +98,7 @@ pub(crate) struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    fn new<'n>(input: &'n TemplateInput, nodes: &'n [Node<'n>]) -> Context<'n> {
+    fn new<'n>(path: &PathBuf, nodes: &'n [Node<'n>]) -> Context<'n> {
         let mut extends = None;
         let mut blocks = Vec::new();
         let mut macros = HashMap::new();
@@ -106,10 +106,10 @@ impl<'a> Context<'a> {
 
         for n in nodes {
             match n {
-                Node::Extends(Expr::StrLit(path)) => match extends {
+                Node::Extends(Expr::StrLit(extends_path)) => match extends {
                     Some(_) => panic!("multiple extend blocks found"),
                     None => {
-                        extends = Some(path::find_template_from_path(path, Some(&input.path)));
+                        extends = Some(path::find_template_from_path(extends_path, Some(path)));
                     }
                 },
                 def @ Node::BlockDef(_, _, _, _) => {
@@ -119,7 +119,7 @@ impl<'a> Context<'a> {
                     macros.insert(*name, m);
                 }
                 Node::Import(_, import_path, scope) => {
-                    let path = path::find_template_from_path(import_path, Some(&input.path));
+                    let path = path::find_template_from_path(import_path, Some(path));
                     imports.insert(*scope, path);
                 }
                 _ => {}
