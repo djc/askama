@@ -4,7 +4,7 @@ use quote::ToTokens;
 
 use shared::path;
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use syn;
 
@@ -98,24 +98,6 @@ impl<'a> TemplateInput<'a> {
             }
         };
 
-        let escaping = match escaping {
-            Some(m) => m,
-            None => {
-                let ext = match source {
-                    Source::Path(ref p) => Path::new(p)
-                        .extension()
-                        .map(|s| s.to_str().unwrap())
-                        .unwrap_or(""),
-                    Source::Source(_) => ext.as_ref().unwrap(), // Already panicked if None
-                };
-                if HTML_EXTENSIONS.contains(&ext) {
-                    EscapeMode::Html
-                } else {
-                    EscapeMode::None
-                }
-            }
-        };
-
         let parent = match ast.data {
             syn::Data::Struct(syn::DataStruct {
                 fields: syn::Fields::Named(ref fields),
@@ -132,7 +114,7 @@ impl<'a> TemplateInput<'a> {
             ast,
             source,
             print,
-            escaping,
+            escaping: escaping.unwrap_or_else(|| EscapeMode::from_path(&path)),
             ext,
             parent,
             path,
@@ -158,6 +140,17 @@ impl From<String> for EscapeMode {
             "html" => Html,
             "none" => None,
             v => panic!("invalid value for escape option: {}", v),
+        }
+    }
+}
+
+impl EscapeMode {
+    fn from_path(path: &PathBuf) -> EscapeMode {
+        let extension = path.extension().map(|s| s.to_str().unwrap()).unwrap_or("");
+        if HTML_EXTENSIONS.contains(&extension) {
+            EscapeMode::Html
+        } else {
+            EscapeMode::None
         }
     }
 }
