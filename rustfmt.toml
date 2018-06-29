@@ -1,4 +1,0 @@
-brace_style = "PreferSameLine"
-fn_args_density = "Compressed"
-match_block_trailing_comma = true
-use_try_shorthand = true
