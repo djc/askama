@@ -85,15 +85,18 @@ impl<'a> TemplateInput<'a> {
         }
 
         let source = source.expect("template path or source not found in attributes");
-        match (&source, ext.is_some()) {
+        let path = match (&source, ext.is_some()) {
             (&Source::Path(_), true) => {
                 panic!("'ext' attribute cannot be used with 'path' attribute")
             }
             (&Source::Source(_), false) => {
                 panic!("must include 'ext' attribute when using 'source' attribute")
             }
-            _ => {}
-        }
+            (&Source::Path(ref path), false) => path::find_template_from_path(path, None),
+            (&Source::Source(_), true) => {
+                PathBuf::from(format!("{}.{}", ast.ident, ext.as_ref().unwrap()))
+            }
+        };
 
         let escaping = match escaping {
             Some(m) => m,
@@ -124,14 +127,6 @@ impl<'a> TemplateInput<'a> {
             }),
             _ => panic!("derive(Template) only works for struct items"),
         }.next();
-
-        let path = match source {
-            Source::Source(_) => match ext {
-                Some(ref v) => PathBuf::from(format!("{}.{}", ast.ident, v)),
-                None => PathBuf::new(),
-            },
-            Source::Path(ref s) => path::find_template_from_path(s, None),
-        };
 
         TemplateInput {
             ast,
