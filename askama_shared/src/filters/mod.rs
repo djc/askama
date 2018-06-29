@@ -18,11 +18,13 @@ use escaping::{self, MarkupDisplay};
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 12] = [
+pub const BUILT_IN_FILTERS: [&str; 14] = [
     "e",
     "escape",
     "format",
     "join",
+    "linebreaks",
+    "linebreaksbr",
     "lower",
     "lowercase",
     "safe",
@@ -68,6 +70,22 @@ where
 /// [macro](https://doc.rust-lang.org/stable/std/macro.format.html) by
 /// the Askama code generator.
 pub fn format() {}
+
+/// Replaces line breaks in plain text with appropriate HTML; a single newline
+/// becomes an HTML line break `<br>` and a new line followed by a blank line
+/// becomes a paragraph break `<p>`.
+pub fn linebreaks(s: &fmt::Display) -> Result<String> {
+    let s = format!("{}", s);
+    let linebroken = s.replace("\n\n", "</p><p>").replace("\n", "<br/>");
+
+    Ok(format!("<p>{}</p>", linebroken))
+}
+
+/// Converts all newlines in a piece of plain text to HTML line breaks.
+pub fn linebreaksbr(s: &fmt::Display) -> Result<String> {
+    let s = format!("{}", s);
+    Ok(s.replace("\n", "<br/>"))
+}
 
 /// Converts to lowercase.
 pub fn lower(s: &fmt::Display) -> Result<String> {
@@ -134,6 +152,19 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_linebreaks() {
+        assert_eq!(linebreaks(&"Foo\nBar Baz").unwrap(), "<p>Foo<br/>Bar Baz</p>");
+        assert_eq!(linebreaks(&"Foo\nBar\n\nBaz").unwrap(), "<p>Foo<br/>Bar</p><p>Baz</p>");
+    }
+
+    #[test]
+    fn test_linebreaksbr() {
+        assert_eq!(linebreaksbr(&"Foo\nBar").unwrap(), "Foo<br/>Bar");
+        assert_eq!(linebreaksbr(&"Foo\nBar\n\nBaz").unwrap(), "Foo<br/>Bar<br/><br/>Baz");
+    }
+
     #[test]
     fn test_lower() {
         assert_eq!(lower(&"Foo").unwrap(), "foo");
