@@ -37,7 +37,7 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 /// the parse tree and/or generated source according to the `print` key's
 /// value as passed to the `template()` attribute.
 fn build_template(ast: &syn::DeriveInput) -> String {
-    let input = input::TemplateInput::new(ast);
+    let input = TemplateInput::new(ast);
     let source: String = match input.source {
         Source::Source(ref s) => s.clone(),
         Source::Path(_) => path::get_template_source(&input.path),
