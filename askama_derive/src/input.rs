@@ -19,7 +19,13 @@ pub struct TemplateInput<'a> {
 }
 
 impl<'a> TemplateInput<'a> {
+    /// Extract the template metadata from the `DeriveInput` structure. This
+    /// mostly recovers the data for the `TemplateInput` fields from the
+    /// `template()` attribute list fields; it also finds the of the `_parent`
+    /// field, if any.
     pub fn new(ast: &'a syn::DeriveInput) -> TemplateInput<'a> {
+        // Check that an attribute called `template()` exists and that it is
+        // the proper type (list).
         let mut meta = None;
         for attr in &ast.attrs {
             match attr.interpret_meta() {
@@ -39,6 +45,9 @@ impl<'a> TemplateInput<'a> {
             _ => panic!("attribute 'template' has incorrect type"),
         };
 
+        // Loop over the meta attributes and find everything that we
+        // understand. Raise panics if something is not right.
+        // `source` contains an enum that can represent `path` or `source`.
         let mut source = None;
         let mut print = Print::None;
         let mut escaping = None;
@@ -84,6 +93,9 @@ impl<'a> TemplateInput<'a> {
             }
         }
 
+        // Validate the `source` and `ext` value together, since they are
+        // related. In case `source` was used instead of `path`, the value
+        // of `ext` is merged into a synthetic `path` value here.
         let source = source.expect("template path or source not found in attributes");
         let path = match (&source, &ext) {
             (&Source::Path(ref path), None) => path::find_template_from_path(path, None),
@@ -96,6 +108,8 @@ impl<'a> TemplateInput<'a> {
             }
         };
 
+        // Check to see if a `_parent` field was defined on the context
+        // struct, and store the type for it for use in the code generator.
         let parent = match ast.data {
             syn::Data::Struct(syn::DataStruct {
                 fields: syn::Fields::Named(ref fields),
