@@ -100,19 +100,12 @@ impl<'a> TemplateInput<'a> {
             syn::Data::Struct(syn::DataStruct {
                 fields: syn::Fields::Named(ref fields),
                 ..
-            }) => fields.named.iter().find(|f| {
-                if let Some(field_name) = f.ident.as_ref() {
-                    field_name == "_parent"
-                } else {
-                    false
-                }
-            }),
+            }) => fields
+                .named
+                .iter()
+                .find(|f| f.ident.as_ref().filter(|name| *name == "_parent").is_some())
+                .map(|f| &f.ty),
             _ => panic!("derive(Template) only works for struct items"),
-        };
-        let parent = if let Some(parent) = parent {
-            Some(&parent.ty)
-        } else {
-            None
         };
 
         TemplateInput {
