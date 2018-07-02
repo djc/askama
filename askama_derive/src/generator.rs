@@ -983,7 +983,7 @@ impl<'a> Heritage<'a> {
         while let Some(ref path) = ctx.extends {
             ctx = &contexts[&path];
             for (name, def) in &ctx.blocks {
-                blocks.entry(name).or_insert(vec![]).push((ctx, def));
+                blocks.entry(name).or_insert_with(|| vec![]).push((ctx, def));
             }
         }
 

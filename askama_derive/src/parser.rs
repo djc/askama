@@ -429,7 +429,7 @@ named!(range_right<Input, Expr>, do_parse!(
     ws!(tag_s!("..")) >>
     incl: opt!(ws!(tag_s!("="))) >>
     right: opt!(expr_or) >>
-    (Expr::Range(if incl.is_some() { "..=" } else { ".." }, None, right.map(|v| Box::new(v))))
+    (Expr::Range(if incl.is_some() { "..=" } else { ".." }, None, right.map(Box::new)))
 ));
 
 named!(expr_any<Input, Expr>, alt!(
