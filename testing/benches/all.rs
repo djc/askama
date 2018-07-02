@@ -37,10 +37,22 @@ fn teams(b: &mut criterion::Bencher) {
     let teams = Teams {
         year: 2015,
         teams: vec![
-            Team { name: "Jiangsu".into(), score: 43 },
-            Team { name: "Beijing".into(), score: 27 },
-            Team { name: "Guangzhou".into(), score: 22 },
-            Team { name: "Shandong".into(), score: 12 },
+            Team {
+                name: "Jiangsu".into(),
+                score: 43,
+            },
+            Team {
+                name: "Beijing".into(),
+                score: 27,
+            },
+            Team {
+                name: "Guangzhou".into(),
+                score: 22,
+            },
+            Team {
+                name: "Shandong".into(),
+                score: 12,
+            },
         ],
     };
     b.iter(|| teams.render().unwrap());

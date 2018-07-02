@@ -155,14 +155,23 @@ mod tests {
 
     #[test]
     fn test_linebreaks() {
-        assert_eq!(linebreaks(&"Foo\nBar Baz").unwrap(), "<p>Foo<br/>Bar Baz</p>");
-        assert_eq!(linebreaks(&"Foo\nBar\n\nBaz").unwrap(), "<p>Foo<br/>Bar</p><p>Baz</p>");
+        assert_eq!(
+            linebreaks(&"Foo\nBar Baz").unwrap(),
+            "<p>Foo<br/>Bar Baz</p>"
+        );
+        assert_eq!(
+            linebreaks(&"Foo\nBar\n\nBaz").unwrap(),
+            "<p>Foo<br/>Bar</p><p>Baz</p>"
+        );
     }
 
     #[test]
     fn test_linebreaksbr() {
         assert_eq!(linebreaksbr(&"Foo\nBar").unwrap(), "Foo<br/>Bar");
-        assert_eq!(linebreaksbr(&"Foo\nBar\n\nBaz").unwrap(), "Foo<br/>Bar<br/><br/>Baz");
+        assert_eq!(
+            linebreaksbr(&"Foo\nBar\n\nBaz").unwrap(),
+            "Foo<br/>Bar<br/><br/>Baz"
+        );
     }
 
     #[test]
