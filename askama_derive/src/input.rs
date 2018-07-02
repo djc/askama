@@ -85,17 +85,15 @@ impl<'a> TemplateInput<'a> {
         }
 
         let source = source.expect("template path or source not found in attributes");
-        let path = match (&source, ext.is_some()) {
-            (&Source::Path(_), true) => {
+        let path = match (&source, &ext) {
+            (&Source::Path(_), Some(_)) => {
                 panic!("'ext' attribute cannot be used with 'path' attribute")
             }
-            (&Source::Source(_), false) => {
+            (&Source::Source(_), None) => {
                 panic!("must include 'ext' attribute when using 'source' attribute")
             }
-            (&Source::Path(ref path), false) => path::find_template_from_path(path, None),
-            (&Source::Source(_), true) => {
-                PathBuf::from(format!("{}.{}", ast.ident, ext.as_ref().unwrap()))
-            }
+            (&Source::Path(ref path), None) => path::find_template_from_path(path, None),
+            (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
         };
 
         let parent = match ast.data {
