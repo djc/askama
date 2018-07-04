@@ -5,9 +5,18 @@ use std::path::{Path, PathBuf};
 
 use toml;
 
+fn search_template_in_dirs<'a>(dirs: &'a [PathBuf], path: &Path) -> Option<&'a PathBuf> {
+    dirs.iter().find(|dir| dir.join(path).exists())
+}
+
 pub fn get_template_source(tpl_path: &Path) -> String {
-    let mut path = template_dir();
-    path.push(tpl_path);
+    let dirs = template_dirs();
+    let path = search_template_in_dirs(&dirs, tpl_path)
+        .map(|dir| dir.join(tpl_path))
+        .expect(&format!(
+            "template file '{}' does not exist",
+            tpl_path.to_str().unwrap()
+        ));
     let mut f = match File::open(&path) {
         Err(_) => {
             let msg = format!("unable to open template file '{}'", &path.to_str().unwrap());
@@ -24,64 +33,75 @@ pub fn get_template_source(tpl_path: &Path) -> String {
 }
 
 pub fn find_template_from_path(path: &str, start_at: Option<&Path>) -> PathBuf {
-    let root = template_dir();
+    let dirs = template_dirs();
     if let Some(rel) = start_at {
-        let mut fs_rel_path = root.clone();
-        fs_rel_path.push(rel);
-        fs_rel_path = fs_rel_path.with_file_name(path);
+        let root = search_template_in_dirs(&dirs, rel).expect(&format!(
+            "unable to find previously available template file '{}'",
+            rel.to_str().unwrap()
+        ));
+        let fs_rel_path = root.join(rel).with_file_name(path);
         if fs_rel_path.exists() {
             return fs_rel_path.strip_prefix(&root).unwrap().to_owned();
         }
     }
 
-    let mut fs_abs_path = root.clone();
     let path = Path::new(path);
-    fs_abs_path.push(Path::new(path));
-    if fs_abs_path.exists() {
-        path.to_owned()
-    } else {
-        panic!(format!(
-            "template {:?} not found at {:?}",
-            path.to_str().unwrap(),
-            fs_abs_path
-        ));
-    }
+    search_template_in_dirs(&dirs, &path).expect(&format!(
+        "template {:?} not found in directories {:?}",
+        path.to_str().unwrap(),
+        dirs
+    ));
+    path.to_owned()
 }
 
-pub fn template_dir() -> PathBuf {
-    let mut path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    path.push("templates");
-    path
-}
+static CONFIG_FILE_NAME: &str = "askama.toml";
 
 #[derive(Deserialize)]
-struct Config {
+struct RawConfig {
     dirs: Option<Vec<String>>,
 }
 
-pub fn template_dirs() -> Vec<PathBuf> {
-    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let askama = root.join("askama.toml");
-    let default = vec![root.join("templates")];
-    if askama.exists() {
-        let mut contents = String::new();
-        File::open(askama).unwrap().read_to_string(&mut contents).unwrap();
-        let config: Config = toml::from_str(&contents).unwrap();
-        if let Some(dirs) = config.dirs {
-            let paths: Vec<PathBuf> = dirs.into_iter().map(|directory| {
-                root.join(directory)
-            }).collect();
-            if paths.len() > 0 {
-                paths
-            } else {
-                default
-            }
+struct Config {
+    dirs: Vec<PathBuf>,
+}
+
+impl RawConfig {
+    fn from_file(filename: &PathBuf) -> Option<RawConfig> {
+        if filename.exists() {
+            let mut contents = String::new();
+            File::open(filename)
+                .unwrap()
+                .read_to_string(&mut contents)
+                .unwrap();
+            Some(toml::from_str(&contents).unwrap())
         } else {
-            default
+            None
         }
-    } else {
-        vec![root.join("templates")]
     }
+}
+
+impl Config {
+    fn from_file() -> Config {
+        let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+        let filename = root.join(CONFIG_FILE_NAME);
+        RawConfig::from_file(&filename).map_or_else(
+            || Config {
+                dirs: vec![root.join("templates")],
+            },
+            |config| Config {
+                dirs: config
+                    .dirs
+                    .unwrap_or_else(|| Vec::new())
+                    .into_iter()
+                    .map(|directory| root.join(directory))
+                    .collect(),
+            },
+        )
+    }
+}
+
+pub fn template_dirs() -> Vec<PathBuf> {
+    Config::from_file().dirs
 }
 
 #[cfg(test)]
