@@ -249,3 +249,12 @@ fn test_index() {
     let t = IndexTemplate { foo };
     assert_eq!(t.render().unwrap(), "baz");
 }
+
+#[derive(Template)]
+#[template(source = "foo", ext = "txt")]
+struct Empty;
+
+#[test]
+fn test_empty() {
+    assert_eq!(Empty.render().unwrap(), "foo");
+}
