@@ -22,10 +22,6 @@ use std::path::PathBuf;
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
-    match ast.data {
-        syn::Data::Struct(ref data) => data,
-        _ => panic!("#[derive(Template)] can only be used with structs"),
-    };
     build_template(&ast).parse().unwrap()
 }
 

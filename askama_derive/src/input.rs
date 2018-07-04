@@ -119,7 +119,7 @@ impl<'a> TemplateInput<'a> {
                 .iter()
                 .find(|f| f.ident.as_ref().filter(|name| *name == "_parent").is_some())
                 .map(|f| &f.ty),
-            _ => panic!("derive(Template) only works for struct items"),
+            _ => None,
         };
 
         TemplateInput {
