@@ -10,16 +10,8 @@ fn search_template_in_dirs<'a>(dirs: &'a [PathBuf], path: &Path) -> Option<&'a P
 }
 
 pub fn get_template_source(tpl_path: &Path) -> String {
-    let dirs = template_dirs();
-    let path = search_template_in_dirs(&dirs, tpl_path)
-        .map(|dir| dir.join(tpl_path))
-        .expect(&format!(
-            "template file '{}' does not exist",
-            tpl_path.to_str().unwrap()
-        ));
-
-    let mut f = match File::open(&path) {
-        Err(_) => panic!("unable to open template file '{}'", &path.to_str().unwrap()),
+    let mut f = match File::open(tpl_path) {
+        Err(_) => panic!("unable to open template file '{}'", tpl_path.to_str().unwrap()),
         Ok(f) => f,
     };
 
@@ -40,17 +32,17 @@ pub fn find_template_from_path(path: &str, start_at: Option<&Path>) -> PathBuf {
         ));
         let fs_rel_path = root.join(rel).with_file_name(path);
         if fs_rel_path.exists() {
-            return fs_rel_path.strip_prefix(&root).unwrap().to_owned();
+            return fs_rel_path.to_owned();
         }
     }
 
-    let path = Path::new(path);
-    search_template_in_dirs(&dirs, &path).expect(&format!(
-        "template {:?} not found in directories {:?}",
-        path.to_str().unwrap(),
-        dirs
-    ));
-    path.to_owned()
+    let mut rooted = PathBuf::new();
+    match search_template_in_dirs(&dirs, &Path::new(path)) {
+        Some(dir) => rooted.push(&dir),
+        None => panic!("template {:?} not found in directories {:?}", path, dirs),
+    };
+    rooted.push(path);
+    rooted
 }
 
 pub fn template_dirs() -> Vec<PathBuf> {
@@ -97,13 +89,14 @@ mod tests {
 
     #[test]
     fn get_source() {
-        assert_eq!(get_template_source(Path::new("sub/b.html")), "bar");
+        let path = find_template_from_path("sub/b.html", None);
+        assert_eq!(get_template_source(&path), "bar");
     }
 
     #[test]
     fn find_absolute() {
         let path = find_template_from_path("sub/b.html", Some(Path::new("a.html")));
-        assert_eq!(path, Path::new("sub/b.html"));
+        assert!(path.to_str().unwrap().ends_with("sub/b.html"));
     }
 
     #[test]
@@ -115,12 +108,12 @@ mod tests {
     #[test]
     fn find_relative() {
         let path = find_template_from_path("c.html", Some(Path::new("sub/b.html")));
-        assert_eq!(path, Path::new("sub/c.html"));
+        assert!(path.to_str().unwrap().ends_with("sub/c.html"));
     }
 
     #[test]
     fn find_relative_sub() {
         let path = find_template_from_path("sub1/d.html", Some(Path::new("sub/b.html")));
-        assert_eq!(path, Path::new("sub/sub1/d.html"));
+        assert!(path.to_str().unwrap().ends_with("sub/sub1/d.html"));
     }
 }
