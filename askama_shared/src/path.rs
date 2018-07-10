@@ -1,21 +1,18 @@
 use super::Config;
 
-use std::fs::File;
-use std::io::Read;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 pub fn get_template_source(tpl_path: &Path) -> String {
-    let mut f = match File::open(tpl_path) {
+    match fs::read_to_string(tpl_path) {
         Err(_) => panic!("unable to open template file '{}'", tpl_path.to_str().unwrap()),
-        Ok(f) => f,
-    };
-
-    let mut s = String::new();
-    f.read_to_string(&mut s).unwrap();
-    if s.ends_with('\n') {
-        let _ = s.pop();
+        Ok(mut source) => {
+            if source.ends_with('\n') {
+                let _ = source.pop();
+            }
+            source
+        }
     }
-    s
 }
 
 pub fn find_template_from_path(path: &str, start_at: Option<&Path>) -> PathBuf {
