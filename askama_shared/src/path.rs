@@ -1,9 +1,8 @@
-use std::env;
-use std::fs::{self, File};
+use super::Config;
+
+use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-
-use toml;
 
 pub fn get_template_source(tpl_path: &Path) -> String {
     let mut f = match File::open(tpl_path) {
@@ -41,39 +40,6 @@ pub fn find_template_from_path(path: &str, start_at: Option<&Path>) -> PathBuf {
 pub fn template_dirs() -> Vec<PathBuf> {
     Config::new().dirs
 }
-
-struct Config {
-    dirs: Vec<PathBuf>,
-}
-
-impl Config {
-    fn new() -> Config {
-        let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-        let filename = root.join(CONFIG_FILE_NAME);
-
-        let default = vec![root.join("templates")];
-        let dirs = if filename.exists() {
-            let config_str = fs::read_to_string(&filename)
-                .expect(&format!("unable to read {}", filename.to_str().unwrap()));
-            let raw: RawConfig = toml::from_str(&config_str)
-                .expect(&format!("invalid TOML in {}", filename.to_str().unwrap()));
-            raw.dirs
-                .map(|dirs| dirs.into_iter().map(|dir| root.join(dir)).collect())
-                .unwrap_or_else(|| default)
-        } else {
-            default
-        };
-
-        Config { dirs }
-    }
-}
-
-#[derive(Deserialize)]
-struct RawConfig {
-    dirs: Option<Vec<String>>,
-}
-
-static CONFIG_FILE_NAME: &str = "askama.toml";
 
 #[cfg(test)]
 mod tests {
