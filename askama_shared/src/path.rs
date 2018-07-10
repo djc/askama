@@ -54,30 +54,12 @@ pub fn find_template_from_path(path: &str, start_at: Option<&Path>) -> PathBuf {
     path.to_owned()
 }
 
-static CONFIG_FILE_NAME: &str = "askama.toml";
-
-#[derive(Deserialize)]
-struct RawConfig {
-    dirs: Option<Vec<String>>,
+pub fn template_dirs() -> Vec<PathBuf> {
+    Config::from_file().dirs
 }
 
 struct Config {
     dirs: Vec<PathBuf>,
-}
-
-impl RawConfig {
-    fn from_file(filename: &PathBuf) -> Option<RawConfig> {
-        if filename.exists() {
-            let mut contents = String::new();
-            File::open(filename)
-                .unwrap()
-                .read_to_string(&mut contents)
-                .unwrap();
-            Some(toml::from_str(&contents).unwrap())
-        } else {
-            None
-        }
-    }
 }
 
 impl Config {
@@ -100,9 +82,27 @@ impl Config {
     }
 }
 
-pub fn template_dirs() -> Vec<PathBuf> {
-    Config::from_file().dirs
+#[derive(Deserialize)]
+struct RawConfig {
+    dirs: Option<Vec<String>>,
 }
+
+impl RawConfig {
+    fn from_file(filename: &PathBuf) -> Option<RawConfig> {
+        if filename.exists() {
+            let mut contents = String::new();
+            File::open(filename)
+                .unwrap()
+                .read_to_string(&mut contents)
+                .unwrap();
+            Some(toml::from_str(&contents).unwrap())
+        } else {
+            None
+        }
+    }
+}
+
+static CONFIG_FILE_NAME: &str = "askama.toml";
 
 #[cfg(test)]
 mod tests {
