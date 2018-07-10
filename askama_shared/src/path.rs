@@ -37,10 +37,6 @@ pub fn find_template_from_path(path: &str, start_at: Option<&Path>) -> PathBuf {
     panic!("template {:?} not found in directories {:?}", path, config.dirs)
 }
 
-pub fn template_dirs() -> Vec<PathBuf> {
-    Config::new().dirs
-}
-
 #[cfg(test)]
 mod tests {
     use super::{find_template_from_path, get_template_source};

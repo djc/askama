@@ -19,12 +19,12 @@ pub use escaping::MarkupDisplay;
 pub mod filters;
 pub mod path;
 
-struct Config {
-    dirs: Vec<PathBuf>,
+pub struct Config {
+    pub dirs: Vec<PathBuf>,
 }
 
 impl Config {
-    fn new() -> Config {
+    pub fn new() -> Config {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let filename = root.join(CONFIG_FILE_NAME);
 
