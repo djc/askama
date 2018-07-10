@@ -5,10 +5,6 @@ use std::path::{Path, PathBuf};
 
 use toml;
 
-fn search_template_in_dirs<'a>(dirs: &'a [PathBuf], path: &Path) -> Option<&'a PathBuf> {
-    dirs.iter().find(|dir| dir.join(path).exists())
-}
-
 pub fn get_template_source(tpl_path: &Path) -> String {
     let mut f = match File::open(tpl_path) {
         Err(_) => panic!("unable to open template file '{}'", tpl_path.to_str().unwrap()),
@@ -24,7 +20,6 @@ pub fn get_template_source(tpl_path: &Path) -> String {
 }
 
 pub fn find_template_from_path(path: &str, start_at: Option<&Path>) -> PathBuf {
-    let dirs = template_dirs();
     if let Some(root) = start_at {
         let relative = root.with_file_name(path);
         if relative.exists() {
@@ -32,13 +27,15 @@ pub fn find_template_from_path(path: &str, start_at: Option<&Path>) -> PathBuf {
         }
     }
 
-    let mut rooted = PathBuf::new();
-    match search_template_in_dirs(&dirs, &Path::new(path)) {
-        Some(dir) => rooted.push(&dir),
-        None => panic!("template {:?} not found in directories {:?}", path, dirs),
-    };
-    rooted.push(path);
-    rooted
+    let config = Config::from_file();
+    for dir in &config.dirs {
+        let rooted = dir.join(path);
+        if rooted.exists() {
+            return rooted;
+        }
+    }
+
+    panic!("template {:?} not found in directories {:?}", path, config.dirs)
 }
 
 pub fn template_dirs() -> Vec<PathBuf> {
