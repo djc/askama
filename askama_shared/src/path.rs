@@ -1,5 +1,5 @@
 use std::env;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -65,40 +65,27 @@ impl Config {
     fn from_file() -> Config {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let filename = root.join(CONFIG_FILE_NAME);
-        RawConfig::from_file(&filename).map_or_else(
-            || Config {
-                dirs: vec![root.join("templates")],
-            },
-            |config| Config {
-                dirs: config
-                    .dirs
-                    .unwrap_or_else(|| Vec::new())
-                    .into_iter()
-                    .map(|directory| root.join(directory))
-                    .collect(),
-            },
-        )
+
+        let default = vec![root.join("templates")];
+        let dirs = if filename.exists() {
+            let config_str = fs::read_to_string(&filename)
+                .expect(&format!("unable to read {}", filename.to_str().unwrap()));
+            let raw: RawConfig = toml::from_str(&config_str)
+                .expect(&format!("invalid TOML in {}", filename.to_str().unwrap()));
+            raw.dirs
+                .map(|dirs| dirs.into_iter().map(|dir| root.join(dir)).collect())
+                .unwrap_or_else(|| default)
+        } else {
+            default
+        };
+
+        Config { dirs }
     }
 }
 
 #[derive(Deserialize)]
 struct RawConfig {
     dirs: Option<Vec<String>>,
-}
-
-impl RawConfig {
-    fn from_file(filename: &PathBuf) -> Option<RawConfig> {
-        if filename.exists() {
-            let mut contents = String::new();
-            File::open(filename)
-                .unwrap()
-                .read_to_string(&mut contents)
-                .unwrap();
-            Some(toml::from_str(&contents).unwrap())
-        } else {
-            None
-        }
-    }
 }
 
 static CONFIG_FILE_NAME: &str = "askama.toml";
