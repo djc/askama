@@ -17,13 +17,12 @@ pub fn get_template_source(tpl_path: &Path) -> String {
             "template file '{}' does not exist",
             tpl_path.to_str().unwrap()
         ));
+
     let mut f = match File::open(&path) {
-        Err(_) => {
-            let msg = format!("unable to open template file '{}'", &path.to_str().unwrap());
-            panic!(msg)
-        }
+        Err(_) => panic!("unable to open template file '{}'", &path.to_str().unwrap()),
         Ok(f) => f,
     };
+
     let mut s = String::new();
     f.read_to_string(&mut s).unwrap();
     if s.ends_with('\n') {
