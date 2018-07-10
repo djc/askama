@@ -27,7 +27,7 @@ pub fn find_template_from_path(path: &str, start_at: Option<&Path>) -> PathBuf {
         }
     }
 
-    let config = Config::from_file();
+    let config = Config::new();
     for dir in &config.dirs {
         let rooted = dir.join(path);
         if rooted.exists() {
@@ -39,7 +39,7 @@ pub fn find_template_from_path(path: &str, start_at: Option<&Path>) -> PathBuf {
 }
 
 pub fn template_dirs() -> Vec<PathBuf> {
-    Config::from_file().dirs
+    Config::new().dirs
 }
 
 struct Config {
@@ -47,7 +47,7 @@ struct Config {
 }
 
 impl Config {
-    fn from_file() -> Config {
+    fn new() -> Config {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let filename = root.join(CONFIG_FILE_NAME);
 
