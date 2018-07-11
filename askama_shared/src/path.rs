@@ -37,6 +37,16 @@ pub fn find_template_from_path(path: &str, start_at: Option<&Path>) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::{find_template_from_path, get_template_source};
+    use std::env;
+    use std::path::{Path, PathBuf};
+
+    fn assert_eq_rooted(actual: &Path, expected: &str) {
+        let mut root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+        root.push("templates");
+        let mut inner = PathBuf::new();
+        inner.push(expected);
+        assert_eq!(actual.strip_prefix(root).unwrap(), inner);
+    }
 
     #[test]
     fn get_source() {
@@ -48,7 +58,7 @@ mod tests {
     fn find_absolute() {
         let root = find_template_from_path("a.html", None);
         let path = find_template_from_path("sub/b.html", Some(&root));
-        assert!(path.to_str().unwrap().ends_with("sub/b.html"));
+        assert_eq_rooted(&path, "sub/b.html");
     }
 
     #[test]
@@ -62,13 +72,13 @@ mod tests {
     fn find_relative() {
         let root = find_template_from_path("sub/b.html", None);
         let path = find_template_from_path("c.html", Some(&root));
-        assert!(path.to_str().unwrap().ends_with("sub/c.html"));
+        assert_eq_rooted(&path, "sub/c.html");
     }
 
     #[test]
     fn find_relative_sub() {
         let root = find_template_from_path("sub/b.html", None);
         let path = find_template_from_path("sub1/d.html", Some(&root));
-        assert!(path.to_str().unwrap().ends_with("sub/sub1/d.html"));
+        assert_eq_rooted(&path, "sub/sub1/d.html");
     }
 }
