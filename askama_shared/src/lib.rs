@@ -11,8 +11,8 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-mod escaping;
 mod error;
+mod escaping;
 
 pub use error::{Error, Result};
 pub use escaping::MarkupDisplay;

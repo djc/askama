@@ -5,7 +5,10 @@ use std::path::{Path, PathBuf};
 
 pub fn get_template_source(tpl_path: &Path) -> String {
     match fs::read_to_string(tpl_path) {
-        Err(_) => panic!("unable to open template file '{}'", tpl_path.to_str().unwrap()),
+        Err(_) => panic!(
+            "unable to open template file '{}'",
+            tpl_path.to_str().unwrap()
+        ),
         Ok(mut source) => {
             if source.ends_with('\n') {
                 let _ = source.pop();
@@ -31,7 +34,10 @@ pub fn find_template_from_path(path: &str, start_at: Option<&Path>) -> PathBuf {
         }
     }
 
-    panic!("template {:?} not found in directories {:?}", path, config.dirs)
+    panic!(
+        "template {:?} not found in directories {:?}",
+        path, config.dirs
+    )
 }
 
 #[cfg(test)]
