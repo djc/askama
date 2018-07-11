@@ -14,10 +14,10 @@ mod parser;
 use input::{Print, Source, TemplateInput};
 use parser::{Expr, Macro, Node};
 use proc_macro::TokenStream;
-use shared::path;
+use shared::{path, Config};
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
@@ -40,7 +40,7 @@ fn build_template(ast: &syn::DeriveInput) -> String {
     };
 
     let mut sources = HashMap::new();
-    find_used_templates(&mut sources, input.path.clone(), source);
+    find_used_templates(&input, &mut sources, source);
 
     let mut parsed = HashMap::new();
     for (path, src) in &sources {
@@ -49,7 +49,7 @@ fn build_template(ast: &syn::DeriveInput) -> String {
 
     let mut contexts = HashMap::new();
     for (path, nodes) in &parsed {
-        contexts.insert(*path, Context::new(path, nodes));
+        contexts.insert(*path, Context::new(&input.config, path, nodes));
     }
 
     if input.print == Print::Ast || input.print == Print::All {
@@ -63,18 +63,18 @@ fn build_template(ast: &syn::DeriveInput) -> String {
     code
 }
 
-fn find_used_templates(map: &mut HashMap<PathBuf, String>, path: PathBuf, source: String) {
-    let mut check = vec![(path, source)];
+fn find_used_templates(input: &TemplateInput, map: &mut HashMap<PathBuf, String>, source: String) {
+    let mut check = vec![(input.path.clone(), source)];
     while let Some((path, source)) = check.pop() {
         for n in parser::parse(&source) {
             match n {
                 Node::Extends(Expr::StrLit(extends)) => {
-                    let extends = path::find_template_from_path(extends, Some(&path));
+                    let extends = input.config.find_template(extends, Some(&path));
                     let source = path::get_template_source(&extends);
                     check.push((extends, source));
                 }
                 Node::Import(_, import, _) => {
-                    let import = path::find_template_from_path(import, Some(&path));
+                    let import = input.config.find_template(import, Some(&path));
                     let source = path::get_template_source(&import);
                     check.push((import, source));
                 }
@@ -94,7 +94,7 @@ pub(crate) struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    fn new<'n>(path: &PathBuf, nodes: &'n [Node<'n>]) -> Context<'n> {
+    fn new<'n>(config: &Config, path: &Path, nodes: &'n [Node<'n>]) -> Context<'n> {
         let mut extends = None;
         let mut blocks = Vec::new();
         let mut macros = HashMap::new();
@@ -105,7 +105,7 @@ impl<'a> Context<'a> {
                 Node::Extends(Expr::StrLit(extends_path)) => match extends {
                     Some(_) => panic!("multiple extend blocks found"),
                     None => {
-                        extends = Some(path::find_template_from_path(extends_path, Some(path)));
+                        extends = Some(config.find_template(extends_path, Some(path)));
                     }
                 },
                 def @ Node::BlockDef(_, _, _, _) => {
@@ -115,7 +115,7 @@ impl<'a> Context<'a> {
                     macros.insert(*name, m);
                 }
                 Node::Import(_, import_path, scope) => {
-                    let path = path::find_template_from_path(import_path, Some(path));
+                    let path = config.find_template(import_path, Some(path));
                     imports.insert(*scope, path);
                 }
                 _ => {}

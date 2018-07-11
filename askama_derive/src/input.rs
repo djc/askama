@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 
 use quote::ToTokens;
 
-use shared::path;
+use shared::Config;
 
 use std::path::PathBuf;
 
@@ -10,6 +10,7 @@ use syn;
 
 pub struct TemplateInput<'a> {
     pub ast: &'a syn::DeriveInput,
+    pub config: Config,
     pub source: Source,
     pub print: Print,
     pub escaping: EscapeMode,
@@ -96,9 +97,10 @@ impl<'a> TemplateInput<'a> {
         // Validate the `source` and `ext` value together, since they are
         // related. In case `source` was used instead of `path`, the value
         // of `ext` is merged into a synthetic `path` value here.
+        let config = Config::new();
         let source = source.expect("template path or source not found in attributes");
         let path = match (&source, &ext) {
-            (&Source::Path(ref path), None) => path::find_template_from_path(path, None),
+            (&Source::Path(ref path), None) => config.find_template(path, None),
             (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
             (&Source::Path(_), Some(_)) => {
                 panic!("'ext' attribute cannot be used with 'path' attribute")
@@ -124,6 +126,7 @@ impl<'a> TemplateInput<'a> {
 
         TemplateInput {
             ast,
+            config,
             source,
             print,
             escaping: escaping.unwrap_or_else(|| EscapeMode::from_path(&path)),
