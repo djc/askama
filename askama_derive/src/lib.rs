@@ -14,9 +14,10 @@ mod parser;
 use input::{Print, Source, TemplateInput};
 use parser::{Expr, Macro, Node};
 use proc_macro::TokenStream;
-use shared::{path, Config};
+use shared::Config;
 
 use std::collections::HashMap;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 #[proc_macro_derive(Template, attributes(template))]
@@ -36,7 +37,7 @@ fn build_template(ast: &syn::DeriveInput) -> String {
     let input = TemplateInput::new(ast);
     let source: String = match input.source {
         Source::Source(ref s) => s.clone(),
-        Source::Path(_) => path::get_template_source(&input.path),
+        Source::Path(_) => get_template_source(&input.path),
     };
 
     let mut sources = HashMap::new();
@@ -70,12 +71,12 @@ fn find_used_templates(input: &TemplateInput, map: &mut HashMap<PathBuf, String>
             match n {
                 Node::Extends(Expr::StrLit(extends)) => {
                     let extends = input.config.find_template(extends, Some(&path));
-                    let source = path::get_template_source(&extends);
+                    let source = get_template_source(&extends);
                     check.push((extends, source));
                 }
                 Node::Import(_, import, _) => {
                     let import = input.config.find_template(import, Some(&path));
-                    let source = path::get_template_source(&import);
+                    let source = get_template_source(&import);
                     check.push((import, source));
                 }
                 _ => {}
@@ -156,5 +157,32 @@ impl<'a> Context<'a> {
             macros,
             imports,
         }
+    }
+}
+
+fn get_template_source(tpl_path: &Path) -> String {
+    match fs::read_to_string(tpl_path) {
+        Err(_) => panic!(
+            "unable to open template file '{}'",
+            tpl_path.to_str().unwrap()
+        ),
+        Ok(mut source) => {
+            if source.ends_with('\n') {
+                let _ = source.pop();
+            }
+            source
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::get_template_source;
+    use Config;
+
+    #[test]
+    fn get_source() {
+        let path = Config::new().find_template("b.html", None);
+        assert_eq!(get_template_source(&path), "bar");
     }
 }

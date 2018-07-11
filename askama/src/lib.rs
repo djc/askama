@@ -317,8 +317,6 @@
 extern crate askama_derive;
 extern crate askama_shared as shared;
 
-use shared::path;
-
 use std::fs::{self, DirEntry};
 use std::io;
 use std::path::Path;

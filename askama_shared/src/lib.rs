@@ -17,7 +17,6 @@ mod escaping;
 pub use error::{Error, Result};
 pub use escaping::MarkupDisplay;
 pub mod filters;
-pub mod path;
 
 pub struct Config {
     pub dirs: Vec<PathBuf>,

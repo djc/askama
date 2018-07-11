@@ -1,7 +1,7 @@
-use super::Context;
+use super::{get_template_source, Context};
 use input::TemplateInput;
 use parser::{self, Cond, Expr, MatchParameter, MatchVariant, Node, Target, When, WS};
-use shared::{filters, path};
+use shared::filters;
 
 use proc_macro2::Span;
 
@@ -494,7 +494,7 @@ impl<'a> Generator<'a> {
         let path = self.input
             .config
             .find_template(path, Some(&self.input.path));
-        let src = path::get_template_source(&path);
+        let src = get_template_source(&path);
         let nodes = parser::parse(&src);
         let nested = {
             let mut gen = self.child();
