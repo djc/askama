@@ -26,21 +26,23 @@ impl Config {
     pub fn new() -> Config {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let filename = root.join(CONFIG_FILE_NAME);
-
-        let default = vec![root.join("templates")];
-        let dirs = if filename.exists() {
-            let config_str = fs::read_to_string(&filename)
-                .expect(&format!("unable to read {}", filename.to_str().unwrap()));
-            let raw: RawConfig = toml::from_str(&config_str)
-                .expect(&format!("invalid TOML in {}", filename.to_str().unwrap()));
-            raw.dirs
-                .map(|dirs| dirs.into_iter().map(|dir| root.join(dir)).collect())
-                .unwrap_or_else(|| default)
+        if filename.exists() {
+            Self::from_str(&fs::read_to_string(&filename)
+                .expect(&format!("unable to read {}", filename.to_str().unwrap())))
         } else {
-            default
-        };
+            Self::from_str("")
+        }
+    }
 
-        Config { dirs }
+    pub fn from_str(s: &str) -> Self {
+        let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+        let default = vec![root.join("templates")];
+        let raw: RawConfig =
+            toml::from_str(&s).expect(&format!("invalid TOML in {}", CONFIG_FILE_NAME));
+        let dirs = raw.dirs
+            .map(|dirs| dirs.into_iter().map(|dir| root.join(dir)).collect())
+            .unwrap_or_else(|| default);
+        Self { dirs }
     }
 
     pub fn find_template(&self, path: &str, start_at: Option<&Path>) -> PathBuf {
