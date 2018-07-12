@@ -80,6 +80,22 @@ mod tests {
     use std::env;
     use std::path::{Path, PathBuf};
 
+    #[test]
+    fn test_default_config() {
+        let mut root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+        root.push("templates");
+        let config = Config::from_str("");
+        assert_eq!(config.dirs, vec![root]);
+    }
+
+    #[test]
+    fn test_config_dirs() {
+        let mut root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+        root.push("tpl");
+        let config = Config::from_str("dirs = [\"tpl\"]");
+        assert_eq!(config.dirs, vec![root]);
+    }
+
     fn assert_eq_rooted(actual: &Path, expected: &str) {
         let mut root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         root.push("templates");
