@@ -39,9 +39,14 @@ impl Config {
         let default = vec![root.join("templates")];
         let raw: RawConfig =
             toml::from_str(&s).expect(&format!("invalid TOML in {}", CONFIG_FILE_NAME));
-        let dirs = raw.dirs
-            .map(|dirs| dirs.into_iter().map(|dir| root.join(dir)).collect())
-            .unwrap_or_else(|| default);
+
+        let dirs = match raw.general {
+            Some(General { dirs: Some(dirs) }) => {
+                dirs.into_iter().map(|dir| root.join(dir)).collect()
+            }
+            Some(General { dirs: None }) | None => default,
+        };
+
         Self { dirs }
     }
 
@@ -69,6 +74,11 @@ impl Config {
 
 #[derive(Deserialize)]
 struct RawConfig {
+    general: Option<General>,
+}
+
+#[derive(Deserialize)]
+struct General {
     dirs: Option<Vec<String>>,
 }
 
@@ -92,7 +102,7 @@ mod tests {
     fn test_config_dirs() {
         let mut root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         root.push("tpl");
-        let config = Config::from_str("dirs = [\"tpl\"]");
+        let config = Config::from_str("[general]\ndirs = [\"tpl\"]");
         assert_eq!(config.dirs, vec![root]);
     }
 
