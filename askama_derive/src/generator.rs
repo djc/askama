@@ -94,6 +94,9 @@ impl<'a> Generator<'a> {
         if cfg!(feature = "rocket") {
             self.impl_rocket_responder();
         }
+        if cfg!(feature = "actix-web") {
+            self.impl_actix_web_responder();
+        }
         self.buf
     }
 
@@ -230,6 +233,26 @@ impl<'a> Generator<'a> {
             None => "txt",
         };
         self.writeln(&format!("::askama::rocket::respond(&self, {:?})", ext));
+
+        self.writeln("}");
+        self.writeln("}");
+    }
+
+    // Implement Actix-web's `Responder`.
+    fn impl_actix_web_responder(&mut self) {
+        self.write_header("::askama::actix_web::Responder", None);
+        self.writeln("type Item = ::askama::actix_web::HttpResponse;");
+        self.writeln("type Error = ::askama::actix_web::Error;");
+        self.writeln(
+            "fn respond_to<S>(self, _req: &::askama::actix_web::HttpRequest<S>) \
+             -> Result<Self::Item, Self::Error> {",
+        );
+
+        let ext = match self.input.path.extension() {
+            Some(s) => s.to_str().unwrap(),
+            None => "txt",
+        };
+        self.writeln(&format!("::askama::actix_web::respond(&self, {:?})", ext));
 
         self.writeln("}");
         self.writeln("}");
