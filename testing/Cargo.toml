@@ -9,7 +9,9 @@ default = []
 nightly = ["rocket", "rocket_codegen", "askama/with-rocket"]
 
 [dependencies]
-askama = { path = "../askama", version = "*", features = ["with-iron", "serde-json"] }
+actix-web = "0.7"
+askama = { path = "../askama", version = "*", features = ["with-actix-web", "with-iron", "serde-json"] }
+bytes = "0.4"
 criterion = "0.2"
 iron = "0.6"
 rocket = { version = "0.3", optional = true }
@@ -17,7 +19,7 @@ rocket_codegen = { version = "0.3", optional = true }
 serde_json = "1.0"
 
 [build-dependencies]
-askama = { path = "../askama", version = "*", features = ["with-iron", "serde-json"] }
+askama = { path = "../askama", version = "*", features = ["with-actix-web", "with-iron", "serde-json"] }
 
 [[bench]]
 name = "all"
