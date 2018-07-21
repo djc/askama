@@ -306,6 +306,12 @@
 //! unwraps any run-time errors from the template. If you have a better
 //! suggestion, please [file an issue](https://github.com/djc/askama/issues/new).
 //!
+//! ## Actix-web integration
+//!
+//! Enabling the `with-actix-web` feature appends an implementation of Actix-web's
+//! `Responder` trait for each template type. This makes it easy to return a value of
+//! that type in an Actix-web handler.
+//!
 //! ## The `json` filter
 //!
 //! Enabling the `serde-json` filter will enable the use of the `json` filter.
@@ -363,6 +369,25 @@ pub mod rocket {
             .header(ctype)
             .sized_body(Cursor::new(rsp))
             .ok()
+    }
+}
+
+#[cfg(feature = "with-actix-web")]
+pub mod actix_web {
+    extern crate mime_guess;
+    extern crate actix_web;
+    
+    // actix_web technically has this as a pub fn in later versions, fs::file_extension_to_mime.
+    // Older versions that don't have it exposed are easier this way. If ext is empty or no
+    // associated type was found, then this returns `application/octet-stream`, in line with how
+    // actix_web handles it in newer releases.
+    use self::mime_guess::get_mime_type;
+    pub use self::actix_web::{HttpRequest, HttpResponse, Responder, Error, error::{ErrorInternalServerError}};
+
+    pub fn respond(t: &super::Template, ext: &str) -> Result<HttpResponse, Error> {
+        let rsp = t.render().map_err(|_| ErrorInternalServerError("Template parsing error"))?;
+        let ctype = get_mime_type(ext).to_string();
+        Ok(HttpResponse::Ok().content_type(ctype.as_str()).body(rsp))
     }
 }
 

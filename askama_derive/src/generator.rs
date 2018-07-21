@@ -92,7 +92,10 @@ impl<'a> Generator<'a> {
             self.impl_modifier_response();
         }
         if cfg!(feature = "rocket") {
-            self.impl_responder();
+            self.impl_rocket_responder();
+        }
+        if cfg!(feature = "actix-web") {
+            self.impl_actix_web_responder();
         }
         self.buf
     }
@@ -216,7 +219,7 @@ impl<'a> Generator<'a> {
     }
 
     // Implement Rocket's `Responder`.
-    fn impl_responder(&mut self) {
+    fn impl_rocket_responder(&mut self) {
         let lifetime = syn::Lifetime::new("'askama", Span::call_site());
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
         self.write_header("::askama::rocket::Responder<'askama>", Some(vec![param]));
@@ -234,6 +237,29 @@ impl<'a> Generator<'a> {
         self.writeln("}");
         self.writeln("}");
     }
+    
+    // Implement Actix-web's `Responder`.
+    fn impl_actix_web_responder(&mut self) {
+        //let lifetime = syn::Lifetime::new("'askama", Span::call_site());
+        //let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
+        self.write_header("::askama::actix_web::Responder", None);//, Some(vec![param]));
+        self.writeln("type Item = ::askama::actix_web::HttpResponse;");
+        self.writeln("type Error = ::askama::actix_web::Error;");
+        self.writeln(
+            "fn respond_to<S>(self, _req: &::askama::actix_web::HttpRequest<S>) \
+             -> Result<Self::Item, Self::Error> {",
+        );
+
+        let ext = match self.input.path.extension() {
+            Some(s) => s.to_str().unwrap(),
+            None => "txt",
+        };
+        self.writeln(&format!("::askama::actix_web::respond(&self, {:?})", ext));
+
+        self.writeln("}");
+        self.writeln("}");
+    }
+
 
     // Writes header for the `impl` for `TraitFromPathName` or `Template`
     // for the given context struct.
