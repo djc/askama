@@ -331,6 +331,10 @@ use std::path::Path;
 pub trait Template {
     /// Renders the template to the given `writer` buffer
     fn render_into(&self, writer: &mut std::fmt::Write) -> Result<()>;
+
+    /// Returns the given file extension
+    fn file_extension(&self) -> &str;
+
     /// Helper method which allocates a new `String` and renders into it
     fn render(&self) -> Result<String> {
         let mut buf = String::new();

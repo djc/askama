@@ -117,6 +117,15 @@ impl<'a> Generator<'a> {
         self.flush_ws(WS(false, false));
         self.writeln("Ok(())");
         self.writeln("}");
+
+        self.writeln("fn file_extension(&self) -> &str {"); 
+        let ext = match self.input.path.extension() {
+            Some(s) => s.to_str().unwrap(),
+            None => "txt",
+        };
+        self.writeln(&format!("{:?}", ext));
+        self.writeln("}");
+
         self.writeln("}");
     }
 
