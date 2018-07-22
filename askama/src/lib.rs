@@ -337,6 +337,8 @@ pub trait Template {
         self.render_into(&mut buf)?;
         Ok(buf)
     }
+    /// Helper method to inspect the template's extension
+    fn extension(&self) -> Option<&str>;
 }
 
 pub use askama_derive::*;

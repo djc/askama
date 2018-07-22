@@ -117,6 +117,11 @@ impl<'a> Generator<'a> {
         self.flush_ws(WS(false, false));
         self.writeln("Ok(())");
         self.writeln("}");
+
+        self.writeln("fn extension(&self) -> Option<&str> {");
+        self.writeln(&format!("{:?}", self.input.path.extension().map(|s| s.to_str().unwrap())));
+        self.writeln("}");
+
         self.writeln("}");
     }
 
