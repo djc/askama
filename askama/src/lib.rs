@@ -329,14 +329,14 @@ use std::path::Path;
 
 /// Main `Template` trait; implementations are generally derived
 pub trait Template {
-    /// Renders the template to the given `writer` buffer
-    fn render_into(&self, writer: &mut std::fmt::Write) -> Result<()>;
     /// Helper method which allocates a new `String` and renders into it
     fn render(&self) -> Result<String> {
         let mut buf = String::new();
         self.render_into(&mut buf)?;
         Ok(buf)
     }
+    /// Renders the template to the given `writer` buffer
+    fn render_into(&self, writer: &mut std::fmt::Write) -> Result<()>;
     /// Helper method to inspect the template's extension
     fn extension(&self) -> Option<&str>;
 }
