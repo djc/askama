@@ -1,3 +1,4 @@
+#![cfg(feature = "actix")]
 #[macro_use]
 extern crate askama;
 extern crate actix_web;

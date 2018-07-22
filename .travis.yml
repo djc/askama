@@ -12,4 +12,4 @@ matrix:
         - rustup component add rustfmt-preview
         - rustup component add clippy-preview
       script:
-        - cargo test --all-features
+        - cd testing && cargo test --no-default-features --features with-rocket

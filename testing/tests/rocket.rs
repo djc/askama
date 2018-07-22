@@ -1,4 +1,4 @@
-#![cfg(feature = "rocket")]
+#![cfg(feature = "with-rocket")]
 #![feature(plugin)]
 #![plugin(rocket_codegen)]
 
