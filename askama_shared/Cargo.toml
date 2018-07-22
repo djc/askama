@@ -13,6 +13,7 @@ default = []
 serde-json = ["serde_json"]
 iron = []
 rocket = []
+actix-web = []
 
 [dependencies]
 serde = "1.0"
