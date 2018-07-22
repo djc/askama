@@ -92,7 +92,7 @@ impl<'a> Generator<'a> {
             self.impl_modifier_response();
         }
         if cfg!(feature = "rocket") {
-            self.impl_responder();
+            self.impl_rocket_responder();
         }
         self.buf
     }
@@ -216,7 +216,7 @@ impl<'a> Generator<'a> {
     }
 
     // Implement Rocket's `Responder`.
-    fn impl_responder(&mut self) {
+    fn impl_rocket_responder(&mut self) {
         let lifetime = syn::Lifetime::new("'askama", Span::call_site());
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
         self.write_header("::askama::rocket::Responder<'askama>", Some(vec![param]));
