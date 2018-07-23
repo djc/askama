@@ -1,7 +1,8 @@
 //! Module for built-in filter functions
 //!
 //! Contains all the built-in filter functions for use in templates.
-//! Currently, there is no way to define filters outside this module.
+//! You can define your own filters; for more information,
+//! see the top-level crate documentation.
 
 #[cfg(feature = "serde-json")]
 mod json;

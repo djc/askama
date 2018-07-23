@@ -79,8 +79,13 @@
 //! characters from the value obtained by accessing the `name` field,
 //! and print the resulting string as a Rust literal.
 //!
-//! Consult the [filters module documentation](filters/index.html) for a list
-//! of available filters.
+//! The built-in filters are documented as part of the
+//! [filters module documentation](filters/index.html).
+//!
+//! To define your own filters, simply have a module named `filters` in
+//! scope of the context deriving a `Template` `impl`. Any filter names
+//! that are not part of the built-in filters will be referenced through
+//! the `filters::` prefix.
 //!
 //! ## Whitespace control
 //!
