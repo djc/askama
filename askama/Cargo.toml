@@ -25,7 +25,7 @@ with-rocket = ["rocket", "askama_derive/rocket"]
 with-actix-web = ["actix-web", "askama_derive/actix-web", "mime_guess"]
 
 [dependencies]
-askama_derive = { path = "../askama_derive", version = "0.7.1" }
+askama_derive = { version = "0.7.1", path = "../askama_derive" }
 askama_shared = { version = "0.7.1", path = "../askama_shared" }
 iron = { version = ">= 0.5, < 0.7", optional = true }
 rocket = { version = "0.3", optional = true }
