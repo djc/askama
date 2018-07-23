@@ -1,6 +1,6 @@
 [package]
 name = "askama"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Type-safe, compiled Jinja-like templates for Rust"
 documentation = "https://docs.rs/askama"
@@ -25,8 +25,8 @@ with-rocket = ["rocket", "askama_derive/rocket"]
 with-actix-web = ["actix-web", "askama_derive/actix-web", "mime_guess"]
 
 [dependencies]
-askama_derive = { path = "../askama_derive", version = "0.7.0" }
-askama_shared = { version = "0.7.0", path = "../askama_shared" }
+askama_derive = { path = "../askama_derive", version = "0.7.1" }
+askama_shared = { version = "0.7.1", path = "../askama_shared" }
 iron = { version = ">= 0.5, < 0.7", optional = true }
 rocket = { version = "0.3", optional = true }
 actix-web = { version = "0.7", optional = true }
