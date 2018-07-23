@@ -35,6 +35,10 @@ pub const BUILT_IN_FILTERS: [&str; 14] = [
     "json", // Optional feature; reserve the name anyway
 ];
 
+/// Marks a string (or other `Display` type) as safe
+///
+/// Use this is you want to allow markup in an expression, or if you know
+/// that the expression's contents don't need to be escaped.
 pub fn safe<D, I>(v: I) -> Result<MarkupDisplay<D>>
 where
     D: fmt::Display,
@@ -71,9 +75,10 @@ where
 /// the Askama code generator.
 pub fn format() {}
 
-/// Replaces line breaks in plain text with appropriate HTML; a single newline
-/// becomes an HTML line break `<br>` and a new line followed by a blank line
-/// becomes a paragraph break `<p>`.
+/// Replaces line breaks in plain text with appropriate HTML
+///
+/// A single newline becomes an HTML line break `<br>` and a new line
+/// followed by a blank line becomes a paragraph break `<p>`.
 pub fn linebreaks(s: &fmt::Display) -> Result<String> {
     let s = format!("{}", s);
     let linebroken = s.replace("\n\n", "</p><p>").replace("\n", "<br/>");
@@ -81,41 +86,41 @@ pub fn linebreaks(s: &fmt::Display) -> Result<String> {
     Ok(format!("<p>{}</p>", linebroken))
 }
 
-/// Converts all newlines in a piece of plain text to HTML line breaks.
+/// Converts all newlines in a piece of plain text to HTML line breaks
 pub fn linebreaksbr(s: &fmt::Display) -> Result<String> {
     let s = format!("{}", s);
     Ok(s.replace("\n", "<br/>"))
 }
 
-/// Converts to lowercase.
+/// Converts to lowercase
 pub fn lower(s: &fmt::Display) -> Result<String> {
     let s = format!("{}", s);
     Ok(s.to_lowercase())
 }
 
-/// Alias for the `lower()` filter.
+/// Alias for the `lower()` filter
 pub fn lowercase(s: &fmt::Display) -> Result<String> {
     lower(s)
 }
 
-/// Converts to uppercase.
+/// Converts to uppercase
 pub fn upper(s: &fmt::Display) -> Result<String> {
     let s = format!("{}", s);
     Ok(s.to_uppercase())
 }
 
-/// Alias for the `upper()` filter.
+/// Alias for the `upper()` filter
 pub fn uppercase(s: &fmt::Display) -> Result<String> {
     upper(s)
 }
 
-/// Strip leading and trailing whitespace.
+/// Strip leading and trailing whitespace
 pub fn trim(s: &fmt::Display) -> Result<String> {
     let s = format!("{}", s);
     Ok(s.trim().to_owned())
 }
 
-/// Limit string length, appens '...' if truncated {
+/// Limit string length, appends '...' if truncated
 pub fn truncate(s: &fmt::Display, len: &usize) -> Result<String> {
     let mut s = format!("{}", s);
     if s.len() < *len {
