@@ -30,11 +30,12 @@
 //! recognized:
 //!
 //! * `path` (as `path = "foo.html"`): sets the path to the template file. The
-//!   path is interpreted as relative to the `templates` dir in the directory
-//!   where the originating crate's `Cargo.toml` resides. The file name
-//!   extension is used to infer an escape mode (see below). In web framework
-//!   integrations, the path's extension may also be used to infer the content
-//!   type of the resulting response. Cannot be used together with `source`.
+//!   path is interpreted as relative to the configured template directories
+//!   (by default, this is a `templates` directory next to your `Cargo.toml`).
+//!   The file name extension is used to infer an escape mode (see below). In
+//!   web framework integrations, the path's extension may also be used to
+//!   infer the content type of the resulting response.
+//!   Cannot be used together with `source`.
 //! * `source` (as `source = "{{ foo }}"`): directly sets the template source.
 //!   This can be useful for test cases or short templates. The generated path
 //!   is undefined, which generally makes it impossible to refer to this
@@ -55,6 +56,20 @@
 //!   the `html` escape mode is used; otherwise, no implicit escaping is done.
 //!   Setting an escape mode explicitly overrides the inferred value.
 //!
+//! ## Configuration
+//!
+//! At compile time, Askama will read optional configuration values from
+//! `askama.toml` in the crate root (the directory where `Cargo.toml` can
+//! be found). Currently, this only covers the directories to search for
+//! templates.
+//!
+//! This example file demonstrates the default configuration:
+//!
+//! ```toml
+//! [general]
+//! # Directories to search for templates, relative to the crate root.
+//! dirs = ["templates"]
+//! ```
 //!
 //! ## Variables
 //!
@@ -418,9 +433,8 @@ fn visit_dirs(dir: &Path, cb: &Fn(&DirEntry)) -> io::Result<()> {
 
 /// Build script helper to rebuild crates if contained templates have changed
 ///
-/// Iterates over all files in the template dir (`templates` in
-/// `CARGO_MANIFEST_DIR`) and writes a `cargo:rerun-if-changed=` line for each
-/// of them to stdout.
+/// Iterates over all files in the template directories and writes a
+/// `cargo:rerun-if-changed=` line for each of them to stdout.
 ///
 /// This helper method can be used in build scripts (`build.rs`) in crates
 /// that have templates, to make sure the crate gets rebuilt when template
