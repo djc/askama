@@ -22,14 +22,10 @@ struct Generator<'a> {
     input: &'a TemplateInput<'a>,
     // All contexts, keyed by the package-relative template path
     contexts: &'a HashMap<&'a PathBuf, Context<'a>>,
-    // The buffer to generate the code into
-    buf: String,
-    // The current level of indentation (in spaces)
-    indent: u8,
-    // Whether the output buffer is currently at the start of a line
-    start: bool,
     // Variables accessible directly from the current scope (not redirected to context)
     locals: SetChain<'a, &'a str>,
+    // Top-level buffer for writing code into
+    buf: Buffer,
     // Suffix whitespace from the previous literal. Will be flushed to the
     // output buffer unless suppressed by whitespace suppression on the next
     // non-literal.
@@ -56,10 +52,8 @@ impl<'a> Generator<'a> {
         Generator {
             input,
             contexts,
-            buf: String::new(),
-            indent,
-            start: true,
             locals,
+            buf: Buffer::new(indent),
             next_ws: None,
             skip_ws: false,
             vars: 0,
@@ -70,7 +64,7 @@ impl<'a> Generator<'a> {
 
     fn child(&mut self) -> Generator {
         let locals = SetChain::with_parent(&self.locals);
-        Self::new(self.input, self.contexts, locals, self.indent)
+        Self::new(self.input, self.contexts, locals, self.buf.indent)
     }
 
     // Takes a Context and generates the relevant implementations.
@@ -97,13 +91,13 @@ impl<'a> Generator<'a> {
         if cfg!(feature = "actix-web") {
             self.impl_actix_web_responder();
         }
-        self.buf
+        self.buf.buf
     }
 
     // Implement `Template` for the given context struct.
     fn impl_template(&mut self, ctx: &'a Context, heritage: &Option<Heritage<'a>>) {
         self.write_header("::askama::Template", None);
-        self.writeln(
+        self.buf.writeln(
             "fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
              ::askama::Result<()> {",
         );
@@ -115,14 +109,17 @@ impl<'a> Generator<'a> {
         }
 
         self.flush_ws(WS(false, false));
-        self.writeln("Ok(())");
-        self.writeln("}");
+        self.buf.writeln("Ok(())");
+        self.buf.writeln("}");
 
-        self.writeln("fn extension(&self) -> Option<&str> {");
-        self.writeln(&format!("{:?}", self.input.path.extension().map(|s| s.to_str().unwrap())));
-        self.writeln("}");
+        self.buf.writeln("fn extension(&self) -> Option<&str> {");
+        self.buf.writeln(&format!(
+            "{:?}",
+            self.input.path.extension().map(|s| s.to_str().unwrap())
+        ));
+        self.buf.writeln("}");
 
-        self.writeln("}");
+        self.buf.writeln("}");
     }
 
     fn trait_blocks(&mut self, heritage: &Heritage<'a>) {
@@ -140,8 +137,8 @@ impl<'a> Generator<'a> {
                         format!("{}_g{}", name, gen)
                     };
 
-                    self.writeln("#[allow(unused_variables)]");
-                    self.writeln(&format!(
+                    self.buf.writeln("#[allow(unused_variables)]");
+                    self.buf.writeln(&format!(
                         "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
                          -> ::askama::Result<()> {{",
                         fname
@@ -156,8 +153,8 @@ impl<'a> Generator<'a> {
                     self.locals.pop();
 
                     self.flush_ws(*ws2);
-                    self.writeln("Ok(())");
-                    self.writeln("}");
+                    self.buf.writeln("Ok(())");
+                    self.buf.writeln("}");
                 } else {
                     panic!("only block definitions allowed here");
                 }
@@ -167,46 +164,50 @@ impl<'a> Generator<'a> {
                 }
             }
         }
-        self.writeln("}");
+        self.buf.writeln("}");
 
-        self.writeln(&format!("pub trait {} {{", trait_name));
+        self.buf.writeln(&format!("pub trait {} {{", trait_name));
         for name in methods {
-            self.writeln(&format!(
+            self.buf.writeln(&format!(
                 "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
                  -> ::askama::Result<()>;",
                 name
             ));
         }
-        self.writeln("}");
+        self.buf.writeln("}");
     }
 
     // Implement `Deref<Parent>` for an inheriting context struct.
     fn deref_to_parent(&mut self, parent_type: &syn::Type) {
         self.write_header("::std::ops::Deref", None);
-        self.writeln(&format!(
+        self.buf.writeln(&format!(
             "type Target = {};",
             parent_type.into_token_stream()
         ));
-        self.writeln("fn deref(&self) -> &Self::Target {");
-        self.writeln("&self._parent");
-        self.writeln("}");
-        self.writeln("}");
+        self.buf.writeln("fn deref(&self) -> &Self::Target {");
+        self.buf.writeln("&self._parent");
+        self.buf.writeln("}");
+        self.buf.writeln("}");
     }
 
     // Implement `Display` for the given context struct.
     fn impl_display(&mut self) {
         self.write_header("::std::fmt::Display", None);
-        self.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {");
-        self.writeln("self.render_into(f).map_err(|_| ::std::fmt::Error {})");
-        self.writeln("}");
-        self.writeln("}");
+        self.buf
+            .writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {");
+        self.buf
+            .writeln("self.render_into(f).map_err(|_| ::std::fmt::Error {})");
+        self.buf.writeln("}");
+        self.buf.writeln("}");
     }
 
     // Implement iron's Modifier<Response> if enabled
     fn impl_modifier_response(&mut self) {
         self.write_header("::askama::iron::Modifier<::askama::iron::Response>", None);
-        self.writeln("fn modify(self, res: &mut ::askama::iron::Response) {");
-        self.writeln("res.body = Some(Box::new(self.render().unwrap().into_bytes()));");
+        self.buf
+            .writeln("fn modify(self, res: &mut ::askama::iron::Response) {");
+        self.buf
+            .writeln("res.body = Some(Box::new(self.render().unwrap().into_bytes()));");
 
         let ext = self.input
             .path
@@ -214,13 +215,14 @@ impl<'a> Generator<'a> {
             .map_or("", |s| s.to_str().unwrap_or(""));
         match ext {
             "html" | "htm" => {
-                self.writeln("::askama::iron::ContentType::html().0.modify(res);");
+                self.buf
+                    .writeln("::askama::iron::ContentType::html().0.modify(res);");
             }
             _ => (),
         };
 
-        self.writeln("}");
-        self.writeln("}");
+        self.buf.writeln("}");
+        self.buf.writeln("}");
     }
 
     // Implement Rocket's `Responder`.
@@ -228,7 +230,7 @@ impl<'a> Generator<'a> {
         let lifetime = syn::Lifetime::new("'askama", Span::call_site());
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
         self.write_header("::askama::rocket::Responder<'askama>", Some(vec![param]));
-        self.writeln(
+        self.buf.writeln(
             "fn respond_to(self, _: &::askama::rocket::Request) \
              -> ::askama::rocket::Result<'askama> {",
         );
@@ -237,18 +239,20 @@ impl<'a> Generator<'a> {
             Some(s) => s.to_str().unwrap(),
             None => "txt",
         };
-        self.writeln(&format!("::askama::rocket::respond(&self, {:?})", ext));
+        self.buf
+            .writeln(&format!("::askama::rocket::respond(&self, {:?})", ext));
 
-        self.writeln("}");
-        self.writeln("}");
+        self.buf.writeln("}");
+        self.buf.writeln("}");
     }
 
     // Implement Actix-web's `Responder`.
     fn impl_actix_web_responder(&mut self) {
         self.write_header("::askama::actix_web::Responder", None);
-        self.writeln("type Item = ::askama::actix_web::HttpResponse;");
-        self.writeln("type Error = ::askama::actix_web::Error;");
-        self.writeln(
+        self.buf
+            .writeln("type Item = ::askama::actix_web::HttpResponse;");
+        self.buf.writeln("type Error = ::askama::actix_web::Error;");
+        self.buf.writeln(
             "fn respond_to<S>(self, _req: &::askama::actix_web::HttpRequest<S>) \
              -> Result<Self::Item, Self::Error> {",
         );
@@ -257,10 +261,11 @@ impl<'a> Generator<'a> {
             Some(s) => s.to_str().unwrap(),
             None => "txt",
         };
-        self.writeln(&format!("::askama::actix_web::respond(&self, {:?})", ext));
+        self.buf
+            .writeln(&format!("::askama::actix_web::respond(&self, {:?})", ext));
 
-        self.writeln("}");
-        self.writeln("}");
+        self.buf.writeln("}");
+        self.buf.writeln("}");
     }
 
     // Writes header for the `impl` for `TraitFromPathName` or `Template`
@@ -274,7 +279,7 @@ impl<'a> Generator<'a> {
         }
         let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
         let (impl_generics, _, where_clause) = generics.split_for_impl();
-        self.writeln(
+        self.buf.writeln(
             format!(
                 "{} {} for {}{} {{",
                 quote!(impl#impl_generics),
@@ -361,25 +366,25 @@ impl<'a> Generator<'a> {
                 Some(ref expr) => {
                     let expr_code = self.visit_expr_root(expr);
                     if i == 0 {
-                        self.write("if ");
+                        self.buf.write("if ");
                     } else {
-                        self.dedent();
-                        self.write("} else if ");
+                        self.buf.dedent();
+                        self.buf.write("} else if ");
                     }
-                    self.write(&expr_code);
+                    self.buf.write(&expr_code);
                 }
                 None => {
-                    self.dedent();
-                    self.write("} else");
+                    self.buf.dedent();
+                    self.buf.write("} else");
                 }
             }
-            self.writeln(" {");
+            self.buf.writeln(" {");
             self.locals.push();
             self.handle(ctx, nodes, AstLevel::Nested);
             self.locals.pop();
         }
         self.handle_ws(ws);
-        self.writeln("}");
+        self.buf.writeln("}");
     }
 
     fn write_match(
@@ -399,7 +404,7 @@ impl<'a> Generator<'a> {
         }
 
         let expr_code = self.visit_expr_root(expr);
-        self.writeln(&format!("match &{} {{", expr_code));
+        self.buf.writeln(&format!("match &{} {{", expr_code));
         for arm in arms {
             let &(ws, ref variant, ref params, ref body) = arm;
             self.locals.push();
@@ -407,29 +412,29 @@ impl<'a> Generator<'a> {
                 Some(ref param) => {
                     self.visit_match_variant(param);
                 }
-                None => self.write("_"),
+                None => self.buf.write("_"),
             };
             if !params.is_empty() {
-                self.write("(");
+                self.buf.write("(");
                 for (i, param) in params.iter().enumerate() {
                     if let MatchParameter::Name(p) = *param {
                         self.locals.insert(p);
                     }
                     if i > 0 {
-                        self.write(", ");
+                        self.buf.write(", ");
                     }
                     self.visit_match_param(param);
                 }
-                self.write(")");
+                self.buf.write(")");
             }
-            self.writeln(" => {");
+            self.buf.writeln(" => {");
             self.handle_ws(ws);
             self.handle(ctx, body, AstLevel::Nested);
-            self.writeln("}");
+            self.buf.writeln("}");
             self.locals.pop();
         }
 
-        self.writeln("}");
+        self.buf.writeln("}");
         self.handle_ws(ws2);
     }
 
@@ -446,17 +451,18 @@ impl<'a> Generator<'a> {
         self.locals.push();
 
         let expr_code = self.visit_expr_root(iter);
-        self.write("for (_loop_index, ");
+        self.buf.write("for (_loop_index, ");
         let targets = self.visit_target(var);
         for name in &targets {
             self.locals.insert(name);
-            self.write(name);
+            self.buf.write(name);
         }
-        self.writeln(&format!(") in (&{}).into_iter().enumerate() {{", expr_code));
+        self.buf
+            .writeln(&format!(") in (&{}).into_iter().enumerate() {{", expr_code));
 
         self.handle(ctx, body, AstLevel::Nested);
         self.handle_ws(ws2);
-        self.writeln("}");
+        self.buf.writeln("}");
         self.locals.pop();
     }
 
@@ -474,7 +480,7 @@ impl<'a> Generator<'a> {
                 Some(ref name) => format!("self.render_block_{}_into(writer)?;", name),
                 None => panic!("cannot call 'super()' outside block"),
             };
-            self.writeln(&line);
+            self.buf.writeln(&line);
             self.prepare_ws(ws);
             self.used_super = true;
             return;
@@ -498,7 +504,7 @@ impl<'a> Generator<'a> {
 
         self.flush_ws(ws); // Cannot handle_ws() here: whitespace from macro definition comes first
         self.locals.push();
-        self.writeln("{");
+        self.buf.writeln("{");
         self.prepare_ws(def.ws1);
 
         for (i, arg) in def.args.iter().enumerate() {
@@ -506,13 +512,13 @@ impl<'a> Generator<'a> {
                 args.get(i)
                     .unwrap_or_else(|| panic!("macro '{}' takes more than {} arguments", name, i)),
             );
-            self.write(&format!("let {} = &{};", arg, expr_code));
+            self.buf.write(&format!("let {} = &{};", arg, expr_code));
             self.locals.insert(arg);
         }
         self.handle(ctx, &def.nodes, AstLevel::Nested);
 
         self.flush_ws(def.ws2);
-        self.writeln("}");
+        self.buf.writeln("}");
         self.locals.pop();
         self.prepare_ws(ws);
     }
@@ -527,22 +533,22 @@ impl<'a> Generator<'a> {
         let nested = {
             let mut gen = self.child();
             gen.handle(ctx, &nodes, AstLevel::Nested);
-            gen.buf
+            gen.buf.buf
         };
-        self.buf.push_str(&nested);
+        self.buf.write(&nested);
         self.prepare_ws(ws);
     }
 
     fn write_let_decl(&mut self, ws: WS, var: &'a Target) {
         self.handle_ws(ws);
-        self.write("let ");
+        self.buf.write("let ");
         match *var {
             Target::Name(name) => {
                 self.locals.insert(name);
-                self.write(name);
+                self.buf.write(name);
             }
         }
-        self.writeln(";");
+        self.buf.writeln(";");
     }
 
     fn write_let(&mut self, ws: WS, var: &'a Target, val: &Expr) {
@@ -553,18 +559,19 @@ impl<'a> Generator<'a> {
         match *var {
             Target::Name(name) => {
                 if !self.locals.contains(name) {
-                    self.write("let ");
+                    self.buf.write("let ");
                     self.locals.insert(name);
                 }
-                self.write(name);
+                self.buf.write(name);
             }
         }
-        self.write(&format!(" = {};", &code));
+        self.buf.write(&format!(" = {};", &code));
     }
 
     fn write_block(&mut self, ws1: WS, name: &str, ws2: WS) {
         self.flush_ws(ws1);
-        self.writeln(&format!("self.render_block_{}_into(writer)?;", name));
+        self.buf
+            .writeln(&format!("self.render_block_{}_into(writer)?;", name));
         self.prepare_ws(ws2);
     }
 
@@ -572,16 +579,16 @@ impl<'a> Generator<'a> {
         self.handle_ws(ws);
         let mut code = String::new();
         let wrapped = self.visit_expr(s, &mut code);
-        self.writeln(&format!("let askama_expr = &{};", code));
+        self.buf.writeln(&format!("let askama_expr = &{};", code));
 
         use self::DisplayWrap::*;
         use super::input::EscapeMode::*;
-        self.write("writer.write_fmt(format_args!(\"{}\", ");
-        self.write(match (wrapped, &self.input.escaping) {
+        self.buf.write("writer.write_fmt(format_args!(\"{}\", ");
+        self.buf.write(match (wrapped, &self.input.escaping) {
             (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => "askama_expr",
             (Unwrapped, &Html) => "&::askama::MarkupDisplay::from(askama_expr)",
         });
-        self.writeln("))?;");
+        self.buf.writeln("))?;");
     }
 
     fn write_lit(&mut self, lws: &'a str, val: &str, rws: &'a str) {
@@ -593,11 +600,11 @@ impl<'a> Generator<'a> {
                 assert!(rws.is_empty());
                 self.next_ws = Some(lws);
             } else {
-                self.writeln(&format!("writer.write_str({:#?})?;", lws));
+                self.buf.writeln(&format!("writer.write_str({:#?})?;", lws));
             }
         }
         if !val.is_empty() {
-            self.writeln(&format!("writer.write_str({:#?})?;", val));
+            self.buf.writeln(&format!("writer.write_str({:#?})?;", val));
         }
         if !rws.is_empty() {
             self.next_ws = Some(rws);
@@ -653,7 +660,7 @@ impl<'a> Generator<'a> {
                 DisplayWrap::Unwrapped
             }
         };
-        self.write(&code);
+        self.buf.write(&code);
         wrapped
     }
 
@@ -667,7 +674,7 @@ impl<'a> Generator<'a> {
                 DisplayWrap::Unwrapped
             }
         };
-        self.write(&code);
+        self.buf.write(&code);
         wrapped
     }
 
@@ -732,7 +739,8 @@ impl<'a> Generator<'a> {
                 self.visit_expr(arg, code);
                 let idx = self.vars;
                 self.vars += 1;
-                self.writeln(&format!("let var{} = {};", idx, &code[offset..]));
+                self.buf
+                    .writeln(&format!("let var{} = {};", idx, &code[offset..]));
                 code.truncate(offset);
                 code.push_str(&format!("var{}", idx));
             } else {
@@ -901,7 +909,7 @@ impl<'a> Generator<'a> {
         if self.next_ws.is_some() && !ws.0 {
             let val = self.next_ws.unwrap();
             if !val.is_empty() {
-                self.writeln(&format!("writer.write_str({:#?})?;", val));
+                self.buf.writeln(&format!("writer.write_str({:#?})?;", val));
             }
         }
         self.next_ws = None;
@@ -913,8 +921,25 @@ impl<'a> Generator<'a> {
     fn prepare_ws(&mut self, ws: WS) {
         self.skip_ws = ws.1;
     }
+}
 
-    /* Helper methods for writing to internal buffer */
+struct Buffer {
+    // The buffer to generate the code into
+    buf: String,
+    // The current level of indentation (in spaces)
+    indent: u8,
+    // Whether the output buffer is currently at the start of a line
+    start: bool,
+}
+
+impl Buffer {
+    fn new(indent: u8) -> Self {
+        Self {
+            buf: String::new(),
+            indent,
+            start: true,
+        }
+    }
 
     fn writeln(&mut self, s: &str) {
         if s.is_empty() {
