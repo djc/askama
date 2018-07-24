@@ -512,7 +512,7 @@ impl<'a> Generator<'a> {
                 args.get(i)
                     .unwrap_or_else(|| panic!("macro '{}' takes more than {} arguments", name, i)),
             );
-            self.buf.write(&format!("let {} = &{};", arg, expr_code));
+            self.buf.writeln(&format!("let {} = &{};", arg, expr_code));
             self.locals.insert(arg);
         }
         self.handle(ctx, &def.nodes, AstLevel::Nested);
