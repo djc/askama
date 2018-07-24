@@ -772,6 +772,7 @@ impl<'a> Generator<'a> {
     }
 
     fn visit_index(&mut self, obj: &Expr, key: &Expr, code: &mut String) -> DisplayWrap {
+        code.push_str("&");
         self.visit_expr(obj, code);
         code.push_str("[");
         self.visit_expr(key, code);
