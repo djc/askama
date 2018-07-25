@@ -553,8 +553,8 @@ impl<'a> Generator<'a> {
 
     fn write_let(&mut self, ws: WS, var: &'a Target, val: &Expr) {
         self.handle_ws(ws);
-        let mut code = String::new();
-        self.visit_expr(val, &mut code);
+        let mut buf = Buffer::new(0);
+        self.visit_expr(&mut buf, val);
 
         match *var {
             Target::Name(name) => {
@@ -565,7 +565,7 @@ impl<'a> Generator<'a> {
                 self.buf.write(name);
             }
         }
-        self.buf.write(&format!(" = {};", &code));
+        self.buf.write(&format!(" = {};", &buf.buf));
     }
 
     fn write_block(&mut self, ws1: WS, name: &str, ws2: WS) {
@@ -577,9 +577,9 @@ impl<'a> Generator<'a> {
 
     fn write_expr(&mut self, ws: WS, s: &Expr) {
         self.handle_ws(ws);
-        let mut code = String::new();
-        let wrapped = self.visit_expr(s, &mut code);
-        self.buf.writeln(&format!("let askama_expr = &{};", code));
+        let mut buf = Buffer::new(0);
+        let wrapped = self.visit_expr(&mut buf, s);
+        self.buf.writeln(&format!("let askama_expr = &{};", &buf.buf));
 
         use self::DisplayWrap::*;
         use super::input::EscapeMode::*;
@@ -618,83 +618,83 @@ impl<'a> Generator<'a> {
     /* Visitor methods for expression types */
 
     fn visit_expr_root(&mut self, expr: &Expr) -> String {
-        let mut code = String::new();
-        self.visit_expr(expr, &mut code);
-        code
+        let mut buf = Buffer::new(0);
+        self.visit_expr(&mut buf, expr);
+        buf.buf
     }
 
-    fn visit_expr(&mut self, expr: &Expr, code: &mut String) -> DisplayWrap {
+    fn visit_expr(&mut self, buf: &mut Buffer, expr: &Expr) -> DisplayWrap {
         match *expr {
-            Expr::NumLit(s) => self.visit_num_lit(s, code),
-            Expr::StrLit(s) => self.visit_str_lit(s, code),
-            Expr::Var(s) => self.visit_var(s, code),
-            Expr::Path(ref path) => self.visit_path(path, code),
-            Expr::Array(ref elements) => self.visit_array(elements, code),
-            Expr::Attr(ref obj, name) => self.visit_attr(obj, name, code),
-            Expr::Index(ref obj, ref key) => self.visit_index(obj, key, code),
-            Expr::Filter(name, ref args) => self.visit_filter(name, args, code),
-            Expr::Unary(op, ref inner) => self.visit_unary(op, inner, code),
-            Expr::BinOp(op, ref left, ref right) => self.visit_binop(op, left, right, code),
-            Expr::Range(op, ref left, ref right) => self.visit_range(op, left, right, code),
-            Expr::Group(ref inner) => self.visit_group(inner, code),
+            Expr::NumLit(s) => self.visit_num_lit(buf, s),
+            Expr::StrLit(s) => self.visit_str_lit(buf, s),
+            Expr::Var(s) => self.visit_var(buf, s),
+            Expr::Path(ref path) => self.visit_path(buf, path),
+            Expr::Array(ref elements) => self.visit_array(buf, elements),
+            Expr::Attr(ref obj, name) => self.visit_attr(buf, obj, name),
+            Expr::Index(ref obj, ref key) => self.visit_index(buf, obj, key),
+            Expr::Filter(name, ref args) => self.visit_filter(buf, name, args),
+            Expr::Unary(op, ref inner) => self.visit_unary(buf, op, inner),
+            Expr::BinOp(op, ref left, ref right) => self.visit_binop(buf, op, left, right),
+            Expr::Range(op, ref left, ref right) => self.visit_range(buf, op, left, right),
+            Expr::Group(ref inner) => self.visit_group(buf, inner),
             Expr::MethodCall(ref obj, method, ref args) => {
-                self.visit_method_call(obj, method, args, code)
+                self.visit_method_call(buf, obj, method, args)
             }
         }
     }
 
     fn visit_match_variant(&mut self, param: &MatchVariant) -> DisplayWrap {
-        let mut code = String::new();
+        let mut buf = Buffer::new(0);
         let wrapped = match *param {
             MatchVariant::StrLit(s) => {
-                code.push_str("&");
-                self.visit_str_lit(s, &mut code)
+                buf.write("&");
+                self.visit_str_lit(&mut buf, s)
             }
-            MatchVariant::NumLit(s) => self.visit_num_lit(s, &mut code),
+            MatchVariant::NumLit(s) => self.visit_num_lit(&mut buf, s),
             MatchVariant::Name(s) => {
-                code.push_str(s);
+                buf.write(s);
                 DisplayWrap::Unwrapped
             }
             MatchVariant::Path(ref s) => {
-                code.push_str(&s.join("::"));
+                buf.write(&s.join("::"));
                 DisplayWrap::Unwrapped
             }
         };
-        self.buf.write(&code);
+        self.buf.write(&buf.buf);
         wrapped
     }
 
     fn visit_match_param(&mut self, param: &MatchParameter) -> DisplayWrap {
-        let mut code = String::new();
+        let mut buf = Buffer::new(0);
         let wrapped = match *param {
-            MatchParameter::NumLit(s) => self.visit_num_lit(s, &mut code),
-            MatchParameter::StrLit(s) => self.visit_str_lit(s, &mut code),
+            MatchParameter::NumLit(s) => self.visit_num_lit(&mut buf, s),
+            MatchParameter::StrLit(s) => self.visit_str_lit(&mut buf, s),
             MatchParameter::Name(s) => {
-                code.push_str(s);
+                buf.write(s);
                 DisplayWrap::Unwrapped
             }
         };
-        self.buf.write(&code);
+        self.buf.write(&buf.buf);
         wrapped
     }
 
-    fn visit_filter(&mut self, name: &str, args: &[Expr], code: &mut String) -> DisplayWrap {
+    fn visit_filter(&mut self, buf: &mut Buffer, name: &str, args: &[Expr]) -> DisplayWrap {
         if name == "format" {
-            self._visit_format_filter(args, code);
+            self._visit_format_filter(buf, args);
             return DisplayWrap::Unwrapped;
         } else if name == "join" {
-            self._visit_join_filter(args, code);
+            self._visit_join_filter(buf, args);
             return DisplayWrap::Unwrapped;
         }
 
         if filters::BUILT_IN_FILTERS.contains(&name) {
-            code.push_str(&format!("::askama::filters::{}(&", name));
+            buf.write(&format!("::askama::filters::{}(&", name));
         } else {
-            code.push_str(&format!("filters::{}(&", name));
+            buf.write(&format!("filters::{}(&", name));
         }
 
-        self._visit_args(args, code);
-        code.push_str(")?");
+        self._visit_args(buf, args);
+        buf.write(")?");
         if name == "safe" || name == "escape" || name == "e" || name == "json" {
             DisplayWrap::Wrapped
         } else {
@@ -702,31 +702,31 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn _visit_format_filter(&mut self, args: &[Expr], code: &mut String) {
-        code.push_str("format!(");
-        self._visit_args(args, code);
-        code.push_str(")");
+    fn _visit_format_filter(&mut self, buf: &mut Buffer, args: &[Expr]) {
+        buf.write("format!(");
+        self._visit_args(buf, args);
+        buf.write(")");
     }
 
     // Force type coercion on first argument to `join` filter (see #39).
-    fn _visit_join_filter(&mut self, args: &[Expr], code: &mut String) {
-        code.push_str("::askama::filters::join((&");
+    fn _visit_join_filter(&mut self, buf: &mut Buffer, args: &[Expr]) {
+        buf.write("::askama::filters::join((&");
         for (i, arg) in args.iter().enumerate() {
             if i > 0 {
-                code.push_str(", &");
+                buf.write(", &");
             }
-            self.visit_expr(arg, code);
+            self.visit_expr(buf, arg);
             if i == 0 {
-                code.push_str(").into_iter()");
+                buf.write(").into_iter()");
             }
         }
-        code.push_str(")?");
+        buf.write(")?");
     }
 
-    fn _visit_args(&mut self, args: &[Expr], code: &mut String) {
+    fn _visit_args(&mut self, buf: &mut Buffer, args: &[Expr]) {
         for (i, arg) in args.iter().enumerate() {
             if i > 0 {
-                code.push_str(", &");
+                buf.write(", &");
             }
 
             let intercept = match *arg {
@@ -735,152 +735,152 @@ impl<'a> Generator<'a> {
             };
 
             if intercept {
-                let offset = code.len();
-                self.visit_expr(arg, code);
+                let offset = buf.buf.len();
+                self.visit_expr(buf, arg);
                 let idx = self.vars;
                 self.vars += 1;
                 self.buf
-                    .writeln(&format!("let var{} = {};", idx, &code[offset..]));
-                code.truncate(offset);
-                code.push_str(&format!("var{}", idx));
+                    .writeln(&format!("let var{} = {};", idx, &buf.buf[offset..]));
+                buf.buf.truncate(offset);
+                buf.write(&format!("var{}", idx));
             } else {
-                self.visit_expr(arg, code);
+                self.visit_expr(buf, arg);
             }
         }
     }
 
-    fn visit_attr(&mut self, obj: &Expr, attr: &str, code: &mut String) -> DisplayWrap {
+    fn visit_attr(&mut self, buf: &mut Buffer, obj: &Expr, attr: &str) -> DisplayWrap {
         if let Expr::Var(name) = *obj {
             if name == "loop" {
-                code.push_str("_loop_index");
+                buf.write("_loop_index");
                 if attr == "index" {
-                    code.push_str(" + 1");
+                    buf.write(" + 1");
                     return DisplayWrap::Unwrapped;
                 } else if attr == "index0" {
                     return DisplayWrap::Unwrapped;
                 } else if attr == "first" {
-                    code.push_str(" == 0");
+                    buf.write(" == 0");
                     return DisplayWrap::Unwrapped;
                 } else {
                     panic!("unknown loop variable");
                 }
             }
         }
-        self.visit_expr(obj, code);
-        code.push_str(&format!(".{}", attr));
+        self.visit_expr(buf, obj);
+        buf.write(&format!(".{}", attr));
         DisplayWrap::Unwrapped
     }
 
-    fn visit_index(&mut self, obj: &Expr, key: &Expr, code: &mut String) -> DisplayWrap {
-        code.push_str("&");
-        self.visit_expr(obj, code);
-        code.push_str("[");
-        self.visit_expr(key, code);
-        code.push_str("]");
+    fn visit_index(&mut self, buf: &mut Buffer, obj: &Expr, key: &Expr) -> DisplayWrap {
+        buf.write("&");
+        self.visit_expr(buf, obj);
+        buf.write("[");
+        self.visit_expr(buf, key);
+        buf.write("]");
         DisplayWrap::Unwrapped
     }
 
     fn visit_method_call(
         &mut self,
+        buf: &mut Buffer,
         obj: &Expr,
         method: &str,
         args: &[Expr],
-        code: &mut String,
     ) -> DisplayWrap {
         if let Expr::Var("self") = obj {
-            code.push_str("self");
+            buf.write("self");
         } else {
-            self.visit_expr(obj, code);
+            self.visit_expr(buf, obj);
         }
 
-        code.push_str(&format!(".{}(", method));
-        self._visit_args(args, code);
-        code.push_str(")");
+        buf.write(&format!(".{}(", method));
+        self._visit_args(buf, args);
+        buf.write(")");
         DisplayWrap::Unwrapped
     }
 
-    fn visit_unary(&mut self, op: &str, inner: &Expr, code: &mut String) -> DisplayWrap {
-        code.push_str(op);
-        self.visit_expr(inner, code);
+    fn visit_unary(&mut self, buf: &mut Buffer, op: &str, inner: &Expr) -> DisplayWrap {
+        buf.write(op);
+        self.visit_expr(buf, inner);
         DisplayWrap::Unwrapped
     }
 
     fn visit_range(
         &mut self,
+        buf: &mut Buffer,
         op: &str,
         left: &Option<Box<Expr>>,
         right: &Option<Box<Expr>>,
-        code: &mut String,
     ) -> DisplayWrap {
         if let Some(left) = left {
-            self.visit_expr(left, code);
+            self.visit_expr(buf, left);
         }
-        code.push_str(op);
+        buf.write(op);
         if let Some(right) = right {
-            self.visit_expr(right, code);
+            self.visit_expr(buf, right);
         }
         DisplayWrap::Unwrapped
     }
 
     fn visit_binop(
         &mut self,
+        buf: &mut Buffer,
         op: &str,
         left: &Expr,
         right: &Expr,
-        code: &mut String,
     ) -> DisplayWrap {
-        self.visit_expr(left, code);
-        code.push_str(&format!(" {} ", op));
-        self.visit_expr(right, code);
+        self.visit_expr(buf, left);
+        buf.write(&format!(" {} ", op));
+        self.visit_expr(buf, right);
         DisplayWrap::Unwrapped
     }
 
-    fn visit_group(&mut self, inner: &Expr, code: &mut String) -> DisplayWrap {
-        code.push_str("(");
-        self.visit_expr(inner, code);
-        code.push_str(")");
+    fn visit_group(&mut self, buf: &mut Buffer, inner: &Expr) -> DisplayWrap {
+        buf.write("(");
+        self.visit_expr(buf, inner);
+        buf.write(")");
         DisplayWrap::Unwrapped
     }
 
-    fn visit_array(&mut self, elements: &[Expr], code: &mut String) -> DisplayWrap {
-        code.push_str("[");
+    fn visit_array(&mut self, buf: &mut Buffer, elements: &[Expr]) -> DisplayWrap {
+        buf.write("[");
         for (i, el) in elements.iter().enumerate() {
             if i > 0 {
-                code.push_str(", ");
+                buf.write(", ");
             }
-            self.visit_expr(el, code);
+            self.visit_expr(buf, el);
         }
-        code.push_str("]");
+        buf.write("]");
         DisplayWrap::Unwrapped
     }
 
-    fn visit_path(&mut self, path: &[&str], code: &mut String) -> DisplayWrap {
+    fn visit_path(&mut self, buf: &mut Buffer, path: &[&str]) -> DisplayWrap {
         for (i, part) in path.iter().enumerate() {
             if i > 0 {
-                code.push_str("::");
+                buf.write("::");
             }
-            code.push_str(part);
+            buf.write(part);
         }
         DisplayWrap::Unwrapped
     }
 
-    fn visit_var(&mut self, s: &str, code: &mut String) -> DisplayWrap {
+    fn visit_var(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
         if self.locals.contains(s) {
-            code.push_str(s);
+            buf.write(s);
         } else {
-            code.push_str("self.");
-            code.push_str(s);
+            buf.write("self.");
+            buf.write(s);
         }
         DisplayWrap::Unwrapped
     }
 
-    fn visit_str_lit(&mut self, s: &str, code: &mut String) -> DisplayWrap {
-        code.push_str(&format!("\"{}\"", s));
+    fn visit_str_lit(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
+        buf.write(&format!("\"{}\"", s));
         DisplayWrap::Unwrapped
     }
 
-    fn visit_num_lit(&mut self, s: &str, code: &mut String) -> DisplayWrap {
-        code.push_str(s);
+    fn visit_num_lit(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
+        buf.write(s);
         DisplayWrap::Unwrapped
     }
 
