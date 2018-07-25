@@ -33,8 +33,6 @@ struct Generator<'a> {
     // Whitespace suppression from the previous non-literal. Will be used to
     // determine whether to flush prefix whitespace from the next literal.
     skip_ws: bool,
-    // Counter for askama-internal variable names allocated during code gen
-    vars: usize,
     // If currently in a block, this will contain the name of a potential parent block
     super_block: Option<String>,
     // If the super macro is used; this determines whether code for the parent block
@@ -56,7 +54,6 @@ impl<'a> Generator<'a> {
             buf: Buffer::new(indent),
             next_ws: None,
             skip_ws: false,
-            vars: 0,
             super_block: None,
             used_super: false,
         }
@@ -579,16 +576,17 @@ impl<'a> Generator<'a> {
         self.handle_ws(ws);
         let mut buf = Buffer::new(0);
         let wrapped = self.visit_expr(&mut buf, s);
-        self.buf.writeln(&format!("let askama_expr = &{};", &buf.buf));
 
         use self::DisplayWrap::*;
         use super::input::EscapeMode::*;
-        self.buf.write("writer.write_fmt(format_args!(\"{}\", ");
-        self.buf.write(match (wrapped, &self.input.escaping) {
-            (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => "askama_expr",
-            (Unwrapped, &Html) => "&::askama::MarkupDisplay::from(askama_expr)",
+        self.buf.writeln("writer.write_fmt(format_args!(\"{}\", &{");
+        self.buf.write(&match (wrapped, &self.input.escaping) {
+            (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => buf.buf,
+            (Unwrapped, &Html) => format!("::askama::MarkupDisplay::from(&{})", buf.buf),
         });
-        self.buf.writeln("))?;");
+        self.buf.writeln("");
+        self.buf.dedent();
+        self.buf.writeln("}))?;");
     }
 
     fn write_lit(&mut self, lws: &'a str, val: &str, rws: &'a str) {
@@ -729,20 +727,15 @@ impl<'a> Generator<'a> {
                 buf.write(", &");
             }
 
-            let intercept = match *arg {
+            let scoped = match *arg {
                 Expr::Filter(_, _) | Expr::MethodCall(_, _, _) => true,
                 _ => false,
             };
 
-            if intercept {
-                let offset = buf.buf.len();
+            if scoped {
+                buf.writeln("{");
                 self.visit_expr(buf, arg);
-                let idx = self.vars;
-                self.vars += 1;
-                self.buf
-                    .writeln(&format!("let var{} = {};", idx, &buf.buf[offset..]));
-                buf.buf.truncate(offset);
-                buf.write(&format!("var{}", idx));
+                buf.writeln("}");
             } else {
                 self.visit_expr(buf, arg);
             }
