@@ -537,6 +537,8 @@ impl<'a> Generator<'a> {
         let src = get_template_source(&path);
         let nodes = parser::parse(&src);
         {
+            // Since nodes must not outlive the Generator, we instantiate
+            // a nested Generator here to handle the include's nodes.
             let mut gen = self.child();
             gen.handle(ctx, &nodes, buf, AstLevel::Nested);
         }
