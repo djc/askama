@@ -943,17 +943,16 @@ impl Buffer {
     }
 
     fn writeln(&mut self, s: &str) {
-        if s.is_empty() {
-            return;
-        }
         if s == "}" {
             self.dedent();
         }
-        self.write(s);
+        if !s.is_empty() {
+            self.write(s);
+        }
+        self.buf.push('\n');
         if s.ends_with('{') {
             self.indent();
         }
-        self.buf.push('\n');
         self.start = true;
     }
 
