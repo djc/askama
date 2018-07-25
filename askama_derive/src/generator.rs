@@ -14,7 +14,7 @@ use std::{cmp, hash, str};
 use syn;
 
 pub(crate) fn generate(input: &TemplateInput, contexts: &HashMap<&PathBuf, Context>) -> String {
-    Generator::new(input, contexts, SetChain::new(), 0).build(&contexts[&input.path])
+    Generator::new(input, contexts, SetChain::new()).build(&contexts[&input.path])
 }
 
 struct Generator<'a> {
@@ -24,8 +24,6 @@ struct Generator<'a> {
     contexts: &'a HashMap<&'a PathBuf, Context<'a>>,
     // Variables accessible directly from the current scope (not redirected to context)
     locals: SetChain<'a, &'a str>,
-    // Top-level buffer for writing code into
-    buf: Buffer,
     // Suffix whitespace from the previous literal. Will be flushed to the
     // output buffer unless suppressed by whitespace suppression on the next
     // non-literal.
@@ -45,13 +43,11 @@ impl<'a> Generator<'a> {
         input: &'n TemplateInput,
         contexts: &'n HashMap<&'n PathBuf, Context<'n>>,
         locals: SetChain<'n, &'n str>,
-        indent: u8,
     ) -> Generator<'n> {
         Generator {
             input,
             contexts,
             locals,
-            buf: Buffer::new(indent),
             next_ws: None,
             skip_ws: false,
             super_block: None,
@@ -61,69 +57,75 @@ impl<'a> Generator<'a> {
 
     fn child(&mut self) -> Generator {
         let locals = SetChain::with_parent(&self.locals);
-        Self::new(self.input, self.contexts, locals, self.buf.indent)
+        Self::new(self.input, self.contexts, locals)
     }
 
     // Takes a Context and generates the relevant implementations.
     fn build(mut self, ctx: &'a Context) -> String {
+        let mut buf = Buffer::new(0);
         let heritage = if !ctx.blocks.is_empty() {
             if let Some(parent) = self.input.parent {
-                self.deref_to_parent(parent);
+                self.deref_to_parent(&mut buf, parent);
             }
             let heritage = Heritage::new(ctx, self.contexts);
-            self.trait_blocks(&heritage);
+            self.trait_blocks(&heritage, &mut buf);
             Some(heritage)
         } else {
             None
         };
 
-        self.impl_template(ctx, &heritage);
-        self.impl_display();
+        self.impl_template(ctx, &heritage, &mut buf);
+        self.impl_display(&mut buf);
         if cfg!(feature = "iron") {
-            self.impl_modifier_response();
+            self.impl_modifier_response(&mut buf);
         }
         if cfg!(feature = "rocket") {
-            self.impl_rocket_responder();
+            self.impl_rocket_responder(&mut buf);
         }
         if cfg!(feature = "actix-web") {
-            self.impl_actix_web_responder();
+            self.impl_actix_web_responder(&mut buf);
         }
-        self.buf.buf
+        buf.buf
     }
 
     // Implement `Template` for the given context struct.
-    fn impl_template(&mut self, ctx: &'a Context, heritage: &Option<Heritage<'a>>) {
-        self.write_header("::askama::Template", None);
-        self.buf.writeln(
+    fn impl_template(
+        &mut self,
+        ctx: &'a Context,
+        heritage: &Option<Heritage<'a>>,
+        buf: &mut Buffer,
+    ) {
+        self.write_header(buf, "::askama::Template", None);
+        buf.writeln(
             "fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
              ::askama::Result<()> {",
         );
 
         if let Some(heritage) = heritage {
-            self.handle(heritage.root, heritage.root.nodes, AstLevel::Top);
+            self.handle(heritage.root, heritage.root.nodes, buf, AstLevel::Top);
         } else {
-            self.handle(ctx, &ctx.nodes, AstLevel::Top);
+            self.handle(ctx, &ctx.nodes, buf, AstLevel::Top);
         }
 
-        self.flush_ws(WS(false, false));
-        self.buf.writeln("Ok(())");
-        self.buf.writeln("}");
+        self.flush_ws(buf, WS(false, false));
+        buf.writeln("Ok(())");
+        buf.writeln("}");
 
-        self.buf.writeln("fn extension(&self) -> Option<&str> {");
-        self.buf.writeln(&format!(
+        buf.writeln("fn extension(&self) -> Option<&str> {");
+        buf.writeln(&format!(
             "{:?}",
             self.input.path.extension().map(|s| s.to_str().unwrap())
         ));
-        self.buf.writeln("}");
+        buf.writeln("}");
 
-        self.buf.writeln("}");
+        buf.writeln("}");
     }
 
-    fn trait_blocks(&mut self, heritage: &Heritage<'a>) {
+    fn trait_blocks(&mut self, heritage: &Heritage<'a>, buf: &mut Buffer) {
         let trait_name = format!("{}Blocks", self.input.ast.ident);
         let mut methods = vec![];
 
-        self.write_header(&trait_name, None);
+        self.write_header(buf, &trait_name, None);
         for blocks in heritage.blocks.values() {
             for (gen, (ctx, def)) in blocks.iter().enumerate() {
                 self.used_super = false;
@@ -134,8 +136,8 @@ impl<'a> Generator<'a> {
                         format!("{}_g{}", name, gen)
                     };
 
-                    self.buf.writeln("#[allow(unused_variables)]");
-                    self.buf.writeln(&format!(
+                    buf.writeln("#[allow(unused_variables)]");
+                    buf.writeln(&format!(
                         "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
                          -> ::askama::Result<()> {{",
                         fname
@@ -145,13 +147,13 @@ impl<'a> Generator<'a> {
 
                     self.locals.push();
                     self.super_block = Some(format!("{}_g{}", name, gen + 1));
-                    self.handle(ctx, nodes, AstLevel::Block);
+                    self.handle(ctx, nodes, buf, AstLevel::Block);
                     self.super_block = None;
                     self.locals.pop();
 
-                    self.flush_ws(*ws2);
-                    self.buf.writeln("Ok(())");
-                    self.buf.writeln("}");
+                    self.flush_ws(buf, *ws2);
+                    buf.writeln("Ok(())");
+                    buf.writeln("}");
                 } else {
                     panic!("only block definitions allowed here");
                 }
@@ -161,50 +163,50 @@ impl<'a> Generator<'a> {
                 }
             }
         }
-        self.buf.writeln("}");
+        buf.writeln("}");
 
-        self.buf.writeln(&format!("pub trait {} {{", trait_name));
+        buf.writeln(&format!("pub trait {} {{", trait_name));
         for name in methods {
-            self.buf.writeln(&format!(
+            buf.writeln(&format!(
                 "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
                  -> ::askama::Result<()>;",
                 name
             ));
         }
-        self.buf.writeln("}");
+        buf.writeln("}");
     }
 
     // Implement `Deref<Parent>` for an inheriting context struct.
-    fn deref_to_parent(&mut self, parent_type: &syn::Type) {
-        self.write_header("::std::ops::Deref", None);
-        self.buf.writeln(&format!(
+    fn deref_to_parent(&mut self, buf: &mut Buffer, parent_type: &syn::Type) {
+        self.write_header(buf, "::std::ops::Deref", None);
+        buf.writeln(&format!(
             "type Target = {};",
             parent_type.into_token_stream()
         ));
-        self.buf.writeln("fn deref(&self) -> &Self::Target {");
-        self.buf.writeln("&self._parent");
-        self.buf.writeln("}");
-        self.buf.writeln("}");
+        buf.writeln("fn deref(&self) -> &Self::Target {");
+        buf.writeln("&self._parent");
+        buf.writeln("}");
+        buf.writeln("}");
     }
 
     // Implement `Display` for the given context struct.
-    fn impl_display(&mut self) {
-        self.write_header("::std::fmt::Display", None);
-        self.buf
-            .writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {");
-        self.buf
-            .writeln("self.render_into(f).map_err(|_| ::std::fmt::Error {})");
-        self.buf.writeln("}");
-        self.buf.writeln("}");
+    fn impl_display(&mut self, buf: &mut Buffer) {
+        self.write_header(buf, "::std::fmt::Display", None);
+        buf.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {");
+        buf.writeln("self.render_into(f).map_err(|_| ::std::fmt::Error {})");
+        buf.writeln("}");
+        buf.writeln("}");
     }
 
     // Implement iron's Modifier<Response> if enabled
-    fn impl_modifier_response(&mut self) {
-        self.write_header("::askama::iron::Modifier<::askama::iron::Response>", None);
-        self.buf
-            .writeln("fn modify(self, res: &mut ::askama::iron::Response) {");
-        self.buf
-            .writeln("res.body = Some(Box::new(self.render().unwrap().into_bytes()));");
+    fn impl_modifier_response(&mut self, buf: &mut Buffer) {
+        self.write_header(
+            buf,
+            "::askama::iron::Modifier<::askama::iron::Response>",
+            None,
+        );
+        buf.writeln("fn modify(self, res: &mut ::askama::iron::Response) {");
+        buf.writeln("res.body = Some(Box::new(self.render().unwrap().into_bytes()));");
 
         let ext = self.input
             .path
@@ -212,22 +214,25 @@ impl<'a> Generator<'a> {
             .map_or("", |s| s.to_str().unwrap_or(""));
         match ext {
             "html" | "htm" => {
-                self.buf
-                    .writeln("::askama::iron::ContentType::html().0.modify(res);");
+                buf.writeln("::askama::iron::ContentType::html().0.modify(res);");
             }
             _ => (),
         };
 
-        self.buf.writeln("}");
-        self.buf.writeln("}");
+        buf.writeln("}");
+        buf.writeln("}");
     }
 
     // Implement Rocket's `Responder`.
-    fn impl_rocket_responder(&mut self) {
+    fn impl_rocket_responder(&mut self, buf: &mut Buffer) {
         let lifetime = syn::Lifetime::new("'askama", Span::call_site());
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
-        self.write_header("::askama::rocket::Responder<'askama>", Some(vec![param]));
-        self.buf.writeln(
+        self.write_header(
+            buf,
+            "::askama::rocket::Responder<'askama>",
+            Some(vec![param]),
+        );
+        buf.writeln(
             "fn respond_to(self, _: &::askama::rocket::Request) \
              -> ::askama::rocket::Result<'askama> {",
         );
@@ -236,20 +241,18 @@ impl<'a> Generator<'a> {
             Some(s) => s.to_str().unwrap(),
             None => "txt",
         };
-        self.buf
-            .writeln(&format!("::askama::rocket::respond(&self, {:?})", ext));
+        buf.writeln(&format!("::askama::rocket::respond(&self, {:?})", ext));
 
-        self.buf.writeln("}");
-        self.buf.writeln("}");
+        buf.writeln("}");
+        buf.writeln("}");
     }
 
     // Implement Actix-web's `Responder`.
-    fn impl_actix_web_responder(&mut self) {
-        self.write_header("::askama::actix_web::Responder", None);
-        self.buf
-            .writeln("type Item = ::askama::actix_web::HttpResponse;");
-        self.buf.writeln("type Error = ::askama::actix_web::Error;");
-        self.buf.writeln(
+    fn impl_actix_web_responder(&mut self, buf: &mut Buffer) {
+        self.write_header(buf, "::askama::actix_web::Responder", None);
+        buf.writeln("type Item = ::askama::actix_web::HttpResponse;");
+        buf.writeln("type Error = ::askama::actix_web::Error;");
+        buf.writeln(
             "fn respond_to<S>(self, _req: &::askama::actix_web::HttpRequest<S>) \
              -> Result<Self::Item, Self::Error> {",
         );
@@ -258,16 +261,20 @@ impl<'a> Generator<'a> {
             Some(s) => s.to_str().unwrap(),
             None => "txt",
         };
-        self.buf
-            .writeln(&format!("::askama::actix_web::respond(&self, {:?})", ext));
+        buf.writeln(&format!("::askama::actix_web::respond(&self, {:?})", ext));
 
-        self.buf.writeln("}");
-        self.buf.writeln("}");
+        buf.writeln("}");
+        buf.writeln("}");
     }
 
     // Writes header for the `impl` for `TraitFromPathName` or `Template`
     // for the given context struct.
-    fn write_header(&mut self, target: &str, params: Option<Vec<syn::GenericParam>>) {
+    fn write_header(
+        &mut self,
+        buf: &mut Buffer,
+        target: &str,
+        params: Option<Vec<syn::GenericParam>>,
+    ) {
         let mut generics = self.input.ast.generics.clone();
         if let Some(params) = params {
             for param in params {
@@ -276,7 +283,7 @@ impl<'a> Generator<'a> {
         }
         let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
         let (impl_generics, _, where_clause) = generics.split_for_impl();
-        self.buf.writeln(
+        buf.writeln(
             format!(
                 "{} {} for {}{} {{",
                 quote!(impl#impl_generics),
@@ -289,32 +296,32 @@ impl<'a> Generator<'a> {
 
     /* Helper methods for handling node types */
 
-    fn handle(&mut self, ctx: &'a Context, nodes: &'a [Node], level: AstLevel) {
+    fn handle(&mut self, ctx: &'a Context, nodes: &'a [Node], buf: &mut Buffer, level: AstLevel) {
         for n in nodes {
             match *n {
                 Node::Lit(lws, val, rws) => {
-                    self.write_lit(lws, val, rws);
+                    self.write_lit(buf, lws, val, rws);
                 }
                 Node::Comment(ws) => {
-                    self.write_comment(ws);
+                    self.write_comment(buf, ws);
                 }
                 Node::Expr(ws, ref val) => {
-                    self.write_expr(ws, val);
+                    self.write_expr(buf, ws, val);
                 }
                 Node::LetDecl(ws, ref var) => {
-                    self.write_let_decl(ws, var);
+                    self.write_let_decl(buf, ws, var);
                 }
                 Node::Let(ws, ref var, ref val) => {
-                    self.write_let(ws, var, val);
+                    self.write_let(buf, ws, var, val);
                 }
                 Node::Cond(ref conds, ws) => {
-                    self.write_cond(ctx, conds, ws);
+                    self.write_cond(ctx, buf, conds, ws);
                 }
                 Node::Match(ws1, ref expr, inter, ref arms, ws2) => {
-                    self.write_match(ctx, ws1, expr, inter, arms, ws2);
+                    self.write_match(ctx, buf, ws1, expr, inter, arms, ws2);
                 }
                 Node::Loop(ws1, ref var, ref iter, ref body, ws2) => {
-                    self.write_loop(ctx, ws1, var, iter, body, ws2);
+                    self.write_loop(ctx, buf, ws1, var, iter, body, ws2);
                 }
                 Node::BlockDef(ws1, name, _, ws2) => {
                     if let AstLevel::Nested = level {
@@ -324,26 +331,26 @@ impl<'a> Generator<'a> {
                             name
                         );
                     }
-                    self.write_block(ws1, name, ws2);
+                    self.write_block(buf, ws1, name, ws2);
                 }
                 Node::Include(ws, path) => {
-                    self.handle_include(ctx, ws, path);
+                    self.handle_include(ctx, buf, ws, path);
                 }
                 Node::Call(ws, scope, name, ref args) => {
-                    self.write_call(ctx, ws, scope, name, args);
+                    self.write_call(ctx, buf, ws, scope, name, args);
                 }
                 Node::Macro(_, ref m) => {
                     if level != AstLevel::Top {
                         panic!("macro blocks only allowed at the top level");
                     }
-                    self.flush_ws(m.ws1);
+                    self.flush_ws(buf, m.ws1);
                     self.prepare_ws(m.ws2);
                 }
                 Node::Import(ws, _, _) => {
                     if level != AstLevel::Top {
                         panic!("import blocks only allowed at the top level");
                     }
-                    self.handle_ws(ws);
+                    self.handle_ws(buf, ws);
                 }
                 Node::Extends(_) => {
                     if level != AstLevel::Top {
@@ -356,44 +363,45 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn write_cond(&mut self, ctx: &'a Context, conds: &'a [Cond], ws: WS) {
+    fn write_cond(&mut self, ctx: &'a Context, buf: &mut Buffer, conds: &'a [Cond], ws: WS) {
         for (i, &(cws, ref cond, ref nodes)) in conds.iter().enumerate() {
-            self.handle_ws(cws);
+            self.handle_ws(buf, cws);
             match *cond {
                 Some(ref expr) => {
                     let expr_code = self.visit_expr_root(expr);
                     if i == 0 {
-                        self.buf.write("if ");
+                        buf.write("if ");
                     } else {
-                        self.buf.dedent();
-                        self.buf.write("} else if ");
+                        buf.dedent();
+                        buf.write("} else if ");
                     }
-                    self.buf.write(&expr_code);
+                    buf.write(&expr_code);
                 }
                 None => {
-                    self.buf.dedent();
-                    self.buf.write("} else");
+                    buf.dedent();
+                    buf.write("} else");
                 }
             }
-            self.buf.writeln(" {");
+            buf.writeln(" {");
             self.locals.push();
-            self.handle(ctx, nodes, AstLevel::Nested);
+            self.handle(ctx, nodes, buf, AstLevel::Nested);
             self.locals.pop();
         }
-        self.handle_ws(ws);
-        self.buf.writeln("}");
+        self.handle_ws(buf, ws);
+        buf.writeln("}");
     }
 
     fn write_match(
         &mut self,
         ctx: &'a Context,
+        buf: &mut Buffer,
         ws1: WS,
         expr: &Expr,
         inter: Option<&'a str>,
         arms: &'a [When],
         ws2: WS,
     ) {
-        self.flush_ws(ws1);
+        self.flush_ws(buf, ws1);
         if let Some(inter) = inter {
             if !inter.is_empty() {
                 self.next_ws = Some(inter);
@@ -401,83 +409,84 @@ impl<'a> Generator<'a> {
         }
 
         let expr_code = self.visit_expr_root(expr);
-        self.buf.writeln(&format!("match &{} {{", expr_code));
+        buf.writeln(&format!("match &{} {{", expr_code));
         for arm in arms {
             let &(ws, ref variant, ref params, ref body) = arm;
             self.locals.push();
             match *variant {
                 Some(ref param) => {
-                    self.visit_match_variant(param);
+                    self.visit_match_variant(buf, param);
                 }
-                None => self.buf.write("_"),
+                None => buf.write("_"),
             };
             if !params.is_empty() {
-                self.buf.write("(");
+                buf.write("(");
                 for (i, param) in params.iter().enumerate() {
                     if let MatchParameter::Name(p) = *param {
                         self.locals.insert(p);
                     }
                     if i > 0 {
-                        self.buf.write(", ");
+                        buf.write(", ");
                     }
-                    self.visit_match_param(param);
+                    self.visit_match_param(buf, param);
                 }
-                self.buf.write(")");
+                buf.write(")");
             }
-            self.buf.writeln(" => {");
-            self.handle_ws(ws);
-            self.handle(ctx, body, AstLevel::Nested);
-            self.buf.writeln("}");
+            buf.writeln(" => {");
+            self.handle_ws(buf, ws);
+            self.handle(ctx, body, buf, AstLevel::Nested);
+            buf.writeln("}");
             self.locals.pop();
         }
 
-        self.buf.writeln("}");
-        self.handle_ws(ws2);
+        buf.writeln("}");
+        self.handle_ws(buf, ws2);
     }
 
     fn write_loop(
         &mut self,
         ctx: &'a Context,
+        buf: &mut Buffer,
         ws1: WS,
         var: &'a Target,
         iter: &Expr,
         body: &'a [Node],
         ws2: WS,
     ) {
-        self.handle_ws(ws1);
+        self.handle_ws(buf, ws1);
         self.locals.push();
 
         let expr_code = self.visit_expr_root(iter);
-        self.buf.write("for (_loop_index, ");
+        buf.write("for (_loop_index, ");
         let targets = self.visit_target(var);
         for name in &targets {
             self.locals.insert(name);
-            self.buf.write(name);
+            buf.write(name);
         }
-        self.buf
-            .writeln(&format!(") in (&{}).into_iter().enumerate() {{", expr_code));
+        buf.writeln(&format!(") in (&{}).into_iter().enumerate() {{", expr_code));
 
-        self.handle(ctx, body, AstLevel::Nested);
-        self.handle_ws(ws2);
-        self.buf.writeln("}");
+        self.handle(ctx, body, buf, AstLevel::Nested);
+        self.handle_ws(buf, ws2);
+        buf.writeln("}");
         self.locals.pop();
     }
 
     fn write_call(
         &mut self,
         ctx: &'a Context,
+        buf: &mut Buffer,
         ws: WS,
         scope: Option<&str>,
         name: &str,
         args: &[Expr],
     ) {
         if name == "super" {
-            self.flush_ws(ws);
+            self.flush_ws(buf, ws);
             let line = match self.super_block {
                 Some(ref name) => format!("self.render_block_{}_into(writer)?;", name),
                 None => panic!("cannot call 'super()' outside block"),
             };
-            self.buf.writeln(&line);
+            buf.writeln(&line);
             self.prepare_ws(ws);
             self.used_super = true;
             return;
@@ -499,9 +508,9 @@ impl<'a> Generator<'a> {
                 .unwrap_or_else(|| panic!("macro '{}' not found", name))
         };
 
-        self.flush_ws(ws); // Cannot handle_ws() here: whitespace from macro definition comes first
+        self.flush_ws(buf, ws); // Cannot handle_ws() here: whitespace from macro definition comes first
         self.locals.push();
-        self.buf.writeln("{");
+        buf.writeln("{");
         self.prepare_ws(def.ws1);
 
         for (i, arg) in def.args.iter().enumerate() {
@@ -509,87 +518,84 @@ impl<'a> Generator<'a> {
                 args.get(i)
                     .unwrap_or_else(|| panic!("macro '{}' takes more than {} arguments", name, i)),
             );
-            self.buf.writeln(&format!("let {} = &{};", arg, expr_code));
+            buf.writeln(&format!("let {} = &{};", arg, expr_code));
             self.locals.insert(arg);
         }
-        self.handle(ctx, &def.nodes, AstLevel::Nested);
+        self.handle(ctx, &def.nodes, buf, AstLevel::Nested);
 
-        self.flush_ws(def.ws2);
-        self.buf.writeln("}");
+        self.flush_ws(buf, def.ws2);
+        buf.writeln("}");
         self.locals.pop();
         self.prepare_ws(ws);
     }
 
-    fn handle_include(&mut self, ctx: &'a Context, ws: WS, path: &str) {
-        self.flush_ws(ws);
+    fn handle_include(&mut self, ctx: &'a Context, buf: &mut Buffer, ws: WS, path: &str) {
+        self.flush_ws(buf, ws);
         let path = self.input
             .config
             .find_template(path, Some(&self.input.path));
         let src = get_template_source(&path);
         let nodes = parser::parse(&src);
-        let nested = {
+        {
             let mut gen = self.child();
-            gen.handle(ctx, &nodes, AstLevel::Nested);
-            gen.buf.buf
-        };
-        self.buf.write(&nested);
+            gen.handle(ctx, &nodes, buf, AstLevel::Nested);
+        }
         self.prepare_ws(ws);
     }
 
-    fn write_let_decl(&mut self, ws: WS, var: &'a Target) {
-        self.handle_ws(ws);
-        self.buf.write("let ");
+    fn write_let_decl(&mut self, buf: &mut Buffer, ws: WS, var: &'a Target) {
+        self.handle_ws(buf, ws);
+        buf.write("let ");
         match *var {
             Target::Name(name) => {
                 self.locals.insert(name);
-                self.buf.write(name);
+                buf.write(name);
             }
         }
-        self.buf.writeln(";");
+        buf.writeln(";");
     }
 
-    fn write_let(&mut self, ws: WS, var: &'a Target, val: &Expr) {
-        self.handle_ws(ws);
-        let mut buf = Buffer::new(0);
-        self.visit_expr(&mut buf, val);
+    fn write_let(&mut self, buf: &mut Buffer, ws: WS, var: &'a Target, val: &Expr) {
+        self.handle_ws(buf, ws);
+        let mut expr_buf = Buffer::new(0);
+        self.visit_expr(&mut expr_buf, val);
 
         match *var {
             Target::Name(name) => {
                 if !self.locals.contains(name) {
-                    self.buf.write("let ");
+                    buf.write("let ");
                     self.locals.insert(name);
                 }
-                self.buf.write(name);
+                buf.write(name);
             }
         }
-        self.buf.writeln(&format!(" = {};", &buf.buf));
+        buf.writeln(&format!(" = {};", &expr_buf.buf));
     }
 
-    fn write_block(&mut self, ws1: WS, name: &str, ws2: WS) {
-        self.flush_ws(ws1);
-        self.buf
-            .writeln(&format!("self.render_block_{}_into(writer)?;", name));
+    fn write_block(&mut self, buf: &mut Buffer, ws1: WS, name: &str, ws2: WS) {
+        self.flush_ws(buf, ws1);
+        buf.writeln(&format!("self.render_block_{}_into(writer)?;", name));
         self.prepare_ws(ws2);
     }
 
-    fn write_expr(&mut self, ws: WS, s: &Expr) {
-        self.handle_ws(ws);
-        let mut buf = Buffer::new(0);
-        let wrapped = self.visit_expr(&mut buf, s);
+    fn write_expr(&mut self, buf: &mut Buffer, ws: WS, s: &Expr) {
+        self.handle_ws(buf, ws);
+        let mut expr_buf = Buffer::new(0);
+        let wrapped = self.visit_expr(&mut expr_buf, s);
 
         use self::DisplayWrap::*;
         use super::input::EscapeMode::*;
-        self.buf.writeln("writer.write_fmt(format_args!(\"{}\", &{");
-        self.buf.write(&match (wrapped, &self.input.escaping) {
-            (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => buf.buf,
-            (Unwrapped, &Html) => format!("::askama::MarkupDisplay::from(&{})", buf.buf),
+        buf.writeln("writer.write_fmt(format_args!(\"{}\", &{");
+        buf.write(&match (wrapped, &self.input.escaping) {
+            (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => expr_buf.buf,
+            (Unwrapped, &Html) => format!("::askama::MarkupDisplay::from(&{})", expr_buf.buf),
         });
-        self.buf.writeln("");
-        self.buf.dedent();
-        self.buf.writeln("}))?;");
+        buf.writeln("");
+        buf.dedent();
+        buf.writeln("}))?;");
     }
 
-    fn write_lit(&mut self, lws: &'a str, val: &str, rws: &'a str) {
+    fn write_lit(&mut self, buf: &mut Buffer, lws: &'a str, val: &str, rws: &'a str) {
         assert!(self.next_ws.is_none());
         if !lws.is_empty() {
             if self.skip_ws {
@@ -598,19 +604,19 @@ impl<'a> Generator<'a> {
                 assert!(rws.is_empty());
                 self.next_ws = Some(lws);
             } else {
-                self.buf.writeln(&format!("writer.write_str({:#?})?;", lws));
+                buf.writeln(&format!("writer.write_str({:#?})?;", lws));
             }
         }
         if !val.is_empty() {
-            self.buf.writeln(&format!("writer.write_str({:#?})?;", val));
+            buf.writeln(&format!("writer.write_str({:#?})?;", val));
         }
         if !rws.is_empty() {
             self.next_ws = Some(rws);
         }
     }
 
-    fn write_comment(&mut self, ws: WS) {
-        self.handle_ws(ws);
+    fn write_comment(&mut self, buf: &mut Buffer, ws: WS) {
+        self.handle_ws(buf, ws);
     }
 
     /* Visitor methods for expression types */
@@ -641,38 +647,38 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn visit_match_variant(&mut self, param: &MatchVariant) -> DisplayWrap {
-        let mut buf = Buffer::new(0);
+    fn visit_match_variant(&mut self, buf: &mut Buffer, param: &MatchVariant) -> DisplayWrap {
+        let mut expr_buf = Buffer::new(0);
         let wrapped = match *param {
             MatchVariant::StrLit(s) => {
-                buf.write("&");
-                self.visit_str_lit(&mut buf, s)
+                expr_buf.write("&");
+                self.visit_str_lit(&mut expr_buf, s)
             }
-            MatchVariant::NumLit(s) => self.visit_num_lit(&mut buf, s),
+            MatchVariant::NumLit(s) => self.visit_num_lit(&mut expr_buf, s),
             MatchVariant::Name(s) => {
-                buf.write(s);
+                expr_buf.write(s);
                 DisplayWrap::Unwrapped
             }
             MatchVariant::Path(ref s) => {
-                buf.write(&s.join("::"));
+                expr_buf.write(&s.join("::"));
                 DisplayWrap::Unwrapped
             }
         };
-        self.buf.write(&buf.buf);
+        buf.write(&expr_buf.buf);
         wrapped
     }
 
-    fn visit_match_param(&mut self, param: &MatchParameter) -> DisplayWrap {
-        let mut buf = Buffer::new(0);
+    fn visit_match_param(&mut self, buf: &mut Buffer, param: &MatchParameter) -> DisplayWrap {
+        let mut expr_buf = Buffer::new(0);
         let wrapped = match *param {
-            MatchParameter::NumLit(s) => self.visit_num_lit(&mut buf, s),
-            MatchParameter::StrLit(s) => self.visit_str_lit(&mut buf, s),
+            MatchParameter::NumLit(s) => self.visit_num_lit(&mut expr_buf, s),
+            MatchParameter::StrLit(s) => self.visit_str_lit(&mut expr_buf, s),
             MatchParameter::Name(s) => {
-                buf.write(s);
+                expr_buf.write(s);
                 DisplayWrap::Unwrapped
             }
         };
-        self.buf.write(&buf.buf);
+        buf.write(&expr_buf.buf);
         wrapped
     }
 
@@ -891,19 +897,19 @@ impl<'a> Generator<'a> {
 
     // Combines `flush_ws()` and `prepare_ws()` to handle both trailing whitespace from the
     // preceding literal and leading whitespace from the succeeding literal.
-    fn handle_ws(&mut self, ws: WS) {
-        self.flush_ws(ws);
+    fn handle_ws(&mut self, buf: &mut Buffer, ws: WS) {
+        self.flush_ws(buf, ws);
         self.prepare_ws(ws);
     }
 
     // If the previous literal left some trailing whitespace in `next_ws` and the
     // prefix whitespace suppressor from the given argument, flush that whitespace.
     // In either case, `next_ws` is reset to `None` (no trailing whitespace).
-    fn flush_ws(&mut self, ws: WS) {
+    fn flush_ws(&mut self, buf: &mut Buffer, ws: WS) {
         if self.next_ws.is_some() && !ws.0 {
             let val = self.next_ws.unwrap();
             if !val.is_empty() {
-                self.buf.writeln(&format!("writer.write_str({:#?})?;", val));
+                buf.writeln(&format!("writer.write_str({:#?})?;", val));
             }
         }
         self.next_ws = None;
