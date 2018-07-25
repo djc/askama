@@ -565,7 +565,7 @@ impl<'a> Generator<'a> {
                 self.buf.write(name);
             }
         }
-        self.buf.write(&format!(" = {};", &buf.buf));
+        self.buf.writeln(&format!(" = {};", &buf.buf));
     }
 
     fn write_block(&mut self, ws1: WS, name: &str, ws2: WS) {
