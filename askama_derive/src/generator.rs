@@ -1,4 +1,4 @@
-use super::{get_template_source, Context};
+use super::{get_template_source, Context, Heritage};
 use input::TemplateInput;
 use parser::{self, Cond, Expr, MatchParameter, MatchVariant, Node, Target, When, WS};
 use shared::filters;
@@ -13,8 +13,12 @@ use std::{cmp, hash, str};
 
 use syn;
 
-pub(crate) fn generate(input: &TemplateInput, contexts: &HashMap<&PathBuf, Context>) -> String {
-    Generator::new(input, contexts, SetChain::new()).build(&contexts[&input.path])
+pub(crate) fn generate(
+    input: &TemplateInput,
+    contexts: &HashMap<&PathBuf, Context>,
+    heritage: &Option<Heritage>,
+) -> String {
+    Generator::new(input, contexts, heritage, SetChain::new()).build(&contexts[&input.path])
 }
 
 struct Generator<'a> {
@@ -22,6 +26,8 @@ struct Generator<'a> {
     input: &'a TemplateInput<'a>,
     // All contexts, keyed by the package-relative template path
     contexts: &'a HashMap<&'a PathBuf, Context<'a>>,
+    // The heritage contains references to blocks and their ancestry
+    heritage: &'a Option<Heritage<'a>>,
     // Variables accessible directly from the current scope (not redirected to context)
     locals: SetChain<'a, &'a str>,
     // Suffix whitespace from the previous literal. Will be flushed to the
@@ -42,11 +48,13 @@ impl<'a> Generator<'a> {
     fn new<'n>(
         input: &'n TemplateInput,
         contexts: &'n HashMap<&'n PathBuf, Context<'n>>,
+        heritage: &'n Option<Heritage>,
         locals: SetChain<'n, &'n str>,
     ) -> Generator<'n> {
         Generator {
             input,
             contexts,
+            heritage,
             locals,
             next_ws: None,
             skip_ws: false,
@@ -57,24 +65,20 @@ impl<'a> Generator<'a> {
 
     fn child(&mut self) -> Generator {
         let locals = SetChain::with_parent(&self.locals);
-        Self::new(self.input, self.contexts, locals)
+        Self::new(self.input, self.contexts, self.heritage, locals)
     }
 
     // Takes a Context and generates the relevant implementations.
     fn build(mut self, ctx: &'a Context) -> String {
         let mut buf = Buffer::new(0);
-        let heritage = if !ctx.blocks.is_empty() {
+        if !ctx.blocks.is_empty() {
             if let Some(parent) = self.input.parent {
                 self.deref_to_parent(&mut buf, parent);
             }
-            let heritage = Heritage::new(ctx, self.contexts);
-            self.trait_blocks(&heritage, &mut buf);
-            Some(heritage)
-        } else {
-            None
+            self.trait_blocks(&mut buf);
         };
 
-        self.impl_template(ctx, &heritage, &mut buf);
+        self.impl_template(ctx, &mut buf);
         self.impl_display(&mut buf);
         if cfg!(feature = "iron") {
             self.impl_modifier_response(&mut buf);
@@ -89,19 +93,14 @@ impl<'a> Generator<'a> {
     }
 
     // Implement `Template` for the given context struct.
-    fn impl_template(
-        &mut self,
-        ctx: &'a Context,
-        heritage: &Option<Heritage<'a>>,
-        buf: &mut Buffer,
-    ) {
+    fn impl_template(&mut self, ctx: &'a Context, buf: &mut Buffer) {
         self.write_header(buf, "::askama::Template", None);
         buf.writeln(
             "fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
              ::askama::Result<()> {",
         );
 
-        if let Some(heritage) = heritage {
+        if let Some(heritage) = self.heritage {
             self.handle(heritage.root, heritage.root.nodes, buf, AstLevel::Top);
         } else {
             self.handle(ctx, &ctx.nodes, buf, AstLevel::Top);
@@ -121,9 +120,12 @@ impl<'a> Generator<'a> {
         buf.writeln("}");
     }
 
-    fn trait_blocks(&mut self, heritage: &Heritage<'a>, buf: &mut Buffer) {
+    fn trait_blocks(&mut self, buf: &mut Buffer) {
         let trait_name = format!("{}Blocks", self.input.ast.ident);
         let mut methods = vec![];
+        let heritage = self.heritage
+            .as_ref()
+            .expect("need heritage for blocks trait");
 
         self.write_header(buf, &trait_name, None);
         for blocks in heritage.blocks.values() {
@@ -1021,35 +1023,6 @@ where
     }
 }
 
-struct Heritage<'a> {
-    root: &'a Context<'a>,
-    blocks: BlockAncestry<'a>,
-}
-
-impl<'a> Heritage<'a> {
-    fn new<'n>(
-        mut ctx: &'n Context<'n>,
-        contexts: &'n HashMap<&'n PathBuf, Context<'n>>,
-    ) -> Heritage<'n> {
-        let mut blocks: BlockAncestry<'n> = ctx.blocks
-            .iter()
-            .map(|(name, def)| (*name, vec![(ctx, *def)]))
-            .collect();
-
-        while let Some(ref path) = ctx.extends {
-            ctx = &contexts[&path];
-            for (name, def) in &ctx.blocks {
-                blocks
-                    .entry(name)
-                    .or_insert_with(|| vec![])
-                    .push((ctx, def));
-            }
-        }
-
-        Heritage { root: ctx, blocks }
-    }
-}
-
 #[derive(Clone, PartialEq)]
 enum AstLevel {
     Top,
@@ -1066,5 +1039,3 @@ enum DisplayWrap {
 }
 
 impl Copy for DisplayWrap {}
-
-type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a Node<'a>)>>;

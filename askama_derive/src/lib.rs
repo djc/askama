@@ -53,11 +53,18 @@ fn build_template(ast: &syn::DeriveInput) -> String {
         contexts.insert(*path, Context::new(&input.config, path, nodes));
     }
 
+    let ctx = &contexts[&input.path];
+    let heritage = if !ctx.blocks.is_empty() {
+        Some(Heritage::new(ctx, &contexts))
+    } else {
+        None
+    };
+
     if input.print == Print::Ast || input.print == Print::All {
         println!("{:?}", parsed[&input.path]);
     }
 
-    let code = generator::generate(&input, &contexts);
+    let code = generator::generate(&input, &contexts, &heritage);
     if input.print == Print::Code || input.print == Print::All {
         println!("{}", code);
     }
@@ -85,6 +92,37 @@ fn find_used_templates(input: &TemplateInput, map: &mut HashMap<PathBuf, String>
         map.insert(path, source);
     }
 }
+
+pub(crate) struct Heritage<'a> {
+    root: &'a Context<'a>,
+    blocks: BlockAncestry<'a>,
+}
+
+impl<'a> Heritage<'a> {
+    fn new<'n>(
+        mut ctx: &'n Context<'n>,
+        contexts: &'n HashMap<&'n PathBuf, Context<'n>>,
+    ) -> Heritage<'n> {
+        let mut blocks: BlockAncestry<'n> = ctx.blocks
+            .iter()
+            .map(|(name, def)| (*name, vec![(ctx, *def)]))
+            .collect();
+
+        while let Some(ref path) = ctx.extends {
+            ctx = &contexts[&path];
+            for (name, def) in &ctx.blocks {
+                blocks
+                    .entry(name)
+                    .or_insert_with(|| vec![])
+                    .push((ctx, def));
+            }
+        }
+
+        Heritage { root: ctx, blocks }
+    }
+}
+
+type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a Node<'a>)>>;
 
 pub(crate) struct Context<'a> {
     nodes: &'a [Node<'a>],
