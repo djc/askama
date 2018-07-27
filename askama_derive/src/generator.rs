@@ -38,10 +38,7 @@ struct Generator<'a> {
     // determine whether to flush prefix whitespace from the next literal.
     skip_ws: bool,
     // If currently in a block, this will contain the name of a potential parent block
-    super_block: Option<String>,
-    // If the super macro is used; this determines whether code for the parent block
-    // is generated or not.
-    used_super: bool,
+    super_block: Option<(&'a str, usize)>,
 }
 
 impl<'a> Generator<'a> {
@@ -59,7 +56,6 @@ impl<'a> Generator<'a> {
             next_ws: None,
             skip_ws: false,
             super_block: None,
-            used_super: false,
         }
     }
 
@@ -75,7 +71,6 @@ impl<'a> Generator<'a> {
             if let Some(parent) = self.input.parent {
                 self.deref_to_parent(&mut buf, parent);
             }
-            self.trait_blocks(&mut buf);
         };
 
         self.impl_template(ctx, &mut buf);
@@ -117,64 +112,6 @@ impl<'a> Generator<'a> {
         ));
         buf.writeln("}");
 
-        buf.writeln("}");
-    }
-
-    fn trait_blocks(&mut self, buf: &mut Buffer) {
-        let trait_name = format!("{}Blocks", self.input.ast.ident);
-        let mut methods = vec![];
-        let heritage = self.heritage
-            .as_ref()
-            .expect("need heritage for blocks trait");
-
-        self.write_header(buf, &trait_name, None);
-        for blocks in heritage.blocks.values() {
-            for (gen, (ctx, def)) in blocks.iter().enumerate() {
-                self.used_super = false;
-                if let Node::BlockDef(ws1, name, nodes, ws2) = def {
-                    let fname = if gen == 0 {
-                        name.to_string()
-                    } else {
-                        format!("{}_g{}", name, gen)
-                    };
-
-                    buf.writeln("#[allow(unused_variables)]");
-                    buf.writeln(&format!(
-                        "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
-                         -> ::askama::Result<()> {{",
-                        fname
-                    ));
-                    methods.push(fname);
-                    self.prepare_ws(*ws1);
-
-                    self.locals.push();
-                    self.super_block = Some(format!("{}_g{}", name, gen + 1));
-                    self.handle(ctx, nodes, buf, AstLevel::Block);
-                    self.super_block = None;
-                    self.locals.pop();
-
-                    self.flush_ws(buf, *ws2);
-                    buf.writeln("Ok(())");
-                    buf.writeln("}");
-                } else {
-                    panic!("only block definitions allowed here");
-                }
-
-                if !self.used_super {
-                    break;
-                }
-            }
-        }
-        buf.writeln("}");
-
-        buf.writeln(&format!("pub trait {} {{", trait_name));
-        for name in methods {
-            buf.writeln(&format!(
-                "fn render_block_{}_into(&self, writer: &mut ::std::fmt::Write) \
-                 -> ::askama::Result<()>;",
-                name
-            ));
-        }
         buf.writeln("}");
     }
 
@@ -333,7 +270,8 @@ impl<'a> Generator<'a> {
                             name
                         );
                     }
-                    self.write_block(buf, ws1, name, ws2);
+                    let outer = WS(ws1.0, ws2.1);
+                    self.write_block(buf, Some(name), outer);
                 }
                 Node::Include(ws, path) => {
                     self.handle_include(ctx, buf, ws, path);
@@ -483,14 +421,7 @@ impl<'a> Generator<'a> {
         args: &[Expr],
     ) {
         if name == "super" {
-            self.flush_ws(buf, ws);
-            let line = match self.super_block {
-                Some(ref name) => format!("self.render_block_{}_into(writer)?;", name),
-                None => panic!("cannot call 'super()' outside block"),
-            };
-            buf.writeln(&line);
-            self.prepare_ws(ws);
-            self.used_super = true;
+            self.write_block(buf, None, ws);
             return;
         }
 
@@ -576,10 +507,59 @@ impl<'a> Generator<'a> {
         buf.writeln(&format!(" = {};", &expr_buf.buf));
     }
 
-    fn write_block(&mut self, buf: &mut Buffer, ws1: WS, name: &str, ws2: WS) {
-        self.flush_ws(buf, ws1);
-        buf.writeln(&format!("self.render_block_{}_into(writer)?;", name));
-        self.prepare_ws(ws2);
+    // If `name` is `Some`, this is a call to a block definition, and we have to find
+    // the first block for that name from the ancestry chain. If name is `None`, this
+    // is from a `super()` call, and we can get the name from `self.super_block`.
+    fn write_block(&mut self, buf: &mut Buffer, name: Option<&'a str>, outer: WS) {
+        // Flush preceding whitespace according to the outer WS spec
+        self.flush_ws(buf, outer);
+
+        let prev_block = self.super_block;
+        let cur = match (name, prev_block) {
+            // The top-level context contains a block definition
+            (Some(cur_name), None) => (cur_name, 0),
+            // A block definition contains a block definition of the same name
+            (Some(cur_name), Some((prev_name, _))) if cur_name == prev_name => {
+                panic!("cannot define recursive blocks ({})", cur_name)
+            }
+            // A block definition contains a definition of another block
+            (Some(cur_name), Some((_, _))) => (cur_name, 0),
+            // `super()` was called inside a block
+            (None, Some((prev_name, gen))) => (prev_name, gen + 1),
+            // `super()` is called from outside a block
+            (None, None) => panic!("cannot call 'super()' outside block"),
+        };
+        self.super_block = Some(cur);
+
+        // Get the block definition from the heritage chain
+        let heritage = self.heritage
+            .as_ref()
+            .unwrap_or_else(|| panic!("no block ancestors available"));
+        let (ctx, def) = heritage.blocks[cur.0]
+            .get(cur.1)
+            .unwrap_or_else(|| match name {
+                None => panic!("no super() block found for block '{}'", cur.0),
+                Some(name) => panic!("no block found for name '{}'", name),
+            });
+
+        // Get the nodes and whitespace suppression data from the block definition
+        let (ws1, nodes, ws2) = if let Node::BlockDef(ws1, _, nodes, ws2) = def {
+            (ws1, nodes, ws2)
+        } else {
+            unreachable!()
+        };
+
+        // Handle inner whitespace suppression spec and process block nodes
+        self.prepare_ws(*ws1);
+        self.locals.push();
+        self.handle(ctx, nodes, buf, AstLevel::Block);
+        self.locals.pop();
+        self.flush_ws(buf, *ws2);
+
+        // Restore original block context and set whitespace suppression for
+        // succeeding whitespace according to the outer WS spec
+        self.super_block = prev_block;
+        self.prepare_ws(outer);
     }
 
     fn write_expr(&mut self, buf: &mut Buffer, ws: WS, s: &Expr) {
