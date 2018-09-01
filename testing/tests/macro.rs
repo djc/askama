@@ -26,3 +26,13 @@ fn test_import() {
     let t = ImportTemplate { s: "foo" };
     assert_eq!(t.render().unwrap(), "foo foo foo");
 }
+
+#[derive(Template)]
+#[template(path = "deep-nested-macro.html")]
+struct NestedTemplate;
+
+#[test]
+fn test_nested() {
+    let t = NestedTemplate;
+    assert_eq!(t.render().unwrap(), "foo");
+}
