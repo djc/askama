@@ -1,7 +1,11 @@
-{%- macro child() -%}
+{%- macro child0() -%}
     foo
 {%- endmacro -%}
 
+{%- macro child1() -%}
+    {% call child0() %}
+{%- endmacro -%}
+
 {%- macro parent() -%}
-    {% call child() %}
+    {% call child1() %}
 {%- endmacro -%}
