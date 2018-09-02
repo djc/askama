@@ -103,7 +103,8 @@ impl<'a> Heritage<'a> {
         mut ctx: &'n Context<'n>,
         contexts: &'n HashMap<&'n PathBuf, Context<'n>>,
     ) -> Heritage<'n> {
-        let mut blocks: BlockAncestry<'n> = ctx.blocks
+        let mut blocks: BlockAncestry<'n> = ctx
+            .blocks
             .iter()
             .map(|(name, def)| (*name, vec![(ctx, *def)]))
             .collect();

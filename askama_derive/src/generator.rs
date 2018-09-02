@@ -147,7 +147,8 @@ impl<'a> Generator<'a> {
         buf.writeln("fn modify(self, res: &mut ::askama::iron::Response) {");
         buf.writeln("res.body = Some(Box::new(self.render().unwrap().into_bytes()));");
 
-        let ext = self.input
+        let ext = self
+            .input
             .path
             .extension()
             .map_or("", |s| s.to_str().unwrap_or(""));
@@ -429,14 +430,16 @@ impl<'a> Generator<'a> {
         let def = if let Some(s) = match scope {
             None => match level {
                 AstLevel::Nested(s) => s,
-                _ => None
+                _ => None,
             },
             s => s,
         } {
-            let path = ctx.imports
+            let path = ctx
+                .imports
                 .get(s)
                 .unwrap_or_else(|| panic!("no import found for scope '{}'", s));
-            let mctx = self.contexts
+            let mctx = self
+                .contexts
                 .get(path)
                 .unwrap_or_else(|| panic!("context for '{:?}' not found", path));
             mctx.macros
@@ -471,7 +474,8 @@ impl<'a> Generator<'a> {
 
     fn handle_include(&mut self, ctx: &'a Context, buf: &mut Buffer, ws: WS, path: &str) {
         self.flush_ws(buf, ws);
-        let path = self.input
+        let path = self
+            .input
             .config
             .find_template(path, Some(&self.input.path));
         let src = get_template_source(&path);
@@ -539,7 +543,8 @@ impl<'a> Generator<'a> {
         self.super_block = Some(cur);
 
         // Get the block definition from the heritage chain
-        let heritage = self.heritage
+        let heritage = self
+            .heritage
             .as_ref()
             .unwrap_or_else(|| panic!("no block ancestors available"));
         let (ctx, def) = heritage.blocks[cur.0]

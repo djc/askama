@@ -27,8 +27,10 @@ impl Config {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let filename = root.join(CONFIG_FILE_NAME);
         if filename.exists() {
-            Self::from_str(&fs::read_to_string(&filename)
-                .expect(&format!("unable to read {}", filename.to_str().unwrap())))
+            Self::from_str(
+                &fs::read_to_string(&filename)
+                    .expect(&format!("unable to read {}", filename.to_str().unwrap())),
+            )
         } else {
             Self::from_str("")
         }

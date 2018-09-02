@@ -409,7 +409,8 @@ pub mod actix_web {
     use self::mime_guess::get_mime_type;
 
     pub fn respond(t: &super::Template, ext: &str) -> Result<HttpResponse, Error> {
-        let rsp = t.render()
+        let rsp = t
+            .render()
             .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
         let ctype = get_mime_type(ext).to_string();
         Ok(HttpResponse::Ok().content_type(ctype.as_str()).body(rsp))
