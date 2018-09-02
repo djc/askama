@@ -427,13 +427,15 @@ impl<'a> Generator<'a> {
             return;
         }
 
-        let def = if let Some(s) = match scope {
+        let own_scope = match scope {
             None => match level {
                 AstLevel::Nested(s) => s,
                 _ => None,
             },
             s => s,
-        } {
+        };
+
+        let def = if let Some(s) = own_scope {
             let path = ctx
                 .imports
                 .get(s)
@@ -464,7 +466,7 @@ impl<'a> Generator<'a> {
             buf.writeln(&format!("let {} = &{};", arg, expr_code));
             self.locals.insert(arg);
         }
-        self.handle(ctx, &def.nodes, buf, AstLevel::Nested(scope));
+        self.handle(ctx, &def.nodes, buf, AstLevel::Nested(own_scope));
 
         self.flush_ws(buf, def.ws2);
         buf.writeln("}");
