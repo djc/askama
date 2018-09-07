@@ -22,4 +22,4 @@ askama_shared = { version = "0.7.1", path = "../askama_shared" }
 nom = "4"
 proc-macro2 = "0.4"
 quote = "0.6"
-syn = "0.14"
+syn = "0.15"
