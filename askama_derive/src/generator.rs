@@ -264,7 +264,7 @@ impl<'a> Generator<'a> {
                     self.write_loop(ctx, buf, ws1, var, iter, body, ws2);
                 }
                 Node::BlockDef(ws1, name, _, ws2) => {
-                    if let AstLevel::Nested(_) = level {
+                    if AstLevel::Nested == level {
                         panic!(
                             "blocks ('{}') are only allowed at the top level of a template \
                              or another block",
@@ -278,7 +278,7 @@ impl<'a> Generator<'a> {
                     self.handle_include(ctx, buf, ws, path);
                 }
                 Node::Call(ws, scope, name, ref args) => {
-                    self.write_call(ctx, buf, ws, scope, name, args, level);
+                    self.write_call(ctx, buf, ws, scope, name, args);
                 }
                 Node::Macro(_, ref m) => {
                     if level != AstLevel::Top {
@@ -325,7 +325,7 @@ impl<'a> Generator<'a> {
             }
             buf.writeln(" {");
             self.locals.push();
-            self.handle(ctx, nodes, buf, AstLevel::Nested(None));
+            self.handle(ctx, nodes, buf, AstLevel::Nested);
             self.locals.pop();
         }
         self.handle_ws(buf, ws);
@@ -375,7 +375,7 @@ impl<'a> Generator<'a> {
             }
             buf.writeln(" => {");
             self.handle_ws(buf, ws);
-            self.handle(ctx, body, buf, AstLevel::Nested(None));
+            self.handle(ctx, body, buf, AstLevel::Nested);
             buf.writeln("}");
             self.locals.pop();
         }
@@ -406,7 +406,7 @@ impl<'a> Generator<'a> {
         }
         buf.writeln(&format!(") in (&{}).into_iter().enumerate() {{", expr_code));
 
-        self.handle(ctx, body, buf, AstLevel::Nested(None));
+        self.handle(ctx, body, buf, AstLevel::Nested);
         self.handle_ws(buf, ws2);
         buf.writeln("}");
         self.locals.pop();
@@ -420,22 +420,13 @@ impl<'a> Generator<'a> {
         scope: Option<&str>,
         name: &str,
         args: &[Expr],
-        level: AstLevel,
     ) {
         if name == "super" {
             self.write_block(buf, None, ws);
             return;
         }
 
-        let own_scope = match scope {
-            None => match level {
-                AstLevel::Nested(s) => s,
-                _ => None,
-            },
-            s => s,
-        };
-
-        let def = if let Some(s) = own_scope {
+        let (def, own_ctx) = if let Some(s) = scope {
             let path = ctx
                 .imports
                 .get(s)
@@ -444,14 +435,17 @@ impl<'a> Generator<'a> {
                 .contexts
                 .get(path)
                 .unwrap_or_else(|| panic!("context for '{:?}' not found", path));
-            mctx.macros
-                .get(name)
-                .unwrap_or_else(|| panic!("macro '{}' not found in scope '{}'", s, name))
+            (mctx.macros
+                 .get(name)
+                 .unwrap_or_else(|| panic!("macro '{}' not found in scope '{}'", s, name)),
+             mctx)
         } else {
-            ctx.macros
-                .get(name)
-                .unwrap_or_else(|| panic!("macro '{}' not found", name))
+            (ctx.macros
+                 .get(name)
+                 .unwrap_or_else(|| panic!("macro '{}' not found", name)),
+             ctx)
         };
+
 
         self.flush_ws(buf, ws); // Cannot handle_ws() here: whitespace from macro definition comes first
         self.locals.push();
@@ -466,7 +460,8 @@ impl<'a> Generator<'a> {
             buf.writeln(&format!("let {} = &{};", arg, expr_code));
             self.locals.insert(arg);
         }
-        self.handle(ctx, &def.nodes, buf, AstLevel::Nested(own_scope));
+
+        self.handle(own_ctx, &def.nodes, buf, AstLevel::Nested);
 
         self.flush_ws(buf, def.ws2);
         buf.writeln("}");
@@ -486,7 +481,7 @@ impl<'a> Generator<'a> {
             // Since nodes must not outlive the Generator, we instantiate
             // a nested Generator here to handle the include's nodes.
             let mut gen = self.child();
-            gen.handle(ctx, &nodes, buf, AstLevel::Nested(None));
+            gen.handle(ctx, &nodes, buf, AstLevel::Nested);
         }
         self.prepare_ws(ws);
     }
@@ -1018,13 +1013,13 @@ where
 }
 
 #[derive(Clone, PartialEq)]
-enum AstLevel<'a> {
+enum AstLevel {
     Top,
     Block,
-    Nested(Option<&'a str>),
+    Nested,
 }
 
-impl<'a> Copy for AstLevel<'a> {}
+impl Copy for AstLevel {}
 
 #[derive(Clone)]
 enum DisplayWrap {
