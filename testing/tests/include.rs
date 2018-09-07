@@ -15,3 +15,16 @@ fn test_include() {
     let s = IncludeTemplate { strs: &strs };
     assert_eq!(s.render().unwrap(), "\n  INCLUDED: foo\n  INCLUDED: bar")
 }
+
+#[derive(Template)]
+#[template(path = "deep-include-parent.html")]
+struct DeepIncludeTemplate<'a> {
+    strs: &'a [&'a str],
+}
+
+#[test]
+fn test_deep_include() {
+    let strs = vec!["foo", "bar"];
+    let s = DeepIncludeTemplate { strs: &strs };
+    assert_eq!(s.render().unwrap(), "\n  INCLUDED: foo\n  INCLUDED: bar")
+}
