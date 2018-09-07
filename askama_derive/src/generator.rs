@@ -435,17 +435,20 @@ impl<'a> Generator<'a> {
                 .contexts
                 .get(path)
                 .unwrap_or_else(|| panic!("context for '{:?}' not found", path));
-            (mctx.macros
-                 .get(name)
-                 .unwrap_or_else(|| panic!("macro '{}' not found in scope '{}'", s, name)),
-             mctx)
+            (
+                mctx.macros
+                    .get(name)
+                    .unwrap_or_else(|| panic!("macro '{}' not found in scope '{}'", s, name)),
+                mctx,
+            )
         } else {
-            (ctx.macros
-                 .get(name)
-                 .unwrap_or_else(|| panic!("macro '{}' not found", name)),
-             ctx)
+            (
+                ctx.macros
+                    .get(name)
+                    .unwrap_or_else(|| panic!("macro '{}' not found", name)),
+                ctx,
+            )
         };
-
 
         self.flush_ws(buf, ws); // Cannot handle_ws() here: whitespace from macro definition comes first
         self.locals.push();
