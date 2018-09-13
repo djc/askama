@@ -747,14 +747,14 @@ impl<'a> Generator<'a> {
     fn visit_attr(&mut self, buf: &mut Buffer, obj: &Expr, attr: &str) -> DisplayWrap {
         if let Expr::Var(name) = *obj {
             if name == "loop" {
-                buf.write("_loop_index");
                 if attr == "index" {
-                    buf.write(" + 1");
+                    buf.write("_loop_index + 1");
                     return DisplayWrap::Unwrapped;
                 } else if attr == "index0" {
+                    buf.write("_loop_index");
                     return DisplayWrap::Unwrapped;
                 } else if attr == "first" {
-                    buf.write(" == 0");
+                    buf.write("(_loop_index == 0)");
                     return DisplayWrap::Unwrapped;
                 } else {
                     panic!("unknown loop variable");
