@@ -1,0 +1,3 @@
+{% for s in strings %}
+    {{- loop.index0 }}. {{ s }}{% if !loop.first %}{% else %} (first){% endif %}
+{% endfor %}
