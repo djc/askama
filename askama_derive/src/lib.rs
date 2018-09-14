@@ -186,8 +186,7 @@ impl<'a> Context<'a> {
                 } else {
                     unreachable!()
                 }
-            })
-            .collect();
+            }).collect();
 
         Context {
             nodes,

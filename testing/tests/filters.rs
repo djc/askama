@@ -133,7 +133,10 @@ fn test_nested_filter_ref() {
 }
 
 #[derive(Template)]
-#[template(source = "{% let p = baz.print(foo.as_ref()) %}{{ p|upper }}", ext = "html")]
+#[template(
+    source = "{% let p = baz.print(foo.as_ref()) %}{{ p|upper }}",
+    ext = "html"
+)]
 struct FilterLetFilterTemplate {
     foo: String,
     baz: Baz,
@@ -157,7 +160,10 @@ fn test_filter_let_filter() {
 }
 
 #[derive(Template)]
-#[template(source = "{{ foo|truncate(10) }}{{ foo|truncate(5) }}", ext = "txt")]
+#[template(
+    source = "{{ foo|truncate(10) }}{{ foo|truncate(5) }}",
+    ext = "txt"
+)]
 struct TruncateFilter {
     foo: String,
 }

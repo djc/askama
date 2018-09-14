@@ -182,7 +182,10 @@ enum Alphabet {
 }
 
 #[derive(Template)]
-#[template(source = "{% if x == Alphabet::Alpha %}true{% endif %}", ext = "txt")]
+#[template(
+    source = "{% if x == Alphabet::Alpha %}true{% endif %}",
+    ext = "txt"
+)]
 struct PathCompareTemplate {
     x: Alphabet,
 }
@@ -194,7 +197,10 @@ fn test_path_compare() {
 }
 
 #[derive(Template)]
-#[template(source = "{% for i in [\"a\", \"\"] %}{{ i }}{% endfor %}", ext = "txt")]
+#[template(
+    source = "{% for i in [\"a\", \"\"] %}{{ i }}{% endfor %}",
+    ext = "txt"
+)]
 struct ArrayTemplate {}
 
 #[test]
