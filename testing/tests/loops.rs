@@ -44,5 +44,5 @@ fn test_precedence_for() {
     let s = PrecedenceTemplate {
         strings: vec!["A", "alfa", "1"],
     };
-    assert_eq!(s.render().unwrap(), "0. A (first)\n1. alfa\n2. 1\n");
+    assert_eq!(s.render().unwrap(), "0. A2 (first)\n1. alfa4\n2. 16\n");
 }
