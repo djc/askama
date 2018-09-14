@@ -748,7 +748,7 @@ impl<'a> Generator<'a> {
         if let Expr::Var(name) = *obj {
             if name == "loop" {
                 if attr == "index" {
-                    buf.write("_loop_index + 1");
+                    buf.write("(_loop_index + 1)");
                     return DisplayWrap::Unwrapped;
                 } else if attr == "index0" {
                     buf.write("_loop_index");
