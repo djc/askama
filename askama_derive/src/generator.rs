@@ -404,7 +404,10 @@ impl<'a> Generator<'a> {
             self.locals.insert(name);
             buf.write(name);
         }
-        buf.writeln(&format!(") in (&{}).into_iter().enumerate() {{", expr_code));
+        match iter {
+            Expr::Range(_, _, _) => buf.writeln(&format!(") in ({}).enumerate() {{", expr_code)),
+            _ => buf.writeln(&format!(") in (&{}).into_iter().enumerate() {{", expr_code)),
+        };
 
         self.handle(ctx, body, buf, AstLevel::Nested);
         self.handle_ws(buf, ws2);

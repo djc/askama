@@ -46,3 +46,16 @@ fn test_precedence_for() {
     };
     assert_eq!(s.render().unwrap(), "0. A2 (first)\n1. alfa4\n2. 16\n");
 }
+
+#[derive(Template)]
+#[template(path = "for-range.html")]
+struct ForRangeTemplate {
+    init: i32,
+    end: i32,
+}
+
+#[test]
+fn test_for_range() {
+    let s = ForRangeTemplate { init: -1, end: 1 };
+    assert_eq!(s.render().unwrap(), "foo\nfoo\nbar\nbar\nfoo\nbar\nbar\n");
+}
