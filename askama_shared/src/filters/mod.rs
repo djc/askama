@@ -20,8 +20,9 @@ use escaping::{self, MarkupDisplay};
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 15] = [
+pub const BUILT_IN_FILTERS: [&str; 16] = [
     "abs",
+    "capitalize",
     "e",
     "escape",
     "format",
@@ -165,6 +166,27 @@ where
     Ok(number.abs())
 }
 
+/// Capitalize a value. The first character will be uppercase, all others lowercase.
+pub fn capitalize(s: &fmt::Display) -> Result<String> {
+    let mut s = format!("{}", s);
+
+    match s.get_mut(0..1).map(|s| {
+        s.make_ascii_uppercase();
+        &*s
+    }) {
+        None => Ok(s),
+        _ => {
+            let l = s.len();
+            match s.get_mut(1..l).map(|s| {
+                s.make_ascii_lowercase();
+                &*s
+            }) {
+                _ => Ok(s),
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -258,5 +280,15 @@ mod tests {
         assert_eq!(abs(-1.0).unwrap(), 1.0);
         assert_eq!(abs(1.0 as f64).unwrap(), 1.0 as f64);
         assert_eq!(abs(-1.0 as f64).unwrap(), 1.0 as f64);
+    }
+
+    #[test]
+    fn test_capitalize() {
+        assert_eq!(capitalize(&"foo").unwrap(), "Foo".to_string());
+        assert_eq!(capitalize(&"f").unwrap(), "F".to_string());
+        assert_eq!(capitalize(&"fO").unwrap(), "Fo".to_string());
+        assert_eq!(capitalize(&"").unwrap(), "".to_string());
+        assert_eq!(capitalize(&"FoO").unwrap(), "Foo".to_string());
+        assert_eq!(capitalize(&"foO BAR").unwrap(), "Foo bar".to_string());
     }
 }
