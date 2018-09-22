@@ -1,5 +1,6 @@
 #![cfg_attr(feature = "cargo-clippy", allow(unused_parens))]
 
+extern crate num_traits;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;

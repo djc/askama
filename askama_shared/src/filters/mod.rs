@@ -10,6 +10,7 @@ mod json;
 #[cfg(feature = "serde-json")]
 pub use self::json::json;
 
+use num_traits::Signed;
 use std::fmt;
 
 use super::Result;
@@ -19,7 +20,8 @@ use escaping::{self, MarkupDisplay};
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 14] = [
+pub const BUILT_IN_FILTERS: [&str; 15] = [
+    "abs",
     "e",
     "escape",
     "format",
@@ -155,6 +157,14 @@ where
     Ok(rv)
 }
 
+/// Absolute value
+pub fn abs<T>(number: T) -> Result<T>
+where
+    T: Signed,
+{
+    Ok(number.abs())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -238,5 +248,15 @@ mod tests {
             join((&&&&&["foo", "bar"]).into_iter(), ", ").unwrap(),
             "foo, bar"
         );
+    }
+
+    #[test]
+    fn test_abs() {
+        assert_eq!(abs(1).unwrap(), 1);
+        assert_eq!(abs(-1).unwrap(), 1);
+        assert_eq!(abs(1.0).unwrap(), 1.0);
+        assert_eq!(abs(-1.0).unwrap(), 1.0);
+        assert_eq!(abs(1.0 as f64).unwrap(), 1.0 as f64);
+        assert_eq!(abs(-1.0 as f64).unwrap(), 1.0 as f64);
     }
 }
