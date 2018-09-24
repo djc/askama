@@ -20,9 +20,10 @@ use escaping::{self, MarkupDisplay};
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 17] = [
+pub const BUILT_IN_FILTERS: [&str; 18] = [
     "abs",
     "capitalize",
+    "center",
     "e",
     "escape",
     "format",
@@ -188,6 +189,33 @@ pub fn capitalize(s: &fmt::Display) -> Result<String> {
     }
 }
 
+/// Centers the value in a field of a given width.
+pub fn center(s: &fmt::Display, l: usize) -> Result<String> {
+    let s = format!("{}", s);
+    let len = s.len();
+
+    if l <= len {
+        Ok(s)
+    } else {
+        let p = l - len;
+        let q = p / 2;
+        let r = p % 2;
+        let mut buf = String::with_capacity(l);
+
+        for _ in 0..q {
+            buf.push(' ');
+        }
+
+        buf.push_str(&s);
+
+        for _ in 0..q + r {
+            buf.push(' ');
+        }
+
+        Ok(buf)
+    }
+}
+
 /// Count the words in that string.
 pub fn wordcount(s: &fmt::Display) -> Result<usize> {
     let s = format!("{}", s);
@@ -298,6 +326,14 @@ mod tests {
         assert_eq!(capitalize(&"").unwrap(), "".to_string());
         assert_eq!(capitalize(&"FoO").unwrap(), "Foo".to_string());
         assert_eq!(capitalize(&"foO BAR").unwrap(), "Foo bar".to_string());
+    }
+
+    #[test]
+    fn test_center() {
+        assert_eq!(center(&"f", 3).unwrap(), " f ".to_string());
+        assert_eq!(center(&"f", 4).unwrap(), " f  ".to_string());
+        assert_eq!(center(&"foo", 1).unwrap(), "foo".to_string());
+        assert_eq!(center(&"foo bar", 8).unwrap(), "foo bar ".to_string());
     }
 
     #[test]
