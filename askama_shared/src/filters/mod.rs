@@ -20,7 +20,7 @@ use escaping::{self, MarkupDisplay};
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 16] = [
+pub const BUILT_IN_FILTERS: [&str; 17] = [
     "abs",
     "capitalize",
     "e",
@@ -36,6 +36,7 @@ pub const BUILT_IN_FILTERS: [&str; 16] = [
     "truncate",
     "upper",
     "uppercase",
+    "wordcount",
     "json", // Optional feature; reserve the name anyway
 ];
 
@@ -187,6 +188,13 @@ pub fn capitalize(s: &fmt::Display) -> Result<String> {
     }
 }
 
+/// Count the words in that string.
+pub fn wordcount(s: &fmt::Display) -> Result<usize> {
+    let s = format!("{}", s);
+
+    Ok(s.split_whitespace().count())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -290,5 +298,13 @@ mod tests {
         assert_eq!(capitalize(&"").unwrap(), "".to_string());
         assert_eq!(capitalize(&"FoO").unwrap(), "Foo".to_string());
         assert_eq!(capitalize(&"foO BAR").unwrap(), "Foo bar".to_string());
+    }
+
+    #[test]
+    fn test_wordcount() {
+        assert_eq!(wordcount(&"").unwrap(), 0);
+        assert_eq!(wordcount(&" \n\t").unwrap(), 0);
+        assert_eq!(wordcount(&"foo").unwrap(), 1);
+        assert_eq!(wordcount(&"foo bar").unwrap(), 2);
     }
 }
