@@ -4,6 +4,8 @@
 use nom;
 use std::str;
 
+use shared::Syntax;
+
 #[derive(Debug)]
 pub enum Expr<'a> {
     NumLit(&'a str),
@@ -111,18 +113,33 @@ enum ContentState {
     End(usize),
 }
 
-fn take_content(i: Input) -> Result<(Input, Node), nom::Err<Input>> {
+fn take_content<'a>(i: Input<'a>, s: &'a Syntax<'a>) -> Result<(Input<'a>, Node<'a>), nom::Err<Input<'a>>>{
     use parser::ContentState::*;
+    let bs = s.block_start.as_bytes()[0];
+    let be = s.block_start.as_bytes()[1];
+    let cs = s.comment_start.as_bytes()[0];
+    let ce = s.comment_start.as_bytes()[1];
+    let es = s.expr_start.as_bytes()[0];
+    let ee = s.expr_start.as_bytes()[1];
+
     let mut state = Any;
     for (idx, c) in i.iter().enumerate() {
-        state = match (state, *c) {
-            (Any, b'{') => Brace(idx),
-            (Brace(start), b'{') |
-            (Brace(start), b'%') |
-            (Brace(start), b'#') => End(start),
-            (Any, _) |
-            (Brace(_), _) => Any,
-            (End(_), _) => panic!("cannot happen"),
+        state = match state {
+            Any => {
+                if *c == bs || *c == es || *c == cs {
+                    Brace(idx)
+                } else {
+                    Any
+                }
+            }
+            Brace(start) => {
+                if *c == be || *c == ee || *c == ce {
+                    End(start)
+                } else {
+                    Any
+                }
+            }
+            End(_) => panic!("cannot happen"),
         };
         if let End(_) = state {
             break;
@@ -444,12 +461,12 @@ named!(expr_any<Input, Expr>, alt!(
     expr_or
 ));
 
-named!(expr_node<Input, Node>, do_parse!(
-    tag_s!("{{") >>
+named_args!(expr_node<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
+    call!(tag_expr_start, s) >>
     pws: opt!(tag_s!("-")) >>
     expr: ws!(expr_any) >>
     nws: opt!(tag_s!("-")) >>
-    tag_s!("}}") >>
+    call!(tag_expr_end, s) >>
     (Node::Expr(WS(pws.is_some(), nws.is_some()), expr))
 ));
 
@@ -473,25 +490,25 @@ named!(cond_if<Input, Expr>, do_parse!(
     (cond)
 ));
 
-named!(cond_block<Input, Cond>, do_parse!(
-    tag_s!("{%") >>
+named_args!(cond_block<'a>(s: &'a Syntax<'a>) <Input<'a>, Cond<'a>>, do_parse!(
+    call!(tag_block_start, s) >>
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("else")) >>
     cond: opt!(cond_if) >>
     nws: opt!(tag_s!("-")) >>
-    tag_s!("%}") >>
-    block: parse_template >>
+    call!(tag_block_end, s) >>
+    block: call!(parse_template, s) >>
     (WS(pws.is_some(), nws.is_some()), cond, block)
 ));
 
-named!(block_if<Input, Node>, do_parse!(
+named_args!(block_if<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     pws1: opt!(tag_s!("-")) >>
     cond: ws!(cond_if) >>
     nws1: opt!(tag_s!("-")) >>
-    tag_s!("%}") >>
-    block: parse_template >>
-    elifs: many0!(cond_block) >>
-    tag_s!("{%") >>
+    call!(tag_block_end, s) >>
+    block: call!(parse_template, s) >>
+    elifs: many0!(call!(cond_block, s)) >>
+    call!(tag_block_start, s) >>
     pws2: opt!(tag_s!("-")) >>
     ws!(tag_s!("endif")) >>
     nws2: opt!(tag_s!("-")) >>
@@ -503,38 +520,38 @@ named!(block_if<Input, Node>, do_parse!(
     })
 ));
 
-named!(match_else_block<Input, When>, do_parse!(
-    tag_s!("{%") >>
+named_args!(match_else_block<'a>(s: &'a Syntax<'a>) <Input<'a>, When<'a>>, do_parse!(
+    call!(tag_block_start, s) >>
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("else")) >>
     nws: opt!(tag_s!("-")) >>
-    tag_s!("%}") >>
-    block: parse_template >>
+    call!(tag_block_end, s) >>
+    block: call!(parse_template, s) >>
     (WS(pws.is_some(), nws.is_some()), None, vec![], block)
 ));
 
-named!(when_block<Input, When>, do_parse!(
-    tag_s!("{%") >>
+named_args!(when_block<'a>(s: &'a Syntax<'a>) <Input<'a>, When<'a>>, do_parse!(
+    call!(tag_block_start, s) >>
     pws: opt!(tag_s!("-")) >>
     ws!(tag_s!("when")) >>
     variant: ws!(match_variant) >>
     params: opt!(ws!(with_parameters)) >>
     nws: opt!(tag_s!("-")) >>
-    tag_s!("%}") >>
-    block: parse_template >>
+    call!(tag_block_end, s) >>
+    block: call!(parse_template, s) >>
     (WS(pws.is_some(), nws.is_some()), Some(variant), params.unwrap_or_default(), block)
 ));
 
-named!(block_match<Input, Node>, do_parse!(
+named_args!(block_match<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("match")) >>
     expr: ws!(expr_any) >>
     nws1: opt!(tag_s!("-")) >>
-    tag_s!("%}") >>
-    inter: opt!(take_content) >>
-    arms: many1!(when_block) >>
-    else_arm: opt!(match_else_block) >>
-    ws!(tag_s!("{%")) >>
+    call!(tag_block_end, s) >>
+    inter: opt!(call!(take_content, s)) >>
+    arms: many1!(call!(when_block, s)) >>
+    else_arm: opt!(call!(match_else_block, s)) >>
+    ws!(call!(tag_block_start, s)) >>
     pws2: opt!(tag_s!("-")) >>
     ws!(tag_s!("endmatch")) >>
     nws2: opt!(tag_s!("-")) >>
@@ -581,16 +598,16 @@ named!(block_let<Input, Node>, do_parse!(
     })
 ));
 
-named!(block_for<Input, Node>, do_parse!(
+named_args!(block_for<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("for")) >>
     var: ws!(target_single) >>
     ws!(tag_s!("in")) >>
     iter: ws!(expr_any) >>
     nws1: opt!(tag_s!("-")) >>
-    tag_s!("%}") >>
-    block: parse_template >>
-    tag_s!("{%") >>
+    call!(tag_block_end, s) >>
+    block: call!(parse_template, s) >>
+    call!(tag_block_start, s) >>
     pws2: opt!(tag_s!("-")) >>
     ws!(tag_s!("endfor")) >>
     nws2: opt!(tag_s!("-")) >>
@@ -605,14 +622,14 @@ named!(block_extends<Input, Node>, do_parse!(
     (Node::Extends(name))
 ));
 
-named!(block_block<Input, Node>, do_parse!(
+named_args!(block_block<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("block")) >>
     name: ws!(identifier) >>
     nws1: opt!(tag_s!("-")) >>
-    tag_s!("%}") >>
-    contents: parse_template >>
-    tag_s!("{%") >>
+    call!(tag_block_end, s) >>
+    contents: call!(parse_template, s) >>
+    call!(tag_block_start, s) >>
     pws2: opt!(tag_s!("-")) >>
     ws!(tag_s!("endblock")) >>
     opt!(ws!(tag_s!(name))) >>
@@ -646,15 +663,15 @@ named!(block_import<Input, Node>, do_parse!(
     }, scope))
 ));
 
-named!(block_macro<Input, Node>, do_parse!(
+named_args!(block_macro<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     pws1: opt!(tag_s!("-")) >>
     ws!(tag_s!("macro")) >>
     name: ws!(identifier) >>
     params: ws!(parameters) >>
     nws1: opt!(tag_s!("-")) >>
-    tag_s!("%}") >>
-    contents: parse_template >>
-    tag_s!("{%") >>
+    call!(tag_block_end, s) >>
+    contents: call!(parse_template, s) >>
+    call!(tag_block_start, s) >>
     pws2: opt!(tag_s!("-")) >>
     ws!(tag_s!("endmacro")) >>
     nws2: opt!(tag_s!("-")) >>
@@ -674,41 +691,48 @@ named!(block_macro<Input, Node>, do_parse!(
     })
 ));
 
-named!(block_node<Input, Node>, do_parse!(
-    tag_s!("{%") >>
+named_args!(block_node<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
+    call!(tag_block_start, s) >>
     contents: alt!(
         block_call |
         block_let |
-        block_if |
-        block_for |
-        block_match |
+        call!(block_if, s) |
+        call!(block_for, s) |
+        call!(block_match, s) |
         block_extends |
         block_include |
         block_import |
-        block_block |
-        block_macro
+        call!(block_block, s) |
+        call!(block_macro, s)
     ) >>
-    tag_s!("%}") >>
+    call!(tag_block_end, s) >>
     (contents)
 ));
 
-named!(block_comment<Input, Node>, do_parse!(
-    tag_s!("{#") >>
+named_args!(block_comment<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
+    call!(tag_comment_start, s)  >>
     pws: opt!(tag_s!("-")) >>
-    inner: take_until_s!("#}") >>
-    tag_s!("#}") >>
+    inner: take_until_s!(s.comment_end) >>
+    call!(tag_comment_end, s) >>
     (Node::Comment(WS(pws.is_some(), inner.len() > 1 && inner[inner.len() - 1] == b'-')))
 ));
 
-named!(parse_template<Input, Vec<Node>>, many0!(alt!(
-    take_content |
-    block_comment |
-    expr_node |
-    block_node
+named_args!(parse_template<'a>(s: &'a Syntax<'a>)<Input<'a>, Vec<Node<'a>>>, many0!(alt!(
+    call!(take_content, s) |
+    call!(block_comment, s) |
+    call!(expr_node, s) |
+    call!(block_node, s)
 )));
 
-pub fn parse(src: &str) -> Vec<Node> {
-    match parse_template(Input(src.as_bytes())) {
+named_args!(tag_block_start<'a>(s: &'a Syntax<'a>) <Input<'a>, Input<'a>>, tag!(s.block_start));
+named_args!(tag_block_end<'a>(s: &'a Syntax<'a>) <Input<'a>, Input<'a>>, tag!(s.block_end));
+named_args!(tag_comment_start<'a>(s: &'a Syntax<'a>) <Input<'a>, Input<'a>>, tag!(s.comment_start));
+named_args!(tag_comment_end<'a>(s: &'a Syntax<'a>) <Input<'a>, Input<'a>>, tag!(s.comment_end));
+named_args!(tag_expr_start<'a>(s: &'a Syntax<'a>) <Input<'a>, Input<'a>>, tag!(s.expr_start));
+named_args!(tag_expr_end<'a>(s: &'a Syntax<'a>) <Input<'a>, Input<'a>>, tag!(s.expr_end));
+
+pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Vec<Node<'a>> {
+    match parse_template(Input(src.as_bytes()), syntax) {
         Ok((left, res)) => {
             if !left.is_empty() {
                 let s = str::from_utf8(left.0).unwrap();
@@ -725,6 +749,8 @@ pub fn parse(src: &str) -> Vec<Node> {
 
 #[cfg(test)]
 mod tests {
+    use shared::Syntax;
+
     fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
         let node = super::split_ws_parts(s.as_bytes());
         match node {
@@ -747,11 +773,23 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_invalid_block() {
-        super::parse("{% extend \"blah\" %}");
+        super::parse("{% extend \"blah\" %}", &Syntax::default());
     }
 
     #[test]
     fn test_parse_filter() {
-        super::parse("{{ strvar|e }}");
+        super::parse("{{ strvar|e }}", &Syntax::default());
     }
+
+    #[test]
+    fn change_delimiters_parse_filter() {
+        let syntax = Syntax {
+            expr_start: "{~",
+            expr_end: "~}",
+            ..Syntax::default()
+        };
+
+        super::parse("{~ strvar|e ~}", &syntax);
+    }
+
 }

@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 
 use quote::ToTokens;
 
-use shared::Config;
+use shared::{Config, Syntax};
 
 use std::path::PathBuf;
 
@@ -10,7 +10,8 @@ use syn;
 
 pub struct TemplateInput<'a> {
     pub ast: &'a syn::DeriveInput,
-    pub config: Config,
+    pub config: &'a Config<'a>,
+    pub syntax: &'a Syntax<'a>,
     pub source: Source,
     pub print: Print,
     pub escaping: EscapeMode,
@@ -24,7 +25,7 @@ impl<'a> TemplateInput<'a> {
     /// mostly recovers the data for the `TemplateInput` fields from the
     /// `template()` attribute list fields; it also finds the of the `_parent`
     /// field, if any.
-    pub fn new(ast: &'a syn::DeriveInput) -> TemplateInput<'a> {
+    pub fn new<'n>(ast: &'n syn::DeriveInput, config: &'n Config) -> TemplateInput<'n> {
         // Check that an attribute called `template()` exists and that it is
         // the proper type (list).
         let mut meta = None;
@@ -53,6 +54,7 @@ impl<'a> TemplateInput<'a> {
         let mut print = Print::None;
         let mut escaping = None;
         let mut ext = None;
+        let mut syntax = None;
         for nm_item in meta_list.nested {
             if let syn::NestedMeta::Meta(ref item) = nm_item {
                 if let syn::Meta::NameValue(ref pair) = item {
@@ -88,6 +90,11 @@ impl<'a> TemplateInput<'a> {
                         } else {
                             panic!("ext value must be string literal");
                         },
+                        "syntax" => if let syn::Lit::Str(ref s) = pair.lit {
+                            syntax = Some(s.value())
+                        } else {
+                            panic!("syntax value must be string literal");
+                        },
                         attr => panic!("unsupported annotation key '{}' found", attr),
                     }
                 }
@@ -97,7 +104,6 @@ impl<'a> TemplateInput<'a> {
         // Validate the `source` and `ext` value together, since they are
         // related. In case `source` was used instead of `path`, the value
         // of `ext` is merged into a synthetic `path` value here.
-        let config = Config::new();
         let source = source.expect("template path or source not found in attributes");
         let path = match (&source, &ext) {
             (&Source::Path(ref path), None) => config.find_template(path, None),
@@ -124,6 +130,37 @@ impl<'a> TemplateInput<'a> {
             _ => None,
         };
 
+        // Validate syntax
+        let syntax = syntax.map_or_else(
+            || config.syntaxes.get(config.default_syntax).unwrap(),
+            |s| {
+                config
+                    .syntaxes
+                    .get(&s)
+                    .expect(&format!("attribute syntax {} not exist", s))
+            },
+        );
+
+        if syntax.block_start.len() != 2
+            || syntax.block_end.len() != 2
+            || syntax.expr_start.len() != 2
+            || syntax.expr_end.len() != 2
+            || syntax.comment_start.len() != 2
+            || syntax.comment_end.len() != 2
+        {
+            panic!("length of delimiters must be two")
+        }
+
+        let bs = syntax.block_start.as_bytes()[0];
+        let be = syntax.block_start.as_bytes()[1];
+        let cs = syntax.comment_start.as_bytes()[0];
+        let ce = syntax.comment_start.as_bytes()[1];
+        let es = syntax.block_start.as_bytes()[0];
+        let ee = syntax.block_start.as_bytes()[1];
+        if !(bs == cs && bs == es) && !(be == ce && be == ee) {
+            panic!("bad delimiters block_start: {}, comment_start: {}, expr_start: {}, needs one of the two characters in common", syntax.block_start, syntax.comment_start, syntax.expr_start);
+        }
+
         TemplateInput {
             ast,
             config,
@@ -133,6 +170,7 @@ impl<'a> TemplateInput<'a> {
             ext,
             parent,
             path,
+            syntax,
         }
     }
 }
