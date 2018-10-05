@@ -59,7 +59,7 @@ pub enum Node<'a> {
     Lit(&'a str, &'a str, &'a str),
     Comment(WS),
     Expr(WS, Expr<'a>),
-    Call(WS, Option<& 'a str>, &'a str, Vec<Expr<'a>>),
+    Call(WS, Option<&'a str>, &'a str, Vec<Expr<'a>>),
     LetDecl(WS, Target<'a>),
     Let(WS, Target<'a>, Expr<'a>),
     Cond(Vec<(WS, Option<Expr<'a>>, Vec<Node<'a>>)>, WS),
@@ -73,7 +73,12 @@ pub enum Node<'a> {
 }
 
 pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
-pub type When<'a> = (WS, Option<MatchVariant<'a>>, Vec<MatchParameter<'a>>, Vec<Node<'a>>);
+pub type When<'a> = (
+    WS,
+    Option<MatchVariant<'a>>,
+    Vec<MatchParameter<'a>>,
+    Vec<Node<'a>>,
+);
 
 type Input<'a> = nom::types::CompleteByteSlice<'a>;
 #[allow(non_snake_case)]
@@ -86,25 +91,25 @@ fn split_ws_parts(s: &[u8]) -> Node {
         let rs = str::from_utf8(&s).unwrap();
         return Node::Lit(rs, rs, rs);
     }
-    let is_ws = |c: &u8| {
-        *c != b' ' && *c != b'\t' && *c != b'\r' && *c != b'\n'
-    };
+    let is_ws = |c: &u8| *c != b' ' && *c != b'\t' && *c != b'\r' && *c != b'\n';
     let start = s.iter().position(&is_ws);
     let res = if start.is_none() {
-            (s, &s[0..0], &s[0..0])
+        (s, &s[0..0], &s[0..0])
+    } else {
+        let start = start.unwrap();
+        let end = s.iter().rposition(&is_ws);
+        if end.is_none() {
+            (&s[..start], &s[start..], &s[0..0])
         } else {
-            let start = start.unwrap();
-            let end = s.iter().rposition(&is_ws);
-            if end.is_none() {
-                (&s[..start], &s[start..], &s[0..0])
-            } else {
-                let end = end.unwrap();
-                (&s[..start], &s[start..end + 1], &s[end + 1..])
-            }
-        };
-    Node::Lit(str::from_utf8(res.0).unwrap(),
-              str::from_utf8(res.1).unwrap(),
-              str::from_utf8(res.2).unwrap())
+            let end = end.unwrap();
+            (&s[..start], &s[start..end + 1], &s[end + 1..])
+        }
+    };
+    Node::Lit(
+        str::from_utf8(res.0).unwrap(),
+        str::from_utf8(res.1).unwrap(),
+        str::from_utf8(res.2).unwrap(),
+    )
 }
 
 enum ContentState {
@@ -113,7 +118,10 @@ enum ContentState {
     End(usize),
 }
 
-fn take_content<'a>(i: Input<'a>, s: &'a Syntax<'a>) -> Result<(Input<'a>, Node<'a>), nom::Err<Input<'a>>>{
+fn take_content<'a>(
+    i: Input<'a>,
+    s: &'a Syntax<'a>,
+) -> Result<(Input<'a>, Node<'a>), nom::Err<Input<'a>>> {
     use parser::ContentState::*;
     let bs = s.block_start.as_bytes()[0];
     let be = s.block_start.as_bytes()[1];
@@ -146,23 +154,27 @@ fn take_content<'a>(i: Input<'a>, s: &'a Syntax<'a>) -> Result<(Input<'a>, Node<
         }
     }
     match state {
-        Any |
-        Brace(_) => Ok((Input(&i[..0]), split_ws_parts(i.0))),
-        End(0) => Err(nom::Err::Error(error_position!(i, nom::ErrorKind::Custom(0)))),
+        Any | Brace(_) => Ok((Input(&i[..0]), split_ws_parts(i.0))),
+        End(0) => Err(nom::Err::Error(error_position!(
+            i,
+            nom::ErrorKind::Custom(0)
+        ))),
         End(start) => Ok((Input(&i[start..]), split_ws_parts(&i[..start]))),
     }
 }
 
 fn identifier(input: Input) -> Result<(Input, &str), nom::Err<Input>> {
     if !nom::is_alphabetic(input[0]) && input[0] != b'_' {
-        return Err(nom::Err::Error(error_position!(input, nom::ErrorKind::Custom(0))));
+        return Err(nom::Err::Error(error_position!(
+            input,
+            nom::ErrorKind::Custom(0)
+        )));
     }
     for (i, ch) in input.iter().enumerate() {
         if i == 0 || nom::is_alphanumeric(*ch) || *ch == b'_' {
             continue;
         }
-        return Ok((Input(&input[i..]),
-                   str::from_utf8(&input[..i]).unwrap()));
+        return Ok((Input(&input[i..]), str::from_utf8(&input[..i]).unwrap()));
     }
     Ok((Input(&input[1..]), str::from_utf8(&input[..1]).unwrap()))
 }
@@ -740,7 +752,7 @@ pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Vec<Node<'a>> {
             } else {
                 res
             }
-        },
+        }
         Err(nom::Err::Error(err)) => panic!("problems parsing template source: {:?}", err),
         Err(nom::Err::Failure(err)) => panic!("problems parsing template source: {:?}", err),
         Err(nom::Err::Incomplete(_)) => panic!("parsing incomplete"),
@@ -758,8 +770,10 @@ mod tests {
                 assert_eq!(lws, res.0);
                 assert_eq!(s, res.1);
                 assert_eq!(rws, res.2);
-            },
-            _ => { panic!("fail"); },
+            }
+            _ => {
+                panic!("fail");
+            }
         }
     }
     #[test]
