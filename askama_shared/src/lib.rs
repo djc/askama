@@ -29,54 +29,6 @@ pub struct Config<'a> {
     pub default_syntax: &'a str,
 }
 
-#[derive(Debug)]
-pub struct Syntax<'a> {
-    pub block_start: &'a str,
-    pub block_end: &'a str,
-    pub expr_start: &'a str,
-    pub expr_end: &'a str,
-    pub comment_start: &'a str,
-    pub comment_end: &'a str,
-}
-
-impl<'a> Default for Syntax<'a> {
-    fn default() -> Self {
-        Self {
-            block_start: "{%",
-            block_end: "%}",
-            expr_start: "{{",
-            expr_end: "}}",
-            comment_start: "{#",
-            comment_end: "#}",
-        }
-    }
-}
-
-impl<'a> From<RawSyntax<'a>> for Syntax<'a> {
-    fn from(raw: RawSyntax<'a>) -> Self {
-        let syntax = Self::default();
-        Self {
-            block_start: raw.block_start.unwrap_or(syntax.block_start),
-            block_end: raw.block_end.unwrap_or(syntax.block_end),
-            expr_start: raw.expr_start.unwrap_or(syntax.expr_start),
-            expr_end: raw.expr_end.unwrap_or(syntax.expr_end),
-            comment_start: raw.comment_start.unwrap_or(syntax.comment_start),
-            comment_end: raw.comment_end.unwrap_or(syntax.comment_end),
-        }
-    }
-}
-
-pub fn read_config_file() -> String {
-    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let filename = root.join(CONFIG_FILE_NAME);
-    if filename.exists() {
-        fs::read_to_string(&filename)
-            .expect(&format!("unable to read {}", filename.to_str().unwrap()))
-    } else {
-        "".to_string()
-    }
-}
-
 impl<'a> Config<'a> {
     pub fn new(s: &str) -> Config {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
@@ -144,6 +96,43 @@ impl<'a> Config<'a> {
     }
 }
 
+#[derive(Debug)]
+pub struct Syntax<'a> {
+    pub block_start: &'a str,
+    pub block_end: &'a str,
+    pub expr_start: &'a str,
+    pub expr_end: &'a str,
+    pub comment_start: &'a str,
+    pub comment_end: &'a str,
+}
+
+impl<'a> Default for Syntax<'a> {
+    fn default() -> Self {
+        Self {
+            block_start: "{%",
+            block_end: "%}",
+            expr_start: "{{",
+            expr_end: "}}",
+            comment_start: "{#",
+            comment_end: "#}",
+        }
+    }
+}
+
+impl<'a> From<RawSyntax<'a>> for Syntax<'a> {
+    fn from(raw: RawSyntax<'a>) -> Self {
+        let syntax = Self::default();
+        Self {
+            block_start: raw.block_start.unwrap_or(syntax.block_start),
+            block_end: raw.block_end.unwrap_or(syntax.block_end),
+            expr_start: raw.expr_start.unwrap_or(syntax.expr_start),
+            expr_end: raw.expr_end.unwrap_or(syntax.expr_end),
+            comment_start: raw.comment_start.unwrap_or(syntax.comment_start),
+            comment_end: raw.comment_end.unwrap_or(syntax.comment_end),
+        }
+    }
+}
+
 #[derive(Deserialize)]
 struct RawConfig<'d> {
     general: Option<General>,
@@ -165,6 +154,17 @@ struct RawSyntax<'a> {
     expr_end: Option<&'a str>,
     comment_start: Option<&'a str>,
     comment_end: Option<&'a str>,
+}
+
+pub fn read_config_file() -> String {
+    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let filename = root.join(CONFIG_FILE_NAME);
+    if filename.exists() {
+        fs::read_to_string(&filename)
+            .expect(&format!("unable to read {}", filename.to_str().unwrap()))
+    } else {
+        "".to_string()
+    }
 }
 
 static CONFIG_FILE_NAME: &str = "askama.toml";
