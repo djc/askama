@@ -1,6 +1,6 @@
 use super::{get_template_source, Context, Heritage};
 use input::TemplateInput;
-use parser::{self, Cond, Expr, MatchParameter, MatchVariant, Node, Target, When, WS};
+use parser::{Cond, Expr, MatchParameter, MatchVariant, Node, Target, When, WS};
 use shared::filters;
 
 use proc_macro2::Span;
@@ -12,6 +12,8 @@ use std::path::PathBuf;
 use std::{cmp, hash, str};
 
 use syn;
+
+use parser::parse;
 
 pub(crate) fn generate(
     input: &TemplateInput,
@@ -482,7 +484,7 @@ impl<'a> Generator<'a> {
             .config
             .find_template(path, Some(&self.input.path));
         let src = get_template_source(&path);
-        let nodes = parser::parse(&src);
+        let nodes = parse(&src, self.input.syntax);
         {
             // Since nodes must not outlive the Generator, we instantiate
             // a nested Generator here to handle the include's nodes.

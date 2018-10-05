@@ -14,8 +14,9 @@ mod parser;
 use input::{Print, Source, TemplateInput};
 use parser::{Expr, Macro, Node};
 use proc_macro::TokenStream;
-use shared::Config;
+use shared::{read_config_file, Config};
 
+use parser::parse;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -34,7 +35,9 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 /// the parse tree and/or generated source according to the `print` key's
 /// value as passed to the `template()` attribute.
 fn build_template(ast: &syn::DeriveInput) -> String {
-    let input = TemplateInput::new(ast);
+    let file = read_config_file();
+    let config = Config::new(&file);
+    let input = TemplateInput::new(ast, &config);
     let source: String = match input.source {
         Source::Source(ref s) => s.clone(),
         Source::Path(_) => get_template_source(&input.path),
@@ -45,7 +48,7 @@ fn build_template(ast: &syn::DeriveInput) -> String {
 
     let mut parsed = HashMap::new();
     for (path, src) in &sources {
-        parsed.insert(path, parser::parse(src));
+        parsed.insert(path, parse(src, input.syntax));
     }
 
     let mut contexts = HashMap::new();
@@ -74,7 +77,7 @@ fn build_template(ast: &syn::DeriveInput) -> String {
 fn find_used_templates(input: &TemplateInput, map: &mut HashMap<PathBuf, String>, source: String) {
     let mut check = vec![(input.path.clone(), source)];
     while let Some((path, source)) = check.pop() {
-        for n in parser::parse(&source) {
+        for n in parse(&source, input.syntax) {
             match n {
                 Node::Extends(Expr::StrLit(extends)) => {
                     let extends = input.config.find_template(extends, Some(&path));
@@ -220,7 +223,7 @@ mod tests {
 
     #[test]
     fn get_source() {
-        let path = Config::new().find_template("b.html", None);
+        let path = Config::new("").find_template("b.html", None);
         assert_eq!(get_template_source(&path), "bar");
     }
 }

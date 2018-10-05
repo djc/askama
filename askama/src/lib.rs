@@ -363,7 +363,7 @@ pub trait Template {
 
 pub use askama_derive::*;
 pub use shared::filters;
-pub use shared::{Error, MarkupDisplay, Result};
+pub use shared::{read_config_file, Error, MarkupDisplay, Result};
 
 #[cfg(feature = "with-iron")]
 pub mod iron {
@@ -441,7 +441,8 @@ fn visit_dirs(dir: &Path, cb: &Fn(&DirEntry)) -> io::Result<()> {
 /// that have templates, to make sure the crate gets rebuilt when template
 /// source code changes.
 pub fn rerun_if_templates_changed() {
-    for template_dir in &shared::Config::new().dirs {
+    let file = read_config_file();
+    for template_dir in &shared::Config::new(&file).dirs {
         visit_dirs(template_dir, &|e: &DirEntry| {
             println!("cargo:rerun-if-changed={}", e.path().to_str().unwrap());
         }).unwrap();
