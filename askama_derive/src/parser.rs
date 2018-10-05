@@ -188,14 +188,14 @@ named!(expr_num_lit<Input, Expr>, map!(num_lit,
 ));
 
 named!(expr_array_lit<Input, Expr>, do_parse!(
-    ws!(tag_s!("[")) >>
+    ws!(tag!("[")) >>
     first: expr_any >>
     rest: many0!(do_parse!(
-        ws!(tag_s!(",")) >>
+        ws!(tag!(",")) >>
         part: expr_any >>
         (part)
     )) >>
-    ws!(tag_s!("]")) >>
+    ws!(tag!("]")) >>
     ({
         let mut elements = vec![first];
         elements.extend(rest);
@@ -233,7 +233,7 @@ named!(expr_var<Input, Expr>, map!(identifier,
 named!(expr_path<Input, Expr>, do_parse!(
     start: call!(identifier) >>
     rest: many1!(do_parse!(
-        tag_s!("::") >>
+        tag!("::") >>
         part: identifier >>
         (part)
     )) >>
@@ -247,7 +247,7 @@ named!(expr_path<Input, Expr>, do_parse!(
 named!(variant_path<Input, MatchVariant>, do_parse!(
     start: call!(identifier) >>
     rest: many1!(do_parse!(
-        tag_s!("::") >>
+        tag!("::") >>
         part: identifier >>
         (part)
     )) >>
@@ -271,11 +271,11 @@ named!(param_name<Input, MatchParameter>, map!(identifier,
 ));
 
 named!(arguments<Input, Vec<Expr>>, do_parse!(
-    tag_s!("(") >>
+    tag!("(") >>
     args: opt!(do_parse!(
         arg0: ws!(expr_any) >>
         args: many0!(do_parse!(
-            tag_s!(",") >>
+            tag!(",") >>
             argn: ws!(expr_any) >>
             (argn)
         )) >>
@@ -285,16 +285,16 @@ named!(arguments<Input, Vec<Expr>>, do_parse!(
            res
         })
     )) >>
-    tag_s!(")") >>
+    tag!(")") >>
     (args.unwrap_or_default())
 ));
 
 named!(parameters<Input, Vec<&str>>, do_parse!(
-    tag_s!("(") >>
+    tag!("(") >>
     vals: opt!(do_parse!(
         arg0: ws!(identifier) >>
         args: many0!(do_parse!(
-            tag_s!(",") >>
+            tag!(",") >>
             argn: ws!(identifier) >>
             (argn)
         )) >>
@@ -304,17 +304,17 @@ named!(parameters<Input, Vec<&str>>, do_parse!(
             res
         })
     )) >>
-    tag_s!(")") >>
+    tag!(")") >>
     (vals.unwrap_or_default())
 ));
 
 named!(with_parameters<Input, Vec<MatchParameter>>, do_parse!(
-    tag_s!("with") >>
-    ws!(tag_s!("(")) >>
+    tag!("with") >>
+    ws!(tag!("(")) >>
     vals: opt!(do_parse!(
         arg0: ws!(match_parameter) >>
         args: many0!(do_parse!(
-            tag_s!(",") >>
+            tag!(",") >>
             argn: ws!(match_parameter) >>
             (argn)
         )) >>
@@ -324,7 +324,7 @@ named!(with_parameters<Input, Vec<MatchParameter>>, do_parse!(
             res
         })
     )) >>
-    tag_s!(")") >>
+    tag!(")") >>
     (vals.unwrap_or_default())
 ));
 
@@ -356,7 +356,7 @@ named!(match_parameter<Input, MatchParameter>, alt!(
 ));
 
 named!(attr<Input, (&str, Option<Vec<Expr>>)>, do_parse!(
-    tag_s!(".") >>
+    tag!(".") >>
     attr: alt!(num_lit | identifier) >>
     args: opt!(arguments) >>
     (attr, args)
@@ -381,9 +381,9 @@ named!(expr_attr<Input, Expr>, do_parse!(
 named!(expr_index<Input, Expr>, do_parse!(
     obj: expr_attr >>
     key: opt!(do_parse!(
-        ws!(tag_s!("[")) >>
+        ws!(tag!("[")) >>
         key: expr_any >>
-        ws!(tag_s!("]")) >>
+        ws!(tag!("]")) >>
         (key)
     )) >>
     (match key {
@@ -393,7 +393,7 @@ named!(expr_index<Input, Expr>, do_parse!(
 ));
 
 named!(filter<Input, (&str, Option<Vec<Expr>>)>, do_parse!(
-    tag_s!("|") >>
+    tag!("|") >>
     fname: identifier >>
     args: opt!(arguments) >>
     (fname, args)
@@ -419,7 +419,7 @@ named!(expr_filtered<Input, Expr>, do_parse!(
 ));
 
 named!(expr_unary<Input, Expr>, do_parse!(
-    op: opt!(alt!(tag_s!("!") | tag_s!("-"))) >>
+    op: opt!(alt!(tag!("!") | tag!("-"))) >>
     expr: expr_filtered >>
     (match op {
         Some(op) => Expr::Unary(str::from_utf8(op.0).unwrap(), Box::new(expr)),
@@ -431,7 +431,7 @@ macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $( $op:expr ),* ) => {
         named!($name<Input, Expr>, do_parse!(
             left: $inner >>
-            op_and_right: opt!(pair!(ws!(alt!($( tag_s!($op) )|*)), expr_any)) >>
+            op_and_right: opt!(pair!(ws!(alt!($( tag!($op) )|*)), expr_any)) >>
             (match op_and_right {
                 Some((op, right)) => Expr::BinOp(
                     str::from_utf8(op.0).unwrap(), Box::new(left), Box::new(right)
@@ -455,8 +455,8 @@ expr_prec_layer!(expr_and, expr_compare, "&&");
 expr_prec_layer!(expr_or, expr_and, "||");
 
 named!(range_right<Input, Expr>, do_parse!(
-    ws!(tag_s!("..")) >>
-    incl: opt!(ws!(tag_s!("="))) >>
+    ws!(tag!("..")) >>
+    incl: opt!(ws!(tag!("="))) >>
     right: opt!(expr_or) >>
     (Expr::Range(if incl.is_some() { "..=" } else { ".." }, None, right.map(Box::new)))
 ));
@@ -475,55 +475,55 @@ named!(expr_any<Input, Expr>, alt!(
 
 named_args!(expr_node<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     call!(tag_expr_start, s) >>
-    pws: opt!(tag_s!("-")) >>
+    pws: opt!(tag!("-")) >>
     expr: ws!(expr_any) >>
-    nws: opt!(tag_s!("-")) >>
+    nws: opt!(tag!("-")) >>
     call!(tag_expr_end, s) >>
     (Node::Expr(WS(pws.is_some(), nws.is_some()), expr))
 ));
 
 named!(block_call<Input, Node>, do_parse!(
-    pws: opt!(tag_s!("-")) >>
-    ws!(tag_s!("call")) >>
+    pws: opt!(tag!("-")) >>
+    ws!(tag!("call")) >>
     scope: opt!(do_parse!(
         scope: ws!(identifier) >>
-        ws!(tag_s!("::")) >>
+        ws!(tag!("::")) >>
         (scope)
     )) >>
     name: ws!(identifier) >>
     args: ws!(arguments) >>
-    nws: opt!(tag_s!("-")) >>
+    nws: opt!(tag!("-")) >>
     (Node::Call(WS(pws.is_some(), nws.is_some()), scope, name, args))
 ));
 
 named!(cond_if<Input, Expr>, do_parse!(
-    ws!(tag_s!("if")) >>
+    ws!(tag!("if")) >>
     cond: ws!(expr_any) >>
     (cond)
 ));
 
 named_args!(cond_block<'a>(s: &'a Syntax<'a>) <Input<'a>, Cond<'a>>, do_parse!(
     call!(tag_block_start, s) >>
-    pws: opt!(tag_s!("-")) >>
-    ws!(tag_s!("else")) >>
+    pws: opt!(tag!("-")) >>
+    ws!(tag!("else")) >>
     cond: opt!(cond_if) >>
-    nws: opt!(tag_s!("-")) >>
+    nws: opt!(tag!("-")) >>
     call!(tag_block_end, s) >>
     block: call!(parse_template, s) >>
     (WS(pws.is_some(), nws.is_some()), cond, block)
 ));
 
 named_args!(block_if<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
-    pws1: opt!(tag_s!("-")) >>
+    pws1: opt!(tag!("-")) >>
     cond: ws!(cond_if) >>
-    nws1: opt!(tag_s!("-")) >>
+    nws1: opt!(tag!("-")) >>
     call!(tag_block_end, s) >>
     block: call!(parse_template, s) >>
     elifs: many0!(call!(cond_block, s)) >>
     call!(tag_block_start, s) >>
-    pws2: opt!(tag_s!("-")) >>
-    ws!(tag_s!("endif")) >>
-    nws2: opt!(tag_s!("-")) >>
+    pws2: opt!(tag!("-")) >>
+    ws!(tag!("endif")) >>
+    nws2: opt!(tag!("-")) >>
     ({
        let mut res = Vec::new();
        res.push((WS(pws1.is_some(), nws1.is_some()), Some(cond), block));
@@ -534,9 +534,9 @@ named_args!(block_if<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
 
 named_args!(match_else_block<'a>(s: &'a Syntax<'a>) <Input<'a>, When<'a>>, do_parse!(
     call!(tag_block_start, s) >>
-    pws: opt!(tag_s!("-")) >>
-    ws!(tag_s!("else")) >>
-    nws: opt!(tag_s!("-")) >>
+    pws: opt!(tag!("-")) >>
+    ws!(tag!("else")) >>
+    nws: opt!(tag!("-")) >>
     call!(tag_block_end, s) >>
     block: call!(parse_template, s) >>
     (WS(pws.is_some(), nws.is_some()), None, vec![], block)
@@ -544,29 +544,29 @@ named_args!(match_else_block<'a>(s: &'a Syntax<'a>) <Input<'a>, When<'a>>, do_pa
 
 named_args!(when_block<'a>(s: &'a Syntax<'a>) <Input<'a>, When<'a>>, do_parse!(
     call!(tag_block_start, s) >>
-    pws: opt!(tag_s!("-")) >>
-    ws!(tag_s!("when")) >>
+    pws: opt!(tag!("-")) >>
+    ws!(tag!("when")) >>
     variant: ws!(match_variant) >>
     params: opt!(ws!(with_parameters)) >>
-    nws: opt!(tag_s!("-")) >>
+    nws: opt!(tag!("-")) >>
     call!(tag_block_end, s) >>
     block: call!(parse_template, s) >>
     (WS(pws.is_some(), nws.is_some()), Some(variant), params.unwrap_or_default(), block)
 ));
 
 named_args!(block_match<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
-    pws1: opt!(tag_s!("-")) >>
-    ws!(tag_s!("match")) >>
+    pws1: opt!(tag!("-")) >>
+    ws!(tag!("match")) >>
     expr: ws!(expr_any) >>
-    nws1: opt!(tag_s!("-")) >>
+    nws1: opt!(tag!("-")) >>
     call!(tag_block_end, s) >>
     inter: opt!(call!(take_content, s)) >>
     arms: many1!(call!(when_block, s)) >>
     else_arm: opt!(call!(match_else_block, s)) >>
     ws!(call!(tag_block_start, s)) >>
-    pws2: opt!(tag_s!("-")) >>
-    ws!(tag_s!("endmatch")) >>
-    nws2: opt!(tag_s!("-")) >>
+    pws2: opt!(tag!("-")) >>
+    ws!(tag!("endmatch")) >>
+    nws2: opt!(tag!("-")) >>
     ({
         let mut arms = arms;
         if let Some(arm) = else_arm {
@@ -594,15 +594,15 @@ named_args!(block_match<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
 ));
 
 named!(block_let<Input, Node>, do_parse!(
-    pws: opt!(tag_s!("-")) >>
-    ws!(tag_s!("let")) >>
+    pws: opt!(tag!("-")) >>
+    ws!(tag!("let")) >>
     var: ws!(target_single) >>
     val: opt!(do_parse!(
-        ws!(tag_s!("=")) >>
+        ws!(tag!("=")) >>
         val: ws!(expr_any) >>
         (val)
     )) >>
-    nws: opt!(tag_s!("-")) >>
+    nws: opt!(tag!("-")) >>
     (if val.is_some() {
         Node::Let(WS(pws.is_some(), nws.is_some()), var, val.unwrap())
     } else {
@@ -611,51 +611,51 @@ named!(block_let<Input, Node>, do_parse!(
 ));
 
 named_args!(block_for<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
-    pws1: opt!(tag_s!("-")) >>
-    ws!(tag_s!("for")) >>
+    pws1: opt!(tag!("-")) >>
+    ws!(tag!("for")) >>
     var: ws!(target_single) >>
-    ws!(tag_s!("in")) >>
+    ws!(tag!("in")) >>
     iter: ws!(expr_any) >>
-    nws1: opt!(tag_s!("-")) >>
+    nws1: opt!(tag!("-")) >>
     call!(tag_block_end, s) >>
     block: call!(parse_template, s) >>
     call!(tag_block_start, s) >>
-    pws2: opt!(tag_s!("-")) >>
-    ws!(tag_s!("endfor")) >>
-    nws2: opt!(tag_s!("-")) >>
+    pws2: opt!(tag!("-")) >>
+    ws!(tag!("endfor")) >>
+    nws2: opt!(tag!("-")) >>
     (Node::Loop(WS(pws1.is_some(), nws1.is_some()),
                 var, iter, block,
                 WS(pws2.is_some(), nws2.is_some())))
 ));
 
 named!(block_extends<Input, Node>, do_parse!(
-    ws!(tag_s!("extends")) >>
+    ws!(tag!("extends")) >>
     name: ws!(expr_str_lit) >>
     (Node::Extends(name))
 ));
 
 named_args!(block_block<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
-    pws1: opt!(tag_s!("-")) >>
-    ws!(tag_s!("block")) >>
+    pws1: opt!(tag!("-")) >>
+    ws!(tag!("block")) >>
     name: ws!(identifier) >>
-    nws1: opt!(tag_s!("-")) >>
+    nws1: opt!(tag!("-")) >>
     call!(tag_block_end, s) >>
     contents: call!(parse_template, s) >>
     call!(tag_block_start, s) >>
-    pws2: opt!(tag_s!("-")) >>
-    ws!(tag_s!("endblock")) >>
-    opt!(ws!(tag_s!(name))) >>
-    nws2: opt!(tag_s!("-")) >>
+    pws2: opt!(tag!("-")) >>
+    ws!(tag!("endblock")) >>
+    opt!(ws!(tag!(name))) >>
+    nws2: opt!(tag!("-")) >>
     (Node::BlockDef(WS(pws1.is_some(), nws1.is_some()),
                     name, contents,
                     WS(pws2.is_some(), nws2.is_some())))
 ));
 
 named!(block_include<Input, Node>, do_parse!(
-    pws: opt!(tag_s!("-")) >>
-    ws!(tag_s!("include")) >>
+    pws: opt!(tag!("-")) >>
+    ws!(tag!("include")) >>
     name: ws!(expr_str_lit) >>
-    nws: opt!(tag_s!("-")) >>
+    nws: opt!(tag!("-")) >>
     (Node::Include(WS(pws.is_some(), nws.is_some()), match name {
         Expr::StrLit(s) => s,
         _ => panic!("include path must be a string literal"),
@@ -663,12 +663,12 @@ named!(block_include<Input, Node>, do_parse!(
 ));
 
 named!(block_import<Input, Node>, do_parse!(
-    pws: opt!(tag_s!("-")) >>
-    ws!(tag_s!("import")) >>
+    pws: opt!(tag!("-")) >>
+    ws!(tag!("import")) >>
     name: ws!(expr_str_lit) >>
-    ws!(tag_s!("as")) >>
+    ws!(tag!("as")) >>
     scope: ws!(identifier) >>
-    nws: opt!(tag_s!("-")) >>
+    nws: opt!(tag!("-")) >>
     (Node::Import(WS(pws.is_some(), nws.is_some()), match name {
         Expr::StrLit(s) => s,
         _ => panic!("import path must be a string literal"),
@@ -676,17 +676,17 @@ named!(block_import<Input, Node>, do_parse!(
 ));
 
 named_args!(block_macro<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
-    pws1: opt!(tag_s!("-")) >>
-    ws!(tag_s!("macro")) >>
+    pws1: opt!(tag!("-")) >>
+    ws!(tag!("macro")) >>
     name: ws!(identifier) >>
     params: ws!(parameters) >>
-    nws1: opt!(tag_s!("-")) >>
+    nws1: opt!(tag!("-")) >>
     call!(tag_block_end, s) >>
     contents: call!(parse_template, s) >>
     call!(tag_block_start, s) >>
-    pws2: opt!(tag_s!("-")) >>
-    ws!(tag_s!("endmacro")) >>
-    nws2: opt!(tag_s!("-")) >>
+    pws2: opt!(tag!("-")) >>
+    ws!(tag!("endmacro")) >>
+    nws2: opt!(tag!("-")) >>
     ({
         if name == "super" {
             panic!("invalid macro name 'super'");
@@ -723,7 +723,7 @@ named_args!(block_node<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
 
 named_args!(block_comment<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     call!(tag_comment_start, s)  >>
-    pws: opt!(tag_s!("-")) >>
+    pws: opt!(tag!("-")) >>
     inner: take_until_s!(s.comment_end) >>
     call!(tag_comment_end, s) >>
     (Node::Comment(WS(pws.is_some(), inner.len() > 1 && inner[inner.len() - 1] == b'-')))
