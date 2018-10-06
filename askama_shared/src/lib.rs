@@ -52,7 +52,7 @@ impl<'a> Config<'a> {
                 let name = raw_s.name;
 
                 if let Some(_) = syntaxes.insert(name.to_string(), Syntax::from(raw_s)) {
-                    panic!("named syntax \"{}\" already exist", name)
+                    panic!("syntax \"{}\" is already defined", name)
                 }
             }
         }
@@ -61,7 +61,7 @@ impl<'a> Config<'a> {
             if syntaxes.contains_key(default_syntax) {
                 default_syntax
             } else {
-                panic!("default syntax {} not exist", default_syntax)
+                panic!("default syntax \"{}\" not found", default_syntax)
             }
         } else {
             DEFAULT_SYNTAX_NAME
