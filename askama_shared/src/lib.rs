@@ -121,15 +121,37 @@ impl<'a> Default for Syntax<'a> {
 
 impl<'a> From<RawSyntax<'a>> for Syntax<'a> {
     fn from(raw: RawSyntax<'a>) -> Self {
-        let syntax = Self::default();
-        Self {
-            block_start: raw.block_start.unwrap_or(syntax.block_start),
-            block_end: raw.block_end.unwrap_or(syntax.block_end),
-            expr_start: raw.expr_start.unwrap_or(syntax.expr_start),
-            expr_end: raw.expr_end.unwrap_or(syntax.expr_end),
-            comment_start: raw.comment_start.unwrap_or(syntax.comment_start),
-            comment_end: raw.comment_end.unwrap_or(syntax.comment_end),
+        let default = Self::default();
+        let syntax = Self {
+            block_start: raw.block_start.unwrap_or(default.block_start),
+            block_end: raw.block_end.unwrap_or(default.block_end),
+            expr_start: raw.expr_start.unwrap_or(default.expr_start),
+            expr_end: raw.expr_end.unwrap_or(default.expr_end),
+            comment_start: raw.comment_start.unwrap_or(default.comment_start),
+            comment_end: raw.comment_end.unwrap_or(default.comment_end),
+        };
+
+        if syntax.block_start.len() != 2
+            || syntax.block_end.len() != 2
+            || syntax.expr_start.len() != 2
+            || syntax.expr_end.len() != 2
+            || syntax.comment_start.len() != 2
+            || syntax.comment_end.len() != 2
+        {
+            panic!("length of delimiters must be two")
         }
+
+        let bs = syntax.block_start.as_bytes()[0];
+        let be = syntax.block_start.as_bytes()[1];
+        let cs = syntax.comment_start.as_bytes()[0];
+        let ce = syntax.comment_start.as_bytes()[1];
+        let es = syntax.block_start.as_bytes()[0];
+        let ee = syntax.block_start.as_bytes()[1];
+        if !(bs == cs && bs == es) && !(be == ce && be == ee) {
+            panic!("bad delimiters block_start: {}, comment_start: {}, expr_start: {}, needs one of the two characters in common", syntax.block_start, syntax.comment_start, syntax.expr_start);
+        }
+
+        syntax
     }
 }
 
@@ -239,11 +261,11 @@ mod tests {
 
         [[syntax]]
         name = "foo"
-        block_start = "~<"
+        block_start = "{<"
 
         [[syntax]]
         name = "bar"
-        expr_start = "%%"
+        expr_start = "{!"
         "#;
 
         let default_syntax = Syntax::default();
@@ -251,7 +273,7 @@ mod tests {
         assert_eq!(config.default_syntax, "foo");
 
         let foo = config.syntaxes.get("foo").unwrap();
-        assert_eq!(foo.block_start, "~<");
+        assert_eq!(foo.block_start, "{<");
         assert_eq!(foo.block_end, default_syntax.block_end);
         assert_eq!(foo.expr_start, default_syntax.expr_start);
         assert_eq!(foo.expr_end, default_syntax.expr_end);
@@ -261,7 +283,7 @@ mod tests {
         let bar = config.syntaxes.get("bar").unwrap();
         assert_eq!(bar.block_start, default_syntax.block_start);
         assert_eq!(bar.block_end, default_syntax.block_end);
-        assert_eq!(bar.expr_start, "%%");
+        assert_eq!(bar.expr_start, "{!");
         assert_eq!(bar.expr_end, default_syntax.expr_end);
         assert_eq!(bar.comment_start, default_syntax.comment_start);
         assert_eq!(bar.comment_end, default_syntax.comment_end);
@@ -272,8 +294,8 @@ mod tests {
         let raw_config = r#"
         default_syntax = "foo"
 
-        syntax = [{ name = "foo", block_start = "~<" },
-                  { name = "bar", expr_start = "%%" } ]
+        syntax = [{ name = "foo", block_start = "{<" },
+                  { name = "bar", expr_start = "{!" } ]
         "#;
 
         let default_syntax = Syntax::default();
@@ -281,7 +303,7 @@ mod tests {
         assert_eq!(config.default_syntax, "foo");
 
         let foo = config.syntaxes.get("foo").unwrap();
-        assert_eq!(foo.block_start, "~<");
+        assert_eq!(foo.block_start, "{<");
         assert_eq!(foo.block_end, default_syntax.block_end);
         assert_eq!(foo.expr_start, default_syntax.expr_start);
         assert_eq!(foo.expr_end, default_syntax.expr_end);
@@ -291,7 +313,7 @@ mod tests {
         let bar = config.syntaxes.get("bar").unwrap();
         assert_eq!(bar.block_start, default_syntax.block_start);
         assert_eq!(bar.block_end, default_syntax.block_end);
-        assert_eq!(bar.expr_start, "%%");
+        assert_eq!(bar.expr_start, "{!");
         assert_eq!(bar.expr_end, default_syntax.expr_end);
         assert_eq!(bar.comment_start, default_syntax.comment_start);
         assert_eq!(bar.comment_end, default_syntax.comment_end);
