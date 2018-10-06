@@ -35,8 +35,8 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 /// the parse tree and/or generated source according to the `print` key's
 /// value as passed to the `template()` attribute.
 fn build_template(ast: &syn::DeriveInput) -> String {
-    let file = read_config_file();
-    let config = Config::new(&file);
+    let config_toml = read_config_file();
+    let config = Config::new(&config_toml);
     let input = TemplateInput::new(ast, &config);
     let source: String = match input.source {
         Source::Source(ref s) => s.clone(),
