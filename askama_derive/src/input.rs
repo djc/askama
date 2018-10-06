@@ -141,26 +141,6 @@ impl<'a> TemplateInput<'a> {
             },
         );
 
-        if syntax.block_start.len() != 2
-            || syntax.block_end.len() != 2
-            || syntax.expr_start.len() != 2
-            || syntax.expr_end.len() != 2
-            || syntax.comment_start.len() != 2
-            || syntax.comment_end.len() != 2
-        {
-            panic!("length of delimiters must be two")
-        }
-
-        let bs = syntax.block_start.as_bytes()[0];
-        let be = syntax.block_start.as_bytes()[1];
-        let cs = syntax.comment_start.as_bytes()[0];
-        let ce = syntax.comment_start.as_bytes()[1];
-        let es = syntax.block_start.as_bytes()[0];
-        let ee = syntax.block_start.as_bytes()[1];
-        if !(bs == cs && bs == es) && !(be == ce && be == ee) {
-            panic!("bad delimiters block_start: {}, comment_start: {}, expr_start: {}, needs one of the two characters in common", syntax.block_start, syntax.comment_start, syntax.expr_start);
-        }
-
         TemplateInput {
             ast,
             config,
