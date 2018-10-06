@@ -34,7 +34,7 @@ impl<'a> Config<'a> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default = vec![root.join("templates")];
 
-        let mut syntaxes: BTreeMap<String, Syntax> = BTreeMap::new();
+        let mut syntaxes = BTreeMap::new();
         syntaxes.insert(DEFAULT_SYNTAX_NAME.to_string(), Syntax::default());
 
         let raw: RawConfig =
