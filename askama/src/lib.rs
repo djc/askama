@@ -55,13 +55,17 @@
 //!   specified extension (`ext`): if the extension is `html`, `htm` or `xml`,
 //!   the `html` escape mode is used; otherwise, no implicit escaping is done.
 //!   Setting an escape mode explicitly overrides the inferred value.
+//! * `syntax` (as `syntax = "foo"`): set the syntax name for a parser defined
+//!   in the configuration file. The default syntax , "default",  is the one
+//!   provided by Askama.
 //!
 //! ## Configuration
 //!
 //! At compile time, Askama will read optional configuration values from
 //! `askama.toml` in the crate root (the directory where `Cargo.toml` can
-//! be found). Currently, this only covers the directories to search for
-//! templates.
+//! be found). Currently, this covers the directories to search for templates,
+//! as well as the of customization syntax.
+//!
 //!
 //! This example file demonstrates the default configuration:
 //!
@@ -70,6 +74,33 @@
 //! # Directories to search for templates, relative to the crate root.
 //! dirs = ["templates"]
 //! ```
+//!
+//! Syntax consists of at least the attribute `name` which uniquely names
+//! this syntax in the project.
+//!
+//! This example file demonstrate a personalized syntax configuration "foo":
+//!
+//! ```toml
+//! default_syntax = "foo"
+//!
+//! [[syntax]]
+//! name = "foo"
+//! block_start = "%{"
+//! comment_start = "#{"
+//! expr_end = "^^"
+//!
+//! [[syntax]]
+//! name = "bar"
+//! block_start = "%%"
+//! block_end = "%%"
+//! comment_start = "%#"
+//! expr_start = "%{"
+//! ```
+//!
+//! The following keys can currently be used to customize template syntax: `block_start`,
+//! `block_end`, `comment_start`, `comment_end`, `expr_start` and `expr_end`; Must be
+//! exactly 2 characters long and start delimiters must all start or end with the same
+//! character. If a key is omitted, the value from the default syntax is used.
 //!
 //! ## Variables
 //!
