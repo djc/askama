@@ -21,6 +21,7 @@ pub enum Expr<'a> {
     Range(&'a str, Option<Box<Expr<'a>>>, Option<Box<Expr<'a>>>),
     Group(Box<Expr<'a>>),
     MethodCall(Box<Expr<'a>>, &'a str, Vec<Expr<'a>>),
+    RustMacro(&'a str, Vec<Expr<'a>>),
 }
 
 #[derive(Debug)]
@@ -427,6 +428,14 @@ named!(expr_unary<Input, Expr>, do_parse!(
     })
 ));
 
+named!(rust_macro<Input, Expr>, do_parse!(
+    mname: identifier >>
+    tag!("!") >>
+    args: arguments >>
+    (Expr::RustMacro(mname, args))
+));
+
+
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $( $op:expr ),* ) => {
         named!($name<Input, Expr>, do_parse!(
@@ -463,6 +472,7 @@ named!(range_right<Input, Expr>, do_parse!(
 
 named!(expr_any<Input, Expr>, alt!(
     range_right |
+    rust_macro |
     do_parse!(
         left: expr_or >>
         rest: range_right >> (match rest {
@@ -776,6 +786,7 @@ mod tests {
             }
         }
     }
+
     #[test]
     fn test_ws_splitter() {
         check_ws_split("", &("", "", ""));
@@ -784,6 +795,7 @@ mod tests {
         check_ws_split("b\n", &("", "b", "\n"));
         check_ws_split(" \t\r\n", &(" \t\r\n", "", ""));
     }
+
     #[test]
     #[should_panic]
     fn test_invalid_block() {
@@ -805,5 +817,4 @@ mod tests {
 
         super::parse("{~ strvar|e ~}", &syntax);
     }
-
 }
