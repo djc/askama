@@ -64,8 +64,7 @@
 //! At compile time, Askama will read optional configuration values from
 //! `askama.toml` in the crate root (the directory where `Cargo.toml` can
 //! be found). Currently, this covers the directories to search for templates,
-//! as well as the of customization syntax.
-//!
+//! as well as custom syntax configuration.
 //!
 //! This example file demonstrates the default configuration:
 //!
@@ -75,12 +74,10 @@
 //! dirs = ["templates"]
 //! ```
 //!
-//! Syntax consists of at least the attribute `name` which uniquely names
-//! this syntax in the project.
-//!
-//! This example file demonstrate a personalized syntax configuration "foo":
+//! Here is an example that defines two custom syntaxes:
 //!
 //! ```toml
+//! [general]
 //! default_syntax = "foo"
 //!
 //! [[syntax]]
@@ -97,9 +94,19 @@
 //! expr_start = "%{"
 //! ```
 //!
-//! The following keys can currently be used to customize template syntax: `block_start`,
-//! `block_end`, `comment_start`, `comment_end`, `expr_start` and `expr_end`; Must be
-//! exactly 2 characters long and start delimiters must all start or end with the same
+//! A syntax block consists of at least the attribute `name` which uniquely
+//! names this syntax in the project.
+//!
+//! The following keys can currently be used to customize template syntax:
+//!
+//! * `block_start`
+//! * `block_end`
+//! * `comment_start`
+//! * `comment_end`
+//! * `expr_start`
+//! * `expr_end`
+//!
+//! Values must be 2 characters long and start delimiters must all start with the same
 //! character. If a key is omitted, the value from the default syntax is used.
 //!
 //! ## Variables
