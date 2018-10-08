@@ -32,7 +32,7 @@ pub struct Config<'a> {
 impl<'a> Config<'a> {
     pub fn new(s: &str) -> Config {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-        let default = vec![root.join("templates")];
+        let default_dirs = vec![root.join("templates")];
 
         let mut syntaxes = BTreeMap::new();
         syntaxes.insert(DEFAULT_SYNTAX_NAME.to_string(), Syntax::default());
@@ -40,11 +40,12 @@ impl<'a> Config<'a> {
         let raw: RawConfig =
             toml::from_str(&s).expect(&format!("invalid TOML in {}", CONFIG_FILE_NAME));
 
-        let dirs = match raw.general {
-            Some(General { dirs: Some(dirs) }) => {
-                dirs.into_iter().map(|dir| root.join(dir)).collect()
-            }
-            Some(General { dirs: None }) | None => default,
+        let (dirs, default_syntax) = match raw.general {
+            Some(General { dirs, default_syntax }) => (
+                dirs.map_or(default_dirs, |v| v.into_iter().map(|dir| root.join(dir)).collect()),
+                default_syntax.unwrap_or(DEFAULT_SYNTAX_NAME),
+            ),
+            None => (default_dirs, DEFAULT_SYNTAX_NAME),
         };
 
         if let Some(raw_syntaxes) = raw.syntax {
@@ -57,15 +58,9 @@ impl<'a> Config<'a> {
             }
         }
 
-        let default_syntax = if let Some(default_syntax) = raw.default_syntax {
-            if syntaxes.contains_key(default_syntax) {
-                default_syntax
-            } else {
-                panic!("default syntax \"{}\" not found", default_syntax)
-            }
-        } else {
-            DEFAULT_SYNTAX_NAME
-        };
+        if !syntaxes.contains_key(default_syntax) {
+            panic!("default syntax \"{}\" not found", default_syntax)
+        }
 
         Config {
             dirs,
@@ -157,14 +152,16 @@ impl<'a> From<RawSyntax<'a>> for Syntax<'a> {
 
 #[derive(Deserialize)]
 struct RawConfig<'d> {
-    general: Option<General>,
+    #[serde(borrow)]
+    general: Option<General<'d>>,
     syntax: Option<Vec<RawSyntax<'d>>>,
-    default_syntax: Option<&'d str>,
 }
 
 #[derive(Deserialize)]
-struct General {
-    dirs: Option<Vec<String>>,
+struct General<'a> {
+    #[serde(borrow)]
+    dirs: Option<Vec<&'a str>>,
+    default_syntax: Option<&'a str>,
 }
 
 #[derive(Deserialize)]
@@ -257,6 +254,7 @@ mod tests {
     #[test]
     fn add_syntax() {
         let raw_config = r#"
+        [general]
         default_syntax = "foo"
 
         [[syntax]]
@@ -292,10 +290,11 @@ mod tests {
     #[test]
     fn add_syntax_two() {
         let raw_config = r#"
-        default_syntax = "foo"
-
         syntax = [{ name = "foo", block_start = "{<" },
                   { name = "bar", expr_start = "{!" } ]
+
+        [general]
+        default_syntax = "foo"
         "#;
 
         let default_syntax = Syntax::default();
@@ -344,6 +343,7 @@ mod tests {
     #[test]
     fn is_not_exist_default_syntax() {
         let raw_config = r#"
+        [general]
         default_syntax = "foo"
         "#;
 
