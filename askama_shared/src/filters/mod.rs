@@ -189,7 +189,7 @@ pub fn capitalize(s: &fmt::Display) -> Result<String> {
     }
 }
 
-/// Centers the value in a field of a given width.
+/// Centers the value in a field of a given width
 pub fn center(s: &fmt::Display, l: usize) -> Result<String> {
     let s = format!("{}", s);
     let len = s.len();
@@ -216,7 +216,7 @@ pub fn center(s: &fmt::Display, l: usize) -> Result<String> {
     }
 }
 
-/// Count the words in that string.
+/// Count the words in that string
 pub fn wordcount(s: &fmt::Display) -> Result<usize> {
     let s = format!("{}", s);
 
