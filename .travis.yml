@@ -2,14 +2,18 @@ language: rust
 rust:
   - stable
   - beta
-script:
-  - cargo test --all
 cache: cargo
 matrix:
   include:
     - rust: nightly-2018-08-24
-      before_script:
-        - rustup component add rustfmt-preview
-        - rustup component add clippy-preview
       script:
         - cd testing && cargo test --no-default-features --features with-rocket
+
+before_script:
+- rustup component add rustfmt-preview
+
+script:
+- cargo test --all
+- if [[ "${TRAVIS_RUST_VERSION}" == stable ]]; then
+    cargo fmt -- --check;
+  fi
