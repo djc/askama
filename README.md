@@ -1,5 +1,6 @@
 # Askama
 
+[![Documentation](https://docs.rs/askama/badge.svg)](https://docs.rs/askama/)
 [![Latest version](https://img.shields.io/crates/v/askama.svg)](https://crates.io/crates/askama)
 [![Build status](https://api.travis-ci.org/djc/askama.svg?branch=master)](https://travis-ci.org/djc/askama)
 [![Windows build](https://ci.appveyor.com/api/projects/status/github/djc/askama?svg=true)](https://ci.appveyor.com/project/djc/askama)
