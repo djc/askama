@@ -29,11 +29,9 @@ in a for-profit context, please consider supporting my open source work on
 ### Feature highlights
 
 * Construct templates using a familiar, easy-to-use syntax
-* Benefit from the safety provided by Rust's type system
-* Optional built-in support for Rocket and Iron web frameworks
 * Template code is compiled into your crate for [optimal performance][benchmarks]
-* Templates only convert your data as needed
-* Templates can access your Rust types directly, according to Rust's privacy rules
+* Benefit from the safety provided by Rust's type system
+* Optional built-in support for Actix, Iron and Rocket web frameworks
 * Debugging features to assist you in template development
 * Templates must be valid UTF-8 and produce UTF-8 when rendered
 * Works on stable Rust
@@ -47,6 +45,7 @@ in a for-profit context, please consider supporting my open source work on
 * Some built-in filters, and the ability to use your own
 * Whitespace suppressing with '-' markers
 * Opt-out HTML escaping
+* Syntax customization
 
 ### Limitations
 
