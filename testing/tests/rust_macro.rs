@@ -6,7 +6,7 @@ use askama::Template;
 macro_rules! hello {
     () => {
         "world"
-    }
+    };
 }
 
 #[derive(Template)]

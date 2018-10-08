@@ -644,7 +644,7 @@ impl<'a> Generator<'a> {
             Expr::Group(ref inner) => self.visit_group(buf, inner),
             Expr::MethodCall(ref obj, method, ref args) => {
                 self.visit_method_call(buf, obj, method, args)
-            },
+            }
             Expr::RustMacro(name, ref args) => self.visit_rust_macro(buf, name, args),
         }
     }

@@ -41,8 +41,13 @@ impl<'a> Config<'a> {
             toml::from_str(&s).expect(&format!("invalid TOML in {}", CONFIG_FILE_NAME));
 
         let (dirs, default_syntax) = match raw.general {
-            Some(General { dirs, default_syntax }) => (
-                dirs.map_or(default_dirs, |v| v.into_iter().map(|dir| root.join(dir)).collect()),
+            Some(General {
+                dirs,
+                default_syntax,
+            }) => (
+                dirs.map_or(default_dirs, |v| {
+                    v.into_iter().map(|dir| root.join(dir)).collect()
+                }),
                 default_syntax.unwrap_or(DEFAULT_SYNTAX_NAME),
             ),
             None => (default_dirs, DEFAULT_SYNTAX_NAME),

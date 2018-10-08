@@ -99,12 +99,12 @@
 //!
 //! The following keys can currently be used to customize template syntax:
 //!
-//! * `block_start`
-//! * `block_end`
-//! * `comment_start`
-//! * `comment_end`
-//! * `expr_start`
-//! * `expr_end`
+//! * `block_start`, defaults to `{%`
+//! * `block_end`, defaults to `%}`
+//! * `comment_start`, defaults to `{#`
+//! * `comment_end`, defaults to `#}`
+//! * `expr_start`, defaults to `{{`
+//! * `expr_end`, defaults to `}}`
 //!
 //! Values must be 2 characters long and start delimiters must all start with the same
 //! character. If a key is omitted, the value from the default syntax is used.
