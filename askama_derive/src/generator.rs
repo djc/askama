@@ -652,10 +652,37 @@ impl<'a> Generator<'a> {
     fn visit_rust_macro(&mut self, buf: &mut Buffer, name: &str, args: &[Expr]) -> DisplayWrap {
         buf.write(name);
         buf.write("!(");
-        self._visit_args(buf, args);
+
+        match name {
+            "map" => self._visit_macro_map(buf, args),
+            _ => self._visit_args(buf, args),
+        }
+
         buf.write(")");
 
         DisplayWrap::Unwrapped
+    }
+
+    fn _visit_macro_map(&mut self, buf: &mut Buffer, args: &[Expr]) {
+        buf.write("self, ");
+        match args {
+            [Expr::Var(name), Expr::Var(prop)] => {
+                buf.write(&format!("{}, {}", name, prop));
+            }
+            [Expr::Var(name), Expr::Var(prop), Expr::Var(fname)] => {
+                buf.write(&format!("{}, {}, {}", name, prop, &{
+                    if filters::BUILT_IN_FILTERS.contains(&fname) {
+                        match fname {
+                            &"abs" => format!("::askama::filters::{}", fname),
+                            _ => format!("& ::askama::filters::{}", fname),
+                        }
+                    } else {
+                        format!("filters::{}", fname)
+                    }
+                }));
+            }
+            _ => panic!("should bad format"),
+        };
     }
 
     fn visit_match_variant(&mut self, buf: &mut Buffer, param: &MatchVariant) -> DisplayWrap {
