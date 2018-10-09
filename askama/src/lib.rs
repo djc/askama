@@ -385,6 +385,9 @@ use std::fs::{self, DirEntry};
 use std::io;
 use std::path::Path;
 
+#[macro_use]
+pub mod macros;
+
 /// Main `Template` trait; implementations are generally derived
 pub trait Template {
     /// Helper method which allocates a new `String` and renders into it
