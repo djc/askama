@@ -667,9 +667,19 @@ impl<'a> Generator<'a> {
         buf.write("self, ");
         match args {
             [Expr::Var(name), Expr::Var(prop)] => {
-                buf.write(name);
-                buf.write(", ");
-                buf.write(prop);
+                buf.write(&format!("{}, {}", name, prop));
+            }
+            [Expr::Var(name), Expr::Var(prop), Expr::Var(fname)] => {
+                buf.write(&format!("{}, {}, {}", name, prop, &{
+                    if filters::BUILT_IN_FILTERS.contains(&fname) {
+                        match fname {
+                            &"abs" => format!("::askama::filters::{}", fname),
+                            _ => format!("& ::askama::filters::{}", fname),
+                        }
+                    } else {
+                        format!("filters::{}", fname)
+                    }
+                }));
             }
             _ => panic!("should bad format"),
         };

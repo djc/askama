@@ -1,3 +1,11 @@
 {% for i in map!(foo, bar) -%}
     {{ i }}
 {%- endfor -%}
+
+{% for i in map!(foo, bar, upper) -%}
+    {{ i }}
+{%- endfor -%}
+
+{% for i in map!(foo, num, abs) -%}
+    {{ i }}
+{%- endfor -%}

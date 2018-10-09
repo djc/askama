@@ -27,16 +27,26 @@ struct RustMacrosFiltersTemplate<'a> {
 
 struct Bar<'a> {
     bar: Option<&'a str>,
+    num: Option<i32>,
 }
 
 #[test]
 fn test_rust_macros_filters() {
     let template = RustMacrosFiltersTemplate {
         foo: vec![
-            Bar { bar: Some("foo") },
-            Bar { bar: None },
-            Bar { bar: Some("bar") },
+            Bar {
+                bar: Some("foo"),
+                num: None,
+            },
+            Bar {
+                bar: None,
+                num: Some(-1),
+            },
+            Bar {
+                bar: Some("bar"),
+                num: Some(12),
+            },
         ],
     };
-    assert_eq!("foobar", template.render().unwrap());
+    assert_eq!("foobarFOOBAR112", template.render().unwrap());
 }
