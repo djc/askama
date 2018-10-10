@@ -107,7 +107,7 @@ impl<'a> Generator<'a> {
         buf.writeln("Ok(())");
         buf.writeln("}");
 
-        buf.writeln("fn extension(&self) -> Option<&str> {");
+        buf.writeln("fn extension() -> Option<&'static str> {");
         buf.writeln(&format!(
             "{:?}",
             self.input.path.extension().map(|s| s.to_str().unwrap())
