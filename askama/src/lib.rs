@@ -398,10 +398,7 @@ pub trait Template {
     /// Helper function to inspect the template's extension
     fn extension() -> Option<&'static str>
     where
-        Self: Sized,
-    {
-        None
-    }
+        Self: Sized;
 }
 
 pub use askama_derive::*;
