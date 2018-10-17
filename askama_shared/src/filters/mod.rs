@@ -20,13 +20,14 @@ use escaping::{self, MarkupDisplay};
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 18] = [
+pub const BUILT_IN_FILTERS: [&str; 19] = [
     "abs",
     "capitalize",
     "center",
     "e",
     "escape",
     "format",
+    "indent",
     "join",
     "linebreaks",
     "linebreaksbr",
@@ -136,6 +137,25 @@ pub fn truncate(s: &fmt::Display, len: &usize) -> Result<String> {
         s.push_str("...");
         Ok(s)
     }
+}
+
+/// Indent lines with `width` spaces
+pub fn indent(s: &fmt::Display, width: &usize) -> Result<String> {
+    let s = format!("{}", s);
+
+    let mut indented = String::new();
+
+    for (i, c) in s.char_indices() {
+        indented.push(c);
+
+        if c == '\n' && i < s.len() - 1 {
+            for _ in 0..*width {
+                indented.push(' ');
+            }
+        }
+    }
+
+    Ok(indented)
 }
 
 /// Joins iterable into a string separated by provided argument
@@ -267,6 +287,17 @@ mod tests {
     #[test]
     fn test_trim() {
         assert_eq!(trim(&" Hello\tworld\t").unwrap(), "Hello\tworld");
+    }
+
+    #[test]
+    fn test_indent() {
+        assert_eq!(indent(&"hello", &2).unwrap(), "hello");
+        assert_eq!(indent(&"hello\n", &2).unwrap(), "hello\n");
+        assert_eq!(indent(&"hello\nfoo", &2).unwrap(), "hello\n  foo");
+        assert_eq!(
+            indent(&"hello\nfoo\n bar", &4).unwrap(),
+            "hello\n    foo\n     bar"
+        );
     }
 
     #[test]
