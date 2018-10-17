@@ -87,7 +87,7 @@ pub fn format() {}
 /// A single newline becomes an HTML line break `<br>` and a new line
 /// followed by a blank line becomes a paragraph break `<p>`.
 pub fn linebreaks(s: &fmt::Display) -> Result<String> {
-    let s = format!("{}", s);
+    let s = s.to_string();
     let linebroken = s.replace("\n\n", "</p><p>").replace("\n", "<br/>");
 
     Ok(format!("<p>{}</p>", linebroken))
@@ -95,13 +95,13 @@ pub fn linebreaks(s: &fmt::Display) -> Result<String> {
 
 /// Converts all newlines in a piece of plain text to HTML line breaks
 pub fn linebreaksbr(s: &fmt::Display) -> Result<String> {
-    let s = format!("{}", s);
+    let s = s.to_string();
     Ok(s.replace("\n", "<br/>"))
 }
 
 /// Converts to lowercase
 pub fn lower(s: &fmt::Display) -> Result<String> {
-    let s = format!("{}", s);
+    let s = s.to_string();
     Ok(s.to_lowercase())
 }
 
@@ -112,7 +112,7 @@ pub fn lowercase(s: &fmt::Display) -> Result<String> {
 
 /// Converts to uppercase
 pub fn upper(s: &fmt::Display) -> Result<String> {
-    let s = format!("{}", s);
+    let s = s.to_string();
     Ok(s.to_uppercase())
 }
 
@@ -123,13 +123,13 @@ pub fn uppercase(s: &fmt::Display) -> Result<String> {
 
 /// Strip leading and trailing whitespace
 pub fn trim(s: &fmt::Display) -> Result<String> {
-    let s = format!("{}", s);
+    let s = s.to_string();
     Ok(s.trim().to_owned())
 }
 
 /// Limit string length, appends '...' if truncated
 pub fn truncate(s: &fmt::Display, len: &usize) -> Result<String> {
-    let mut s = format!("{}", s);
+    let mut s = s.to_string();
     if s.len() < *len {
         Ok(s)
     } else {
@@ -141,7 +141,7 @@ pub fn truncate(s: &fmt::Display, len: &usize) -> Result<String> {
 
 /// Indent lines with `width` spaces
 pub fn indent(s: &fmt::Display, width: &usize) -> Result<String> {
-    let s = format!("{}", s);
+    let s = s.to_string();
 
     let mut indented = String::new();
 
@@ -190,7 +190,7 @@ where
 
 /// Capitalize a value. The first character will be uppercase, all others lowercase.
 pub fn capitalize(s: &fmt::Display) -> Result<String> {
-    let mut s = format!("{}", s);
+    let mut s = s.to_string();
 
     match s.get_mut(0..1).map(|s| {
         s.make_ascii_uppercase();
@@ -211,7 +211,7 @@ pub fn capitalize(s: &fmt::Display) -> Result<String> {
 
 /// Centers the value in a field of a given width
 pub fn center(s: &fmt::Display, l: usize) -> Result<String> {
-    let s = format!("{}", s);
+    let s = s.to_string();
     let len = s.len();
 
     if l <= len {
@@ -238,7 +238,7 @@ pub fn center(s: &fmt::Display, l: usize) -> Result<String> {
 
 /// Count the words in that string
 pub fn wordcount(s: &fmt::Display) -> Result<usize> {
-    let s = format!("{}", s);
+    let s = s.to_string();
 
     Ok(s.split_whitespace().count())
 }
