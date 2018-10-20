@@ -586,9 +586,9 @@ impl<'a> Generator<'a> {
 
         use self::DisplayWrap::*;
         use super::input::EscapeMode::*;
-        buf.writeln("write!(writer, \"{}\", &{");
+        buf.writeln("write!(writer, \"{}\", {");
         buf.write(&match (wrapped, &self.input.escaping) {
-            (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => expr_buf.buf,
+            (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => format!("&{}", expr_buf.buf),
             (Unwrapped, &Html) => format!("::askama::MarkupDisplay::from(&{})", expr_buf.buf),
         });
         buf.writeln("");
