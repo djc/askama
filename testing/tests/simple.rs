@@ -31,6 +31,30 @@ fn test_variables() {
 }
 
 #[derive(Template)]
+#[template(path = "simple-no-escape.txt")]
+struct VariablesTemplateNoEscape<'a> {
+    strvar: &'a str,
+    num: i64,
+    i18n: String,
+}
+
+#[test]
+fn test_variables_no_escape() {
+    let s = VariablesTemplateNoEscape {
+        strvar: "foo",
+        num: 42,
+        i18n: "Iñtërnâtiônàlizætiøn".to_string(),
+    };
+    assert_eq!(
+        s.render().unwrap(),
+        "\nhello world, foo\n\
+         with number: 42\n\
+         Iñtërnâtiônàlizætiøn is important\n\
+         in vars too: Iñtërnâtiônàlizætiøn"
+    );
+}
+
+#[derive(Template)]
 #[template(path = "if.html")]
 struct IfTemplate {
     cond: bool,
