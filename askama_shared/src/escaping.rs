@@ -96,7 +96,7 @@ pub fn escape(s: String) -> String {
             _ => panic!("incorrect indexing"),
         }
     }
-    if start < bytes.len() - 1 {
+    if start < bytes.len() {
         res.extend(&bytes[start..]);
     }
 
@@ -112,5 +112,6 @@ mod tests {
         assert_eq!(escape("<&>".to_string()), "&lt;&amp;&gt;");
         assert_eq!(escape("bla&".to_string()), "bla&amp;");
         assert_eq!(escape("<foo".to_string()), "&lt;foo");
+        assert_eq!(escape("bla&h".to_string()), "bla&amp;h");
     }
 }
