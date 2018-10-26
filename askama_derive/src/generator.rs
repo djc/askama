@@ -597,18 +597,27 @@ impl<'a> Generator<'a> {
 
     fn write_lit(&mut self, buf: &mut Buffer, lws: &'a str, val: &str, rws: &'a str) {
         assert!(self.next_ws.is_none());
-        if !lws.is_empty() {
+        let lws_write = if !lws.is_empty() {
             if self.skip_ws {
                 self.skip_ws = false;
+                false
             } else if val.is_empty() {
                 assert!(rws.is_empty());
                 self.next_ws = Some(lws);
+                false
             } else {
-                buf.writeln(&format!("writer.write_str({:#?})?;", lws));
+                true
             }
-        }
+        } else {
+            false
+        };
+
         if !val.is_empty() {
-            buf.writeln(&format!("writer.write_str({:#?})?;", val));
+            if lws_write {
+                buf.writeln(&format!("writer.write_str({:#?})?;", [lws, val].join("")));
+            } else {
+                buf.writeln(&format!("writer.write_str({:#?})?;", val));
+            }
         }
         if !rws.is_empty() {
             self.next_ws = Some(rws);
