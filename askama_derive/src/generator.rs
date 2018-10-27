@@ -41,6 +41,8 @@ struct Generator<'a> {
     skip_ws: bool,
     // If currently in a block, this will contain the name of a potential parent block
     super_block: Option<(&'a str, usize)>,
+    // buffer for literals
+    buf_lit: Vec<&'a str>,
 }
 
 impl<'a> Generator<'a> {
@@ -58,6 +60,7 @@ impl<'a> Generator<'a> {
             next_ws: None,
             skip_ws: false,
             super_block: None,
+            buf_lit: vec![],
         }
     }
 
@@ -242,7 +245,7 @@ impl<'a> Generator<'a> {
         for n in nodes {
             match *n {
                 Node::Lit(lws, val, rws) => {
-                    self.write_lit(buf, lws, val, rws);
+                    self.visit_lit(lws, val, rws);
                 }
                 Node::Comment(ws) => {
                     self.write_comment(buf, ws);
@@ -304,6 +307,8 @@ impl<'a> Generator<'a> {
                 }
             }
         }
+
+        self.write_buf_lit(buf);
     }
 
     fn write_cond(&mut self, ctx: &'a Context, buf: &mut Buffer, conds: &'a [Cond], ws: WS) {
@@ -595,30 +600,31 @@ impl<'a> Generator<'a> {
         buf.writeln(")?;");
     }
 
-    fn write_lit(&mut self, buf: &mut Buffer, lws: &'a str, val: &str, rws: &'a str) {
+    // Write literals buffer and empty
+    fn write_buf_lit(&mut self, buf: &mut Buffer) {
+        if !self.buf_lit.is_empty() {
+            buf.writeln(&format!("writer.write_str({:#?})?;", self.buf_lit.join("")));
+            self.buf_lit = vec![];
+        }
+    }
+
+    fn visit_lit(&mut self, lws: &'a str, val: &'a str, rws: &'a str) {
         assert!(self.next_ws.is_none());
-        let lws_write = if !lws.is_empty() {
+        if !lws.is_empty() {
             if self.skip_ws {
                 self.skip_ws = false;
-                false
             } else if val.is_empty() {
                 assert!(rws.is_empty());
                 self.next_ws = Some(lws);
-                false
             } else {
-                true
-            }
-        } else {
-            false
-        };
-
-        if !val.is_empty() {
-            if lws_write {
-                buf.writeln(&format!("writer.write_str({:#?})?;", [lws, val].join("")));
-            } else {
-                buf.writeln(&format!("writer.write_str({:#?})?;", val));
+                self.buf_lit.push(lws);
             }
         }
+
+        if !val.is_empty() {
+            self.buf_lit.push(val);
+        }
+
         if !rws.is_empty() {
             self.next_ws = Some(rws);
         }
@@ -928,10 +934,11 @@ impl<'a> Generator<'a> {
         if self.next_ws.is_some() && !ws.0 {
             let val = self.next_ws.unwrap();
             if !val.is_empty() {
-                buf.writeln(&format!("writer.write_str({:#?})?;", val));
+                self.buf_lit.push(val);
             }
         }
         self.next_ws = None;
+        self.write_buf_lit(buf);
     }
 
     // Sets `skip_ws` to match the suffix whitespace suppressor from the given
