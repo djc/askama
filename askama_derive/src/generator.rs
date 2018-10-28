@@ -41,8 +41,8 @@ struct Generator<'a> {
     skip_ws: bool,
     // If currently in a block, this will contain the name of a potential parent block
     super_block: Option<(&'a str, usize)>,
-    // buffer for literals
-    buf_lit: Vec<&'a str>,
+    // buffer for writable
+    buf_writable: Vec<Writable<'a>>,
 }
 
 impl<'a> Generator<'a> {
@@ -60,7 +60,7 @@ impl<'a> Generator<'a> {
             next_ws: None,
             skip_ws: false,
             super_block: None,
-            buf_lit: vec![],
+            buf_writable: vec![],
         }
     }
 
@@ -106,7 +106,7 @@ impl<'a> Generator<'a> {
             self.handle(ctx, &ctx.nodes, buf, AstLevel::Top);
         }
 
-        self.flush_ws(buf, WS(false, false));
+        self.flush_ws(WS(false, false));
         buf.writeln("Ok(())");
         buf.writeln("}");
 
@@ -248,10 +248,10 @@ impl<'a> Generator<'a> {
                     self.visit_lit(lws, val, rws);
                 }
                 Node::Comment(ws) => {
-                    self.write_comment(buf, ws);
+                    self.write_comment(ws);
                 }
                 Node::Expr(ws, ref val) => {
-                    self.write_expr(buf, ws, val);
+                    self.write_expr(ws, val);
                 }
                 Node::LetDecl(ws, ref var) => {
                     self.write_let_decl(buf, ws, var);
@@ -269,7 +269,7 @@ impl<'a> Generator<'a> {
                     self.write_loop(ctx, buf, ws1, var, iter, body, ws2);
                 }
                 Node::BlockDef(ws1, name, _, ws2) => {
-                    if AstLevel::Nested == level {
+                    if AstLevel::Nested == level || AstLevel::LoopNested == level {
                         panic!(
                             "blocks ('{}') are only allowed at the top level of a template \
                              or another block",
@@ -289,14 +289,16 @@ impl<'a> Generator<'a> {
                     if level != AstLevel::Top {
                         panic!("macro blocks only allowed at the top level");
                     }
-                    self.flush_ws(buf, m.ws1);
+                    self.flush_ws(m.ws1);
                     self.prepare_ws(m.ws2);
+                    self.write_buf_writable(buf);
                 }
                 Node::Import(ws, _, _) => {
                     if level != AstLevel::Top {
                         panic!("import blocks only allowed at the top level");
                     }
-                    self.handle_ws(buf, ws);
+                    self.handle_ws(ws);
+                    self.write_buf_writable(buf);
                 }
                 Node::Extends(_) => {
                     if level != AstLevel::Top {
@@ -308,12 +310,15 @@ impl<'a> Generator<'a> {
             }
         }
 
-        self.write_buf_lit(buf);
+        if AstLevel::LoopNested != level {
+            self.write_buf_writable(buf);
+        }
     }
 
     fn write_cond(&mut self, ctx: &'a Context, buf: &mut Buffer, conds: &'a [Cond], ws: WS) {
         for (i, &(cws, ref cond, ref nodes)) in conds.iter().enumerate() {
-            self.handle_ws(buf, cws);
+            self.handle_ws(cws);
+            self.write_buf_writable(buf);
             match *cond {
                 Some(ref expr) => {
                     let expr_code = self.visit_expr_root(expr);
@@ -335,7 +340,7 @@ impl<'a> Generator<'a> {
             self.handle(ctx, nodes, buf, AstLevel::Nested);
             self.locals.pop();
         }
-        self.handle_ws(buf, ws);
+        self.handle_ws(ws);
         buf.writeln("}");
     }
 
@@ -349,12 +354,14 @@ impl<'a> Generator<'a> {
         arms: &'a [When],
         ws2: WS,
     ) {
-        self.flush_ws(buf, ws1);
+        self.flush_ws(ws1);
         if let Some(inter) = inter {
             if !inter.is_empty() {
                 self.next_ws = Some(inter);
             }
         }
+
+        self.write_buf_writable(buf);
 
         let expr_code = self.visit_expr_root(expr);
         buf.writeln(&format!("match &{} {{", expr_code));
@@ -381,14 +388,14 @@ impl<'a> Generator<'a> {
                 buf.write(")");
             }
             buf.writeln(" => {");
-            self.handle_ws(buf, ws);
+            self.handle_ws(ws);
             self.handle(ctx, body, buf, AstLevel::Nested);
             buf.writeln("}");
             self.locals.pop();
         }
 
         buf.writeln("}");
-        self.handle_ws(buf, ws2);
+        self.handle_ws(ws2);
     }
 
     fn write_loop(
@@ -401,7 +408,8 @@ impl<'a> Generator<'a> {
         body: &'a [Node],
         ws2: WS,
     ) {
-        self.handle_ws(buf, ws1);
+        self.handle_ws(ws1);
+        self.write_buf_writable(buf);
         self.locals.push();
 
         let expr_code = self.visit_expr_root(iter);
@@ -416,8 +424,9 @@ impl<'a> Generator<'a> {
             _ => buf.writeln(&format!(") in (&{}).into_iter().enumerate() {{", expr_code)),
         };
 
-        self.handle(ctx, body, buf, AstLevel::Nested);
-        self.handle_ws(buf, ws2);
+        self.handle(ctx, body, buf, AstLevel::LoopNested);
+        self.handle_ws(ws2);
+        self.write_buf_writable(buf);
         buf.writeln("}");
         self.locals.pop();
     }
@@ -460,7 +469,8 @@ impl<'a> Generator<'a> {
             )
         };
 
-        self.flush_ws(buf, ws); // Cannot handle_ws() here: whitespace from macro definition comes first
+        self.flush_ws(ws); // Cannot handle_ws() here: whitespace from macro definition comes first
+        self.write_buf_writable(buf);
         self.locals.push();
         buf.writeln("{");
         self.prepare_ws(def.ws1);
@@ -476,14 +486,15 @@ impl<'a> Generator<'a> {
 
         self.handle(own_ctx, &def.nodes, buf, AstLevel::Nested);
 
-        self.flush_ws(buf, def.ws2);
+        self.flush_ws(def.ws2);
         buf.writeln("}");
         self.locals.pop();
         self.prepare_ws(ws);
     }
 
     fn handle_include(&mut self, ctx: &'a Context, buf: &mut Buffer, ws: WS, path: &str) {
-        self.flush_ws(buf, ws);
+        self.flush_ws(ws);
+        self.write_buf_writable(buf);
         let path = self
             .input
             .config
@@ -500,7 +511,8 @@ impl<'a> Generator<'a> {
     }
 
     fn write_let_decl(&mut self, buf: &mut Buffer, ws: WS, var: &'a Target) {
-        self.handle_ws(buf, ws);
+        self.handle_ws(ws);
+        self.write_buf_writable(buf);
         buf.write("let ");
         match *var {
             Target::Name(name) => {
@@ -512,7 +524,8 @@ impl<'a> Generator<'a> {
     }
 
     fn write_let(&mut self, buf: &mut Buffer, ws: WS, var: &'a Target, val: &Expr) {
-        self.handle_ws(buf, ws);
+        self.handle_ws(ws);
+        self.write_buf_writable(buf);
         let mut expr_buf = Buffer::new(0);
         self.visit_expr(&mut expr_buf, val);
 
@@ -533,7 +546,8 @@ impl<'a> Generator<'a> {
     // is from a `super()` call, and we can get the name from `self.super_block`.
     fn write_block(&mut self, buf: &mut Buffer, name: Option<&'a str>, outer: WS) {
         // Flush preceding whitespace according to the outer WS spec
-        self.flush_ws(buf, outer);
+        self.flush_ws(outer);
+        self.write_buf_writable(buf);
 
         let prev_block = self.super_block;
         let cur = match (name, prev_block) {
@@ -576,7 +590,7 @@ impl<'a> Generator<'a> {
         self.locals.push();
         self.handle(ctx, nodes, buf, AstLevel::Block);
         self.locals.pop();
-        self.flush_ws(buf, *ws2);
+        self.flush_ws(*ws2);
 
         // Restore original block context and set whitespace suppression for
         // succeeding whitespace according to the outer WS spec
@@ -584,32 +598,68 @@ impl<'a> Generator<'a> {
         self.prepare_ws(outer);
     }
 
-    fn write_expr(&mut self, buf: &mut Buffer, ws: WS, s: &Expr) {
-        self.handle_ws(buf, ws);
-        let mut expr_buf = Buffer::new(0);
-        let wrapped = self.visit_expr(&mut expr_buf, s);
-
-        use self::DisplayWrap::*;
-        use super::input::EscapeMode::*;
-        buf.writeln("write!(writer, \"{}\", &");
-        buf.write(&match (wrapped, &self.input.escaping) {
-            (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => expr_buf.buf,
-            (Unwrapped, &Html) => format!("::askama::MarkupDisplay::from(&{})", expr_buf.buf),
-        });
-        buf.writeln("");
-        buf.writeln(")?;");
+    fn write_expr(&mut self, ws: WS, s: &'a Expr<'a>) {
+        self.handle_ws(ws);
+        self.buf_writable.push(Writable::Expr(s));
     }
 
-    // Write literals buffer and empty
-    fn write_buf_lit(&mut self, buf: &mut Buffer) {
-        if !self.buf_lit.is_empty() {
-            buf.writeln(&format!("writer.write_str({:#?})?;", self.buf_lit.join("")));
-            self.buf_lit = vec![];
+    // Write expression buffer and empty
+    fn write_buf_writable(&mut self, buf: &mut Buffer) {
+        if !self.buf_writable.is_empty() {
+            if self.buf_writable.iter().all(|w| match w {
+                Writable::Lit(_) => true,
+                _ => false,
+            }) {
+                let mut buf_lit = Buffer::new(0);
+                for s in self.buf_writable.clone() {
+                    if let Writable::Lit(s) = s {
+                        buf_lit.write(s);
+                    };
+                }
+                self.buf_writable = vec![];
+
+                buf.writeln(&format!("writer.write_str({:#?})?;", &buf_lit.buf));
+            } else {
+                let mut buf_format = Buffer::new(0);
+                let mut buf_expr = Buffer::new(0);
+                let cloned = self.buf_writable.clone();
+                self.buf_writable = vec![];
+                for s in cloned {
+                    match s {
+                        Writable::Lit(s) => {
+                            buf_format.write(&s.replace("{", "{{").replace("}", "}}"));
+                        }
+                        Writable::Expr(s) => {
+                            use self::DisplayWrap::*;
+                            use super::input::EscapeMode::*;
+                            let mut expr_buf = Buffer::new(0);
+                            let wrapped = self.visit_expr(&mut expr_buf, s);
+
+                            buf_format.write("{}");
+                            buf_expr.write("&");
+                            buf_expr.write(&match (wrapped, &self.input.escaping) {
+                                (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => {
+                                    expr_buf.buf
+                                }
+                                (Unwrapped, &Html) => {
+                                    format!("::askama::MarkupDisplay::from(&{})", expr_buf.buf)
+                                }
+                            });
+                            buf_expr.writeln(", ");
+                        }
+                    }
+                }
+
+                buf.write("write!(writer, ");
+                buf.write(&format!("{:#?}", &buf_format.buf));
+                buf.writeln(", ");
+                buf.write(&buf_expr.buf);
+                buf.writeln(")?;");
+            }
         }
     }
 
     fn visit_lit(&mut self, lws: &'a str, val: &'a str, rws: &'a str) {
-        assert!(self.next_ws.is_none());
         if !lws.is_empty() {
             if self.skip_ws {
                 self.skip_ws = false;
@@ -617,12 +667,12 @@ impl<'a> Generator<'a> {
                 assert!(rws.is_empty());
                 self.next_ws = Some(lws);
             } else {
-                self.buf_lit.push(lws);
+                self.buf_writable.push(Writable::Lit(lws));
             }
         }
 
         if !val.is_empty() {
-            self.buf_lit.push(val);
+            self.buf_writable.push(Writable::Lit(val));
         }
 
         if !rws.is_empty() {
@@ -630,8 +680,8 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn write_comment(&mut self, buf: &mut Buffer, ws: WS) {
-        self.handle_ws(buf, ws);
+    fn write_comment(&mut self, ws: WS) {
+        self.handle_ws(ws);
     }
 
     /* Visitor methods for expression types */
@@ -922,23 +972,22 @@ impl<'a> Generator<'a> {
 
     // Combines `flush_ws()` and `prepare_ws()` to handle both trailing whitespace from the
     // preceding literal and leading whitespace from the succeeding literal.
-    fn handle_ws(&mut self, buf: &mut Buffer, ws: WS) {
-        self.flush_ws(buf, ws);
+    fn handle_ws(&mut self, ws: WS) {
+        self.flush_ws(ws);
         self.prepare_ws(ws);
     }
 
     // If the previous literal left some trailing whitespace in `next_ws` and the
     // prefix whitespace suppressor from the given argument, flush that whitespace.
     // In either case, `next_ws` is reset to `None` (no trailing whitespace).
-    fn flush_ws(&mut self, buf: &mut Buffer, ws: WS) {
+    fn flush_ws(&mut self, ws: WS) {
         if self.next_ws.is_some() && !ws.0 {
             let val = self.next_ws.unwrap();
             if !val.is_empty() {
-                self.buf_lit.push(val);
+                self.buf_writable.push(Writable::Lit(val));
             }
         }
         self.next_ws = None;
-        self.write_buf_lit(buf);
     }
 
     // Sets `skip_ws` to match the suffix whitespace suppressor from the given
@@ -1050,6 +1099,7 @@ enum AstLevel {
     Top,
     Block,
     Nested,
+    LoopNested,
 }
 
 impl Copy for AstLevel {}
@@ -1061,3 +1111,9 @@ enum DisplayWrap {
 }
 
 impl Copy for DisplayWrap {}
+
+#[derive(Clone, Debug)]
+enum Writable<'a> {
+    Lit(&'a str),
+    Expr(&'a Expr<'a>),
+}
