@@ -423,6 +423,9 @@ impl<'a> Generator<'a> {
         }
         match iter {
             Expr::Range(_, _, _) => buf.writeln(&format!(") in ({}).enumerate() {{", expr_code)),
+            Expr::NotBorrow(_) => {
+                buf.writeln(&format!(") in ({}).into_iter().enumerate() {{", expr_code))
+            }
             _ => buf.writeln(&format!(") in (&{}).into_iter().enumerate() {{", expr_code)),
         };
 
@@ -643,9 +646,14 @@ impl<'a> Generator<'a> {
                                 (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => {
                                     expr_buf.buf
                                 }
-                                (Unwrapped, &Html) => {
-                                    format!("::askama::MarkupDisplay::from(&{})", expr_buf.buf)
-                                }
+                                (Unwrapped, &Html) => match s {
+                                    Expr::NotBorrow(_) => {
+                                        format!("::askama::MarkupDisplay::from({})", expr_buf.buf)
+                                    }
+                                    _ => {
+                                        format!("::askama::MarkupDisplay::from(&{})", expr_buf.buf)
+                                    }
+                                },
                             });
                             buf_expr.write(", ");
                         }
@@ -714,6 +722,7 @@ impl<'a> Generator<'a> {
                 self.visit_method_call(buf, obj, method, args)
             }
             Expr::RustMacro(name, ref args) => self.visit_rust_macro(buf, name, args),
+            Expr::NotBorrow(ref obj) => self.visit_expr(buf, obj),
         }
     }
 

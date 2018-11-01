@@ -22,6 +22,7 @@ pub enum Expr<'a> {
     Group(Box<Expr<'a>>),
     MethodCall(Box<Expr<'a>>, &'a str, Vec<Expr<'a>>),
     RustMacro(&'a str, Vec<Expr<'a>>),
+    NotBorrow(Box<Expr<'a>>)
 }
 
 #[derive(Debug)]
@@ -435,6 +436,12 @@ named!(rust_macro<Input, Expr>, do_parse!(
     (Expr::RustMacro(mname, args))
 ));
 
+named!(noborrow_tag<Input, Expr>, do_parse!(
+    tag!("^") >>
+    expr: expr_any >>
+    (Expr::NotBorrow(Box::new(expr)))
+));
+
 
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $( $op:expr ),* ) => {
@@ -471,6 +478,7 @@ named!(range_right<Input, Expr>, do_parse!(
 ));
 
 named!(expr_any<Input, Expr>, alt!(
+    noborrow_tag |
     range_right |
     rust_macro |
     do_parse!(

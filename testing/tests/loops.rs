@@ -2,6 +2,7 @@
 extern crate askama;
 
 use askama::Template;
+use std::ops::Range;
 
 #[derive(Template)]
 #[template(path = "for.html")]
@@ -58,4 +59,19 @@ struct ForRangeTemplate {
 fn test_for_range() {
     let s = ForRangeTemplate { init: -1, end: 1 };
     assert_eq!(s.render().unwrap(), "foo\nfoo\nbar\nbar\nfoo\nbar\nbar\n");
+}
+
+#[derive(Template)]
+#[template(path = "for-not-borrow.html")]
+struct ForNotBorrowTemplate {
+    range: Range<usize>,
+}
+
+#[test]
+fn test_for_not_borrow() {
+    let s = ForNotBorrowTemplate { range: 0..10 };
+    assert_eq!(
+        s.render().unwrap(),
+        "0. 9 (first)\n1. 8\n2. 7\n3. 6\n4. 5\n5. 4\n6. 3\n7. 2\n8. 1\n9. 0\n"
+    );
 }

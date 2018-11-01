@@ -338,6 +338,20 @@
 //!
 //! Askama supports block comments delimited by `{#` and `#}`.
 //!
+//! ## Borrow
+//! Askama supports "not to borrow" tag by `^` before expression.
+//!
+//! ```text
+//! for i in ^iterator.clone().rev() {
+//!     {{ i }}
+//! }
+//! ```
+//! Use to avoid borrowing the mutable references created in the `render_into` method.
+//! In the example, the new `Iterator` that the `clone` method returns.
+//! It is recommended that you modify the reference outside the `Template` for better
+//! performance.
+//!
+//!
 //! # Optional functionality
 //!
 //! ## Rocket integration
