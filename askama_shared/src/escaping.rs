@@ -47,60 +47,53 @@ where
     }
 }
 
-fn escapable(b: u8) -> bool {
-    match b {
-        b'<' | b'>' | b'&' | b'"' | b'\'' | b'/' => true,
-        _ => false,
-    }
-}
-
+const FLAG: u8 = b'>' - b'"';
 pub fn escape(s: String) -> String {
-    let mut found = Vec::new();
+    let mut found = None;
     for (i, b) in s.as_bytes().iter().enumerate() {
-        if escapable(*b) {
-            found.push(i);
+        if b.wrapping_sub(b'"') <= FLAG {
+            match *b {
+                b'<' | b'>' | b'&' | b'"' | b'\'' | b'/' => {
+                    found = Some(i);
+                    break;
+                }
+                _ => (),
+            };
         }
-    }
-    if found.is_empty() {
-        return s;
     }
 
-    let bytes = s.as_bytes();
-    let max_len = bytes.len() + found.len() * 5;
-    let mut res = Vec::<u8>::with_capacity(max_len);
-    let mut start = 0;
-    for idx in &found {
-        if start < *idx {
-            res.extend(&bytes[start..*idx]);
+    if let Some(found) = found {
+        let bytes = s.as_bytes();
+        let mut res = Vec::with_capacity(s.len() + 6);
+        res.extend(&bytes[0..found]);
+        for c in bytes[found..].iter() {
+            match *c {
+                b'<' => {
+                    res.extend(b"&lt;");
+                }
+                b'>' => {
+                    res.extend(b"&gt;");
+                }
+                b'&' => {
+                    res.extend(b"&amp;");
+                }
+                b'"' => {
+                    res.extend(b"&quot;");
+                }
+                b'\'' => {
+                    res.extend(b"&#x27;");
+                }
+                b'/' => {
+                    res.extend(b"&#x2f;");
+                }
+                _ => res.push(*c),
+            }
         }
-        start = *idx + 1;
-        match bytes[*idx] {
-            b'<' => {
-                res.extend(b"&lt;");
-            }
-            b'>' => {
-                res.extend(b"&gt;");
-            }
-            b'&' => {
-                res.extend(b"&amp;");
-            }
-            b'"' => {
-                res.extend(b"&quot;");
-            }
-            b'\'' => {
-                res.extend(b"&#x27;");
-            }
-            b'/' => {
-                res.extend(b"&#x2f;");
-            }
-            _ => panic!("incorrect indexing"),
-        }
-    }
-    if start < bytes.len() {
-        res.extend(&bytes[start..]);
-    }
 
-    String::from_utf8(res).unwrap()
+        String::from_utf8(res).unwrap()
+    } else {
+        s
+    }
 }
 
 #[cfg(test)]
