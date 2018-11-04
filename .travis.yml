@@ -1,5 +1,6 @@
 language: rust
 rust:
+  - 1.30.0 # minimum Rust version supported by Askama.
   - stable
   - beta
 cache: cargo
