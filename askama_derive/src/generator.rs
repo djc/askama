@@ -137,7 +137,7 @@ impl<'a> Generator<'a> {
     fn impl_display(&mut self, buf: &mut Buffer) {
         self.write_header(buf, "::std::fmt::Display", None);
         buf.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {");
-        buf.writeln("self.render_into(f).map_err(|_| ::std::fmt::Error {})");
+        buf.writeln("::askama::Template::render_into(self, f).map_err(|_| ::std::fmt::Error {})");
         buf.writeln("}");
         buf.writeln("}");
     }
@@ -150,7 +150,9 @@ impl<'a> Generator<'a> {
             None,
         );
         buf.writeln("fn modify(self, res: &mut ::askama::iron::Response) {");
-        buf.writeln("res.body = Some(Box::new(self.render().unwrap().into_bytes()));");
+        buf.writeln(
+            "res.body = Some(Box::new(::askama::Template::render(&self).unwrap().into_bytes()));",
+        );
 
         let ext = self
             .input
