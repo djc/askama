@@ -289,3 +289,15 @@ struct Empty;
 fn test_empty() {
     assert_eq!(Empty.render().unwrap(), "foo");
 }
+
+mod without_import_on_derive {
+    #[derive(askama::Template)]
+    #[template(source = "foo", ext = "txt")]
+    struct WithoutImport;
+
+    #[test]
+    fn test_without_import() {
+        use askama::Template;
+        assert_eq!(WithoutImport.render().unwrap(), "foo");
+    }
+}
