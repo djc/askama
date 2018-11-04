@@ -5,22 +5,27 @@ authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 workspace = ".."
 
 [features]
-default = ["actix"]
-with-rocket = ["rocket", "rocket_codegen", "askama/with-rocket"]
 actix = ["actix-web", "bytes", "askama/with-actix-web"]
+default = []
+full = ["actix", "with-iron", "serde-json"]
+serde-json = ["serde_json", "askama/serde-json"]
+with-rocket = ["rocket", "rocket_codegen", "askama/with-rocket"]
+with-iron = ["iron", "askama/with-iron"]
 
 [dependencies]
 actix-web = { version = "0.7", optional = true }
-askama = { path = "../askama", version = "*", features = ["with-iron", "serde-json"] }
+askama = { path = "../askama", version = "*" }
 bytes = { version = "0.4", optional = true }
-criterion = "0.2"
-iron = "0.6"
+iron = { version = "0.6", optional = true }
 rocket = { version = "0.3", optional = true }
 rocket_codegen = { version = "0.3", optional = true }
-serde_json = "1.0"
+serde_json = { version = "1.0", optional = true }
 
 [build-dependencies]
-askama = { path = "../askama", version = "*", features = ["with-iron", "serde-json"] }
+askama = { path = "../askama", version = "*" }
+
+[dev-dependencies]
+criterion = "0.2"
 
 [[bench]]
 name = "all"

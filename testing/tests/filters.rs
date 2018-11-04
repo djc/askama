@@ -1,9 +1,11 @@
 #[macro_use]
 extern crate askama;
+#[cfg(feature = "serde-json")]
 #[macro_use]
 extern crate serde_json;
 
 use askama::Template;
+#[cfg(feature = "serde-json")]
 use serde_json::Value;
 
 #[derive(Template)]
@@ -87,6 +89,7 @@ fn test_vec_join() {
     assert_eq!(t.render().unwrap(), "foo, bar, bazz");
 }
 
+#[cfg(feature = "serde-json")]
 #[derive(Template)]
 #[template(path = "json.html")]
 struct JsonTemplate<'a> {
@@ -94,6 +97,7 @@ struct JsonTemplate<'a> {
     bar: &'a Value,
 }
 
+#[cfg(feature = "serde-json")]
 #[test]
 fn test_json() {
     let val = json!({"arr": [ "one", 2, true, null ]});
