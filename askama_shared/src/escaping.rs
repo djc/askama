@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+use std::convert::AsRef;
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug, PartialEq)]
@@ -54,9 +56,13 @@ fn escapable(b: u8) -> bool {
     }
 }
 
-pub fn escape(s: String) -> String {
+pub fn escape<'a, S>(s: S) -> Cow<'a, str>
+where
+    S: Into<Cow<'a, str>>,
+{
+    let s = s.into();
     let mut found = Vec::new();
-    for (i, b) in s.as_bytes().iter().enumerate() {
+    for (i, b) in s.as_ref().as_bytes().iter().enumerate() {
         if escapable(*b) {
             found.push(i);
         }
@@ -100,7 +106,7 @@ pub fn escape(s: String) -> String {
         res.extend(&bytes[start..]);
     }
 
-    String::from_utf8(res).unwrap()
+    Cow::Owned(String::from_utf8(res).unwrap())
 }
 
 #[cfg(test)]

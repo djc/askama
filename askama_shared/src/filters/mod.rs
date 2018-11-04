@@ -62,7 +62,9 @@ where
     MarkupDisplay<D>: From<I>,
 {
     let md: MarkupDisplay<D> = i.into();
-    Ok(MarkupDisplay::Safe(escaping::escape(md.unsafe_string())))
+    Ok(MarkupDisplay::Safe(
+        escaping::escape(md.unsafe_string()).to_string(),
+    ))
 }
 
 /// Alias for the `escape()` filter
