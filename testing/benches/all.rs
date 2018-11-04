@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate askama;
 #[macro_use]
 extern crate criterion;
