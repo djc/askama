@@ -2,12 +2,8 @@ language: rust
 rust:
   - stable
   - beta
+  - nightly
 cache: cargo
-matrix:
-  include:
-    - rust: nightly-2018-08-24
-      script:
-        - cd testing && cargo test --no-default-features --features with-rocket
 
 before_script:
 - rustup component add rustfmt-preview
@@ -16,4 +12,7 @@ script:
 - cargo test --all
 - if [[ "${TRAVIS_RUST_VERSION}" == stable ]]; then
     cargo fmt -- --check;
+  fi
+- if [[ "${TRAVIS_RUST_VERSION}" == nightly ]]; then
+    cd testing && cargo test --features with-rocket;
   fi
