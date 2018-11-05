@@ -55,46 +55,34 @@ pub struct Escaped<'a> {
     bytes: &'a [u8],
 }
 
-enum State {
-    Empty,
-    Unescaped(usize),
+macro_rules! escaping_body {
+    ($state:ident, $i:ident, $fmt:ident, $_self:ident, $quote:expr) => {{
+        if $state < $i {
+            $fmt.write_str(unsafe { str::from_utf8_unchecked(&$_self.bytes[$state..$i]) })?;
+        }
+        $fmt.write_str($quote)?;
+        $state = $i + 1;
+    }};
 }
 
 impl<'a> ::std::fmt::Display for Escaped<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        use self::State::*;
-        let mut state = Empty;
+        let mut state = 0;
         for (i, b) in self.bytes.iter().enumerate() {
-            let next = if b.wrapping_sub(b'"') <= FLAG {
+            if b.wrapping_sub(b'"') <= FLAG {
                 match *b {
-                    b'<' => Some("&lt;"),
-                    b'>' => Some("&gt;"),
-                    b'&' => Some("&amp;"),
-                    b'"' => Some("&quot;"),
-                    b'\'' => Some("&#x27;"),
-                    b'/' => Some("&#x2f;"),
-                    _ => None,
+                    b'<' => escaping_body!(state, i, fmt, self, "&lt;"),
+                    b'>' => escaping_body!(state, i, fmt, self, "&gt;"),
+                    b'&' => escaping_body!(state, i, fmt, self, "&amp;"),
+                    b'"' => escaping_body!(state, i, fmt, self, "&quot;"),
+                    b'\'' => escaping_body!(state, i, fmt, self, "&#x27;"),
+                    b'/' => escaping_body!(state, i, fmt, self, "&#x2f;"),
+                    _ => (),
                 }
-            } else {
-                None
-            };
-            state = match (state, next) {
-                (Empty, None) => Unescaped(i),
-                (s @ Unescaped(_), None) => s,
-                (Empty, Some(escaped)) => {
-                    fmt.write_str(escaped)?;
-                    Empty
-                }
-                (Unescaped(start), Some(escaped)) => {
-                    fmt.write_str(unsafe { str::from_utf8_unchecked(&self.bytes[start..i]) })?;
-                    fmt.write_str(escaped)?;
-                    Empty
-                }
-            };
+            }
         }
-        if let Unescaped(start) = state {
-            fmt.write_str(unsafe { str::from_utf8_unchecked(&self.bytes[start..]) })?;
-        }
+
+        fmt.write_str(unsafe { str::from_utf8_unchecked(&self.bytes[state..]) })?;
         Ok(())
     }
 }
