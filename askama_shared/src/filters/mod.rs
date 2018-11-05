@@ -10,6 +10,8 @@ mod json;
 #[cfg(feature = "serde-json")]
 pub use self::json::json;
 
+use error::Error::Fmt;
+use num_traits::cast::NumCast;
 use num_traits::Signed;
 use std::fmt;
 
@@ -20,7 +22,7 @@ use escaping::{self, MarkupDisplay};
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 19] = [
+pub const BUILT_IN_FILTERS: [&str; 20] = [
     "abs",
     "capitalize",
     "center",
@@ -28,6 +30,7 @@ pub const BUILT_IN_FILTERS: [&str; 19] = [
     "escape",
     "format",
     "indent",
+    "into_isize",
     "join",
     "linebreaks",
     "linebreaksbr",
@@ -158,6 +161,14 @@ pub fn indent(s: &fmt::Display, width: &usize) -> Result<String> {
     Ok(indented)
 }
 
+/// Casts number to isize
+pub fn into_isize<T>(number: T) -> Result<isize>
+where
+    T: NumCast,
+{
+    number.to_isize().ok_or(Fmt(fmt::Error))
+}
+
 /// Joins iterable into a string separated by provided argument
 pub fn join<T, I, S>(input: I, separator: S) -> Result<String>
 where
@@ -246,6 +257,7 @@ pub fn wordcount(s: &fmt::Display) -> Result<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::f64::INFINITY;
 
     #[test]
     fn test_linebreaks() {
@@ -298,6 +310,19 @@ mod tests {
             indent(&"hello\nfoo\n bar", &4).unwrap(),
             "hello\n    foo\n     bar"
         );
+    }
+
+    #[test]
+    fn test_into_isize() {
+        assert_eq!(into_isize(1).unwrap(), 1 as isize);
+        assert_eq!(into_isize(1.9).unwrap(), 1 as isize);
+        assert_eq!(into_isize(-1.9).unwrap(), -1 as isize);
+        assert_eq!(into_isize(1.5 as f64).unwrap(), 1 as isize);
+        assert_eq!(into_isize(-1.5 as f64).unwrap(), -1 as isize);
+        match into_isize(INFINITY) {
+            Err(Fmt(fmt::Error)) => assert!(true),
+            _ => assert!(false, "Should return error of type Err(Fmt(fmt::Error))"),
+        };
     }
 
     #[test]
