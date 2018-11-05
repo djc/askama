@@ -142,6 +142,8 @@ The `print` key can take one of four values:
 * `code` (print the generated code)
 * `all` (print both parse tree and code)
 
+The resulting output will be printed to `stderr` during the compilation process.
+
 The parse tree looks like this for the example template:
 
 ```

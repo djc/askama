@@ -64,12 +64,12 @@ fn build_template(ast: &syn::DeriveInput) -> String {
     };
 
     if input.print == Print::Ast || input.print == Print::All {
-        println!("{:?}", parsed[&input.path]);
+        eprintln!("{:?}", parsed[&input.path]);
     }
 
     let code = generator::generate(&input, &contexts, &heritage);
     if input.print == Print::Code || input.print == Print::All {
-        println!("{}", code);
+        eprintln!("{}", code);
     }
     code
 }
