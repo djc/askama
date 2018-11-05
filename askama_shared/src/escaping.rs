@@ -46,7 +46,9 @@ where
 const FLAG: u8 = b'>' - b'"';
 
 pub fn escape(s: &str) -> Escaped {
-    Escaped { bytes: s.as_bytes()  }
+    Escaped {
+        bytes: s.as_bytes(),
+    }
 }
 
 pub struct Escaped<'a> {

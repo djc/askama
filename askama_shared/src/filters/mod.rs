@@ -14,7 +14,7 @@ use num_traits::Signed;
 use std::fmt;
 
 use super::Result;
-use escaping::{self, Escaped, MarkupDisplay};
+use escaping::MarkupDisplay;
 
 // This is used by the code generator to decide whether a named filter is part of
 // Askama or should refer to a local `filters` module. It should contain all the
