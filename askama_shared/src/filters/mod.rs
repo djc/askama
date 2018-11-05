@@ -16,7 +16,7 @@ use num_traits::Signed;
 use std::fmt;
 
 use super::Result;
-use escaping::{self, MarkupDisplay};
+use escaping::MarkupDisplay;
 
 // This is used by the code generator to decide whether a named filter is part of
 // Askama or should refer to a local `filters` module. It should contain all the
@@ -60,17 +60,16 @@ where
 }
 
 /// Escapes `&`, `<` and `>` in strings
-pub fn escape<D, I>(i: I) -> Result<MarkupDisplay<String>>
+pub fn escape<D, I>(i: I) -> Result<MarkupDisplay<D>>
 where
     D: fmt::Display,
     MarkupDisplay<D>: From<I>,
 {
-    let md: MarkupDisplay<D> = i.into();
-    Ok(MarkupDisplay::Safe(escaping::escape(md.unsafe_string())))
+    Ok(i.into())
 }
 
 /// Alias for the `escape()` filter
-pub fn e<D, I>(i: I) -> Result<MarkupDisplay<String>>
+pub fn e<D, I>(i: I) -> Result<MarkupDisplay<D>>
 where
     D: fmt::Display,
     MarkupDisplay<D>: From<I>,
