@@ -22,7 +22,7 @@ use escaping::{self, MarkupDisplay};
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 20] = [
+pub const BUILT_IN_FILTERS: [&str; 21] = [
     "abs",
     "capitalize",
     "center",
@@ -30,6 +30,7 @@ pub const BUILT_IN_FILTERS: [&str; 20] = [
     "escape",
     "format",
     "indent",
+    "into_f64",
     "into_isize",
     "join",
     "linebreaks",
@@ -159,6 +160,14 @@ pub fn indent(s: &fmt::Display, width: &usize) -> Result<String> {
     }
 
     Ok(indented)
+}
+
+/// Casts number to f64
+pub fn into_f64<T>(number: T) -> Result<f64>
+where
+    T: NumCast,
+{
+    number.to_f64().ok_or(Fmt(fmt::Error))
 }
 
 /// Casts number to isize
@@ -310,6 +319,15 @@ mod tests {
             indent(&"hello\nfoo\n bar", &4).unwrap(),
             "hello\n    foo\n     bar"
         );
+    }
+
+    #[test]
+    fn test_into_f64() {
+        assert_eq!(into_f64(1).unwrap(), 1.0 as f64);
+        assert_eq!(into_f64(1.9).unwrap(), 1.9 as f64);
+        assert_eq!(into_f64(-1.9).unwrap(), -1.9 as f64);
+        assert_eq!(into_f64(INFINITY as f32).unwrap(), INFINITY);
+        assert_eq!(into_f64(-INFINITY as f32).unwrap(), -INFINITY);
     }
 
     #[test]
