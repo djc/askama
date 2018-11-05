@@ -47,60 +47,57 @@ where
     }
 }
 
-fn escapable(b: u8) -> bool {
-    match b {
-        b'<' | b'>' | b'&' | b'"' | b'\'' | b'/' => true,
-        _ => false,
-    }
+macro_rules! escaping_body {
+    ($n:expr, $res:ident, $bytes:ident, $start:ident, $quote:expr) => {{
+        let next = $n;
+        if $start < next {
+            $res.extend(&$bytes[$start..next]);
+        }
+        $res.extend($quote);
+        $start = next + 1;
+    }};
 }
 
+const FLAG: u8 = b'>' - b'"';
 pub fn escape(s: String) -> String {
-    let mut found = Vec::new();
+    let mut found = None;
     for (i, b) in s.as_bytes().iter().enumerate() {
-        if escapable(*b) {
-            found.push(i);
+        if b.wrapping_sub(b'"') <= FLAG {
+            match *b {
+                b'<' | b'>' | b'&' | b'"' | b'\'' | b'/' => {
+                    found = Some(i);
+                    break;
+                }
+                _ => (),
+            };
         }
-    }
-    if found.is_empty() {
-        return s;
     }
 
-    let bytes = s.as_bytes();
-    let max_len = bytes.len() + found.len() * 5;
-    let mut res = Vec::<u8>::with_capacity(max_len);
-    let mut start = 0;
-    for idx in &found {
-        if start < *idx {
-            res.extend(&bytes[start..*idx]);
-        }
-        start = *idx + 1;
-        match bytes[*idx] {
-            b'<' => {
-                res.extend(b"&lt;");
-            }
-            b'>' => {
-                res.extend(b"&gt;");
-            }
-            b'&' => {
-                res.extend(b"&amp;");
-            }
-            b'"' => {
-                res.extend(b"&quot;");
-            }
-            b'\'' => {
-                res.extend(b"&#x27;");
-            }
-            b'/' => {
-                res.extend(b"&#x2f;");
-            }
-            _ => panic!("incorrect indexing"),
-        }
-    }
-    if start < bytes.len() {
-        res.extend(&bytes[start..]);
-    }
+    match found {
+        None => s,
+        Some(found) => {
+            let bytes = s.as_bytes();
+            // Heuristic with a conservative estimate to save on intermediate allocations
+            let mut res = Vec::with_capacity(s.len() + s.len() / 10);
+            res.extend(&bytes[0..found]);
 
-    String::from_utf8(res).unwrap()
+            let mut start = found;
+            for (i, c) in bytes[found..].iter().enumerate() {
+                match *c {
+                    b'<' => escaping_body!(found + i, res, bytes, start, b"&lt;"),
+                    b'>' => escaping_body!(found + i, res, bytes, start, b"&gt;"),
+                    b'&' => escaping_body!(found + i, res, bytes, start, b"&amp;"),
+                    b'"' => escaping_body!(found + i, res, bytes, start, b"&quot;"),
+                    b'\'' => escaping_body!(found + i, res, bytes, start, b"&#x27;"),
+                    b'/' => escaping_body!(found + i, res, bytes, start, b"&#x2f;"),
+                    _ => (),
+                }
+            }
+            res.extend(&bytes[start..]);
+
+            String::from_utf8(res).unwrap()
+        }
+    }
 }
 
 #[cfg(test)]
