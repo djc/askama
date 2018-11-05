@@ -1,4 +1,5 @@
 use std::fmt::{self, Display, Formatter};
+use std::str;
 
 #[derive(Debug, PartialEq)]
 pub enum MarkupDisplay<T>
@@ -19,11 +20,6 @@ where
             _ => self,
         }
     }
-    pub fn unsafe_string(&self) -> String {
-        match *self {
-            MarkupDisplay::Safe(ref t) | MarkupDisplay::Unsafe(ref t) => format!("{}", t),
-        }
-    }
 }
 
 impl<T> From<T> for MarkupDisplay<T>
@@ -41,58 +37,63 @@ where
 {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            MarkupDisplay::Unsafe(_) => write!(f, "{}", escape(self.unsafe_string())),
+            MarkupDisplay::Unsafe(ref t) => escape(&t.to_string()).fmt(f),
             MarkupDisplay::Safe(ref t) => t.fmt(f),
         }
     }
 }
 
 const FLAG: u8 = b'>' - b'"';
-pub fn escape(s: String) -> String {
-    let mut found = None;
-    for (i, b) in s.as_bytes().iter().enumerate() {
-        if b.wrapping_sub(b'"') <= FLAG {
-            match *b {
-                b'<' | b'>' | b'&' | b'"' | b'\'' | b'/' => {
-                    found = Some(i);
-                    break;
+
+pub fn escape(s: &str) -> Escaped {
+    Escaped { bytes: s.as_bytes()  }
+}
+
+pub struct Escaped<'a> {
+    bytes: &'a [u8],
+}
+
+enum State {
+    Empty,
+    Unescaped(usize),
+}
+
+impl<'a> ::std::fmt::Display for Escaped<'a> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        use self::State::*;
+        let mut state = Empty;
+        for (i, b) in self.bytes.iter().enumerate() {
+            let next = if b.wrapping_sub(b'"') <= FLAG {
+                match *b {
+                    b'<' => Some("&lt;"),
+                    b'>' => Some("&gt;"),
+                    b'&' => Some("&amp;"),
+                    b'"' => Some("&quot;"),
+                    b'\'' => Some("&#x27;"),
+                    b'/' => Some("&#x2f;"),
+                    _ => None,
                 }
-                _ => (),
+            } else {
+                None
+            };
+            state = match (state, next) {
+                (Empty, None) => Unescaped(i),
+                (s @ Unescaped(_), None) => s,
+                (Empty, Some(escaped)) => {
+                    fmt.write_str(escaped)?;
+                    Empty
+                }
+                (Unescaped(start), Some(escaped)) => {
+                    fmt.write_str(unsafe { str::from_utf8_unchecked(&self.bytes[start..i]) })?;
+                    fmt.write_str(escaped)?;
+                    Empty
+                }
             };
         }
-    }
-
-    if let Some(found) = found {
-        let bytes = s.as_bytes();
-        let mut res = Vec::with_capacity(s.len() + 6);
-        res.extend(&bytes[0..found]);
-        for c in bytes[found..].iter() {
-            match *c {
-                b'<' => {
-                    res.extend(b"&lt;");
-                }
-                b'>' => {
-                    res.extend(b"&gt;");
-                }
-                b'&' => {
-                    res.extend(b"&amp;");
-                }
-                b'"' => {
-                    res.extend(b"&quot;");
-                }
-                b'\'' => {
-                    res.extend(b"&#x27;");
-                }
-                b'/' => {
-                    res.extend(b"&#x2f;");
-                }
-                _ => res.push(*c),
-            }
+        if let Unescaped(start) = state {
+            fmt.write_str(unsafe { str::from_utf8_unchecked(&self.bytes[start..]) })?;
         }
-
-        String::from_utf8(res).unwrap()
-    } else {
-        s
+        Ok(())
     }
 }
 
@@ -101,10 +102,10 @@ mod tests {
     use super::*;
     #[test]
     fn test_escape() {
-        assert_eq!(escape("".to_string()), "");
-        assert_eq!(escape("<&>".to_string()), "&lt;&amp;&gt;");
-        assert_eq!(escape("bla&".to_string()), "bla&amp;");
-        assert_eq!(escape("<foo".to_string()), "&lt;foo");
-        assert_eq!(escape("bla&h".to_string()), "bla&amp;h");
+        assert_eq!(escape("").to_string(), "");
+        assert_eq!(escape("<&>").to_string(), "&lt;&amp;&gt;");
+        assert_eq!(escape("bla&").to_string(), "bla&amp;");
+        assert_eq!(escape("<foo").to_string(), "&lt;foo");
+        assert_eq!(escape("bla&h").to_string(), "bla&amp;h");
     }
 }

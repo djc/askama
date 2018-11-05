@@ -22,10 +22,10 @@ mod tests {
 
     #[test]
     fn test_json() {
-        assert_eq!(json(&true).unwrap().unsafe_string(), "true");
-        assert_eq!(json(&"foo").unwrap().unsafe_string(), r#""foo""#);
+        assert_eq!(json(&true).unwrap().to_string(), "true");
+        assert_eq!(json(&"foo").unwrap().to_string(), r#""foo""#);
         assert_eq!(
-            json(&vec!["foo", "bar"]).unwrap().unsafe_string(),
+            json(&vec!["foo", "bar"]).unwrap().to_string(),
             r#"[
   "foo",
   "bar"
