@@ -154,18 +154,22 @@ Lit("", "!", "\n")]
 The generated code looks like this:
 
 ```rust
-impl< 'a > ::askama::Template for HelloTemplate< 'a > {
-    fn render_into(&self, writer: &mut ::std::fmt::Write) -> Result<(), ::std::fmt::Error> {
-        writer.write_str("Hello,")?;
-        writer.write_str(" ")?;
-        writer.write_fmt(format_args!("{}", self.name))?;
-        writer.write_str("!")?;
+impl < 'a > ::askama::Template for HelloTemplate< 'a > {
+    fn render_into(&self, writer: &mut ::std::fmt::Write) -> ::askama::Result<()> {
+        write!(
+            writer,
+            "Hello, {}!",
+            &::askama::MarkupDisplay::from(&self.name),
+        )?;
         Ok(())
     }
+    fn extension() -> Option<&'static str> {
+        Some("html")
+    }
 }
-impl< 'a > ::std::fmt::Display for HelloTemplate< 'a > {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
-        self.render_into(f)
+impl < 'a > ::std::fmt::Display for HelloTemplate< 'a > {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        ::askama::Template::render_into(self, f).map_err(|_| ::std::fmt::Error {})
     }
 }
 ```
