@@ -1,0 +1,16 @@
+[package]
+name = "askama_escape"
+version = "0.1.0"
+authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
+description = "Escape function for Askama"
+homepage = "https://github.com/djc/askama"
+repository = "https://github.com/djc/askama"
+license = "MIT/Apache-2.0"
+workspace = ".."
+
+[features]
+default = []
+serde-json = []
+iron = []
+rocket = []
+actix-web = []

@@ -10,13 +10,13 @@ mod json;
 #[cfg(feature = "serde-json")]
 pub use self::json::json;
 
+use askama_escape::MarkupDisplay;
 use error::Error::Fmt;
 use num_traits::cast::NumCast;
 use num_traits::Signed;
 use std::fmt;
 
 use super::Result;
-use escaping::MarkupDisplay;
 
 // This is used by the code generator to decide whether a named filter is part of
 // Askama or should refer to a local `filters` module. It should contain all the

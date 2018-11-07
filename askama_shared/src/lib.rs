@@ -1,5 +1,6 @@
 #![cfg_attr(feature = "cargo-clippy", allow(unused_parens))]
 
+extern crate askama_escape;
 extern crate num_traits;
 extern crate serde;
 #[macro_use]
@@ -13,10 +14,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 mod error;
-mod escaping;
 
+pub use askama_escape::MarkupDisplay;
 pub use error::{Error, Result};
-pub use escaping::MarkupDisplay;
 
 use std::collections::BTreeMap;
 
