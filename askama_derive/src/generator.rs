@@ -658,10 +658,8 @@ impl<'a> Generator<'a> {
                 buf.indent();
                 buf.writeln("writer,");
                 buf.writeln(&format!("{:#?},", &buf_format.buf));
-                buf.start = false;
-                buf.write(&buf_expr.buf);
+                buf.write(buf_expr.buf.trim());
                 buf.dedent();
-                buf.start = true;
                 buf.writeln(")?;");
             }
         }
