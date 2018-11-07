@@ -627,7 +627,7 @@ impl<'a> Generator<'a> {
                 buf.writeln(&format!("writer.write_str({:#?})?;", &buf_lit.buf));
             } else {
                 let mut buf_format = Buffer::new(0);
-                let mut buf_expr = Buffer::new(0);
+                let mut buf_expr = Buffer::new(buf.indent + 1);
                 for s in mem::replace(&mut self.buf_writable, vec![]) {
                     match s {
                         Writable::Lit(s) => {
@@ -649,16 +649,19 @@ impl<'a> Generator<'a> {
                                     format!("::askama::MarkupDisplay::from(&{})", expr_buf.buf)
                                 }
                             });
-                            buf_expr.write(", ");
+                            buf_expr.writeln(",");
                         }
                     }
                 }
 
-                buf.write("write!(writer, ");
-                buf.write(&format!("{:#?}", &buf_format.buf));
-                buf.writeln(", ");
-                buf.write("\t");
+                buf.writeln("write!(");
+                buf.indent();
+                buf.writeln("writer,");
+                buf.writeln(&format!("{:#?},", &buf_format.buf));
+                buf.start = false;
                 buf.write(&buf_expr.buf);
+                buf.dedent();
+                buf.start = true;
                 buf.writeln(")?;");
             }
         }
