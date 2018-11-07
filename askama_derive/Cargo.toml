@@ -12,10 +12,9 @@ workspace = ".."
 proc-macro = true
 
 [features]
-default = []
-iron = ["askama_shared/iron"]
-rocket = ["askama_shared/rocket"]
-actix-web = ["askama_shared/actix-web"]
+iron = []
+rocket = []
+actix-web = []
 
 [dependencies]
 askama_shared = { version = "0.7.2", path = "../askama_shared" }

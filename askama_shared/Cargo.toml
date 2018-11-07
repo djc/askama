@@ -8,13 +8,6 @@ repository = "https://github.com/djc/askama"
 license = "MIT/Apache-2.0"
 workspace = ".."
 
-[features]
-default = []
-serde-json = ["serde_json"]
-iron = []
-rocket = []
-actix-web = []
-
 [dependencies]
 askama_escape = { version = "0.1.0", path = "../askama_escape" }
 num-traits = "0.2.6"

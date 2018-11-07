@@ -7,10 +7,3 @@ homepage = "https://github.com/djc/askama"
 repository = "https://github.com/djc/askama"
 license = "MIT/Apache-2.0"
 workspace = ".."
-
-[features]
-default = []
-serde-json = []
-iron = []
-rocket = []
-actix-web = []
