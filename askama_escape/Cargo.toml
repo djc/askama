@@ -2,8 +2,15 @@
 name = "askama_escape"
 version = "0.1.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
-description = "Escape function for Askama"
+description = "Optimized HTML escaping code, extracted from Askama"
+documentation = "https://docs.rs/askama_escape"
+keywords = ["html", "escaping"]
 homepage = "https://github.com/djc/askama"
 repository = "https://github.com/djc/askama"
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 workspace = ".."
+
+[badges]
+appveyor = { repository = "djc/askama" }
+maintenance = { status = "actively-developed" }
+travis-ci = { repository = "djc/askama" }
