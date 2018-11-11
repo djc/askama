@@ -615,71 +615,71 @@ impl<'a> Generator<'a> {
     fn write_buf_writable(&mut self, buf: &mut Buffer) {
         if self.buf_writable.is_empty() {
             return;
-        } else {
-            if self.buf_writable.iter().all(|w| match w {
-                Writable::Lit(_) => true,
-                _ => false,
-            }) {
-                let mut buf_lit = Buffer::new(0);
-                for s in mem::replace(&mut self.buf_writable, vec![]) {
-                    if let Writable::Lit(s) = s {
-                        buf_lit.write(s);
+        }
+
+        if self.buf_writable.iter().all(|w| match w {
+            Writable::Lit(_) => true,
+            _ => false,
+        }) {
+            let mut buf_lit = Buffer::new(0);
+            for s in mem::replace(&mut self.buf_writable, vec![]) {
+                if let Writable::Lit(s) = s {
+                    buf_lit.write(s);
+                };
+            }
+            buf.writeln(&format!("writer.write_str({:#?})?;", &buf_lit.buf));
+            return;
+        }
+    
+        let mut buf_format = Buffer::new(0);
+        let mut buf_expr = Buffer::new(buf.indent + 1);
+        let mut expr_cache = HashMap::with_capacity(self.buf_writable.len());
+        for s in mem::replace(&mut self.buf_writable, vec![]) {
+            match s {
+                Writable::Lit(s) => {
+                    buf_format.write(&s.replace("{", "{{").replace("}", "}}"));
+                }
+                Writable::Expr(s) => {
+                    use self::DisplayWrap::*;
+                    use super::input::EscapeMode::*;
+                    let mut expr_buf = Buffer::new(0);
+                    let wrapped = self.visit_expr(&mut expr_buf, s);
+                    let expression = match (wrapped, &self.input.escaping) {
+                        (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => {
+                            expr_buf.buf.clone()
+                        }
+                        (Unwrapped, &Html) => {
+                            format!(
+                                "::askama::MarkupDisplay::from(&{})",
+                                expr_buf.buf.clone()
+                            )
+                        }
                     };
+
+                    let id = expr_cache.entry(expression).or_insert_with(|| {
+                        let id = self.named;
+                        self.named += 1;
+
+                        buf_expr.write(&format!("a{}=", id));
+                        buf_expr.write("&");
+                        buf_expr.write(&expr_buf.buf);
+                        buf_expr.writeln(",");
+
+                        id
+                    });
+
+                    buf_format.write(&format!("{{a{}}}", id));
                 }
-
-                buf.writeln(&format!("writer.write_str({:#?})?;", &buf_lit.buf));
-            } else {
-                let mut buf_format = Buffer::new(0);
-                let mut buf_expr = Buffer::new(buf.indent + 1);
-                let mut expr_cache = HashMap::with_capacity(self.buf_writable.len());
-                for s in mem::replace(&mut self.buf_writable, vec![]) {
-                    match s {
-                        Writable::Lit(s) => {
-                            buf_format.write(&s.replace("{", "{{").replace("}", "}}"));
-                        }
-                        Writable::Expr(s) => {
-                            use self::DisplayWrap::*;
-                            use super::input::EscapeMode::*;
-                            let mut expr_buf = Buffer::new(0);
-                            let wrapped = self.visit_expr(&mut expr_buf, s);
-                            let expression = match (wrapped, &self.input.escaping) {
-                                (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => {
-                                    expr_buf.buf.clone()
-                                }
-                                (Unwrapped, &Html) => {
-                                    format!(
-                                        "::askama::MarkupDisplay::from(&{})",
-                                        expr_buf.buf.clone()
-                                    )
-                                }
-                            };
-
-                            let id = expr_cache.entry(expression).or_insert_with(|| {
-                                let id = self.named;
-                                self.named += 1;
-
-                                buf_expr.write(&format!("a{}=", id));
-                                buf_expr.write("&");
-                                buf_expr.write(&expr_buf.buf);
-                                buf_expr.writeln(",");
-
-                                id
-                            });
-
-                            buf_format.write(&format!("{{a{}}}", id));
-                        }
-                    }
-                }
-
-                buf.writeln("write!(");
-                buf.indent();
-                buf.writeln("writer,");
-                buf.writeln(&format!("{:#?},", &buf_format.buf));
-                buf.write(buf_expr.buf.trim());
-                buf.dedent();
-                buf.writeln(")?;");
             }
         }
+
+        buf.writeln("write!(");
+        buf.indent();
+        buf.writeln("writer,");
+        buf.writeln(&format!("{:#?},", &buf_format.buf));
+        buf.write(buf_expr.buf.trim());
+        buf.dedent();
+        buf.writeln(")?;");
     }
 
     fn visit_lit(&mut self, lws: &'a str, val: &'a str, rws: &'a str) {
