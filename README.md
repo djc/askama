@@ -158,9 +158,8 @@ impl < 'a > ::askama::Template for HelloTemplate< 'a > {
     fn render_into(&self, writer: &mut ::std::fmt::Write) -> ::askama::Result<()> {
         write!(
             writer,
-            "Hello, {}!",
-            &::askama::MarkupDisplay::from(&self.name),
-        )?;
+            "Hello, {a0}!",
+            a0=&::askama::MarkupDisplay::from(&self.name),)?;
         Ok(())
     }
     fn extension() -> Option<&'static str> {
