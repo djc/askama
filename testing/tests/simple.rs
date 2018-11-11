@@ -31,6 +31,22 @@ fn test_variables() {
 }
 
 #[derive(Template)]
+#[template(path = "hello.html")]
+struct EscapeTemplate<'a> {
+    name: &'a str,
+}
+
+#[test]
+fn test_escape() {
+    let s = EscapeTemplate { name: "<>&\"'/" };
+
+    assert_eq!(
+        s.render().unwrap(),
+        "Hello, &lt;&gt;&amp;&quot;&#x27;&#x2f;!"
+    );
+}
+
+#[derive(Template)]
 #[template(path = "simple-no-escape.txt")]
 struct VariablesTemplateNoEscape<'a> {
     strvar: &'a str,
