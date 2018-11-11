@@ -43,6 +43,8 @@ struct Generator<'a> {
     super_block: Option<(&'a str, usize)>,
     // buffer for writable
     buf_writable: Vec<Writable<'a>>,
+    // Counter for write! hash named arguments
+    named: usize,
 }
 
 impl<'a> Generator<'a> {
@@ -61,6 +63,7 @@ impl<'a> Generator<'a> {
             skip_ws: false,
             super_block: None,
             buf_writable: vec![],
+            named: 0,
         }
     }
 
@@ -628,6 +631,7 @@ impl<'a> Generator<'a> {
             } else {
                 let mut buf_format = Buffer::new(0);
                 let mut buf_expr = Buffer::new(buf.indent + 1);
+                let mut expr_cache = HashMap::with_capacity(self.buf_writable.len());
                 for s in mem::replace(&mut self.buf_writable, vec![]) {
                     match s {
                         Writable::Lit(s) => {
@@ -638,18 +642,31 @@ impl<'a> Generator<'a> {
                             use super::input::EscapeMode::*;
                             let mut expr_buf = Buffer::new(0);
                             let wrapped = self.visit_expr(&mut expr_buf, s);
-
-                            buf_format.write("{}");
-                            buf_expr.write("&");
-                            buf_expr.write(&match (wrapped, &self.input.escaping) {
+                            let expression = match (wrapped, &self.input.escaping) {
                                 (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => {
-                                    expr_buf.buf
+                                    expr_buf.buf.clone()
                                 }
                                 (Unwrapped, &Html) => {
-                                    format!("::askama::MarkupDisplay::from(&{})", expr_buf.buf)
+                                    format!(
+                                        "::askama::MarkupDisplay::from(&{})",
+                                        expr_buf.buf.clone()
+                                    )
                                 }
+                            };
+
+                            let id = expr_cache.entry(expression).or_insert_with(|| {
+                                let id = self.named;
+                                self.named += 1;
+
+                                buf_expr.write(&format!("a{}=", id));
+                                buf_expr.write("&");
+                                buf_expr.write(&expr_buf.buf);
+                                buf_expr.writeln(",");
+
+                                id
                             });
-                            buf_expr.writeln(",");
+
+                            buf_format.write(&format!("{{a{}}}", id));
                         }
                     }
                 }
