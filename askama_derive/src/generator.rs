@@ -660,7 +660,7 @@ impl<'a> Generator<'a> {
                         let id = self.named;
                         self.named += 1;
 
-                        buf_expr.write(&format!("a{}=", id));
+                        buf_expr.write(&format!("expr{} = ", id));
                         buf_expr.write("&");
                         buf_expr.write(&expr_buf.buf);
                         buf_expr.writeln(",");
@@ -668,7 +668,7 @@ impl<'a> Generator<'a> {
                         id
                     });
 
-                    buf_format.write(&format!("{{a{}}}", id));
+                    buf_format.write(&format!("{{expr{}}}", id));
                 }
             }
         }
