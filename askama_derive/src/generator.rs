@@ -630,7 +630,7 @@ impl<'a> Generator<'a> {
             buf.writeln(&format!("writer.write_str({:#?})?;", &buf_lit.buf));
             return;
         }
-    
+
         let mut buf_format = Buffer::new(0);
         let mut buf_expr = Buffer::new(buf.indent + 1);
         let mut expr_cache = HashMap::with_capacity(self.buf_writable.len());
@@ -646,23 +646,20 @@ impl<'a> Generator<'a> {
                     let wrapped = self.visit_expr(&mut expr_buf, s);
                     let expression = match (wrapped, &self.input.escaping) {
                         (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => {
-                            expr_buf.buf.clone()
+                            expr_buf.buf
                         }
                         (Unwrapped, &Html) => {
-                            format!(
-                                "::askama::MarkupDisplay::from(&{})",
-                                expr_buf.buf.clone()
-                            )
+                            format!("::askama::MarkupDisplay::from(&{})", expr_buf.buf)
                         }
                     };
 
-                    let id = expr_cache.entry(expression).or_insert_with(|| {
+                    let id = expr_cache.entry(expression.clone()).or_insert_with(|| {
                         let id = self.named;
                         self.named += 1;
 
                         buf_expr.write(&format!("expr{} = ", id));
                         buf_expr.write("&");
-                        buf_expr.write(&expr_buf.buf);
+                        buf_expr.write(&expression);
                         buf_expr.writeln(",");
 
                         id
