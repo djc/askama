@@ -119,6 +119,27 @@
 //! while `{{ user.name }}` will get the ``name`` field of the ``user``
 //! field from the template context.
 //!
+//! ## Assignments
+//!
+//! Inside code blocks, you can also declare variables or assign values
+//! to variables.
+//! Assignments can't be imported by other templates.
+//!
+//! Assignments use the let tag:
+//!
+//! ```text
+//! {% let name = user.name %}
+//! {% let len = name.len() %}
+//!
+//! {% let val -%}
+//! {% if len == 0 -%}
+//!   {% let val = "foo" -%}
+//! {% else -%}
+//!   {% let val = name -%}
+//! {% endif -%}
+//! {{ val }}
+//! ```
+//!
 //! ## Filters
 //!
 //! Values such as those obtained from variables can be post-processed
