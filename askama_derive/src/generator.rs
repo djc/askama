@@ -674,7 +674,7 @@ impl<'a> Generator<'a> {
         buf.indent();
         buf.writeln("writer,");
         buf.writeln(&format!("{:#?},", &buf_format.buf));
-        buf.write(buf_expr.buf.trim());
+        buf.writeln(buf_expr.buf.trim());
         buf.dedent();
         buf.writeln(")?;");
     }
