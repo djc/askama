@@ -12,6 +12,7 @@ pub use self::json::json;
 
 use askama_escape::MarkupDisplay;
 use error::Error::Fmt;
+use humansize::{file_size_opts, FileSize};
 use num_traits::cast::NumCast;
 use num_traits::Signed;
 use std::fmt;
@@ -22,12 +23,13 @@ use super::Result;
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 21] = [
+pub const BUILT_IN_FILTERS: [&str; 22] = [
     "abs",
     "capitalize",
     "center",
     "e",
     "escape",
+    "filesizeformat",
     "format",
     "indent",
     "into_f64",
@@ -75,6 +77,12 @@ where
     MarkupDisplay<D>: From<I>,
 {
     escape(i)
+}
+
+/// Returns adequate string representation (in KB, ..) of number of bytes
+pub fn filesizeformat(b: usize) -> Result<String> {
+    b.file_size(file_size_opts::DECIMAL)
+        .map_err(|_| Fmt(fmt::Error))
 }
 
 /// Formats arguments according to the specified format
@@ -266,6 +274,15 @@ pub fn wordcount(s: &fmt::Display) -> Result<usize> {
 mod tests {
     use super::*;
     use std::f64::INFINITY;
+
+    #[test]
+    fn test_filesizeformat() {
+        assert_eq!(filesizeformat(0).unwrap(), "0 B");
+        assert_eq!(filesizeformat(999).unwrap(), "999 B");
+        assert_eq!(filesizeformat(1000).unwrap(), "1 KB");
+        assert_eq!(filesizeformat(1023).unwrap(), "1.02 KB");
+        assert_eq!(filesizeformat(1024).unwrap(), "1.02 KB");
+    }
 
     #[test]
     fn test_linebreaks() {
