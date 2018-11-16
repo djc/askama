@@ -1,6 +1,7 @@
 #![cfg_attr(feature = "cargo-clippy", allow(unused_parens))]
 
 extern crate askama_escape;
+extern crate humansize;
 extern crate num_traits;
 extern crate serde;
 #[macro_use]
