@@ -89,12 +89,57 @@ const FLAG: u8 = b'>' - b'"';
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn test_escape() {
+        let escapes = "<>&\"'/";
+        let escaped = "&lt;&gt;&amp;&quot;&#x27;&#x2f;";
+        let string_long: &str = &"foobar".repeat(1024);
+
         assert_eq!(escape("").to_string(), "");
         assert_eq!(escape("<&>").to_string(), "&lt;&amp;&gt;");
-        assert_eq!(escape("bla&").to_string(), "bla&amp;");
+        assert_eq!(escape("bar&").to_string(), "bar&amp;");
         assert_eq!(escape("<foo").to_string(), "&lt;foo");
-        assert_eq!(escape("bla&h").to_string(), "bla&amp;h");
+        assert_eq!(escape("bar&h").to_string(), "bar&amp;h");
+        assert_eq!(
+            escape("// my <html> is \"unsafe\" & should be 'escaped'").to_string(),
+            "&#x2f;&#x2f; my &lt;html&gt; is &quot;unsafe&quot; &amp; \
+             should be &#x27;escaped&#x27;"
+        );
+        assert_eq!(escape(&"<".repeat(16)).to_string(), "&lt;".repeat(16));
+        assert_eq!(escape(&"<".repeat(32)).to_string(), "&lt;".repeat(32));
+        assert_eq!(escape(&"<".repeat(64)).to_string(), "&lt;".repeat(64));
+        assert_eq!(escape(&"<".repeat(128)).to_string(), "&lt;".repeat(128));
+        assert_eq!(escape(&"<".repeat(1024)).to_string(), "&lt;".repeat(1024));
+        assert_eq!(escape(&"<".repeat(129)).to_string(), "&lt;".repeat(129));
+        assert_eq!(
+            escape(&"<".repeat(128 * 2 - 1)).to_string(),
+            "&lt;".repeat(128 * 2 - 1)
+        );
+        assert_eq!(
+            escape(&"<".repeat(128 * 8 - 1)).to_string(),
+            "&lt;".repeat(128 * 8 - 1)
+        );
+        assert_eq!(escape(string_long).to_string(), string_long);
+        assert_eq!(
+            escape(&[string_long, "<"].join("")).to_string(),
+            [string_long, "&lt;"].join("")
+        );
+        assert_eq!(
+            escape(&["<", string_long].join("")).to_string(),
+            ["&lt;", string_long].join("")
+        );
+        assert_eq!(
+            escape(&escapes.repeat(1024)).to_string(),
+            escaped.repeat(1024)
+        );
+        assert_eq!(
+            escape(&[string_long, "<", string_long].join("")).to_string(),
+            [string_long, "&lt;", string_long].join("")
+        );
+        assert_eq!(
+            escape(&[string_long, "<", string_long, escapes, string_long,].join("")).to_string(),
+            [string_long, "&lt;", string_long, escaped, string_long,].join("")
+        );
     }
 }
