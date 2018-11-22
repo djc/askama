@@ -77,6 +77,8 @@ cfg_if! {
             fn detect(bytes: &[u8], fmt: &mut Formatter) -> fmt::Result {
                 let fun = if cfg!(askama_runtime_avx) && is_x86_feature_detected!("avx2") {
                     _avx_escape as usize
+                } else if cfg!(askama_runtime_sse) && is_x86_feature_detected!("sse4.2") {
+                    _sse_escape as usize
                 } else {
                     _escape as usize
                 };
@@ -198,6 +200,7 @@ fn _escape(bytes: &[u8], fmt: &mut Formatter) -> fmt::Result {
 
     Ok(())
 }
+
 #[cfg(all(
     target_arch = "x86_64",
     not(target_os = "windows"),
@@ -328,6 +331,137 @@ unsafe fn _avx_escape(bytes: &[u8], fmt: &mut Formatter) -> fmt::Result {
             let end = sub(end_ptr, ptr);
 
             write_forward!(mask, end);
+        }
+    }
+
+    // Write since start to the end of the slice
+    debug_assert!(start <= len);
+    if start < len {
+        fmt.write_str(str::from_utf8_unchecked(&bytes[start..len]))?;
+    }
+
+    Ok(())
+}
+
+#[cfg(all(
+    target_arch = "x86_64",
+    not(target_os = "windows"),
+    askama_runtime_simd,
+    askama_runtime_sse
+))]
+#[target_feature(enable = "sse4.2")]
+unsafe fn _sse_escape(bytes: &[u8], fmt: &mut Formatter) -> fmt::Result {
+    const VECTOR_SIZE: usize = size_of::<__m128i>();
+    const VECTOR_ALIGN: usize = VECTOR_SIZE - 1;
+    const LOOP_SIZE: usize = 4 * VECTOR_SIZE;
+    const NEEDLE_LEN: i32 = 6;
+
+    let needle = _mm_setr_epi8(
+        b'<' as i8, b'>' as i8, b'&' as i8, b'"' as i8,
+        b'\'' as i8, b'/' as i8, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+    );
+
+    let len = bytes.len();
+    let start_ptr = bytes.as_ptr();
+    let mut ptr = start_ptr;
+    let mut start = 0;
+
+    if len < VECTOR_SIZE {
+        let a = _mm_loadu_si128(ptr as *const __m128i);
+        let cmp = _mm_cmpestrm(needle, NEEDLE_LEN, a, len as i32, 0);
+        let mut mask = _mm_extract_epi16(cmp, 0) as i16;
+
+        // No need write forward because I specified string size in
+        // compare instruction
+        if mask != 0 {
+            write_mask!(mask, ptr, start_ptr, start, fmt, bytes);
+        }
+    } else {
+        let end_ptr = bytes[len..].as_ptr();
+
+        {
+            let align = (VECTOR_SIZE - (start_ptr as usize & VECTOR_ALIGN)) & VECTOR_ALIGN;
+            if 0 < align {
+                let a = _mm_loadu_si128(ptr as *const __m128i);
+                let cmp = _mm_cmpestrm(needle, NEEDLE_LEN, a, align as i32, 0);
+                let mut mask = _mm_extract_epi16(cmp, 0) as i16;
+
+                if mask != 0 {
+                    write_mask!(mask, ptr, start_ptr, start, fmt, bytes);
+                }
+                ptr = ptr.add(align);
+
+                debug_assert!(start <= sub(ptr, start_ptr));
+            }
+        }
+
+        if LOOP_SIZE <= len {
+            // Main loop 64 bytes, need aligned ptr at VECTOR_SIZE
+            while ptr <= end_ptr.sub(LOOP_SIZE) {
+                // Need aligned
+                debug_assert_eq!(0, (ptr as usize) % VECTOR_SIZE);
+
+                let a = _mm_load_si128(ptr as *const __m128i);
+                let b = _mm_load_si128(ptr.add(VECTOR_SIZE) as *const __m128i);
+                let c = _mm_load_si128(ptr.add(VECTOR_SIZE * 2) as *const __m128i);
+                let d = _mm_load_si128(ptr.add(VECTOR_SIZE * 3) as *const __m128i);
+                let cmp_a = _mm_cmpestrm(needle, NEEDLE_LEN, a, VECTOR_SIZE as i32, 0);
+                let cmp_b = _mm_cmpestrm(needle, NEEDLE_LEN, b, VECTOR_SIZE as i32, 0);
+                let cmp_c = _mm_cmpestrm(needle, NEEDLE_LEN, c, VECTOR_SIZE as i32, 0);
+                let cmp_d = _mm_cmpestrm(needle, NEEDLE_LEN, d, VECTOR_SIZE as i32, 0);
+                let or1 = _mm_or_si128(cmp_a, cmp_b);
+                let or2 = _mm_or_si128(cmp_c, cmp_d);
+
+                // Adjust the four masks in one from right to left.
+                if _mm_extract_epi16(_mm_or_si128(or1, or2), 0) != 0 {
+                    let mut mask = _mm_extract_epi16(cmp_a, 0) as i64
+                        | (_mm_extract_epi16(cmp_b, 0) as i64) << VECTOR_SIZE
+                        | (_mm_extract_epi16(cmp_c, 0) as i64) << VECTOR_SIZE * 2
+                        | (_mm_extract_epi16(cmp_d, 0) as i64) << VECTOR_SIZE * 3;
+
+                    write_mask!(mask, ptr, start_ptr, start, fmt, bytes);
+                }
+
+                ptr = ptr.add(LOOP_SIZE);
+
+                debug_assert!(start <= sub(ptr, start_ptr));
+            }
+        }
+
+        while ptr <= end_ptr.sub(VECTOR_SIZE) {
+            // Need aligned
+            debug_assert_eq!(0, (ptr as usize) % VECTOR_SIZE);
+
+            let a = _mm_load_si128(ptr as *const __m128i);
+            let cmp = _mm_cmpestrm(needle, NEEDLE_LEN, a, VECTOR_SIZE as i32, 0);
+            let mut mask = _mm_extract_epi16(cmp, 0) as i16;
+
+            if mask != 0 {
+                write_mask!(mask, ptr, start_ptr, start, fmt, bytes);
+            }
+            ptr = ptr.add(VECTOR_SIZE);
+
+            debug_assert!(start <= sub(ptr, start_ptr));
+        }
+
+        debug_assert!(end_ptr.sub(VECTOR_SIZE) < ptr);
+
+        if ptr < end_ptr {
+            // Need aligned
+            debug_assert_eq!(0, (ptr as usize) % VECTOR_SIZE);
+
+            let end = sub(end_ptr, ptr);
+            let a = _mm_load_si128(ptr as *const __m128i);
+            let cmp = _mm_cmpestrm(needle, NEEDLE_LEN, a, end as i32, 0);
+            let mut mask = _mm_extract_epi16(cmp, 0) as i16;
+
+            // No need write forward because I specified string size in
+            // compare instruction
+            if mask != 0 {
+                write_mask!(mask, ptr, start_ptr, start, fmt, bytes);
+            }
         }
     }
 
