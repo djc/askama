@@ -224,15 +224,12 @@ pub fn capitalize(s: &fmt::Display) -> Result<String> {
         &*s
     }) {
         None => Ok(s),
-        _ => {
-            let l = s.len();
-            match s.get_mut(1..l).map(|s| {
-                s.make_ascii_lowercase();
-                &*s
-            }) {
-                _ => Ok(s),
-            }
-        }
+        _ => match s.get_mut(1..).map(|s| {
+            s.make_ascii_lowercase();
+            &*s
+        }) {
+            _ => Ok(s),
+        },
     }
 }
 
