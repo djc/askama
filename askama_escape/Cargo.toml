@@ -15,6 +15,9 @@ appveyor = { repository = "djc/askama" }
 maintenance = { status = "actively-developed" }
 travis-ci = { repository = "djc/askama" }
 
+[dependencies]
+v_htmlescape = "0.1"
+
 [dev-dependencies]
 criterion = "0.2"
 

@@ -52,7 +52,6 @@ fn escaping(b: &mut criterion::Bencher) {
     justo.
 </p>"#;
     let string_short = "Lorem ipsum dolor sit amet,<foo>bar&foo\"bar\\foo/bar";
-    let empty = "";
     let no_escape = "Lorem ipsum dolor sit amet,";
     let no_escape_long = r#"
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin scelerisque eu urna in aliquet.
@@ -71,7 +70,6 @@ quis lacus at, gravida maximus elit. Duis tristique, nisl nullam.
     b.iter(|| {
         format!("{}", MarkupDisplay::from(string_long));
         format!("{}", MarkupDisplay::from(string_short));
-        format!("{}", MarkupDisplay::from(empty));
         format!("{}", MarkupDisplay::from(no_escape));
         format!("{}", MarkupDisplay::from(no_escape_long));
     });

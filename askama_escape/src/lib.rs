@@ -1,5 +1,9 @@
+extern crate v_htmlescape;
+
 use std::fmt::{self, Display, Formatter};
 use std::str;
+
+use v_htmlescape::Escape;
 
 #[derive(Debug, PartialEq)]
 pub enum MarkupDisplay<T>
@@ -43,52 +47,15 @@ where
     }
 }
 
-pub fn escape(s: &str) -> Escaped {
-    Escaped {
-        bytes: s.as_bytes(),
-    }
+#[inline]
+pub fn escape(s: &str) -> Escape {
+    Escape::new(s.as_bytes())
 }
-
-macro_rules! escaping_body {
-    ($start:ident, $i:ident, $fmt:ident, $_self:ident, $quote:expr) => {{
-        if $start < $i {
-            $fmt.write_str(unsafe { str::from_utf8_unchecked(&$_self.bytes[$start..$i]) })?;
-        }
-        $fmt.write_str($quote)?;
-        $start = $i + 1;
-    }};
-}
-
-pub struct Escaped<'a> {
-    bytes: &'a [u8],
-}
-
-impl<'a> ::std::fmt::Display for Escaped<'a> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let mut start = 0;
-        for (i, b) in self.bytes.iter().enumerate() {
-            if b.wrapping_sub(b'"') <= FLAG {
-                match *b {
-                    b'<' => escaping_body!(start, i, fmt, self, "&lt;"),
-                    b'>' => escaping_body!(start, i, fmt, self, "&gt;"),
-                    b'&' => escaping_body!(start, i, fmt, self, "&amp;"),
-                    b'"' => escaping_body!(start, i, fmt, self, "&quot;"),
-                    b'\'' => escaping_body!(start, i, fmt, self, "&#x27;"),
-                    b'/' => escaping_body!(start, i, fmt, self, "&#x2f;"),
-                    _ => (),
-                }
-            }
-        }
-        fmt.write_str(unsafe { str::from_utf8_unchecked(&self.bytes[start..]) })?;
-        Ok(())
-    }
-}
-
-const FLAG: u8 = b'>' - b'"';
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn test_escape() {
         assert_eq!(escape("").to_string(), "");
