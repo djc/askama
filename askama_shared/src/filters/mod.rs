@@ -62,21 +62,23 @@ where
 }
 
 /// Escapes `&`, `<` and `>` in strings
+#[allow(unused_variables)]
 pub fn escape<D, I>(i: I) -> Result<MarkupDisplay<D>>
 where
     D: fmt::Display,
     MarkupDisplay<D>: From<I>,
 {
-    Ok(i.into())
+    unreachable!()
 }
 
 /// Alias for the `escape()` filter
+#[allow(unused_variables)]
 pub fn e<D, I>(i: I) -> Result<MarkupDisplay<D>>
 where
     D: fmt::Display,
     MarkupDisplay<D>: From<I>,
 {
-    escape(i)
+    unreachable!()
 }
 
 /// Returns adequate string representation (in KB, ..) of number of bytes

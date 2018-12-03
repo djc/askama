@@ -645,9 +645,7 @@ impl<'a> Generator<'a> {
                     let mut expr_buf = Buffer::new(0);
                     let wrapped = self.visit_expr(&mut expr_buf, s);
                     let expression = match (wrapped, &self.input.escaping) {
-                        (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => {
-                            expr_buf.buf
-                        }
+                        (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => expr_buf.buf,
                         (Unwrapped, &Html) => {
                             format!("::askama::MarkupDisplay::from(&{})", expr_buf.buf)
                         }
@@ -779,13 +777,21 @@ impl<'a> Generator<'a> {
     }
 
     fn visit_filter(&mut self, buf: &mut Buffer, name: &str, args: &[Expr]) -> DisplayWrap {
-        if name == "format" {
-            self._visit_format_filter(buf, args);
-            return DisplayWrap::Unwrapped;
-        } else if name == "join" {
-            self._visit_join_filter(buf, args);
-            return DisplayWrap::Unwrapped;
-        }
+        match name {
+            "format" => {
+                self._visit_format_filter(buf, args);
+                return DisplayWrap::Unwrapped;
+            }
+            "join" => {
+                self._visit_join_filter(buf, args);
+                return DisplayWrap::Unwrapped;
+            }
+            "escape" | "e" => {
+                self._visit_escape_filter(buf, args);
+                return DisplayWrap::Wrapped;
+            }
+            _ => (),
+        };
 
         if filters::BUILT_IN_FILTERS.contains(&name) {
             buf.write(&format!("::askama::filters::{}(&", name));
@@ -795,10 +801,10 @@ impl<'a> Generator<'a> {
 
         self._visit_args(buf, args);
         buf.write(")?");
-        if name == "safe" || name == "escape" || name == "e" || name == "json" {
-            DisplayWrap::Wrapped
-        } else {
-            DisplayWrap::Unwrapped
+
+        match name {
+            "safe" | "json" => DisplayWrap::Wrapped,
+            _ => DisplayWrap::Unwrapped,
         }
     }
 
@@ -821,6 +827,17 @@ impl<'a> Generator<'a> {
             }
         }
         buf.write(")?");
+    }
+
+    fn _visit_escape_filter(&mut self, buf: &mut Buffer, args: &[Expr]) {
+        buf.write("::askama::MarkupDisplay::from(&");
+        let mut i = args.iter();
+        if let Some(arg) = i.next() {
+            self.visit_expr(buf, arg);
+        } else {
+            panic!("Escape filter takes 1 parameter")
+        }
+        buf.write(")");
     }
 
     fn _visit_args(&mut self, buf: &mut Buffer, args: &[Expr]) {
