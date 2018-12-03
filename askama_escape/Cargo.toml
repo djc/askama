@@ -16,7 +16,11 @@ maintenance = { status = "actively-developed" }
 travis-ci = { repository = "djc/askama" }
 
 [dependencies]
+cfg-if = "0.1"
 v_htmlescape = "0.1"
+
+[build-dependencies]
+version_check = "0.1"
 
 [dev-dependencies]
 criterion = "0.2"
