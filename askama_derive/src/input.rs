@@ -31,9 +31,11 @@ impl<'a> TemplateInput<'a> {
         let mut meta = None;
         for attr in &ast.attrs {
             match attr.interpret_meta() {
-                Some(m) => if m.name() == "template" {
-                    meta = Some(m)
-                },
+                Some(m) => {
+                    if m.name() == "template" {
+                        meta = Some(m)
+                    }
+                }
                 None => {
                     let mut tokens = TokenStream::new();
                     attr.to_tokens(&mut tokens);
@@ -59,42 +61,54 @@ impl<'a> TemplateInput<'a> {
             if let syn::NestedMeta::Meta(ref item) = nm_item {
                 if let syn::Meta::NameValue(ref pair) = item {
                     match pair.ident.to_string().as_ref() {
-                        "path" => if let syn::Lit::Str(ref s) = pair.lit {
-                            if source.is_some() {
-                                panic!("must specify 'source' or 'path', not both");
+                        "path" => {
+                            if let syn::Lit::Str(ref s) = pair.lit {
+                                if source.is_some() {
+                                    panic!("must specify 'source' or 'path', not both");
+                                }
+                                source = Some(Source::Path(s.value()));
+                            } else {
+                                panic!("template path must be string literal");
                             }
-                            source = Some(Source::Path(s.value()));
-                        } else {
-                            panic!("template path must be string literal");
-                        },
-                        "source" => if let syn::Lit::Str(ref s) = pair.lit {
-                            if source.is_some() {
-                                panic!("must specify 'source' or 'path', not both");
+                        }
+                        "source" => {
+                            if let syn::Lit::Str(ref s) = pair.lit {
+                                if source.is_some() {
+                                    panic!("must specify 'source' or 'path', not both");
+                                }
+                                source = Some(Source::Source(s.value()));
+                            } else {
+                                panic!("template source must be string literal");
                             }
-                            source = Some(Source::Source(s.value()));
-                        } else {
-                            panic!("template source must be string literal");
-                        },
-                        "print" => if let syn::Lit::Str(ref s) = pair.lit {
-                            print = s.value().into();
-                        } else {
-                            panic!("print value must be string literal");
-                        },
-                        "escape" => if let syn::Lit::Str(ref s) = pair.lit {
-                            escaping = Some(s.value().into());
-                        } else {
-                            panic!("escape value must be string literal");
-                        },
-                        "ext" => if let syn::Lit::Str(ref s) = pair.lit {
-                            ext = Some(s.value());
-                        } else {
-                            panic!("ext value must be string literal");
-                        },
-                        "syntax" => if let syn::Lit::Str(ref s) = pair.lit {
-                            syntax = Some(s.value())
-                        } else {
-                            panic!("syntax value must be string literal");
-                        },
+                        }
+                        "print" => {
+                            if let syn::Lit::Str(ref s) = pair.lit {
+                                print = s.value().into();
+                            } else {
+                                panic!("print value must be string literal");
+                            }
+                        }
+                        "escape" => {
+                            if let syn::Lit::Str(ref s) = pair.lit {
+                                escaping = Some(s.value().into());
+                            } else {
+                                panic!("escape value must be string literal");
+                            }
+                        }
+                        "ext" => {
+                            if let syn::Lit::Str(ref s) = pair.lit {
+                                ext = Some(s.value());
+                            } else {
+                                panic!("ext value must be string literal");
+                            }
+                        }
+                        "syntax" => {
+                            if let syn::Lit::Str(ref s) = pair.lit {
+                                syntax = Some(s.value())
+                            } else {
+                                panic!("syntax value must be string literal");
+                            }
+                        }
                         attr => panic!("unsupported annotation key '{}' found", attr),
                     }
                 }
