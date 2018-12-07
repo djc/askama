@@ -1,5 +1,4 @@
 #![cfg(feature = "iron")]
-#[macro_use]
 extern crate askama;
 extern crate iron;
 
