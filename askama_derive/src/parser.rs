@@ -4,7 +4,7 @@
 use nom;
 use std::str;
 
-use shared::Syntax;
+use crate::shared::Syntax;
 
 #[derive(Debug)]
 pub enum Expr<'a> {
@@ -123,7 +123,7 @@ fn take_content<'a>(
     i: Input<'a>,
     s: &'a Syntax<'a>,
 ) -> Result<(Input<'a>, Node<'a>), nom::Err<Input<'a>>> {
-    use parser::ContentState::*;
+    use crate::parser::ContentState::*;
     let bs = s.block_start.as_bytes()[0];
     let be = s.block_start.as_bytes()[1];
     let cs = s.comment_start.as_bytes()[0];
@@ -771,7 +771,7 @@ pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Vec<Node<'a>> {
 
 #[cfg(test)]
 mod tests {
-    use shared::Syntax;
+    use crate::shared::Syntax;
 
     fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
         let node = super::split_ws_parts(s.as_bytes());

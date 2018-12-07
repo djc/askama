@@ -11,12 +11,12 @@ mod generator;
 mod input;
 mod parser;
 
-use input::{Print, Source, TemplateInput};
-use parser::{Expr, Macro, Node};
+use crate::input::{Print, Source, TemplateInput};
+use crate::parser::{Expr, Macro, Node};
+use crate::shared::{read_config_file, Config};
 use proc_macro::TokenStream;
-use shared::{read_config_file, Config};
 
-use parser::parse;
+use crate::parser::parse;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -220,7 +220,7 @@ fn get_template_source(tpl_path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::get_template_source;
-    use Config;
+    use crate::Config;
 
     #[test]
     fn get_source() {

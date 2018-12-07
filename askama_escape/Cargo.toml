@@ -9,6 +9,7 @@ homepage = "https://github.com/djc/askama"
 repository = "https://github.com/djc/askama"
 license = "MIT OR Apache-2.0"
 workspace = ".."
+edition = "2018"
 
 [badges]
 appveyor = { repository = "djc/askama" }

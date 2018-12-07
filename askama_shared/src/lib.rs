@@ -16,8 +16,8 @@ use std::path::{Path, PathBuf};
 
 mod error;
 
+pub use crate::error::{Error, Result};
 pub use askama_escape::MarkupDisplay;
-pub use error::{Error, Result};
 
 use std::collections::BTreeMap;
 

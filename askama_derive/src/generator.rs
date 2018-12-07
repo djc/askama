@@ -1,7 +1,7 @@
 use super::{get_template_source, Context, Heritage};
-use input::TemplateInput;
-use parser::{Cond, Expr, MatchParameter, MatchVariant, Node, Target, When, WS};
-use shared::filters;
+use crate::input::TemplateInput;
+use crate::parser::{Cond, Expr, MatchParameter, MatchVariant, Node, Target, When, WS};
+use crate::shared::filters;
 
 use proc_macro2::Span;
 
@@ -13,7 +13,7 @@ use std::{cmp, hash, mem, str};
 
 use syn;
 
-use parser::parse;
+use crate::parser::parse;
 
 pub(crate) fn generate(
     input: &TemplateInput,
