@@ -1,4 +1,3 @@
-extern crate askama;
 #[cfg(feature = "serde-json")]
 #[macro_use]
 extern crate serde_json;
@@ -48,7 +47,7 @@ mod filters {
         Ok(s.replace("oo", "aa").to_string())
     }
     // for test_nested_filter_ref
-    pub fn mytrim(s: &::std::fmt::Display) -> ::askama::Result<String> {
+    pub fn mytrim(s: &dyn (::std::fmt::Display)) -> ::askama::Result<String> {
         let s = format!("{}", s);
         Ok(s.trim().to_owned())
     }

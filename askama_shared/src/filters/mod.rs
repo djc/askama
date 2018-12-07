@@ -97,7 +97,7 @@ pub fn format() {}
 ///
 /// A single newline becomes an HTML line break `<br>` and a new line
 /// followed by a blank line becomes a paragraph break `<p>`.
-pub fn linebreaks(s: &fmt::Display) -> Result<String> {
+pub fn linebreaks(s: &dyn fmt::Display) -> Result<String> {
     let s = s.to_string();
     let linebroken = s.replace("\n\n", "</p><p>").replace("\n", "<br/>");
 
@@ -105,41 +105,41 @@ pub fn linebreaks(s: &fmt::Display) -> Result<String> {
 }
 
 /// Converts all newlines in a piece of plain text to HTML line breaks
-pub fn linebreaksbr(s: &fmt::Display) -> Result<String> {
+pub fn linebreaksbr(s: &dyn fmt::Display) -> Result<String> {
     let s = s.to_string();
     Ok(s.replace("\n", "<br/>"))
 }
 
 /// Converts to lowercase
-pub fn lower(s: &fmt::Display) -> Result<String> {
+pub fn lower(s: &dyn fmt::Display) -> Result<String> {
     let s = s.to_string();
     Ok(s.to_lowercase())
 }
 
 /// Alias for the `lower()` filter
-pub fn lowercase(s: &fmt::Display) -> Result<String> {
+pub fn lowercase(s: &dyn fmt::Display) -> Result<String> {
     lower(s)
 }
 
 /// Converts to uppercase
-pub fn upper(s: &fmt::Display) -> Result<String> {
+pub fn upper(s: &dyn fmt::Display) -> Result<String> {
     let s = s.to_string();
     Ok(s.to_uppercase())
 }
 
 /// Alias for the `upper()` filter
-pub fn uppercase(s: &fmt::Display) -> Result<String> {
+pub fn uppercase(s: &dyn fmt::Display) -> Result<String> {
     upper(s)
 }
 
 /// Strip leading and trailing whitespace
-pub fn trim(s: &fmt::Display) -> Result<String> {
+pub fn trim(s: &dyn fmt::Display) -> Result<String> {
     let s = s.to_string();
     Ok(s.trim().to_owned())
 }
 
 /// Limit string length, appends '...' if truncated
-pub fn truncate(s: &fmt::Display, len: &usize) -> Result<String> {
+pub fn truncate(s: &dyn fmt::Display, len: &usize) -> Result<String> {
     let mut s = s.to_string();
     if s.len() < *len {
         Ok(s)
@@ -151,7 +151,7 @@ pub fn truncate(s: &fmt::Display, len: &usize) -> Result<String> {
 }
 
 /// Indent lines with `width` spaces
-pub fn indent(s: &fmt::Display, width: &usize) -> Result<String> {
+pub fn indent(s: &dyn fmt::Display, width: &usize) -> Result<String> {
     let s = s.to_string();
 
     let mut indented = String::new();
@@ -216,7 +216,7 @@ where
 }
 
 /// Capitalize a value. The first character will be uppercase, all others lowercase.
-pub fn capitalize(s: &fmt::Display) -> Result<String> {
+pub fn capitalize(s: &dyn fmt::Display) -> Result<String> {
     let mut s = s.to_string();
 
     match s.get_mut(0..1).map(|s| {
@@ -234,7 +234,7 @@ pub fn capitalize(s: &fmt::Display) -> Result<String> {
 }
 
 /// Centers the value in a field of a given width
-pub fn center(s: &fmt::Display, l: usize) -> Result<String> {
+pub fn center(s: &dyn fmt::Display, l: usize) -> Result<String> {
     let s = s.to_string();
     let len = s.len();
 
@@ -261,7 +261,7 @@ pub fn center(s: &fmt::Display, l: usize) -> Result<String> {
 }
 
 /// Count the words in that string
-pub fn wordcount(s: &fmt::Display) -> Result<usize> {
+pub fn wordcount(s: &dyn fmt::Display) -> Result<usize> {
     let s = s.to_string();
 
     Ok(s.split_whitespace().count())

@@ -1,8 +1,4 @@
 #![cfg(feature = "actix")]
-extern crate actix_web;
-extern crate askama;
-extern crate bytes;
-
 use actix_web::http::header::CONTENT_TYPE;
 use actix_web::test;
 use actix_web::HttpMessage;

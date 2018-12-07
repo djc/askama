@@ -49,7 +49,7 @@ impl ErrorTrait for Error {
         }
     }
 
-    fn cause(&self) -> Option<&ErrorTrait> {
+    fn cause(&self) -> Option<&dyn ErrorTrait> {
         match *self {
             Error::Fmt(ref err) => err.cause(),
             #[cfg(feature = "serde_json")]
@@ -60,7 +60,7 @@ impl ErrorTrait for Error {
 }
 
 impl Display for Error {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Error::Fmt(ref err) => write!(formatter, "formatting error: {}", err),
 

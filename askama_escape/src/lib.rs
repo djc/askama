@@ -35,7 +35,7 @@ impl<T> Display for MarkupDisplay<T>
 where
     T: Display,
 {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match *self {
             MarkupDisplay::Unsafe(ref t) => escape(&t.to_string()).fmt(f),
             MarkupDisplay::Safe(ref t) => t.fmt(f),
@@ -43,7 +43,7 @@ where
     }
 }
 
-pub fn escape(s: &str) -> Escaped {
+pub fn escape(s: &str) -> Escaped<'_> {
     Escaped {
         bytes: s.as_bytes(),
     }
@@ -64,7 +64,7 @@ pub struct Escaped<'a> {
 }
 
 impl<'a> ::std::fmt::Display for Escaped<'a> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut start = 0;
         for (i, b) in self.bytes.iter().enumerate() {
             if b.wrapping_sub(b'"') <= FLAG {

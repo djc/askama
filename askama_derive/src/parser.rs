@@ -4,7 +4,7 @@
 use nom;
 use std::str;
 
-use crate::shared::Syntax;
+use askama_shared::Syntax;
 
 #[derive(Debug)]
 pub enum Expr<'a> {
@@ -771,7 +771,7 @@ pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Vec<Node<'a>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::shared::Syntax;
+    use askama_shared::Syntax;
 
     fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
         let node = super::split_ws_parts(s.as_bytes());

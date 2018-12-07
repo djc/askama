@@ -1,14 +1,8 @@
 #![cfg_attr(feature = "cargo-clippy", allow(unused_parens))]
-
-extern crate askama_escape;
-extern crate humansize;
-extern crate num_traits;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-#[cfg(feature = "serde_json")]
-extern crate serde_json;
-extern crate toml;
+
+use toml;
 
 use std::env;
 use std::fs;
@@ -31,14 +25,14 @@ pub struct Config<'a> {
 }
 
 impl<'a> Config<'a> {
-    pub fn new(s: &str) -> Config {
+    pub fn new(s: &str) -> Config<'_> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default_dirs = vec![root.join("templates")];
 
         let mut syntaxes = BTreeMap::new();
         syntaxes.insert(DEFAULT_SYNTAX_NAME.to_string(), Syntax::default());
 
-        let raw: RawConfig =
+        let raw: RawConfig<'_> =
             toml::from_str(&s).expect(&format!("invalid TOML in {}", CONFIG_FILE_NAME));
 
         let (dirs, default_syntax) = match raw.general {
