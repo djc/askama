@@ -506,6 +506,7 @@ pub fn rerun_if_templates_changed() {
     for template_dir in &shared::Config::new(&file).dirs {
         visit_dirs(template_dir, &|e: &DirEntry| {
             println!("cargo:rerun-if-changed={}", e.path().to_str().unwrap());
-        }).unwrap();
+        })
+        .unwrap();
     }
 }

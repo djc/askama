@@ -222,10 +222,7 @@ enum Alphabet {
 }
 
 #[derive(Template)]
-#[template(
-    source = "{% if x == Alphabet::Alpha %}true{% endif %}",
-    ext = "txt"
-)]
+#[template(source = "{% if x == Alphabet::Alpha %}true{% endif %}", ext = "txt")]
 struct PathCompareTemplate {
     x: Alphabet,
 }

@@ -240,7 +240,8 @@ impl<'a> Generator<'a> {
                 target,
                 self.input.ast.ident,
                 quote!(#orig_ty_generics #where_clause),
-            ).as_ref(),
+            )
+            .as_ref(),
         );
     }
 
@@ -645,9 +646,7 @@ impl<'a> Generator<'a> {
                     let mut expr_buf = Buffer::new(0);
                     let wrapped = self.visit_expr(&mut expr_buf, s);
                     let expression = match (wrapped, &self.input.escaping) {
-                        (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => {
-                            expr_buf.buf
-                        }
+                        (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => expr_buf.buf,
                         (Unwrapped, &Html) => {
                             format!("::askama::MarkupDisplay::from(&{})", expr_buf.buf)
                         }
@@ -1098,10 +1097,11 @@ where
         }
     }
     fn contains(&self, val: T) -> bool {
-        self.scopes.iter().rev().any(|set| set.contains(&val)) || match self.parent {
-            Some(set) => set.contains(val),
-            None => false,
-        }
+        self.scopes.iter().rev().any(|set| set.contains(&val))
+            || match self.parent {
+                Some(set) => set.contains(val),
+                None => false,
+            }
     }
     fn insert(&mut self, val: T) {
         self.scopes.last_mut().unwrap().insert(val);
