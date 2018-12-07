@@ -1,9 +1,9 @@
 #![cfg(feature = "with-rocket")]
-#![feature(plugin)]
-#![plugin(rocket_codegen)]
+#![feature(proc_macro_hygiene, decl_macro)]
 
 #[macro_use]
 extern crate askama;
+#[macro_use]
 extern crate rocket;
 
 use askama::Template;
