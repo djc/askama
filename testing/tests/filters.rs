@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate askama;
 #[cfg(feature = "serde-json")]
 #[macro_use]

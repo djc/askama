@@ -1,7 +1,6 @@
 #![cfg(feature = "actix")]
-#[macro_use]
-extern crate askama;
 extern crate actix_web;
+extern crate askama;
 extern crate bytes;
 
 use actix_web::http::header::CONTENT_TYPE;
