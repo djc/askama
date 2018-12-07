@@ -1,9 +1,8 @@
 use error::{Error, Result};
 use serde::Serialize;
-use serde_json;
 use MarkupDisplay;
 
-/// Serialize to JSON (requires `serde-json` feature)
+/// Serialize to JSON (requires `serde_json` feature)
 ///
 /// ## Errors
 ///

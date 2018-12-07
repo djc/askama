@@ -7,7 +7,7 @@ pub type Result<I> = ::std::result::Result<I, Error>;
 ///
 /// # Feature Interaction
 ///
-/// If the feature `serde-json` is enabled an
+/// If the feature `serde_json` is enabled an
 /// additional error variant `Json` is added.
 ///
 /// # Why not `failure`/`error-chain`?
@@ -29,7 +29,7 @@ pub enum Error {
     Fmt(fmt::Error),
 
     /// json conversion error
-    #[cfg(feature = "serde-json")]
+    #[cfg(feature = "serde_json")]
     Json(::serde_json::Error),
 
     /// This error needs to be non-exhaustive as
@@ -43,7 +43,7 @@ impl ErrorTrait for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Fmt(ref err) => err.description(),
-            #[cfg(feature = "serde-json")]
+            #[cfg(feature = "serde_json")]
             Error::Json(ref err) => err.description(),
             _ => "unknown error: __Nonexhaustive",
         }
@@ -52,7 +52,7 @@ impl ErrorTrait for Error {
     fn cause(&self) -> Option<&ErrorTrait> {
         match *self {
             Error::Fmt(ref err) => err.cause(),
-            #[cfg(feature = "serde-json")]
+            #[cfg(feature = "serde_json")]
             Error::Json(ref err) => err.cause(),
             _ => None,
         }
@@ -64,7 +64,7 @@ impl Display for Error {
         match *self {
             Error::Fmt(ref err) => write!(formatter, "formatting error: {}", err),
 
-            #[cfg(feature = "serde-json")]
+            #[cfg(feature = "serde_json")]
             Error::Json(ref err) => write!(formatter, "json conversion error: {}", err),
             _ => write!(formatter, "unknown error: __Nonexhaustive"),
         }
@@ -77,7 +77,7 @@ impl From<fmt::Error> for Error {
     }
 }
 
-#[cfg(feature = "serde-json")]
+#[cfg(feature = "serde_json")]
 impl From<::serde_json::Error> for Error {
     fn from(err: ::serde_json::Error) -> Self {
         Error::Json(err)
