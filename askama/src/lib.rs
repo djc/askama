@@ -422,9 +422,9 @@ pub trait Template {
         Self: Sized;
 }
 
+pub use crate::shared::filters;
+pub use crate::shared::{read_config_file, Error, MarkupDisplay, Result};
 pub use askama_derive::*;
-pub use shared::filters;
-pub use shared::{read_config_file, Error, MarkupDisplay, Result};
 
 #[cfg(feature = "with-iron")]
 pub mod iron {

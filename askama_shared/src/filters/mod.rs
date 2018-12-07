@@ -10,8 +10,8 @@ mod json;
 #[cfg(feature = "serde_json")]
 pub use self::json::json;
 
+use crate::error::Error::Fmt;
 use askama_escape::MarkupDisplay;
-use error::Error::Fmt;
 use humansize::{file_size_opts, FileSize};
 use num_traits::cast::NumCast;
 use num_traits::Signed;
