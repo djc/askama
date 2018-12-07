@@ -400,7 +400,7 @@
 #![allow(unused_imports)]
 #[macro_use]
 extern crate askama_derive;
-extern crate askama_shared as shared;
+use askama_shared as shared;
 
 use std::fs::{self, DirEntry};
 use std::io;
@@ -415,7 +415,7 @@ pub trait Template {
         Ok(buf)
     }
     /// Renders the template to the given `writer` buffer
-    fn render_into(&self, writer: &mut std::fmt::Write) -> Result<()>;
+    fn render_into(&self, writer: &mut dyn std::fmt::Write) -> Result<()>;
     /// Helper function to inspect the template's extension
     fn extension() -> Option<&'static str>
     where
@@ -478,7 +478,7 @@ pub mod actix_web {
     }
 }
 
-fn visit_dirs(dir: &Path, cb: &Fn(&DirEntry)) -> io::Result<()> {
+fn visit_dirs(dir: &Path, cb: &dyn Fn(&DirEntry)) -> io::Result<()> {
     if dir.is_dir() {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;

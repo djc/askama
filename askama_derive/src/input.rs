@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 
 use quote::ToTokens;
 
-use crate::shared::{Config, Syntax};
+use askama_shared::{Config, Syntax};
 
 use std::path::PathBuf;
 

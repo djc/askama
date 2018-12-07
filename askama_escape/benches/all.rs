@@ -1,4 +1,3 @@
-extern crate askama_escape;
 #[macro_use]
 extern crate criterion;
 

@@ -1,7 +1,7 @@
 use super::{get_template_source, Context, Heritage};
 use crate::input::TemplateInput;
 use crate::parser::{Cond, Expr, MatchParameter, MatchVariant, Node, Target, When, WS};
-use crate::shared::filters;
+use askama_shared::filters;
 
 use proc_macro2::Span;
 

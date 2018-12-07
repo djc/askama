@@ -1,11 +1,8 @@
-extern crate askama_shared as shared;
+extern crate proc_macro;
 #[macro_use]
 extern crate nom;
-extern crate proc_macro;
-extern crate proc_macro2;
 #[macro_use]
 extern crate quote;
-extern crate syn;
 
 mod generator;
 mod input;
@@ -13,7 +10,7 @@ mod parser;
 
 use crate::input::{Print, Source, TemplateInput};
 use crate::parser::{Expr, Macro, Node};
-use crate::shared::{read_config_file, Config};
+use askama_shared::{read_config_file, Config};
 use proc_macro::TokenStream;
 
 use crate::parser::parse;

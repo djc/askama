@@ -1,5 +1,3 @@
-extern crate askama;
-
 use askama::Template;
 
 use std::collections::HashMap;

@@ -1,7 +1,4 @@
 #![cfg(feature = "iron")]
-extern crate askama;
-extern crate iron;
-
 use askama::Template;
 use iron::{status, Response};
 

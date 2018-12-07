@@ -1,5 +1,3 @@
-extern crate askama;
-
 use askama::Template;
 
 #[derive(Template)] // this will generate the code...

@@ -1,6 +1,6 @@
-use error::{Error, Result};
+use crate::error::{Error, Result};
 use serde::Serialize;
-use MarkupDisplay;
+use askama_escape::MarkupDisplay;
 
 /// Serialize to JSON (requires `serde_json` feature)
 ///

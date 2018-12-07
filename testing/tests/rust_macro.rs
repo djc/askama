@@ -1,5 +1,3 @@
-extern crate askama;
-
 use askama::Template;
 
 macro_rules! hello {
