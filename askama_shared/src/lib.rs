@@ -6,7 +6,7 @@ extern crate num_traits;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-#[cfg(feature = "serde-json")]
+#[cfg(feature = "serde_json")]
 extern crate serde_json;
 extern crate toml;
 

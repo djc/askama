@@ -4,10 +4,10 @@
 //! You can define your own filters; for more information,
 //! see the top-level crate documentation.
 
-#[cfg(feature = "serde-json")]
+#[cfg(feature = "serde_json")]
 mod json;
 
-#[cfg(feature = "serde-json")]
+#[cfg(feature = "serde_json")]
 pub use self::json::json;
 
 use askama_escape::MarkupDisplay;
