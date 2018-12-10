@@ -92,6 +92,9 @@ impl<'a> Generator<'a> {
         if cfg!(feature = "actix-web") {
             self.impl_actix_web_responder(&mut buf);
         }
+        if cfg!(feature = "gotham") {
+            self.impl_gotham_into_response(&mut buf);
+        }
         buf.buf
     }
 
@@ -213,6 +216,22 @@ impl<'a> Generator<'a> {
         };
         buf.writeln(&format!("::askama::actix_web::respond(&self, {:?})", ext));
 
+        buf.writeln("}");
+        buf.writeln("}");
+    }
+
+    // Implement gotham's `IntoResponse`.
+    fn impl_gotham_into_response(&mut self, buf: &mut Buffer) {
+        self.write_header(buf, "::askama::gotham::IntoResponse", None);
+        buf.writeln(
+            "fn into_response(self, _state: &::askama::gotham::State)\
+             -> ::askama::gotham::Response<::askama::gotham::Body> {",
+        );
+        let ext = match self.input.path.extension() {
+            Some(s) => s.to_str().unwrap(),
+            None => "txt",
+        };
+        buf.writeln(&format!("::askama::gotham::respond(&self, {:?})", ext));
         buf.writeln("}");
         buf.writeln("}");
     }
