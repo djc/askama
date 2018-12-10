@@ -21,7 +21,7 @@ pub enum Expr<'a> {
     Range(&'a str, Option<Box<Expr<'a>>>, Option<Box<Expr<'a>>>),
     Group(Box<Expr<'a>>),
     MethodCall(Box<Expr<'a>>, &'a str, Vec<Expr<'a>>),
-    RustMacro(&'a str, Vec<Expr<'a>>),
+    RustMacro(&'a str, &'a str),
 }
 
 #[derive(Debug)]
@@ -82,6 +82,7 @@ pub type When<'a> = (
 );
 
 type Input<'a> = nom::types::CompleteByteSlice<'a>;
+
 #[allow(non_snake_case)]
 fn Input(input: &[u8]) -> Input {
     nom::types::CompleteByteSlice(input)
@@ -290,6 +291,35 @@ named!(arguments<Input, Vec<Expr>>, do_parse!(
     (args.unwrap_or_default())
 ));
 
+named!(macro_arguments<Input, &str>,
+    delimited!(char!('('), nested_parenthesis, char!(')'))
+);
+
+fn nested_parenthesis(i: Input) -> Result<(Input, &str), nom::Err<Input>> {
+    let mut nested = 0;
+    let mut last = 0;
+
+    for (i, b) in i.iter().enumerate() {
+        match *b {
+            b'(' => nested += 1,
+            b')' => {
+                if nested == 0 {
+                    last = i;
+                    break;
+                }
+                nested -= 1
+            }
+            _ => (),
+        }
+    }
+
+    if nested == 0 {
+        Ok((Input(&i[last..]), str::from_utf8(&i[..last]).unwrap()))
+    } else {
+        Err(nom::Err::Error(error_position!(i, nom::ErrorKind::Custom(0))))
+    }
+}
+
 named!(parameters<Input, Vec<&str>>, do_parse!(
     tag!("(") >>
     vals: opt!(do_parse!(
@@ -431,7 +461,7 @@ named!(expr_unary<Input, Expr>, do_parse!(
 named!(rust_macro<Input, Expr>, do_parse!(
     mname: identifier >>
     tag!("!") >>
-    args: arguments >>
+    args: macro_arguments >>
     (Expr::RustMacro(mname, args))
 ));
 

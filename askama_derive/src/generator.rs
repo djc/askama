@@ -729,14 +729,14 @@ impl<'a> Generator<'a> {
             Expr::MethodCall(ref obj, method, ref args) => {
                 self.visit_method_call(buf, obj, method, args)
             }
-            Expr::RustMacro(name, ref args) => self.visit_rust_macro(buf, name, args),
+            Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
         }
     }
 
-    fn visit_rust_macro(&mut self, buf: &mut Buffer, name: &str, args: &[Expr]) -> DisplayWrap {
+    fn visit_rust_macro(&mut self, buf: &mut Buffer, name: &str, args: &str) -> DisplayWrap {
         buf.write(name);
         buf.write("!(");
-        self._visit_args(buf, args);
+        buf.write(args);
         buf.write(")");
 
         DisplayWrap::Unwrapped
