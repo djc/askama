@@ -478,6 +478,36 @@ pub mod actix_web {
     }
 }
 
+#[cfg(feature = "with-gotham")]
+pub mod gotham {
+    extern crate gotham;
+    extern crate hyper;
+    extern crate mime_guess;
+
+    pub use self::gotham::handler::IntoResponse;
+    use self::gotham::helpers::http::response::create_empty_response;
+    use self::gotham::helpers::http::response::create_response;
+    pub use self::gotham::state::State;
+    pub use self::hyper::{Body, Response, StatusCode};
+    use self::mime_guess::get_mime_type;
+
+    pub fn respond(t: &super::Template, ext: &str) -> Response<Body> {
+        let mime_type = get_mime_type(ext).to_string();
+
+        match t.render() {
+            Ok(body) => Response::builder()
+                .status(StatusCode::OK)
+                .header("content-type", mime_type.to_string())
+                .body(body.into())
+                .unwrap(),
+            Err(_) => Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(vec![].into())
+                .unwrap(),
+        }
+    }
+}
+
 fn visit_dirs(dir: &Path, cb: &dyn Fn(&DirEntry)) -> io::Result<()> {
     if dir.is_dir() {
         for entry in fs::read_dir(dir)? {
