@@ -391,6 +391,16 @@
 //! `Responder` trait for each template type. This makes it easy to return a value of
 //! that type in an Actix-web handler.
 //!
+//! ## Gotham integration
+//!
+//! Enabling the `with-gotham` feature appends an implementation of Gotham's `IntoResponse`
+//! trait for each template type. This makes it easy to return a value of that type in a
+//! Gotham handler.
+//!
+//! In case of a run-time error occurring during templating, the response will be of the same
+//! signature, with a status code of `500 Internal Server Error`, mime `*/*`, and an empty `Body`.
+//! This preserves the response chain if any custom error handling needs to occur.
+//!
 //! ## The `json` filter
 //!
 //! Enabling the `serde-json` filter will enable the use of the `json` filter.
@@ -475,6 +485,31 @@ pub mod actix_web {
             .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
         let ctype = get_mime_type(ext).to_string();
         Ok(HttpResponse::Ok().content_type(ctype.as_str()).body(rsp))
+    }
+}
+
+#[cfg(feature = "with-gotham")]
+pub mod gotham {
+    pub use gotham::handler::IntoResponse;
+    use gotham::helpers::http::response::{create_empty_response, create_response};
+    pub use gotham::state::State;
+    pub use hyper::{Body, Response, StatusCode};
+    use mime_guess::get_mime_type;
+
+    pub fn respond(t: &super::Template, ext: &str) -> Response<Body> {
+        let mime_type = get_mime_type(ext).to_string();
+
+        match t.render() {
+            Ok(body) => Response::builder()
+                .status(StatusCode::OK)
+                .header("content-type", mime_type.to_string())
+                .body(body.into())
+                .unwrap(),
+            Err(_) => Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(vec![].into())
+                .unwrap(),
+        }
     }
 }
 
