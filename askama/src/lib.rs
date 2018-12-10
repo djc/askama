@@ -391,6 +391,16 @@
 //! `Responder` trait for each template type. This makes it easy to return a value of
 //! that type in an Actix-web handler.
 //!
+//! ## Gotham integration
+//!
+//! Enabling the `with-gotham` feature appends an implementation of Gotham's `IntoResponse`
+//! trait for each template type. This makes it easy to return a value of that type in a
+//! Gotham handler.
+//!
+//! In case of a run-time error occurring during templating, the response will be of the same
+//! signature, with a status code of `500 Internal Server Error`, mime `*/*`, and an empty `Body`.
+//! This preserves the response chain if any custom error handling needs to occur.
+//!
 //! ## The `json` filter
 //!
 //! Enabling the `serde-json` filter will enable the use of the `json` filter.
