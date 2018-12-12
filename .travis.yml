@@ -6,7 +6,9 @@ rust:
 cache: cargo
 
 before_script:
-- rustup component add rustfmt-preview
+- if [[ "${TRAVIS_RUST_VERSION}" == stable ]]; then
+    rustup component add rustfmt;
+  fi
 
 script:
 - cargo test --all
