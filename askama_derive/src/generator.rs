@@ -1,6 +1,6 @@
 use super::{get_template_source, Context, Heritage};
 use crate::input::TemplateInput;
-use crate::parser::{Cond, Expr, MatchParameter, MatchVariant, Node, Target, When, WS};
+use crate::parser::{Cond, Expr, MatchParameter, MatchParameters, MatchVariant, Node, Target, When, WS};
 use askama_shared::filters;
 
 use proc_macro2::Span;
@@ -399,18 +399,43 @@ impl<'a> Generator<'a> {
                 }
                 None => buf.write("_"),
             };
-            if !params.is_empty() {
-                buf.write("(");
-                for (i, param) in params.iter().enumerate() {
-                    if let MatchParameter::Name(p) = *param {
-                        self.locals.insert(p);
+
+            match params {
+                MatchParameters::Simple(params) => {
+                    if !params.is_empty() {
+                        buf.write("(");
+                        for (i, param) in params.iter().enumerate() {
+                            if let MatchParameter::Name(p) = *param {
+                                self.locals.insert(p);
+                            }
+                            if i > 0 {
+                                buf.write(", ");
+                            }
+                            self.visit_match_param(buf, param);
+                        }
+                        buf.write(")");
                     }
-                    if i > 0 {
-                        buf.write(", ");
-                    }
-                    self.visit_match_param(buf, param);
                 }
-                buf.write(")");
+                MatchParameters::Named(params) => {
+                    buf.write("{");
+                    for (i, param) in params.iter().enumerate() {
+                        if let Some(MatchParameter::Name(p)) = param.1 {
+                            self.locals.insert(p);
+                        } else {
+                            self.locals.insert(param.0);
+                        }
+
+                        if i > 0 {
+                            buf.write(", ");
+                        }
+                        buf.write(param.0);
+                        if let Some(param) = &param.1 {
+                            buf.write(":");
+                            self.visit_match_param(buf, &param);
+                        }
+                    }
+                    buf.write("}");
+                }
             }
             buf.writeln(" => {");
             self.handle_ws(ws);

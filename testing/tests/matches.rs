@@ -62,7 +62,7 @@ fn test_match_literal_num() {
 
 #[allow(dead_code)]
 enum Color {
-    Rgb(u32, u32, u32),
+    Rgb { r: u32, g: u32, b: u32 },
     GrayScale(u32),
     Cmyk(u32, u32, u32, u32),
 }
@@ -76,7 +76,11 @@ struct MatchCustomEnumTemplate {
 #[test]
 fn test_match_custom_enum() {
     let s = MatchCustomEnumTemplate {
-        color: Color::Rgb(160, 0, 255),
+        color: Color::Rgb {
+            r: 160,
+            g: 0,
+            b: 255,
+        },
     };
     assert_eq!(s.render().unwrap(), "\n\nColorful: #A000FF\n");
 }
