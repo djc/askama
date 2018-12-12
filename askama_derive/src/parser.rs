@@ -21,7 +21,7 @@ pub enum Expr<'a> {
     Range(&'a str, Option<Box<Expr<'a>>>, Option<Box<Expr<'a>>>),
     Group(Box<Expr<'a>>),
     MethodCall(Box<Expr<'a>>, &'a str, Vec<Expr<'a>>),
-    RustMacro(&'a str, Vec<Expr<'a>>),
+    RustMacro(&'a str, &'a str),
 }
 
 #[derive(Debug)]
@@ -302,6 +302,60 @@ named!(arguments<Input, Vec<Expr>>, do_parse!(
     (args.unwrap_or_default())
 ));
 
+named!(macro_arguments<Input, &str>,
+    delimited!(char!('('), nested_parenthesis, char!(')'))
+);
+
+fn nested_parenthesis(i: Input) -> Result<(Input, &str), nom::Err<Input>> {
+    let mut nested = 0;
+    let mut last = 0;
+    let mut in_str = false;
+    let mut escaped = false;
+
+    for (i, b) in i.iter().enumerate() {
+        if !(*b == b'(' || *b == b')') || !in_str {
+            match *b {
+                b'(' => {
+                    nested += 1
+                },
+                b')' => {
+                    if nested == 0 {
+                        last = i;
+                        break;
+                    }
+                    nested -= 1;
+                },
+                b'"' => {
+                    if in_str {
+                        if !escaped {
+                            in_str = false;
+                        }
+                    } else {
+                        in_str = true;
+                    }
+                },
+                b'\\' => {
+                    escaped = !escaped;
+                },
+                _ => (),
+            }
+        }
+
+        if escaped && *b != b'\\' {
+            escaped = false;
+        }
+    }
+
+    if nested == 0 {
+        Ok((Input(&i[last..]), str::from_utf8(&i[..last]).unwrap()))
+    } else {
+        Err(nom::Err::Error(error_position!(
+            i,
+            nom::ErrorKind::Custom(0)
+        )))
+    }
+}
+
 named!(parameters<Input, Vec<&str>>, do_parse!(
     tag!("(") >>
     vals: opt!(do_parse!(
@@ -477,10 +531,9 @@ named!(expr_unary<Input, Expr>, do_parse!(
 named!(rust_macro<Input, Expr>, do_parse!(
     mname: identifier >>
     tag!("!") >>
-    args: arguments >>
+    args: macro_arguments >>
     (Expr::RustMacro(mname, args))
 ));
-
 
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $( $op:expr ),* ) => {
@@ -503,9 +556,7 @@ expr_prec_layer!(expr_shifts, expr_addsub, ">>", "<<");
 expr_prec_layer!(expr_band, expr_shifts, "&");
 expr_prec_layer!(expr_bxor, expr_band, "^");
 expr_prec_layer!(expr_bor, expr_bxor, "|");
-expr_prec_layer!(expr_compare, expr_bor,
-    "==", "!=", ">=", ">", "<=", "<"
-);
+expr_prec_layer!(expr_compare, expr_bor, "==", "!=", ">=", ">", "<=", "<");
 expr_prec_layer!(expr_and, expr_compare, "&&");
 expr_prec_layer!(expr_or, expr_and, "||");
 

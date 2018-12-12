@@ -1,0 +1,26 @@
+{{
+        call_a_or_b_on_tail!(
+            (a: compute_len, b: zero),
+                the recursive part that skips over all these
+                tokens doesn't much care whether we will call a
+                or call b: only the terminal rules care.
+        )
+}}
+{{
+        call_a_or_b_on_tail!(
+            (a: compute_len, b: zero),
+                and now, to justify the existence of two paths
+                we will also call a: its input should somehow
+                be self-referential, so let's make it return
+                some ninety one!
+        )
+}}
+{{
+        call_a_or_b_on_tail!(
+            (a: compute_len, b: zero),
+                and now, to justify the existence of two paths
+                we will also call a: its input should somehow
+                be self-referential, so let's make it return
+                some ninety "(\"()"nine!
+        )
+}}
