@@ -77,9 +77,21 @@ pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
 pub type When<'a> = (
     WS,
     Option<MatchVariant<'a>>,
-    Vec<MatchParameter<'a>>,
+    MatchParameters<'a>,
     Vec<Node<'a>>,
 );
+
+#[derive(Debug)]
+pub enum MatchParameters<'a> {
+    Simple(Vec<MatchParameter<'a>>),
+    Named(Vec<(&'a str, Option<MatchParameter<'a>>)>),
+}
+
+impl<'a> Default for MatchParameters<'a> {
+    fn default() -> Self {
+        MatchParameters::Simple(vec![])
+    }
+}
 
 type Input<'a> = nom::types::CompleteByteSlice<'a>;
 #[allow(non_snake_case)]
@@ -309,8 +321,13 @@ named!(parameters<Input, Vec<&str>>, do_parse!(
     (vals.unwrap_or_default())
 ));
 
-named!(with_parameters<Input, Vec<MatchParameter>>, do_parse!(
+named!(with_parameters<Input, MatchParameters>, do_parse!(
     tag!("with") >>
+    value: alt!(match_simple_parameters | match_named_parameters) >>
+    (value)
+));
+
+named!(match_simple_parameters<Input, MatchParameters>, do_parse!(
     ws!(tag!("(")) >>
     vals: opt!(do_parse!(
         arg0: ws!(match_parameter) >>
@@ -326,7 +343,26 @@ named!(with_parameters<Input, Vec<MatchParameter>>, do_parse!(
         })
     )) >>
     tag!(")") >>
-    (vals.unwrap_or_default())
+    (MatchParameters::Simple(vals.unwrap_or_default()))
+));
+
+named!(match_named_parameters<Input, MatchParameters>, do_parse!(
+    ws!(tag!("{")) >>
+    vals: opt!(do_parse!(
+        arg0: ws!(match_named_parameter) >>
+        args: many0!(do_parse!(
+            tag!(",") >>
+            argn: ws!(match_named_parameter) >>
+            (argn)
+        )) >>
+        ({
+            let mut res = vec![arg0];
+            res.extend(args);
+            res
+        })
+    )) >>
+    tag!("}") >>
+    (MatchParameters::Named(vals.unwrap_or_default()))
 ));
 
 named!(expr_group<Input, Expr>, map!(
@@ -354,6 +390,16 @@ named!(match_parameter<Input, MatchParameter>, alt!(
     param_name |
     param_num_lit |
     param_str_lit
+));
+
+named!(match_named_parameter<Input, (&str, Option<MatchParameter>)>, do_parse!(
+    name: identifier >>
+    param: opt!(do_parse!(
+        ws!(tag!(":")) >>
+        param: match_parameter >>
+        (param)
+    )) >>
+    ((name, param))
 ));
 
 named!(attr<Input, (&str, Option<Vec<Expr>>)>, do_parse!(
@@ -549,7 +595,7 @@ named_args!(match_else_block<'a>(s: &'a Syntax<'a>) <Input<'a>, When<'a>>, do_pa
     nws: opt!(tag!("-")) >>
     call!(tag_block_end, s) >>
     block: call!(parse_template, s) >>
-    (WS(pws.is_some(), nws.is_some()), None, vec![], block)
+    (WS(pws.is_some(), nws.is_some()), None, MatchParameters::Simple(vec![]), block)
 ));
 
 named_args!(when_block<'a>(s: &'a Syntax<'a>) <Input<'a>, When<'a>>, do_parse!(
