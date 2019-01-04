@@ -468,11 +468,7 @@ impl<'a> Generator<'a> {
 
         self.write_buf_writable(buf);
         buf.write("for (_loop_index, ");
-        let targets = self.visit_target(var);
-        for name in &targets {
-            self.locals.insert(name);
-            buf.write(name);
-        }
+        self.visit_target(buf, var);
         match iter {
             Expr::Range(_, _, _) => buf.writeln(&format!(") in ({}).enumerate() {{", expr_code)),
             _ => buf.writeln(&format!(") in (&{}).into_iter().enumerate() {{", expr_code)),
@@ -576,6 +572,15 @@ impl<'a> Generator<'a> {
                 self.locals.insert(name);
                 buf.write(name);
             }
+            Target::Tuple(ref targets) => {
+                buf.write("(");
+                for name in targets {
+                    self.locals.insert(name);
+                    buf.write(name);
+                    buf.write(",");
+                }
+                buf.write(")");
+            }
         }
         buf.writeln(";");
     }
@@ -592,6 +597,15 @@ impl<'a> Generator<'a> {
                     self.locals.insert(name);
                 }
                 buf.write(name);
+            }
+            Target::Tuple(ref targets) => {
+                buf.write("let (");
+                for name in targets {
+                    self.locals.insert(name);
+                    buf.write(name);
+                    buf.write(",");
+                }
+                buf.write(")");
             }
         }
         buf.writeln(&format!(" = {};", &expr_buf.buf));
@@ -1024,13 +1038,21 @@ impl<'a> Generator<'a> {
         DisplayWrap::Unwrapped
     }
 
-    fn visit_target_single<'t>(&mut self, name: &'t str) -> Vec<&'t str> {
-        vec![name]
-    }
-
-    fn visit_target<'t>(&mut self, target: &'t Target) -> Vec<&'t str> {
+    fn visit_target(&mut self, buf: &mut Buffer, target: &'a Target) {
         match *target {
-            Target::Name(s) => self.visit_target_single(s),
+            Target::Name(name) => {
+                self.locals.insert(name);
+                buf.write(name);
+            }
+            Target::Tuple(ref targets) => {
+                buf.write("(");
+                for name in targets {
+                    self.locals.insert(name);
+                    buf.write(name);
+                    buf.write(",");
+                }
+                buf.write(")");
+            }
         }
     }
 

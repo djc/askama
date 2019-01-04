@@ -4,14 +4,19 @@ use askama::Template;
 #[template(path = "for.html")]
 struct ForTemplate<'a> {
     strings: Vec<&'a str>,
+    tuple_strings: Vec<(&'a str, &'a str)>,
 }
 
 #[test]
 fn test_for() {
     let s = ForTemplate {
         strings: vec!["A", "alfa", "1"],
+        tuple_strings: vec![("B", "beta")],
     };
-    assert_eq!(s.render().unwrap(), "0. A (first)\n1. alfa\n2. 1\n");
+    assert_eq!(
+        s.render().unwrap(),
+        "0. A (first)\n1. alfa\n2. 1\n\n0. B,beta (first)\n"
+    );
 }
 
 #[derive(Template)]

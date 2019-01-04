@@ -42,6 +42,7 @@ pub enum MatchParameter<'a> {
 #[derive(Debug)]
 pub enum Target<'a> {
     Name(&'a str),
+    Tuple(Vec<&'a str>),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -273,6 +274,25 @@ named!(variant_path<Input, MatchVariant>, do_parse!(
 
 named!(target_single<Input, Target>, map!(identifier,
     |s| Target::Name(s)
+));
+
+named!(target_tuple<Input, Target>, do_parse!(
+    tag!("(") >>
+    args: opt!(do_parse!(
+        arg0: ws!(identifier) >>
+        args: many0!(do_parse!(
+            tag!(",") >>
+            argn: ws!(identifier) >>
+            (argn)
+        )) >>
+        ({
+           let mut res = vec![arg0];
+           res.extend(args);
+           res
+        })
+    )) >>
+    tag!(")") >>
+    (Target::Tuple(args.unwrap_or_default()))
 ));
 
 named!(variant_name<Input, MatchVariant>, map!(identifier,
@@ -703,7 +723,7 @@ named_args!(block_match<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
 named!(block_let<Input, Node>, do_parse!(
     pws: opt!(tag!("-")) >>
     ws!(tag!("let")) >>
-    var: ws!(target_single) >>
+    var: ws!(alt!(target_single | target_tuple)) >>
     val: opt!(do_parse!(
         ws!(tag!("=")) >>
         val: ws!(expr_any) >>
@@ -720,7 +740,7 @@ named!(block_let<Input, Node>, do_parse!(
 named_args!(block_for<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     pws1: opt!(tag!("-")) >>
     ws!(tag!("for")) >>
-    var: ws!(target_single) >>
+    var: ws!(alt!(target_single | target_tuple)) >>
     ws!(tag!("in")) >>
     iter: ws!(expr_any) >>
     nws1: opt!(tag!("-")) >>
