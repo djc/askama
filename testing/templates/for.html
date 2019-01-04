@@ -1,3 +1,6 @@
 {% for s in strings %}
   {{- loop.index0 }}. {{ s }}{% if loop.first %} (first){% endif %}
 {% endfor %}
+{% for (s1, s2) in tuple_strings %}
+  {{- loop.index0 }}. {{ s1 }},{{ s2 }}{% if loop.first %} (first){% endif %}
+{% endfor %}

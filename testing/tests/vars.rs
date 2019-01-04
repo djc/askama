@@ -13,6 +13,22 @@ fn test_let() {
 }
 
 #[derive(Template)]
+#[template(path = "let.html")]
+struct LetTupleTemplate<'a> {
+    s: &'a str,
+    t: (&'a str, &'a str),
+}
+
+#[test]
+fn test_let_tuple() {
+    let t = LetTupleTemplate {
+        s: "foo",
+        t: ("bar", "bazz"),
+    };
+    assert_eq!(t.render().unwrap(), "foo\nbarbazz");
+}
+
+#[derive(Template)]
 #[template(path = "let-decl.html")]
 struct LetDeclTemplate<'a> {
     cond: bool,
