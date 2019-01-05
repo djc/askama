@@ -276,6 +276,23 @@ named!(target_single<Input, Target>, map!(identifier,
     |s| Target::Name(s)
 ));
 
+named!(target_plural<Input, Target>, do_parse!(
+    args: do_parse!(
+        arg0: ws!(identifier) >>
+        args: many1!(do_parse!(
+            tag!(",") >>
+            argn: ws!(identifier) >>
+            (argn)
+        )) >>
+        ({
+           let mut res = vec![arg0];
+           res.extend(args);
+           res
+        })
+    ) >>
+    (Target::Tuple(args))
+));
+
 named!(target_tuple<Input, Target>, do_parse!(
     tag!("(") >>
     args: opt!(do_parse!(
@@ -291,6 +308,7 @@ named!(target_tuple<Input, Target>, do_parse!(
            res
         })
     )) >>
+    opt!(tag!(",")) >>
     tag!(")") >>
     (Target::Tuple(args.unwrap_or_default()))
 ));
@@ -740,7 +758,7 @@ named!(block_let<Input, Node>, do_parse!(
 named_args!(block_for<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     pws1: opt!(tag!("-")) >>
     ws!(tag!("for")) >>
-    var: ws!(alt!(target_single | target_tuple)) >>
+    var: ws!(alt!(target_plural | target_single | target_tuple)) >>
     ws!(tag!("in")) >>
     iter: ws!(expr_any) >>
     nws1: opt!(tag!("-")) >>
