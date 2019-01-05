@@ -46,7 +46,10 @@ fn test_precedence_for() {
     let s = PrecedenceTemplate {
         strings: vec!["A", "alfa", "1"],
     };
-    assert_eq!(s.render().unwrap(), "0. A2 (first)\n1. alfa4\n2. 16\n");
+    assert_eq!(
+        s.render().unwrap(),
+        "0. A2 (first)\n1. alfa4\n2. 16 (last)\n"
+    );
 }
 
 #[derive(Template)]
@@ -59,5 +62,8 @@ struct ForRangeTemplate {
 #[test]
 fn test_for_range() {
     let s = ForRangeTemplate { init: -1, end: 1 };
-    assert_eq!(s.render().unwrap(), "foo\nfoo\nbar\nbar\nfoo\nbar\nbar\n");
+    assert_eq!(
+        s.render().unwrap(),
+        "foo (first)\nfoo (last)\nbar\nbar\nfoo\nbar\nbar\n"
+    );
 }

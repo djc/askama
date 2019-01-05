@@ -16,6 +16,7 @@ pub use askama_escape::MarkupDisplay;
 use std::collections::BTreeMap;
 
 pub mod filters;
+pub mod helpers;
 
 #[derive(Debug)]
 pub struct Config<'a> {
