@@ -1,5 +1,5 @@
 {% for s in 0..2 -%}
-    foo
+    foo{% if loop.first %} (first){% endif %}{% if loop.last %} (last){% endif %}
 {% endfor -%}
 
 {% for s in init..1 -%}

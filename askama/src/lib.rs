@@ -433,6 +433,7 @@ pub trait Template {
 }
 
 pub use crate::shared::filters;
+pub use crate::shared::helpers;
 pub use crate::shared::{read_config_file, Error, MarkupDisplay, Result};
 pub use askama_derive::*;
 

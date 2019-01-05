@@ -467,11 +467,17 @@ impl<'a> Generator<'a> {
         let expr_code = self.visit_expr_root(iter);
 
         self.write_buf_writable(buf);
-        buf.write("for (_loop_index, ");
+        buf.write("for (_loop_index, _loop_last, ");
         self.visit_target(buf, var);
         match iter {
-            Expr::Range(_, _, _) => buf.writeln(&format!(") in ({}).enumerate() {{", expr_code)),
-            _ => buf.writeln(&format!(") in (&{}).into_iter().enumerate() {{", expr_code)),
+            Expr::Range(_, _, _) => buf.writeln(&format!(
+                ") in ::askama::helpers::enumerate({}) {{",
+                expr_code
+            )),
+            _ => buf.writeln(&format!(
+                ") in ::askama::helpers::enumerate((&{}).into_iter()) {{",
+                expr_code
+            )),
         };
 
         self.handle(ctx, body, buf, AstLevel::Nested);
@@ -914,6 +920,9 @@ impl<'a> Generator<'a> {
                     return DisplayWrap::Unwrapped;
                 } else if attr == "first" {
                     buf.write("(_loop_index == 0)");
+                    return DisplayWrap::Unwrapped;
+                } else if attr == "last" {
+                    buf.write("_loop_last");
                     return DisplayWrap::Unwrapped;
                 } else {
                     panic!("unknown loop variable");
