@@ -1,4 +1,5 @@
 use std::fmt::{self, Display, Formatter};
+use std::io::{self, prelude::*};
 use std::str;
 
 #[derive(Debug, PartialEq)]
@@ -37,9 +38,30 @@ where
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match *self {
-            MarkupDisplay::Unsafe(ref t) => escape(&t.to_string()).fmt(f),
+            MarkupDisplay::Unsafe(ref t) => {
+                let mut w = EscapeWriter { fmt: f };
+                write!(w, "{}", t).map_err(|_e| fmt::Error)
+            }
             MarkupDisplay::Safe(ref t) => t.fmt(f),
         }
+    }
+}
+
+pub struct EscapeWriter<'a, 'b: 'a> {
+    fmt: &'a mut fmt::Formatter<'b>,
+}
+
+impl io::Write for EscapeWriter<'_, '_> {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        let escaped = Escaped { bytes };
+        escaped
+            .fmt(self.fmt)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
     }
 }
 
