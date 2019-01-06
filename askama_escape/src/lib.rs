@@ -40,7 +40,7 @@ where
         match *self {
             MarkupDisplay::Unsafe(ref t) => {
                 let mut w = EscapeWriter { fmt: f };
-                write!(&mut w, "{}", t).map_err(|_e| fmt::Error)
+                write!(w, "{}", t).map_err(|_e| fmt::Error)
             }
             MarkupDisplay::Safe(ref t) => t.fmt(f),
         }
@@ -55,7 +55,7 @@ impl io::Write for EscapeWriter<'_, '_> {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
         let escaped = Escaped { bytes };
         escaped
-            .fmt(&mut self.fmt)
+            .fmt(self.fmt)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
         Ok(bytes.len())
     }
