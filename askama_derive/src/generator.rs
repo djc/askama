@@ -467,15 +467,15 @@ impl<'a> Generator<'a> {
         let expr_code = self.visit_expr_root(iter);
 
         self.write_buf_writable(buf);
-        buf.write("for (_loop_index, _loop_last, ");
+        buf.write("for (");
         self.visit_target(buf, var);
         match iter {
             Expr::Range(_, _, _) => buf.writeln(&format!(
-                ") in ::askama::helpers::enumerate({}) {{",
+                ", _loop_item) in ::askama::helpers::TemplateLoop::new({}) {{",
                 expr_code
             )),
             _ => buf.writeln(&format!(
-                ") in ::askama::helpers::enumerate((&{}).into_iter()) {{",
+                ", _loop_item) in ::askama::helpers::TemplateLoop::new((&{}).into_iter()) {{",
                 expr_code
             )),
         };
@@ -913,16 +913,16 @@ impl<'a> Generator<'a> {
         if let Expr::Var(name) = *obj {
             if name == "loop" {
                 if attr == "index" {
-                    buf.write("(_loop_index + 1)");
+                    buf.write("(_loop_item.index + 1)");
                     return DisplayWrap::Unwrapped;
                 } else if attr == "index0" {
-                    buf.write("_loop_index");
+                    buf.write("_loop_item.index");
                     return DisplayWrap::Unwrapped;
                 } else if attr == "first" {
-                    buf.write("(_loop_index == 0)");
+                    buf.write("_loop_item.first");
                     return DisplayWrap::Unwrapped;
                 } else if attr == "last" {
-                    buf.write("_loop_last");
+                    buf.write("_loop_item.last");
                     return DisplayWrap::Unwrapped;
                 } else {
                     panic!("unknown loop variable");
