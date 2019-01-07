@@ -1,48 +1,49 @@
+use std::iter::Enumerate;
 use std::iter::Peekable;
 
-pub struct Enumerate<I>
+pub struct TemplateLoop<I>
 where
     I: Iterator,
 {
-    iter: Peekable<I>,
-    count: usize,
+    iter: Peekable<Enumerate<I>>,
 }
 
-impl<I> Iterator for Enumerate<I>
+impl<I> TemplateLoop<I>
 where
     I: Iterator,
 {
-    type Item = (usize, bool, <I as Iterator>::Item);
+    #[inline]
+    pub fn new(iter: I) -> Self {
+        TemplateLoop {
+            iter: iter.enumerate().peekable(),
+        }
+    }
+}
+
+impl<I> Iterator for TemplateLoop<I>
+where
+    I: Iterator,
+{
+    type Item = (<I as Iterator>::Item, LoopItem);
 
     #[inline]
-    fn next(&mut self) -> Option<(usize, bool, <I as Iterator>::Item)> {
-        self.iter.next().map(|a| {
-            let last = self.iter.peek().is_none();
-            let ret = (self.count, last, a);
-            // Possible undefined overflow.
-            self.count += 1;
-            ret
+    fn next(&mut self) -> Option<(<I as Iterator>::Item, LoopItem)> {
+        self.iter.next().map(|(index, item)| {
+            (
+                item,
+                LoopItem {
+                    index,
+                    first: index == 0,
+                    last: self.iter.peek().is_none(),
+                },
+            )
         })
     }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iter.size_hint()
-    }
-
-    #[inline]
-    fn count(self) -> usize {
-        self.iter.count()
-    }
 }
 
-#[inline]
-pub fn enumerate<I>(iter: I) -> Enumerate<I>
-where
-    I: Iterator,
-{
-    Enumerate {
-        iter: iter.peekable(),
-        count: 0,
-    }
+#[derive(Copy, Clone)]
+pub struct LoopItem {
+    pub index: usize,
+    pub first: bool,
+    pub last: bool,
 }
