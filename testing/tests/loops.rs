@@ -15,7 +15,7 @@ fn test_for() {
     };
     assert_eq!(
         s.render().unwrap(),
-        "0. A (first)\n1. alfa\n2. 1\n\n0. B,beta (first)\n\n0. B,beta\n"
+        "0. A (first)\n1. alfa\n2. 1\n\n0. B,beta (first)\n"
     );
 }
 
