@@ -291,7 +291,7 @@ named!(target_tuple<Input, Target>, do_parse!(
            res
         })
     )) >>
-    opt!(tag!(",")) >>
+    opt!(ws!(tag!(","))) >>
     tag!(")") >>
     (Target::Tuple(args.unwrap_or_default()))
 ));
