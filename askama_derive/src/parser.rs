@@ -178,19 +178,24 @@ fn take_content<'a>(
 }
 
 fn identifier(input: Input) -> Result<(Input, &str), nom::Err<Input>> {
-    if !nom::is_alphabetic(input[0]) && input[0] != b'_' {
+    if !nom::is_alphabetic(input[0]) && input[0] != b'_' && !non_ascii(input[0]) {
         return Err(nom::Err::Error(error_position!(
             input,
             nom::ErrorKind::Custom(0)
         )));
     }
     for (i, ch) in input.iter().enumerate() {
-        if i == 0 || nom::is_alphanumeric(*ch) || *ch == b'_' {
+        if i == 0 || nom::is_alphanumeric(*ch) || *ch == b'_' || non_ascii(*ch) {
             continue;
         }
         return Ok((Input(&input[i..]), str::from_utf8(&input[..i]).unwrap()));
     }
     Ok((Input(&input[1..]), str::from_utf8(&input[..1]).unwrap()))
+}
+
+#[inline]
+fn non_ascii(chr: u8) -> bool {
+    chr >= 0x80 && chr <= 0xFD
 }
 
 named!(num_lit<Input, &str>, map!(nom::digit,
