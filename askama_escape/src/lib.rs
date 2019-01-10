@@ -53,9 +53,7 @@ pub struct EscapeWriter<'a, 'b: 'a> {
 
 impl io::Write for EscapeWriter<'_, '_> {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        let escaped = Escaped { bytes };
-        escaped
-            .fmt(self.fmt)
+        write_escaped_str(self.fmt, bytes)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
         Ok(bytes.len())
     }
@@ -72,9 +70,9 @@ pub fn escape(s: &str) -> Escaped<'_> {
 }
 
 macro_rules! escaping_body {
-    ($start:ident, $i:ident, $fmt:ident, $_self:ident, $quote:expr) => {{
+    ($start:ident, $i:ident, $fmt:ident, $bytes:ident, $quote:expr) => {{
         if $start < $i {
-            $fmt.write_str(unsafe { str::from_utf8_unchecked(&$_self.bytes[$start..$i]) })?;
+            $fmt.write_str(unsafe { str::from_utf8_unchecked(&$bytes[$start..$i]) })?;
         }
         $fmt.write_str($quote)?;
         $start = $i + 1;
@@ -87,23 +85,27 @@ pub struct Escaped<'a> {
 
 impl<'a> ::std::fmt::Display for Escaped<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut start = 0;
-        for (i, b) in self.bytes.iter().enumerate() {
-            if b.wrapping_sub(b'"') <= FLAG {
-                match *b {
-                    b'<' => escaping_body!(start, i, fmt, self, "&lt;"),
-                    b'>' => escaping_body!(start, i, fmt, self, "&gt;"),
-                    b'&' => escaping_body!(start, i, fmt, self, "&amp;"),
-                    b'"' => escaping_body!(start, i, fmt, self, "&quot;"),
-                    b'\'' => escaping_body!(start, i, fmt, self, "&#x27;"),
-                    b'/' => escaping_body!(start, i, fmt, self, "&#x2f;"),
-                    _ => (),
-                }
+        write_escaped_str(fmt, self.bytes)
+    }
+}
+
+fn write_escaped_str(fmt: &mut fmt::Formatter<'_>, bytes: &[u8]) -> fmt::Result {
+    let mut start = 0;
+    for (i, b) in bytes.iter().enumerate() {
+        if b.wrapping_sub(b'"') <= FLAG {
+            match *b {
+                b'<' => escaping_body!(start, i, fmt, bytes, "&lt;"),
+                b'>' => escaping_body!(start, i, fmt, bytes, "&gt;"),
+                b'&' => escaping_body!(start, i, fmt, bytes, "&amp;"),
+                b'"' => escaping_body!(start, i, fmt, bytes, "&quot;"),
+                b'\'' => escaping_body!(start, i, fmt, bytes, "&#x27;"),
+                b'/' => escaping_body!(start, i, fmt, bytes, "&#x2f;"),
+                _ => (),
             }
         }
-        fmt.write_str(unsafe { str::from_utf8_unchecked(&self.bytes[start..]) })?;
-        Ok(())
     }
+    fmt.write_str(unsafe { str::from_utf8_unchecked(&bytes[start..]) })?;
+    Ok(())
 }
 
 const FLAG: u8 = b'>' - b'"';
