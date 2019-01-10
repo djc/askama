@@ -15,7 +15,7 @@ pub struct TemplateInput<'a> {
     pub syntax: &'a Syntax<'a>,
     pub source: Source,
     pub print: Print,
-    pub escaping: &'a str,
+    pub escaper: &'a str,
     pub ext: Option<String>,
     pub parent: Option<&'a syn::Type>,
     pub path: PathBuf,
@@ -165,24 +165,33 @@ impl<'a> TemplateInput<'a> {
             },
         );
 
-        let escaping = escaping.unwrap_or_else(|| {
+        // Match extension against defined output formats
+
+        let extension = escaping.unwrap_or_else(|| {
             path.extension()
                 .map(|s| s.to_str().unwrap())
-                .unwrap_or("none")
+                .unwrap_or("")
                 .to_string()
         });
-        let escaping = match escaping.as_str() {
-            "html" | "htm" | "xml" => "::askama::Html",
-            "txt" | "none" => "::askama::Text",
-            val => panic!("unknown value '{}' for escape mode", val),
-        };
+
+        let mut escaper = None;
+        for (extensions, path) in &config.escapers {
+            if extensions.contains(&extension) {
+                escaper = Some(path);
+                break;
+            }
+        }
+
+        let escaper = escaper.unwrap_or_else(|| {
+            panic!("no escaper defined for extension '{}'", extension);
+        });
 
         TemplateInput {
             ast,
             config,
             source,
             print,
-            escaping,
+            escaper,
             ext,
             parent,
             path,

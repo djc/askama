@@ -714,7 +714,7 @@ impl<'a> Generator<'a> {
                         Wrapped => expr_buf.buf,
                         Unwrapped => format!(
                             "::askama::MarkupDisplay::new_unsafe(&{}, {})",
-                            expr_buf.buf, self.input.escaping
+                            expr_buf.buf, self.input.escaper
                         ),
                     };
 
@@ -855,7 +855,7 @@ impl<'a> Generator<'a> {
         if name == "escape" || name == "safe" || name == "e" || name == "json" {
             buf.write(&format!(
                 "::askama::filters::{}({}, &",
-                name, self.input.escaping
+                name, self.input.escaper
             ));
         } else if filters::BUILT_IN_FILTERS.contains(&name) {
             buf.write(&format!("::askama::filters::{}(&", name));
