@@ -4,6 +4,7 @@ use quote::ToTokens;
 
 use askama_shared::{Config, Syntax};
 
+use std::io::{self, Write};
 use std::path::PathBuf;
 
 use syn;
@@ -143,6 +144,15 @@ impl<'a> TemplateInput<'a> {
                 .map(|f| &f.ty),
             _ => None,
         };
+
+        if parent.is_some() {
+            io::stderr()
+                .write_fmt(format_args!(
+                    "   --> in struct {}\n   = use of deprecated field '_parent'\n",
+                    ast.ident
+                ))
+                .unwrap();
+        }
 
         // Validate syntax
         let syntax = syntax.map_or_else(
