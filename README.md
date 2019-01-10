@@ -68,23 +68,8 @@ First, add the following to your crate's `Cargo.toml`:
 
 ```toml
 # in section [dependencies]
-askama = "0.7"
+askama = "0.8"
 
-# in section [build-dependencies]
-askama = "0.7"
-```
-
-Because Askama will generate Rust code from your template files,
-the crate will need to be recompiled when your templates change.
-This is supported by adding a build script, `build.rs`, to your crate.
-It needs askama as a build dependency:
-
-```rust
-extern crate askama;
-
-fn main() {
-    askama::rerun_if_templates_changed();
-}
 ```
 
 Now create a directory called `templates` in your crate root.

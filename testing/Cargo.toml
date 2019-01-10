@@ -25,9 +25,6 @@ gotham = { version = "0.3", optional = true }
 mime = { version = "0.3", optional = true }
 hyper = { version = "0.12", optional = true }
 
-[build-dependencies]
-askama = { path = "../askama", version = "*" }
-
 [dev-dependencies]
 criterion = "0.2"
 
