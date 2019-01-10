@@ -461,7 +461,7 @@ pub mod rocket {
 
     pub use self::rocket::response::{Responder, Result};
 
-    pub fn respond(t: &super::Template, ext: &str) -> Result<'static> {
+    pub fn respond<T: super::Template>(t: &T, ext: &str) -> Result<'static> {
         let rsp = t.render().map_err(|_| Status::InternalServerError)?;
         let ctype = ContentType::from_extension(ext).ok_or(Status::InternalServerError)?;
         Response::build()
@@ -485,7 +485,7 @@ pub mod actix_web {
     };
     use self::mime_guess::get_mime_type;
 
-    pub fn respond(t: &super::Template, ext: &str) -> Result<HttpResponse, Error> {
+    pub fn respond<T: super::Template>(t: &T, ext: &str) -> Result<HttpResponse, Error> {
         let rsp = t
             .render()
             .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
@@ -502,7 +502,7 @@ pub mod gotham {
     pub use hyper::{Body, Response, StatusCode};
     use mime_guess::get_mime_type;
 
-    pub fn respond(t: &super::Template, ext: &str) -> Response<Body> {
+    pub fn respond<T: super::Template>(t: &T, ext: &str) -> Response<Body> {
         let mime_type = get_mime_type(ext).to_string();
 
         match t.render() {
