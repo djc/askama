@@ -1,5 +1,5 @@
 use super::{get_template_source, Context, Heritage};
-use crate::input::TemplateInput;
+use crate::input::{Source, TemplateInput};
 use crate::parser::{
     Cond, Expr, MatchParameter, MatchParameters, MatchVariant, Node, Target, When, WS,
 };
@@ -107,6 +107,21 @@ impl<'a> Generator<'a> {
             "fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
              ::askama::Result<()> {",
         );
+
+        // Make sure the compiler understands that the generated code depends on the template files.
+        for (path, _) in self.contexts {
+            // Skip the fake path of templates defined in rust source.
+            let path_is_valid = match self.input.source {
+                Source::Path(_) => true,
+                Source::Source(_) => *path != &self.input.path,
+            };
+            if path_is_valid {
+                let path = path.to_str().unwrap();
+                buf.writeln(&quote! {
+                    include_bytes!(#path);
+                }.to_string());
+            }
+        }
 
         if let Some(heritage) = self.heritage {
             self.handle(heritage.root, heritage.root.nodes, buf, AstLevel::Top);
@@ -559,6 +574,15 @@ impl<'a> Generator<'a> {
             .find_template(path, Some(&self.input.path));
         let src = get_template_source(&path);
         let nodes = parse(&src, self.input.syntax);
+
+        // Make sure the compiler understands that the generated code depends on the template file.
+        {
+            let path = path.to_str().unwrap();
+            buf.writeln(&quote! {
+                include_bytes!(#path);
+            }.to_string());
+        }
+
         {
             // Since nodes must not outlive the Generator, we instantiate
             // a nested Generator here to handle the include's nodes.
