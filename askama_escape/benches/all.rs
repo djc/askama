@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate criterion;
 
-use askama_escape::MarkupDisplay;
+use askama_escape::{Html, MarkupDisplay};
 use criterion::Criterion;
 
 criterion_main!(benches);
@@ -68,10 +68,10 @@ quis lacus at, gravida maximus elit. Duis tristique, nisl nullam.
     "#;
 
     b.iter(|| {
-        format!("{}", MarkupDisplay::from(string_long));
-        format!("{}", MarkupDisplay::from(string_short));
-        format!("{}", MarkupDisplay::from(empty));
-        format!("{}", MarkupDisplay::from(no_escape));
-        format!("{}", MarkupDisplay::from(no_escape_long));
+        format!("{}", MarkupDisplay::new_unsafe(string_long, Html));
+        format!("{}", MarkupDisplay::new_unsafe(string_short, Html));
+        format!("{}", MarkupDisplay::new_unsafe(empty, Html));
+        format!("{}", MarkupDisplay::new_unsafe(no_escape, Html));
+        format!("{}", MarkupDisplay::new_unsafe(no_escape_long, Html));
     });
 }
