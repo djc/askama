@@ -515,35 +515,8 @@ pub mod gotham {
     }
 }
 
-fn visit_dirs(dir: &Path, cb: &dyn Fn(&DirEntry)) -> io::Result<()> {
-    if dir.is_dir() {
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                visit_dirs(&path, cb)?;
-            } else {
-                cb(&entry);
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Build script helper to rebuild crates if contained templates have changed
+/// Old build script helper to rebuild crates if contained templates have changed
 ///
-/// Iterates over all files in the template directories and writes a
-/// `cargo:rerun-if-changed=` line for each of them to stdout.
-///
-/// This helper method can be used in build scripts (`build.rs`) in crates
-/// that have templates, to make sure the crate gets rebuilt when template
-/// source code changes.
-pub fn rerun_if_templates_changed() {
-    let file = read_config_file();
-    for template_dir in &shared::Config::new(&file).dirs {
-        visit_dirs(template_dir, &|e: &DirEntry| {
-            println!("cargo:rerun-if-changed={}", e.path().to_str().unwrap());
-        })
-        .unwrap();
-    }
-}
+/// This function is now deprecated and does nothing.
+#[deprecated(since="0.8.1", note="file-level dependency tracking is handled automatically without build script")]
+pub fn rerun_if_templates_changed() {}
