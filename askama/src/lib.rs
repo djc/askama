@@ -417,6 +417,8 @@ use std::fs::{self, DirEntry};
 use std::io;
 use std::path::Path;
 
+pub use askama_escape::{Html, Text};
+
 /// Main `Template` trait; implementations are generally derived
 pub trait Template {
     /// Helper method which allocates a new `String` and renders into it

@@ -732,14 +732,14 @@ impl<'a> Generator<'a> {
                 }
                 Writable::Expr(s) => {
                     use self::DisplayWrap::*;
-                    use super::input::EscapeMode::*;
                     let mut expr_buf = Buffer::new(0);
                     let wrapped = self.visit_expr(&mut expr_buf, s);
-                    let expression = match (wrapped, &self.input.escaping) {
-                        (Wrapped, &Html) | (Wrapped, &None) | (Unwrapped, &None) => expr_buf.buf,
-                        (Unwrapped, &Html) => {
-                            format!("::askama::MarkupDisplay::from(&{})", expr_buf.buf)
-                        }
+                    let expression = match wrapped {
+                        Wrapped => expr_buf.buf,
+                        Unwrapped => format!(
+                            "::askama::MarkupDisplay::new_unsafe(&{}, {})",
+                            expr_buf.buf, self.input.escaping
+                        ),
                     };
 
                     let id = expr_cache.entry(expression.clone()).or_insert_with(|| {
@@ -876,7 +876,12 @@ impl<'a> Generator<'a> {
             return DisplayWrap::Unwrapped;
         }
 
-        if filters::BUILT_IN_FILTERS.contains(&name) {
+        if name == "escape" || name == "safe" || name == "e" || name == "json" {
+            buf.write(&format!(
+                "::askama::filters::{}({}, &",
+                name, self.input.escaping
+            ));
+        } else if filters::BUILT_IN_FILTERS.contains(&name) {
             buf.write(&format!("::askama::filters::{}(&", name));
         } else {
             buf.write(&format!("filters::{}(&", name));
