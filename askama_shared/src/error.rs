@@ -51,9 +51,9 @@ impl ErrorTrait for Error {
 
     fn cause(&self) -> Option<&dyn ErrorTrait> {
         match *self {
-            Error::Fmt(ref err) => err.cause(),
+            Error::Fmt(ref err) => err.source(),
             #[cfg(feature = "serde_json")]
-            Error::Json(ref err) => err.cause(),
+            Error::Json(ref err) => err.source(),
             _ => None,
         }
     }
