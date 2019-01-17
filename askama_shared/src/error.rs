@@ -32,6 +32,10 @@ pub enum Error {
     #[cfg(feature = "serde_json")]
     Json(::serde_json::Error),
 
+    /// yaml conversion error
+    #[cfg(feature = "serde_yaml")]
+    Yaml(::serde_yaml::Error),
+
     /// This error needs to be non-exhaustive as
     /// the `Json` variants existence depends on
     /// a feature.
@@ -54,6 +58,8 @@ impl ErrorTrait for Error {
             Error::Fmt(ref err) => err.source(),
             #[cfg(feature = "serde_json")]
             Error::Json(ref err) => err.source(),
+            #[cfg(feature = "serde_yaml")]
+            Error::Yaml(ref err) => err.source(),
             _ => None,
         }
     }
@@ -63,9 +69,10 @@ impl Display for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Error::Fmt(ref err) => write!(formatter, "formatting error: {}", err),
-
             #[cfg(feature = "serde_json")]
             Error::Json(ref err) => write!(formatter, "json conversion error: {}", err),
+            #[cfg(feature = "serde_yaml")]
+            Error::Yaml(ref err) => write!(formatter, "yaml conversion error: {}", err),
             _ => write!(formatter, "unknown error: __Nonexhaustive"),
         }
     }
@@ -81,6 +88,13 @@ impl From<fmt::Error> for Error {
 impl From<::serde_json::Error> for Error {
     fn from(err: ::serde_json::Error) -> Self {
         Error::Json(err)
+    }
+}
+
+#[cfg(feature = "serde_yaml")]
+impl From<::serde_yaml::Error> for Error {
+    fn from(err: ::serde_yaml::Error) -> Self {
+        Error::Yaml(err)
     }
 }
 
