@@ -6,9 +6,13 @@
 
 #[cfg(feature = "serde_json")]
 mod json;
-
 #[cfg(feature = "serde_json")]
 pub use self::json::json;
+
+#[cfg(feature = "serde_yaml")]
+mod yaml;
+#[cfg(feature = "serde_yaml")]
+pub use self::yaml::yaml;
 
 use crate::error::Error::Fmt;
 use askama_escape::{Escaper, MarkupDisplay};
@@ -23,7 +27,7 @@ use super::Result;
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 22] = [
+pub const BUILT_IN_FILTERS: [&str; 23] = [
     "abs",
     "capitalize",
     "center",
@@ -46,6 +50,7 @@ pub const BUILT_IN_FILTERS: [&str; 22] = [
     "uppercase",
     "wordcount",
     "json", // Optional feature; reserve the name anyway
+    "yaml", // Optional feature; reserve the name anyway
 ];
 
 /// Marks a string (or other `Display` type) as safe
