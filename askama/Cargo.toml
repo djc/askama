@@ -28,8 +28,8 @@ with-gotham = ["gotham", "askama_derive/gotham", "hyper", "mime_guess"]
 
 [dependencies]
 askama_derive = { version = "0.8.0", path = "../askama_derive" }
-askama_escape = { version = "0.1.0", path = "../askama_escape" }
-askama_shared = { version = "0.7.2", path = "../askama_shared" }
+askama_escape = { version = "0.2.0", path = "../askama_escape" }
+askama_shared = { version = "0.8.0", path = "../askama_shared" }
 iron = { version = ">= 0.5, < 0.7", optional = true }
 rocket = { version = "0.4", optional = true }
 actix-web = { version = "0.7", optional = true }

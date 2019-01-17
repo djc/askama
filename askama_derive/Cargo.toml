@@ -19,7 +19,7 @@ actix-web = []
 gotham = []
 
 [dependencies]
-askama_shared = { version = "0.7.2", path = "../askama_shared" }
+askama_shared = { version = "0.8", path = "../askama_shared" }
 nom = "4"
 proc-macro2 = "0.4"
 quote = "0.6"
