@@ -1,6 +1,6 @@
 [package]
 name = "askama_shared"
-version = "0.7.2"
+version = "0.8.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Shared code for Askama"
 homepage = "https://github.com/djc/askama"
@@ -10,7 +10,7 @@ workspace = ".."
 edition = "2018"
 
 [dependencies]
-askama_escape = { version = "0.1.0", path = "../askama_escape" }
+askama_escape = { version = "0.2.0", path = "../askama_escape" }
 humansize = "1.1.0"
 num-traits = "0.2.6"
 serde = "1.0"
