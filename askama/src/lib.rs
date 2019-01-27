@@ -502,7 +502,7 @@ pub mod actix_web {
             let rsp = self
                 .render()
                 .map_err(|_| ErrorInternalServerError("Template render error"))?;
-            let ext = T::extension().unwrap_or("");
+            let ext = T::extension().unwrap_or("txt");
             let ctype = get_mime_type(ext).to_string();
             Ok(HttpResponse::Ok().content_type(ctype.as_str()).body(rsp))
         }
