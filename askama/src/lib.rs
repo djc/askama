@@ -492,6 +492,21 @@ pub mod actix_web {
         let ctype = get_mime_type(ext).to_string();
         Ok(HttpResponse::Ok().content_type(ctype.as_str()).body(rsp))
     }
+
+    pub trait TemplateResponder {
+        fn responder(&self) -> Result<HttpResponse, Error>;
+    }
+
+    impl<T: super::Template> TemplateResponder for T {
+        fn responder(&self) -> Result<HttpResponse, Error> {
+            let rsp = self
+                .render()
+                .map_err(|_| ErrorInternalServerError("Template render error"))?;
+            let ext = T::extension().unwrap_or("");
+            let ctype = get_mime_type(ext).to_string();
+            Ok(HttpResponse::Ok().content_type(ctype.as_str()).body(rsp))
+        }
+    }
 }
 
 #[cfg(feature = "with-gotham")]
