@@ -117,9 +117,12 @@ impl<'a> Generator<'a> {
             };
             if path_is_valid {
                 let path = path.to_str().unwrap();
-                buf.writeln(&quote! {
-                    include_bytes!(#path);
-                }.to_string());
+                buf.writeln(
+                    &quote! {
+                        include_bytes!(#path);
+                    }
+                    .to_string(),
+                );
             }
         }
 
@@ -624,9 +627,12 @@ impl<'a> Generator<'a> {
         // Make sure the compiler understands that the generated code depends on the template file.
         {
             let path = path.to_str().unwrap();
-            buf.writeln(&quote! {
-                include_bytes!(#path);
-            }.to_string());
+            buf.writeln(
+                &quote! {
+                    include_bytes!(#path);
+                }
+                .to_string(),
+            );
         }
 
         let size_hint = {

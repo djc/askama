@@ -492,6 +492,21 @@ pub mod actix_web {
         let ctype = get_mime_type(ext).to_string();
         Ok(HttpResponse::Ok().content_type(ctype.as_str()).body(rsp))
     }
+
+    pub trait TemplateResponder {
+        fn responder(&self) -> Result<HttpResponse, Error>;
+    }
+
+    impl<T: super::Template> TemplateResponder for T {
+        fn responder(&self) -> Result<HttpResponse, Error> {
+            let rsp = self
+                .render()
+                .map_err(|_| ErrorInternalServerError("Template render error"))?;
+            let ext = T::extension().unwrap_or("");
+            let ctype = get_mime_type(ext).to_string();
+            Ok(HttpResponse::Ok().content_type(ctype.as_str()).body(rsp))
+        }
+    }
 }
 
 #[cfg(feature = "with-gotham")]
@@ -522,5 +537,8 @@ pub mod gotham {
 /// Old build script helper to rebuild crates if contained templates have changed
 ///
 /// This function is now deprecated and does nothing.
-#[deprecated(since="0.8.1", note="file-level dependency tracking is handled automatically without build script")]
+#[deprecated(
+    since = "0.8.1",
+    note = "file-level dependency tracking is handled automatically without build script"
+)]
 pub fn rerun_if_templates_changed() {}
