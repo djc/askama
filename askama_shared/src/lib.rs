@@ -226,6 +226,7 @@ static DEFAULT_SYNTAX_NAME: &str = "default";
 static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
     (&["html", "htm", "xml"], "::askama::Html"),
     (&["none", "txt", ""], "::askama::Text"),
+    (&["j2", "jinja", "jinja2"], "::askama::Html"),
 ];
 
 #[cfg(test)]
@@ -404,6 +405,7 @@ mod tests {
                 (str_set(&["js"]), "::askama::Js".into()),
                 (str_set(&["html", "htm", "xml"]), "::askama::Html".into()),
                 (str_set(&["none", "txt", ""]), "::askama::Text".into()),
+                (str_set(&["j2", "jinja", "jinja2"]), "::askama::Html".into()),
             ]
         );
     }
