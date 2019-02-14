@@ -228,7 +228,7 @@ impl<'a> Generator<'a> {
         buf.writeln("type Error = ::askama::actix_web::Error;");
         buf.writeln(
             "fn respond_to<S>(self, _req: &::askama::actix_web::HttpRequest<S>) \
-             -> Result<Self::Item, Self::Error> {",
+             -> ::std::result::Result<Self::Item, Self::Error> {",
         );
 
         let ext = match self.input.path.extension() {
