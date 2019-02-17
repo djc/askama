@@ -36,6 +36,13 @@ pub enum Error {
     #[cfg(feature = "serde_yaml")]
     Yaml(::serde_yaml::Error),
 
+    /// internationalization error from fluent
+    #[cfg(feature = "with-i18n")]
+    I18n(Option<::fluent_bundle::errors::FluentError>),
+
+    #[cfg(feature = "with-i18n")]
+    NoTranslationsForLocale(&'static str),
+
     /// This error needs to be non-exhaustive as
     /// the `Json` variants existence depends on
     /// a feature.
@@ -49,6 +56,9 @@ impl ErrorTrait for Error {
             Error::Fmt(ref err) => err.description(),
             #[cfg(feature = "serde_json")]
             Error::Json(ref err) => err.description(),
+            #[cfg(feature = "with-fluent")]
+            // fluent uses failure, don't want to bring all that in ;-;
+            Error::I18n(_) => "fluent i18n error",
             _ => "unknown error: __Nonexhaustive",
         }
     }
@@ -73,6 +83,11 @@ impl Display for Error {
             Error::Json(ref err) => write!(formatter, "json conversion error: {}", err),
             #[cfg(feature = "serde_yaml")]
             Error::Yaml(ref err) => write!(formatter, "yaml conversion error: {}", err),
+            #[cfg(feature = "with-fluent")]
+            Error::I18n(ref err) => err
+                .as_ref()
+                .map(|e| write!(formatter, "fluent i18n error: {}", e))
+                .unwrap_or_else(|| write!(formatter, "unknown fluent i18n error")),
             _ => write!(formatter, "unknown error: __Nonexhaustive"),
         }
     }

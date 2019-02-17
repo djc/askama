@@ -9,6 +9,9 @@ license = "MIT/Apache-2.0"
 workspace = ".."
 edition = "2018"
 
+[features]
+with-i18n = ["fluent-bundle", "lazy_static"]
+
 [dependencies]
 askama_escape = { version = "0.2.0", path = "../askama_escape" }
 humansize = "1.1.0"
@@ -18,3 +21,5 @@ serde_derive = "1.0"
 serde_json = { version = "1.0", optional = true }
 serde_yaml = { version = "0.8", optional = true }
 toml = "0.4"
+fluent-bundle = { version = "0.5", optional = true }
+lazy_static = { version = "1.2", optional = true }

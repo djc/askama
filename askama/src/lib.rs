@@ -407,6 +407,82 @@
 //! Enabling the `serde-json` filter will enable the use of the `json` filter.
 //! This will output formatted JSON for any value that implements the required
 //! `Serialize` trait.
+//!
+//! ## Internationalization with Fluent
+//! Enabling the `with-i18n` feature enables askama's internationalization / localization (i18n / l10n)
+//! functionality, which you can use to provide translations of your templates into other languages.
+//!
+//! Askama's i18n relies on [Fluent](https://projectfluent.org) to parse and apply translations.
+//!
+//! Using i18n tries to be as simple as possible, but it's still a little involved.
+//!
+//! Create a folder structure at your project root, organized like so:
+//! - `i18n`
+//!   - `en-US`
+//!     - `greeting.ftl`
+//!   - `es-MX`
+//!     - `greeting.ftl`
+//!
+//! Add some localizations in [Fluent's `FTL` Syntax](https://projectfluent.org/fluent/guide/):
+//!
+//! `i18n/en-US/greeting.ftl`:
+//! ```txt
+//! hello = Hello, $name!
+//! age.tracker = You are $age_hours hours old.
+//! ```
+//! `i18n/es-MX/greeting.ftl`:
+//! ```txt
+//! hello = ¡Hola, $name!
+//! age.tracker = Tiene $age_hours horas.
+//! ```
+//!
+//! Call the `init_askama_i18n!()` macro at your crate root:
+//! ```no_run
+//! extern crate askama;
+//!
+//! init_askama_i18n!();
+//! ```
+//!
+//! This will create a module `askama_i18n` which contains resources used by
+//! the localization system. See the documentation for the `init_askama_i18n!` macro
+//! for customization options. Note that, by default, translations you provide will be
+//! compiled into the output executable, to ease deployment; all you need is one binary.
+//!
+//! Now, on templates you want to localize, add a member `locale`:
+//! ```no_run
+//! #[derive(Template)]
+//! #[template(path = "hello.html")]
+//! struct HelloTemplate<'a> {
+//!     locale: &'a str,
+//!     name: &'a str,
+//!     age_hours: f32,
+//! }
+//! ```
+//!
+//! And now you can use the `localize` filter in your templates:
+//! ```html
+//! <h1>{ localize(hello, name: name) }</h1>
+//! <h3>{ localize(age.tracker, age_hours: age_hours) }</h1>
+//! ```
+//!
+//! (TODO: should we automatically pass eligible template variables
+//! into the localization system?)
+//!
+//! Now, your template will be automatically translated when rendered:
+//!
+//! `println!("{}", HelloTemplate { locale: "en-US", name: "Jamie", age_hours: 195_481.8 });`
+//! ```html
+//! <h1>Hello, Jamie!</h1>
+//! <h3>You are 195,481.8 hours old.</h1>
+//! ```
+//!
+//! `println!("{}", HelloTemplate { locale: "es-MX", name: "Jamie", age_hours: 195_481.8 });`
+//! ```html
+//! <h1>¡Hola, Jamie!</h1>
+//! <h3>Tienes 195.481,8 horas.</h1>
+//! ```
+//!
+//! It's up to you to pass the correct locale in for each user.
 
 #![allow(unused_imports)]
 #[macro_use]
@@ -522,5 +598,8 @@ pub mod gotham {
 /// Old build script helper to rebuild crates if contained templates have changed
 ///
 /// This function is now deprecated and does nothing.
-#[deprecated(since="0.8.1", note="file-level dependency tracking is handled automatically without build script")]
+#[deprecated(
+    since = "0.8.1",
+    note = "file-level dependency tracking is handled automatically without build script"
+)]
 pub fn rerun_if_templates_changed() {}
