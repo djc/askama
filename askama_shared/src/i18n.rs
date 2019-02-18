@@ -61,7 +61,7 @@ impl<'a> FluentBundles<'a> {
     ) -> Result<String> {
         let bundle = self.bundles.get(locale).unwrap_or_else(|| {
             // TODO: use fallback chains here? might be confusing, could just error
-            &self.bundles["en-us"]
+            &self.bundles["en-US"]
         });
         // this API is weirdly awful;
         // format returns Option<(String, Vec<FluentError>)>
@@ -76,10 +76,57 @@ impl<'a> FluentBundles<'a> {
                 Ok(result)
             }
         } else {
+            // TODO better error message here, this shows up as Err(I18n(None)) w/ no explanation
+            // in panics
             Err(Error::I18n(None))
         }
     }
 }
 
 #[cfg(test)]
-mod test {}
+mod test {
+    use super::*;
+
+    const SOURCES: Sources = &[
+        (
+            "en-US",
+            "greeting = Hello, { $name }! You are { $hours } hours old.",
+        ),
+        (
+            "es-MX",
+            "greeting = ¡Hola, { $name }! Tienes { $hours } horas.",
+        ),
+    ];
+    const FALLBACK_CHAINS: FallbackChains = &[&["en-US", "en-UK"]];
+
+    #[test]
+    fn basic() -> Result<()> {
+        let resources = parse_all(SOURCES);
+        let bundles = FluentBundles::new(&resources, FALLBACK_CHAINS);
+        let mut args = HashMap::new();
+        args.insert("name", FluentValue::from("Jamie"));
+        args.insert("hours", FluentValue::from(190321.31)); // about 21 years
+        let args = Some(&args);
+
+        assert_eq!(
+            bundles.localize("en-US", "greeting", args)?,
+            "Hello, Jamie! You are 190321.31 hours old."
+        );
+        assert_eq!(
+            bundles.localize("es-MX", "greeting", args)?,
+            "¡Hola, Jamie! Tienes 190321.31 horas."
+        );
+
+        // missing locales should use english (for now)
+        assert_eq!(
+            bundles.localize("zh-HK", "greeting", args)?,
+            "Hello, Jamie! You are 190321.31 hours old."
+        );
+
+        if let Ok(_) = bundles.localize("en-US", "bananas", None) {
+            panic!("Should return Err on missing message");
+        }
+
+        Ok(())
+    }
+}
