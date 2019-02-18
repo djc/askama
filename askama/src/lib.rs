@@ -437,7 +437,7 @@
 //! ```
 //!
 //! Call the `init_askama_i18n!()` macro at your crate root:
-//! ```no_run
+//! ```no_build
 //! extern crate askama;
 //!
 //! init_askama_i18n!();
@@ -449,7 +449,7 @@
 //! compiled into the output executable, to ease deployment; all you need is one binary.
 //!
 //! Now, on templates you want to localize, add a member `locale`:
-//! ```no_run
+//! ```no_build
 //! #[derive(Template)]
 //! #[template(path = "hello.html")]
 //! struct HelloTemplate<'a> {
