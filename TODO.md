@@ -2,12 +2,14 @@ Setup:
 
 ```rust
 // in target crate:
-init_askama_i18n!();
+mod i18n {
+    init_askama_i18n!();
+}
 ```
 
 ```rust
 // generates
-mod __askama_i18n {
+mod i18n {
     struct _Pointless {}
 
     const SOURCES: ::askama::shared::i18n::Sources = &[
@@ -31,7 +33,7 @@ mod __askama_i18n {
 
     ::askama::askama_derive::lazy_static! {
         static RESOURCES: ::askama::shared::fluent_bundle::Resources =
-        static BUNDLES: ::askama::shared::fluent_bundle::FluentBundles =
+        pub static BUNDLES: ::askama::shared::fluent_bundle::FluentBundles =
             ::askama::shared::fluent_bundle::FluentBundles::new(FLUENT_SOURCES, FALLBACK_CHAINS);
     }
 

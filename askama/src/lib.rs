@@ -440,16 +440,18 @@
 //! ```no_build
 //! extern crate askama;
 //!
-//! init_askama_i18n!();
+//! mod i18n {
+//!     init_askama_i18n!();
+//! }
 //! ```
 //!
-//! This will create a module `askama_i18n` which contains resources used by
-//! the localization system. See the documentation for the `init_askama_i18n!` macro
-//! for customization options. Note that, by default, translations you provide will be
-//! compiled into the output executable, to ease deployment; all you need is one binary.
+//! This will bake translations you provide into the output executable, to ease
+//! deployment; all you need is one binary.
 //!
-//! Now, on templates you want to localize, add a member `locale`:
+//! Now, on templates you want to localize, use the `i18n` module, and add a member `locale`:
 //! ```no_build
+//! use i18n;
+//!
 //! #[derive(Template)]
 //! #[template(path = "hello.html")]
 //! struct HelloTemplate<'a> {
@@ -461,9 +463,12 @@
 //!
 //! And now you can use the `localize` filter in your templates:
 //! ```html
-//! <h1>{ localize(hello, name: name) }</h1>
-//! <h3>{ localize(age.tracker, age_hours: age_hours) }</h1>
+//! <h1>{{ localize(hello, name: name) }}</h1>
+//! <h3>{{ localize(age.tracker, age_hours: age_hours) }}</h1>
 //! ```
+//!
+//! The localize macro uses the `locale` struct entry and whatever `i18n` module is in scope
+//! to perform its translations.
 //!
 //! (TODO: should we automatically pass eligible template variables
 //! into the localization system?)
