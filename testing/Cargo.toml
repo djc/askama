@@ -8,11 +8,12 @@ edition = "2018"
 [features]
 actix = ["actix-web", "bytes", "askama/with-actix-web"]
 default = []
-full = ["actix", "with-iron", "serde-json", "with-gotham"]
+full = ["actix", "with-iron", "serde-json", "with-gotham", "with-i18n"]
 serde-json = ["serde_json", "askama/serde-json"]
 with-rocket = ["rocket", "askama/with-rocket"]
 with-iron = ["iron", "askama/with-iron"]
 with-gotham = ["gotham", "askama/with-gotham", "mime", "hyper"]
+with-i18n = ["askama/with-i18n"]
 
 [dependencies]
 actix-web = { version = "0.7", optional = true }

@@ -17,6 +17,7 @@ iron = []
 rocket = []
 actix-web = []
 gotham = []
+with-i18n = []
 
 [dependencies]
 askama_shared = { version = "0.8", path = "../askama_shared" }

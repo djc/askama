@@ -8,6 +8,9 @@ mod generator;
 mod input;
 mod parser;
 
+#[cfg(feature = "with-i18n")]
+mod i18n;
+
 use crate::input::{Print, Source, TemplateInput};
 use crate::parser::{Expr, Macro, Node};
 use askama_shared::{read_config_file, Config};
@@ -212,6 +215,12 @@ fn get_template_source(tpl_path: &Path) -> String {
             source
         }
     }
+}
+
+#[cfg(feature = "with-i18n")]
+#[proc_macro]
+pub fn init_askama_i18n(_item: TokenStream) -> TokenStream {
+    i18n::init_askama_i18n(_item)
 }
 
 #[cfg(test)]

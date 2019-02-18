@@ -26,7 +26,7 @@ with-iron = ["iron", "askama_derive/iron"]
 with-rocket = ["rocket", "askama_derive/rocket"]
 with-actix-web = ["actix-web", "askama_derive/actix-web", "mime_guess"]
 with-gotham = ["gotham", "askama_derive/gotham", "hyper", "mime_guess"]
-with-i18n = ["askama_shared/with-i18n"]
+with-i18n = ["askama_shared/with-i18n", "askama_derive/with-i18n"]
 
 [dependencies]
 askama_derive = { version = "0.8.0", path = "../askama_derive" }

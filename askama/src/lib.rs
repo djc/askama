@@ -500,6 +500,9 @@ use std::path::Path;
 
 pub use askama_escape::{Html, Text};
 
+#[cfg(feature = "with-i18n")]
+pub use crate::shared::i18n;
+
 /// Main `Template` trait; implementations are generally derived
 pub trait Template {
     /// Helper method which allocates a new `String` and renders into it
@@ -608,3 +611,6 @@ pub mod gotham {
     note = "file-level dependency tracking is handled automatically without build script"
 )]
 pub fn rerun_if_templates_changed() {}
+
+#[cfg(feature = "with-i18n")]
+pub use askama_derive::init_askama_i18n;

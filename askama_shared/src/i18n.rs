@@ -1,10 +1,12 @@
 //! Module `i18n` provides tools used by askama's internationalization /
 //! localization system, which you can use to translate your templates into other languages.
 
-use fluent_bundle::{FluentBundle, FluentResource, FluentValue};
+pub use fluent_bundle::{FluentBundle, FluentResource, FluentValue};
 use std::collections::HashMap;
 
 use super::{Error, Result};
+
+pub use lazy_static::lazy_static;
 
 pub type Sources = &'static [(&'static str, &'static str)];
 pub type Resources = HashMap<&'static str, FluentResource>;
@@ -22,16 +24,17 @@ pub fn parse_all(sources: Sources) -> Resources {
         })
         .collect()
 }
-/// FluentBundles is a type that handles accessing the translations baked into
+/// Localizations is a type that handles accessing the translations baked into
 /// the output executable / library easy.
 /// Users should never need to interact with it; all uses are through the
 /// `init_askama_i18n!()` macro or codegen for the `localize(...)` filter.
-pub struct FluentBundles<'a> {
+pub struct Localizations<'a> {
     bundles: HashMap<&'static str, FluentBundle<'a>>,
 }
 
-impl<'a> FluentBundles<'a> {
-    pub fn new(resources: &'a Resources, fallback_chains: FallbackChains) -> FluentBundles<'a> {
+impl<'a> Localizations<'a> {
+    #[inline(never)]
+    pub fn new(resources: &'a Resources, fallback_chains: FallbackChains) -> Localizations<'a> {
         let mut bundles = HashMap::new();
         for (locale, resource) in resources.iter() {
             let default_chain = &[*locale];
@@ -50,7 +53,7 @@ impl<'a> FluentBundles<'a> {
             bundles.insert(*locale, bundle);
         }
 
-        FluentBundles { bundles }
+        Localizations { bundles }
     }
 
     pub fn localize(
@@ -102,7 +105,7 @@ mod test {
     #[test]
     fn basic() -> Result<()> {
         let resources = parse_all(SOURCES);
-        let bundles = FluentBundles::new(&resources, FALLBACK_CHAINS);
+        let bundles = Localizations::new(&resources, FALLBACK_CHAINS);
         let mut args = HashMap::new();
         args.insert("name", FluentValue::from("Jamie"));
         args.insert("hours", FluentValue::from(190321.31)); // about 21 years
