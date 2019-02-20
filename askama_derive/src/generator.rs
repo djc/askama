@@ -1116,7 +1116,7 @@ impl<'a> Generator<'a> {
     }
 
     fn visit_var(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
-        if self.locals.contains(s) {
+        if self.locals.contains(s) || s == "self" {
             buf.write(s);
         } else {
             buf.write("self.");
