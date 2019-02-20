@@ -43,3 +43,17 @@ fn test_let_decl() {
     };
     assert_eq!(t.render().unwrap(), "bar");
 }
+
+#[derive(Template)]
+#[template(
+    source = "{% for v in self.0 %}{{ v }}{% endfor %}",
+    ext = "txt",
+    print = "code"
+)]
+struct SelfIterTemplate(Vec<usize>);
+
+#[test]
+fn test_self_iter() {
+    let t = SelfIterTemplate(vec![1, 2, 3]);
+    assert_eq!(t.render().unwrap(), "123");
+}
