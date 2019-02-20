@@ -500,25 +500,16 @@ pub mod actix_web {
     };
     use self::mime_guess::get_mime_type;
 
-    pub fn respond<T: super::Template>(t: &T, ext: &str) -> Result<HttpResponse, Error> {
-        let rsp = t
-            .render()
-            .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
-        let ctype = get_mime_type(ext).to_string();
-        Ok(HttpResponse::Ok().content_type(ctype.as_str()).body(rsp))
+    pub trait TemplateIntoResponse {
+        fn into_response(&self) -> Result<HttpResponse, Error>;
     }
 
-    pub trait TemplateResponder {
-        fn responder(&self) -> Result<HttpResponse, Error>;
-    }
-
-    impl<T: super::Template> TemplateResponder for T {
-        fn responder(&self) -> Result<HttpResponse, Error> {
+    impl<T: super::Template> TemplateIntoResponse for T {
+        fn into_response(&self) -> Result<HttpResponse, Error> {
             let rsp = self
                 .render()
-                .map_err(|_| ErrorInternalServerError("Template render error"))?;
-            let ext = T::extension().unwrap_or("txt");
-            let ctype = get_mime_type(ext).to_string();
+                .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
+            let ctype = get_mime_type(T::extension().unwrap_or("txt")).to_string();
             Ok(HttpResponse::Ok().content_type(ctype.as_str()).body(rsp))
         }
     }
