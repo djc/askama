@@ -49,12 +49,9 @@
 //!   (`none`), the parsed syntax tree (`ast`), the generated code (`code`)
 //!   or `all` for both. The requested data will be printed to stdout at
 //!   compile time.
-//! * `escape` (as `escape = "none"`): set the escape mode for expression
-//!   output; the currently implemented modes are `none` and `html`. Askama
-//!   infers the escape mode from the template file name (with `path`) or
-//!   specified extension (`ext`): if the extension is `html`, `htm` or `xml`,
-//!   the `html` escape mode is used; otherwise, no implicit escaping is done.
-//!   Setting an escape mode explicitly overrides the inferred value.
+//! * `escape` (as `escape = "none"`): override the template's extension used for
+//!   the purpose of determining the escaper for this template. See the section
+//!   on configuring custom escapers for more information.
 //! * `syntax` (as `syntax = "foo"`): set the syntax name for a parser defined
 //!   in the configuration file. The default syntax , "default",  is the one
 //!   provided by Askama.
@@ -64,7 +61,7 @@
 //! At compile time, Askama will read optional configuration values from
 //! `askama.toml` in the crate root (the directory where `Cargo.toml` can
 //! be found). Currently, this covers the directories to search for templates,
-//! as well as custom syntax configuration.
+//! custom syntax configuration and escaper configuration.
 //!
 //! This example file demonstrates the default configuration:
 //!
@@ -108,6 +105,24 @@
 //!
 //! Values must be 2 characters long and start delimiters must all start with the same
 //! character. If a key is omitted, the value from the default syntax is used.
+//!
+//! Here is an example of a custom escaper:
+//!
+//! ```toml
+//! [[escaper]]
+//! path = "::tex_escape::Tex"
+//! extensions = ["tex"]
+//! ```
+//!
+//! An escaper block consists of the attributes `path` and `name`. `path`
+//! contains a Rust identifier that must be in scope for templates using this
+//! escaper. `extensions` defines a list of file extensions that will trigger
+//! the use of that escaper. Extensions are matched in order, starting with the
+//! first escaper configured and ending with the default escapers for HTML
+//! (extensions `html`, `htm`, `xml`, `j2`, `jinja`, `jinja2`) and plain text
+//! (no escaping; `none`, `txt`, and the empty string). Note that this means
+//! you can also define other escapers that match different extensions to the
+//! same escaper.
 //!
 //! ## Variables
 //!
