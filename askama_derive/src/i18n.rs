@@ -177,7 +177,7 @@ fn coverage(message_counts: BTreeMap<String, usize>) -> String {
 
     if found_bad {
         writeln!(result, "eprintln!(\"askama-i18n-coverage: help: to get accurate results, make sure \
-            that messages\n not used directly by your software are prefixed with an underscore (`_`).\");").unwrap();
+            that messages\n not used directly by your software are prefixed with a dash (`-`).\");").unwrap();
     } else {
         writeln!(
             result,
