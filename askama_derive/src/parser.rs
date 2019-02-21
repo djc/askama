@@ -881,9 +881,7 @@ mod tests {
 
     #[test]
     fn test_parse_localize() {
-        println!("{:?}", super::localize(super::Input(b"localize(a)")));
-        println!("{:?}", super::expr_any(super::Input(b"localize(a)")));
-        super::parse("{{ localize(a) }}", &Syntax::default());
+        super::parse("{{ localize(a, v: 32 + 7) }}", &Syntax::default());
     }
 
     #[test]
