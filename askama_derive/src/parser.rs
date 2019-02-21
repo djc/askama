@@ -206,21 +206,16 @@ named!(expr_num_lit<Input, Expr>, map!(num_lit,
     |s| Expr::NumLit(s)
 ));
 
-named!(expr_array_lit<Input, Expr>, do_parse!(
-    ws!(tag!("[")) >>
-    first: expr_any >>
-    rest: many0!(do_parse!(
-        ws!(tag!(",")) >>
-        part: expr_any >>
-        (part)
-    )) >>
-    ws!(tag!("]")) >>
-    ({
-        let mut elements = vec![first];
-        elements.extend(rest);
-        Expr::Array(elements)
-    })
-));
+named!(expr_array_lit<Input, Expr>,
+    delimited!(
+        ws!(tag!("[")),
+        map!(separated_nonempty_list!(
+            ws!(tag!(",")),
+            expr_any
+        ), |arr| Expr::Array(arr)),
+        ws!(tag!("]"))
+    )
+);
 
 named!(variant_num_lit<Input, MatchVariant>, map!(num_lit,
     |s| MatchVariant::NumLit(s)
@@ -251,11 +246,8 @@ named!(expr_var<Input, Expr>, map!(identifier,
 
 named!(expr_path<Input, Expr>, do_parse!(
     start: call!(identifier) >>
-    rest: many1!(do_parse!(
-        tag!("::") >>
-        part: identifier >>
-        (part)
-    )) >>
+    tag!("::") >>
+    rest: separated_nonempty_list!(tag!("::"), identifier) >>
     ({
         let mut path = vec![start];
         path.extend(rest);
@@ -263,42 +255,25 @@ named!(expr_path<Input, Expr>, do_parse!(
     })
 ));
 
-named!(variant_path<Input, MatchVariant>, do_parse!(
-    start: call!(identifier) >>
-    rest: many1!(do_parse!(
-        tag!("::") >>
-        part: identifier >>
-        (part)
-    )) >>
-    ({
-        let mut path = vec![start];
-        path.extend(rest);
-        MatchVariant::Path(path)
-    })
-));
+named!(variant_path<Input, MatchVariant>,
+    map!(
+        separated_nonempty_list!(tag!("::"), identifier),
+        |path| MatchVariant::Path(path)
+    )
+);
 
 named!(target_single<Input, Target>, map!(identifier,
     |s| Target::Name(s)
 ));
 
-named!(target_tuple<Input, Target>, do_parse!(
-    tag!("(") >>
-    args: opt!(do_parse!(
-        arg0: ws!(identifier) >>
-        args: many0!(do_parse!(
-            tag!(",") >>
-            argn: ws!(identifier) >>
-            (argn)
-        )) >>
-        ({
-           let mut res = vec![arg0];
-           res.extend(args);
-           res
-        })
-    )) >>
-    opt!(ws!(tag!(","))) >>
-    tag!(")") >>
-    (Target::Tuple(args.unwrap_or_default()))
+named!(target_tuple<Input, Target>, delimited!(
+    tag!("("),
+    do_parse!(
+        res: separated_list!(tag!(","), ws!(identifier)) >>
+        opt!(ws!(tag!(","))) >>
+        (Target::Tuple(res))
+    ),
+    tag!(")")
 ));
 
 named!(variant_name<Input, MatchVariant>, map!(identifier,
@@ -309,23 +284,10 @@ named!(param_name<Input, MatchParameter>, map!(identifier,
     |s| MatchParameter::Name(s)
 ));
 
-named!(arguments<Input, Vec<Expr>>, do_parse!(
-    tag!("(") >>
-    args: opt!(do_parse!(
-        arg0: ws!(expr_any) >>
-        args: many0!(do_parse!(
-            tag!(",") >>
-            argn: ws!(expr_any) >>
-            (argn)
-        )) >>
-        ({
-           let mut res = vec![arg0];
-           res.extend(args);
-           res
-        })
-    )) >>
-    tag!(")") >>
-    (args.unwrap_or_default())
+named!(arguments<Input, Vec<Expr>>, delimited!(
+    tag!("("),
+    separated_list!(tag!(","), ws!(expr_any)),
+    tag!(")")
 ));
 
 named!(macro_arguments<Input, &str>,
@@ -382,23 +344,10 @@ fn nested_parenthesis(i: Input) -> Result<(Input, &str), nom::Err<Input>> {
     }
 }
 
-named!(parameters<Input, Vec<&str>>, do_parse!(
-    tag!("(") >>
-    vals: opt!(do_parse!(
-        arg0: ws!(identifier) >>
-        args: many0!(do_parse!(
-            tag!(",") >>
-            argn: ws!(identifier) >>
-            (argn)
-        )) >>
-        ({
-            let mut res = vec![arg0];
-            res.extend(args);
-            res
-        })
-    )) >>
-    tag!(")") >>
-    (vals.unwrap_or_default())
+named!(parameters<Input, Vec<&str>>, delimited!(
+    tag!("("),
+    separated_list!(tag!(","), ws!(identifier)),
+    tag!(")")
 ));
 
 named!(with_parameters<Input, MatchParameters>, do_parse!(
@@ -407,42 +356,16 @@ named!(with_parameters<Input, MatchParameters>, do_parse!(
     (value)
 ));
 
-named!(match_simple_parameters<Input, MatchParameters>, do_parse!(
-    ws!(tag!("(")) >>
-    vals: opt!(do_parse!(
-        arg0: ws!(match_parameter) >>
-        args: many0!(do_parse!(
-            tag!(",") >>
-            argn: ws!(match_parameter) >>
-            (argn)
-        )) >>
-        ({
-            let mut res = vec![arg0];
-            res.extend(args);
-            res
-        })
-    )) >>
-    tag!(")") >>
-    (MatchParameters::Simple(vals.unwrap_or_default()))
+named!(match_simple_parameters<Input, MatchParameters>, delimited!(
+    ws!(tag!("(")),
+    map!(separated_list!(tag!(","), ws!(match_parameter)), |mps| MatchParameters::Simple(mps)),
+    tag!(")")
 ));
 
-named!(match_named_parameters<Input, MatchParameters>, do_parse!(
-    ws!(tag!("{")) >>
-    vals: opt!(do_parse!(
-        arg0: ws!(match_named_parameter) >>
-        args: many0!(do_parse!(
-            tag!(",") >>
-            argn: ws!(match_named_parameter) >>
-            (argn)
-        )) >>
-        ({
-            let mut res = vec![arg0];
-            res.extend(args);
-            res
-        })
-    )) >>
-    tag!("}") >>
-    (MatchParameters::Named(vals.unwrap_or_default()))
+named!(match_named_parameters<Input, MatchParameters>, delimited!(
+    ws!(tag!("{")),
+    map!(separated_list!(tag!(","), ws!(match_named_parameter)), |mps| MatchParameters::Named(mps)),
+    tag!("}")
 ));
 
 named!(expr_group<Input, Expr>, map!(
@@ -526,6 +449,7 @@ named!(filter<Input, (&str, Option<Vec<Expr>>)>, do_parse!(
     (fname, args)
 ));
 
+
 named!(expr_filtered<Input, Expr>, do_parse!(
     obj: expr_index >>
     filters: many0!(filter) >>
@@ -560,6 +484,7 @@ named!(rust_macro<Input, Expr>, do_parse!(
     args: macro_arguments >>
     (Expr::RustMacro(mname, args))
 ));
+
 
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $( $op:expr ),* ) => {
