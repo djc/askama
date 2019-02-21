@@ -117,9 +117,12 @@ impl<'a> Generator<'a> {
             };
             if path_is_valid {
                 let path = path.to_str().unwrap();
-                buf.writeln(&quote! {
-                    include_bytes!(#path);
-                }.to_string());
+                buf.writeln(
+                    &quote! {
+                        include_bytes!(#path);
+                    }
+                    .to_string(),
+                );
             }
         }
 
@@ -624,9 +627,12 @@ impl<'a> Generator<'a> {
         // Make sure the compiler understands that the generated code depends on the template file.
         {
             let path = path.to_str().unwrap();
-            buf.writeln(&quote! {
-                include_bytes!(#path);
-            }.to_string());
+            buf.writeln(
+                &quote! {
+                    include_bytes!(#path);
+                }
+                .to_string(),
+            );
         }
 
         let size_hint = {
@@ -873,6 +879,9 @@ impl<'a> Generator<'a> {
                 self.visit_method_call(buf, obj, method, args)
             }
             Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
+            Expr::Localize(message, attribute, ref args) => {
+                self.visit_localize(buf, message, attribute, args)
+            }
         }
     }
 
@@ -1041,6 +1050,23 @@ impl<'a> Generator<'a> {
         buf.write(&format!(".{}(", method));
         self._visit_args(buf, args);
         buf.write(")");
+        DisplayWrap::Unwrapped
+    }
+
+    fn visit_localize(
+        &mut self,
+        buf: &mut Buffer,
+        _message: &str,
+        _attribute: Option<&str>,
+        _args: &[(&str, Expr)],
+    ) -> DisplayWrap {
+        if !cfg!(feature = "with-i18n") {
+            panic!(
+                "The askama feature 'with-i18n' must be activated to enable calling `localize`."
+            );
+        }
+        eprintln!("warning: localize unimplemented!");
+        buf.write("\"what other language?\"");
         DisplayWrap::Unwrapped
     }
 

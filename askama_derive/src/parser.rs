@@ -22,6 +22,7 @@ pub enum Expr<'a> {
     Group(Box<Expr<'a>>),
     MethodCall(Box<Expr<'a>>, &'a str, Vec<Expr<'a>>),
     RustMacro(&'a str, &'a str),
+    Localize(&'a str, Option<&'a str>, Vec<(&'a str, Expr<'a>)>),
 }
 
 #[derive(Debug)]
@@ -485,6 +486,28 @@ named!(rust_macro<Input, Expr>, do_parse!(
     (Expr::RustMacro(mname, args))
 ));
 
+named!(localize<Input, Expr>, do_parse!(
+    tag!("localize") >>
+    ws!(tag!("(")) >>
+    message: call!(identifier) >>
+    attribute: opt!(do_parse!(
+        ws!(tag!(".")) >>
+        child: call!(identifier) >>
+        (child)
+    )) >>
+    args: opt!(do_parse!(
+        ws!(tag!(",")) >>
+        args: separated_list!(ws!(tag!(",")), do_parse!(
+            name: call!(identifier) >>
+            ws!(tag!(":")) >>
+            value: call!(expr_any) >>
+            (name, value)
+        )) >>
+        (args)
+    )) >>
+    ws!(tag!(")")) >>
+    (Expr::Localize(message, attribute, args.unwrap_or_default()))
+));
 
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $( $op:expr ),* ) => {
@@ -520,6 +543,7 @@ named!(range_right<Input, Expr>, do_parse!(
 
 named!(expr_any<Input, Expr>, alt!(
     range_right |
+    localize |
     rust_macro |
     do_parse!(
         left: expr_or >>
@@ -853,6 +877,13 @@ mod tests {
     #[test]
     fn test_parse_filter() {
         super::parse("{{ strvar|e }}", &Syntax::default());
+    }
+
+    #[test]
+    fn test_parse_localize() {
+        println!("{:?}", super::localize(super::Input(b"localize(a)")));
+        println!("{:?}", super::expr_any(super::Input(b"localize(a)")));
+        super::parse("{{ localize(a) }}", &Syntax::default());
     }
 
     #[test]

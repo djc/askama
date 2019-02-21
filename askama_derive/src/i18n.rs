@@ -1,7 +1,6 @@
 //! Internationalization codegen.
 use proc_macro::TokenStream;
 
-use std::collections::HashMap;
 use std::env;
 use std::fmt::Write;
 use std::fs::{read_to_string, DirEntry};
