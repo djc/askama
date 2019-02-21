@@ -488,6 +488,11 @@
 //! ```
 //!
 //! It's up to you to pass the correct locale in for each user.
+//!
+//! To generate a coverage report, run:
+//! cargo test i18n_coverage -- --nocapture
+//!
+//! This will report on the percent of messages translated in each locale.
 
 #![allow(unused_imports)]
 #[macro_use]

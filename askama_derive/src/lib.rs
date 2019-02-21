@@ -3,6 +3,10 @@ extern crate proc_macro;
 extern crate nom;
 #[macro_use]
 extern crate quote;
+#[cfg(feature = "with-i18n")]
+extern crate fluent_bundle;
+#[cfg(feature = "with-i18n")]
+extern crate fluent_syntax;
 
 mod generator;
 mod input;

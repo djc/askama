@@ -7,6 +7,8 @@ mod i18n {
 
 use askama::Template;
 
+//
+
 #[derive(Template)]
 #[template(path = "i18n.html")]
 struct UsesI18n<'a> {

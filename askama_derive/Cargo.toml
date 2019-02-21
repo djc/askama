@@ -17,7 +17,7 @@ iron = []
 rocket = []
 actix-web = []
 gotham = []
-with-i18n = []
+with-i18n = ["fluent-bundle", "fluent-syntax"]
 
 [dependencies]
 askama_shared = { version = "0.8", path = "../askama_shared" }
@@ -25,3 +25,5 @@ nom = "4"
 proc-macro2 = "0.4"
 quote = "0.6"
 syn = "0.15"
+fluent-bundle = { version = "0.5", optional = true }
+fluent-syntax = { version = "0.8", optional = true }
