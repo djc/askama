@@ -436,26 +436,33 @@
 //! age.tracker = Tiene $age_hours horas.
 //! ```
 //!
-//! Call the `init_askama_i18n!()` macro at your crate root:
+//! Call the `impl_localize!()` macro at your crate root:
 //! ```no_build
 //! extern crate askama;
+//! use askama::{Localize, impl_localize};
 //!
-//! mod i18n {
-//!     init_askama_i18n!();
-//! }
+//! impl_localize!(
+//!     #[path = "i18n"]
+//!     #[default = "en-US"]
+//!     struct AppLocalizer(_);
+//! );
 //! ```
+//!
+//! This creates a struct called `AppLocalizer` which implements the askama `Localize` trait.
 //!
 //! This will bake translations you provide into the output executable, to ease
 //! deployment; all you need is one binary.
 //!
-//! Now, on templates you want to localize, use the `i18n` module, and add a member `locale`:
+//! Now, on templates you want to localize, add a member of type `AppLocalizer`
+//! annotated with the `#[localizer]` attribute:
 //! ```no_build
-//! use i18n;
+//! use crate::AppLocalizer;
 //!
 //! #[derive(Template)]
 //! #[template(path = "hello.html")]
 //! struct HelloTemplate<'a> {
-//!     locale: &'a str,
+//!     #[localizer]
+//!     localizer: AppLocalizer,
 //!     name: &'a str,
 //!     age_hours: f32,
 //! }
@@ -467,32 +474,26 @@
 //! <h3>{{ localize(age.tracker, age_hours: age_hours) }}</h1>
 //! ```
 //!
-//! The localize macro uses the `locale` struct entry and whatever `i18n` module is in scope
-//! to perform its translations.
-//!
-//! (TODO: should we automatically pass eligible template variables
-//! into the localization system?)
-//!
 //! Now, your template will be automatically translated when rendered:
 //!
-//! `println!("{}", HelloTemplate { locale: "en-US", name: "Jamie", age_hours: 195_481.8 });`
+//! `println!("{}", HelloTemplate { localizer: AppLocalizer::new("en-US"), name: "Jamie", age_hours: 195_481.8 });`
 //! ```html
 //! <h1>Hello, Jamie!</h1>
 //! <h3>You are 195,481.8 hours old.</h1>
 //! ```
 //!
-//! `println!("{}", HelloTemplate { locale: "es-MX", name: "Jamie", age_hours: 195_481.8 });`
+//! `println!("{}", HelloTemplate { localizer: AppLocalizer::new("es-MX"), name: "Jamie", age_hours: 195_481.8 });`
 //! ```html
 //! <h1>¡Hola, Jamie!</h1>
 //! <h3>Tienes 195.481,8 horas.</h1>
 //! ```
 //!
-//! It's up to you to pass the correct locale in for each user.
-//!
 //! To generate a coverage report, run:
 //! cargo test i18n_coverage -- --nocapture
 //!
 //! This will report on the percent of messages translated in each locale.
+
+// TODO doc links
 
 #![allow(unused_imports)]
 #[macro_use]
@@ -504,6 +505,9 @@ use std::io;
 use std::path::Path;
 
 pub use askama_escape::{Html, Text};
+
+#[cfg(feature = "with-i18n")]
+use std::collections::HashMap;
 
 #[cfg(feature = "with-i18n")]
 pub use crate::shared::i18n;
@@ -524,6 +528,32 @@ pub trait Template {
         Self: Sized;
     /// Provides an conservative estimate of the expanded length of the rendered template
     fn size_hint() -> usize;
+}
+
+/// `Localizer` trait; implementations are generally derived.
+#[cfg(feature = "with-i18n")]
+pub trait Localize: Sized {
+    /// Create a localizer for the given locale.
+    fn new(locale: &str) -> Self;
+
+    /// Create a localizer based on:
+    /// - an optional stored-per-user locale, e.g. from a user's locale preferences
+    /// - an optional `Accepts-Language` header of the form accepted by the [accept-language](https://crates.io/crates/accept-language) crate
+    /// - a fallback for if neither of the above are present
+    fn choose_locale(locale: Option<&str>, _accepts_language: Option<&str>, default: &str) -> Self {
+        // TODO: parse _accepts_language using https://crates.io/crates/accept-language
+
+        Self::new(locale.unwrap_or(default))
+    }
+
+    // TODO: refactor the following to be allocation-free once fluent is refactored
+
+    /// Localize a particular message
+    fn localize_into(
+        writer: &mut dyn std::fmt::Write,
+        message_id: &str,
+        args: Option<HashMap<&str, shared::i18n::I18nValue>>,
+    ) -> Result<()>;
 }
 
 pub use crate::shared::filters;
