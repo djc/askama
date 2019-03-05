@@ -91,7 +91,7 @@ pub mod macro_impl {
         pub fn choose_locale(
             &self,
             locale: Option<&str>,
-            accepts_language: Option<&str>,
+            _accepts_language: Option<&str>,
         ) -> &'static str {
             if let Some(locale) = locale {
                 if let Some(&static_locale) = self.locales.get(locale) {
@@ -102,29 +102,37 @@ pub mod macro_impl {
             self.default_locale
         }
 
-        pub fn localize_into(
+        pub fn localize(
             &self,
             locale: &str,
-            writer: &mut std::fmt::Write,
-            path: &str,
-            args: Option<&HashMap<&str, FluentValue>>,
-        ) -> Result<()> {
+            message: &str,
+            args: &[(&str, &FluentValue)],
+        ) -> Result<String> {
             let bundle = self.bundles.get(locale).unwrap_or_else(|| {
                 // TODO: use fallback chains here? might be confusing, could just error
                 &self.bundles["en-US"]
             });
+
+            let args = if args.len() == 0 {
+                None
+            } else {
+                // TODO this is an extra copy:
+                // remove once fluent has been refactored
+                Some(args.into_iter().map(|(k, v)| (*k, (*v).clone())).collect())
+            };
+            let args = args.as_ref();
+
             // this API is weirdly awful;
             // format returns Option<(String, Vec<FluentError>)>
             // which we have to cope with
-            let result = bundle.format(path, args);
+            let result = bundle.format(message, args);
 
             if let Some((result, mut errs)) = result {
                 if errs.len() > 0 {
                     // TODO handle more than 1 error
                     Err(Error::I18n(Some(errs.pop().unwrap())))
                 } else {
-                    write!(writer, "{}", result)?;
-                    Ok(())
+                    Ok(result)
                 }
             } else {
                 // TODO better error message here, this shows up as Err(I18n(None)) w/ no explanation

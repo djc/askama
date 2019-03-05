@@ -1060,26 +1060,47 @@ impl<'a> Generator<'a> {
         attribute: Option<&str>,
         args: &[(&str, Expr)],
     ) -> DisplayWrap {
+        // TODO error spans?
+
         if !cfg!(feature = "with-i18n") {
             panic!(
                 "The askama feature 'with-i18n' must be activated to enable calling `localize`."
             );
         }
 
-        /*
+        // TODO is localize[r] terminology confusing?
+        let localizer = self.input.localizer.expect(
+            "A template struct must have a member with the `#[localizer]` \
+             attribute that implements `askama::Localize` to enable calling the localize() filter",
+        );
+
         let mut message = message.to_string();
         if let Some(attribute) = attribute {
             message.push_str(".");
             message.push_str(attribute);
         }
 
-        buf.write(&format!("i18n::LOCALIZATIONS::localize({}, {}, {})",
+        assert!(
+            message.chars().find(|c| *c == '"').is_none(),
+            "message ids with quotes in them break the generator, please remove"
+        );
 
+        buf.write(&format!(
+            "::askama::Localize::localize(&self.{}, \"{}\", &[",
+            localizer, message
         ));
+        for (i, (name, value)) in args.iter().enumerate() {
+            if i > 0 {
+                buf.write(", ");
+            }
+            buf.write(&format!(
+                "(\"{}\", &({}).into())",
+                name,
+                self.visit_expr_root(value)
+            ));
+        }
+        buf.write("])?");
 
-        */
-        eprintln!("warning: localize unimplemented!");
-        buf.write("\"what other language?\"");
         DisplayWrap::Unwrapped
     }
 

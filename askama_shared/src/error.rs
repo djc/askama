@@ -60,6 +60,7 @@ impl ErrorTrait for Error {
             #[cfg(feature = "with-fluent")]
             // fluent uses failure, don't want to bring all that in ;-;
             Error::I18n(_) => "fluent i18n error",
+            #[cfg(feature = "with-fluent")]
             // fluent uses failure, don't want to bring all that in ;-;
             Error::NoTranslationsForLocale(_) => "missing translations error for locale",
             _ => "unknown error: __Nonexhaustive",

@@ -19,6 +19,7 @@ pub struct TemplateInput<'a> {
     pub ext: Option<String>,
     pub parent: Option<&'a syn::Type>,
     pub path: PathBuf,
+    pub localizer: Option<&'a syn::Ident>,
 }
 
 impl<'a> TemplateInput<'a> {
@@ -133,17 +134,35 @@ impl<'a> TemplateInput<'a> {
 
         // Check to see if a `_parent` field was defined on the context
         // struct, and store the type for it for use in the code generator.
-        let parent = match ast.data {
-            syn::Data::Struct(syn::DataStruct {
-                fields: syn::Fields::Named(ref fields),
-                ..
-            }) => fields
-                .named
-                .iter()
-                .find(|f| f.ident.as_ref().filter(|name| *name == "_parent").is_some())
-                .map(|f| &f.ty),
-            _ => None,
-        };
+        let mut parent = None;
+        let mut localizer = None;
+
+        if let syn::Data::Struct(syn::DataStruct {
+            fields: syn::Fields::Named(ref fields),
+            ..
+        }) = ast.data
+        {
+            for field in fields.named.iter() {
+                if field.ident.is_none() {
+                    // can't use this field
+                    // TODO handle non-named fields?
+                    continue;
+                }
+                let ident = field.ident.as_ref().unwrap();
+                if ident == "_parent" {
+                    parent = Some(&field.ty);
+                }
+                for attr in field.attrs.iter() {
+                    if attr.path.is_ident("localizer") {
+                        if localizer.is_some() {
+                            // TODO span
+                            panic!("Can't have multiple localizers for a single template!");
+                        }
+                        localizer = Some(&attr.path.segments[0].ident)
+                    }
+                }
+            }
+        }
 
         if parent.is_some() {
             io::stderr()
@@ -196,6 +215,7 @@ impl<'a> TemplateInput<'a> {
             parent,
             path,
             syntax,
+            localizer,
         }
     }
 }

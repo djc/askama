@@ -547,12 +547,11 @@ pub trait Localize: Sized {
     // TODO: refactor the following to be allocation-free once fluent is refactored
 
     /// Localize a particular message
-    fn localize_into(
+    fn localize(
         &self,
-        writer: &mut dyn std::fmt::Write,
         message_id: &str,
-        args: Option<&HashMap<&str, shared::i18n::I18nValue>>,
-    ) -> Result<()>;
+        args: &[(&str, &shared::i18n::I18nValue)],
+    ) -> Result<String>;
 }
 
 pub use crate::shared::filters;

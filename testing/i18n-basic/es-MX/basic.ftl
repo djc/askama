@@ -1,1 +1,3 @@
-greeting = ¡Hola, { $name }! Tienes { $hours } horas.
+greeting = ¡Hola, { $name }!
+
+age = Tienes { $hours } horas.

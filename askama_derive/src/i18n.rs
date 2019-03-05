@@ -5,14 +5,12 @@ use fluent_syntax::ast;
 use quote::quote;
 use std::collections::BTreeMap;
 use std::env;
-use std::fmt::Write;
 use std::fs::{read_to_string, DirEntry};
 use std::path::{Path, PathBuf};
 
 use syn::parse::{Parse, ParseStream, Result};
 use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
-use syn::{bracketed, parenthesized, parse_macro_input, token, Expr, Ident, LitStr, Token};
+use syn::{bracketed, parenthesized, token, Ident, LitStr, Token};
 
 pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // TODO fancier parsing
@@ -113,64 +111,63 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let default_locale = ast.default_locale; // TODO use; panic if missing
 
     let result = (quote! {
-            /// Internationalization support. Automatically generated from files in the `i18n` folder.
-            pub struct #name(&'static str);
+        /// Internationalization support. Automatically generated from files in the `i18n` folder.
+        pub struct #name(&'static str);
 
-            impl ::askama::Localize for #name {
-                
-                fn new(locale: Option<&str>, accepts_language: Option<&str>) -> Self {
-                    #name(__i18n_hidden::STATIC_PARSER.choose_locale(locale, accepts_language))
-                }
+        impl ::askama::Localize for #name {
 
-                #[inline]
-                fn localize_into(&self,
-                    writer: &mut ::std::fmt::Write,
-                    message: &str,
-                    args: Option<&::std::collections::HashMap<&str, ::askama::i18n::I18nValue>>) -> ::askama::Result<()> {
-                    __i18n_hidden::STATIC_PARSER.localize_into(self.0, writer, message, args)
-                }
+            fn new(locale: Option<&str>, accepts_language: Option<&str>) -> Self {
+                #name(__i18n_hidden::STATIC_PARSER.choose_locale(locale, accepts_language))
             }
 
-            #[doc(hidden)]
-            mod __i18n_hidden {
-                use ::askama::i18n::I18nValue;
-                use ::askama::i18n::macro_impl::{
-                    StaticParser, Resources,
-                    Sources, FallbackChains, lazy_static,
-                };
-                pub const SOURCES: Sources = &[
-                    #(#sources),*
-                ];
+            #[inline]
+            fn localize(&self,
+                message: &str,
+                args: &[(&str, &askama::i18n::I18nValue)])
+                    -> ::askama::Result<String> {
+                    __i18n_hidden::STATIC_PARSER.localize(self.0, message, args)
+            }
+        }
 
-                const FALLBACK_CHAINS: FallbackChains = &[&["en-US"]];
+        #[doc(hidden)]
+        mod __i18n_hidden {
+            use ::askama::i18n::I18nValue;
+            use ::askama::i18n::macro_impl::{
+                StaticParser, Resources,
+                Sources, FallbackChains, lazy_static,
+            };
+            pub const SOURCES: Sources = &[
+                #(#sources),*
+            ];
 
-                lazy_static! {
-                    static ref RESOURCES: Resources = Resources::new(SOURCES);
-                    pub static ref STATIC_PARSER: StaticParser<'static> =
-                        StaticParser::new(&RESOURCES, FALLBACK_CHAINS, #default_locale);
+            const FALLBACK_CHAINS: FallbackChains = &[&["en-US"]];
+
+            lazy_static! {
+                static ref RESOURCES: Resources = Resources::new(SOURCES);
+                pub static ref STATIC_PARSER: StaticParser<'static> =
+                    StaticParser::new(&RESOURCES, FALLBACK_CHAINS, #default_locale);
+            }
+
+            #[allow(unused)]
+            fn i_depend_on_these_files() {
+                #(#includes)*
+            }
+
+            #[cfg(test)]
+            mod tests {
+                #[test]
+                fn parse() {
+                    let _parse_all_sources = &*super::STATIC_PARSER;
                 }
 
-                #[allow(unused)]
-                fn i_depend_on_these_files() {
-                    #(#includes)*
-                }
-
-                #[cfg(test)]
-                mod tests {
-                    #[test]
-                    fn parse() {
-                        let _parse_all_sources = &*super::STATIC_PARSER;
-                    }
-
-                    #[test]
-                    fn i18n_coverage() {
-                        #coverage
-                    }
+                #[test]
+                fn i18n_coverage() {
+                    #coverage
                 }
             }
-        })
+        }
+    })
     .into();
-    println!("{}", result);
     result
 }
 
@@ -184,7 +181,7 @@ fn coverage(message_counts: BTreeMap<String, usize>) -> TokenStream {
 
     let max = message_counts.values().max().unwrap();
 
-    let coverages = message_counts
+    let _coverages = message_counts
         .iter()
         .map(|(locale, message_count)| {
             let percent = 100.0 * (*message_count as f32) / (*max as f32);
@@ -208,7 +205,7 @@ fn coverage(message_counts: BTreeMap<String, usize>) -> TokenStream {
 
     quote! {
         eprintln!("askama-i18n-coverage: translated messages and attributes per locale:");
-        #(coverages)*
+        #(_coverages)*
         #end
     }
 }

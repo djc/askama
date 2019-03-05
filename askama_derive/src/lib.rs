@@ -27,7 +27,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-#[proc_macro_derive(Template, attributes(template))]
+#[proc_macro_derive(Template, attributes(template, localizer))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
     build_template(&ast).parse().unwrap()
