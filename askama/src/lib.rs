@@ -371,6 +371,36 @@
 //! recursion. This is because the `Display` implementation for that expression
 //! will in turn evaluate the expression and yield `self` again.
 //!
+//! ## Template in template
+//!
+//! Using expressions, it is possible to render a template inside another one. This functionality
+//! allows modularize template sections and inject them in another template. This
+//! facilitates testing, and reusing part of templates.
+//!
+//! ```rust
+//! use askama::Template;
+//! #[derive(Template)]
+//! #[template(source = "Section 1: {{ s1.render().unwrap() }}", ext = "txt")]
+//! struct RenderInPlace<'a> {
+//!    s1: SectionOne<'a>
+//! }
+//! #[derive(Template)]
+//! #[template(source = "A={{ a }}\nB={{ b }}", ext = "txt")]
+//! struct SectionOne<'a> {
+//!    a: &'a str,
+//!    b: &'a str,
+//! }
+//! let t = RenderInPlace{s1: SectionOne{a: "a", b: "b"}};
+//! assert_eq!(t.render().unwrap(), "Section 1: A=a\nB=b")
+//! ```
+//!
+//! See the example
+//! [render in place](https://github.com/djc/askama/blob/master/testing/tests/render_in_place.rs)
+//! using a vector of templates in a for block.
+//!
+//! See the example [using enums](https://github.com/djc/askama/blob/master/testing/tests/render_with_enums.rs)
+//! for another use case. You can use different template parts depending on the context.
+//!
 //! ## Comments
 //!
 //! Askama supports block comments delimited by `{#` and `#}`.
