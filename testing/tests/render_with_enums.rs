@@ -90,5 +90,4 @@ fn test_render_with_enums() {
         t.render().unwrap(),
         "Section 1: \nSection 2: C, D\nSection 3 for:\n* \n* A\n* A, B\n"
     );
-
 }
