@@ -436,16 +436,17 @@
 //! age.tracker = Tiene $age_hours horas.
 //! ```
 //!
+//! TODO remove no_builds here
+//!
 //! Call the `impl_localize!()` macro at your crate root:
 //! ```no_build
 //! extern crate askama;
 //! use askama::{Localize, impl_localize};
 //!
-//! impl_localize!(
-//!     #[path = "i18n"]
-//!     #[default = "en-US"]
+//! impl_localize! {
+//!     #[i18n(path = "i18n", default_locale = "en-us")]
 //!     struct AppLocalizer(_);
-//! );
+//! }
 //! ```
 //!
 //! This creates a struct called `AppLocalizer` which implements the askama `Localize` trait.
@@ -530,29 +531,27 @@ pub trait Template {
     fn size_hint() -> usize;
 }
 
-/// `Localizer` trait; implementations are generally derived.
+/// `Localize` trait; can be included in templates to allow using the `localize` filter.
+/// Implementations are generally derived.
 #[cfg(feature = "with-i18n")]
 pub trait Localize: Sized {
-    /// Create a localizer for the given locale.
-    fn new(locale: &str) -> Self;
-
-    /// Create a localizer based on:
-    /// - an optional stored-per-user locale, e.g. from a user's locale preferences
-    /// - an optional `Accepts-Language` header of the form accepted by the [accept-language](https://crates.io/crates/accept-language) crate
-    /// - a fallback for if neither of the above are present
-    fn choose_locale(locale: Option<&str>, _accepts_language: Option<&str>, default: &str) -> Self {
-        // TODO: parse _accepts_language using https://crates.io/crates/accept-language
-
-        Self::new(locale.unwrap_or(default))
-    }
+    /// Create a localizer, following given locale preferences.
+    /// If `user_locale` is provided and translations are available in that locale, it will be chosen.
+    /// If `accepts_language`, a transcription of an `Accepts-Language` HTTP header, is provided, and
+    /// `user_locale` is not provided, the highest-priority available locale will be chosen from the accepts-language
+    /// header.
+    /// If neither of these options are provided or available, the `default_locale` attribute provided to the
+    /// `impl_localize!` macro will be used, with "en-US" as a default.
+    fn new(user_locale: Option<&str>, accepts_language: Option<&str>) -> Self;
 
     // TODO: refactor the following to be allocation-free once fluent is refactored
 
     /// Localize a particular message
     fn localize_into(
+        &self,
         writer: &mut dyn std::fmt::Write,
         message_id: &str,
-        args: Option<HashMap<&str, shared::i18n::I18nValue>>,
+        args: Option<&HashMap<&str, shared::i18n::I18nValue>>,
     ) -> Result<()>;
 }
 
@@ -648,4 +647,4 @@ pub mod gotham {
 pub fn rerun_if_templates_changed() {}
 
 #[cfg(feature = "with-i18n")]
-pub use askama_derive::init_askama_i18n;
+pub use askama_derive::impl_localize;

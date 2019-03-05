@@ -1056,15 +1056,28 @@ impl<'a> Generator<'a> {
     fn visit_localize(
         &mut self,
         buf: &mut Buffer,
-        _message: &str,
-        _attribute: Option<&str>,
-        _args: &[(&str, Expr)],
+        message: &str,
+        attribute: Option<&str>,
+        args: &[(&str, Expr)],
     ) -> DisplayWrap {
         if !cfg!(feature = "with-i18n") {
             panic!(
                 "The askama feature 'with-i18n' must be activated to enable calling `localize`."
             );
         }
+
+        /*
+        let mut message = message.to_string();
+        if let Some(attribute) = attribute {
+            message.push_str(".");
+            message.push_str(attribute);
+        }
+
+        buf.write(&format!("i18n::LOCALIZATIONS::localize({}, {}, {})",
+
+        ));
+
+        */
         eprintln!("warning: localize unimplemented!");
         buf.write("\"what other language?\"");
         DisplayWrap::Unwrapped

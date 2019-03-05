@@ -40,8 +40,9 @@ pub enum Error {
     #[cfg(feature = "with-i18n")]
     I18n(Option<::fluent_bundle::errors::FluentError>),
 
+    /// missing locale error
     #[cfg(feature = "with-i18n")]
-    NoTranslationsForLocale(&'static str),
+    NoTranslationsForLocale(String),
 
     /// This error needs to be non-exhaustive as
     /// the `Json` variants existence depends on
@@ -59,6 +60,8 @@ impl ErrorTrait for Error {
             #[cfg(feature = "with-fluent")]
             // fluent uses failure, don't want to bring all that in ;-;
             Error::I18n(_) => "fluent i18n error",
+            // fluent uses failure, don't want to bring all that in ;-;
+            Error::NoTranslationsForLocale(_) => "missing translations error for locale",
             _ => "unknown error: __Nonexhaustive",
         }
     }
@@ -88,6 +91,10 @@ impl Display for Error {
                 .as_ref()
                 .map(|e| write!(formatter, "fluent i18n error: {}", e))
                 .unwrap_or_else(|| write!(formatter, "unknown fluent i18n error")),
+            #[cfg(feature = "with-fluent")]
+            Error::NoTranslationsForLocale(locale) => {
+                write!("missing translations error for locale {:?}", locale)
+            }
             _ => write!(formatter, "unknown error: __Nonexhaustive"),
         }
     }

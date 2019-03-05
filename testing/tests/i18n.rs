@@ -1,14 +1,14 @@
 #![cfg(feature = "with-i18n")]
 #![allow(unused)]
 
-mod i18n {
-    askama::init_askama_i18n! {"i18n-basic"}
+use askama::{impl_localize, Template};
+
+impl_localize! {
+    #[localize(path = "i18n-basic", default_locale = "en-US")]
+    struct BasicLocalizer(_);
 }
 
-use askama::Template;
-
 //
-
 #[derive(Template)]
 #[template(path = "i18n.html")]
 struct UsesI18n<'a> {

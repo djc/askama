@@ -1,29 +1,35 @@
 //! Internationalization codegen.
-use proc_macro::TokenStream;
+use proc_macro2::TokenStream;
 
 use fluent_syntax::ast;
+use quote::quote;
 use std::collections::BTreeMap;
 use std::env;
 use std::fmt::Write;
 use std::fs::{read_to_string, DirEntry};
 use std::path::{Path, PathBuf};
 
-pub fn init_askama_i18n(item: TokenStream) -> TokenStream {
+use syn::parse::{Parse, ParseStream, Result};
+use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
+use syn::{bracketed, parenthesized, parse_macro_input, token, Expr, Ident, LitStr, Token};
+
+pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // TODO fancier parsing
-    let path = syn::parse_macro_input!(item as syn::LitStr).value();
+    let ast = syn::parse_macro_input!(item as ImplLocalize);
 
     let mut root =
         PathBuf::from(&env::var("CARGO_MANIFEST_DIR").expect("askama doesn't work without cargo"));
-    root.push(path);
+    root.push(&ast.path);
 
     assert!(root.is_dir(), "no such directory: {:?}", root);
 
-    let mut sources = "&[\n".to_string();
+    let mut sources = vec![];
 
     // TODO: we could just use these as the sources and parse separately,
     // might avoid contamination... also this might include sources twice
     // if the linker doesn't throw out the useless strings
-    let mut includes = "".to_string();
+    let mut includes = vec![];
 
     let mut message_counts = BTreeMap::new();
 
@@ -54,11 +60,14 @@ pub fn init_askama_i18n(item: TokenStream) -> TokenStream {
             let parse_check = fluent_bundle::FluentResource::try_new(file_source.clone())
                 .unwrap_or_else(|(res, errs)| {
                     // TODO: how should this be formatted?
-                    println!("error: fluent parse errors in `{}`", pretty_path);
+                    eprintln!(
+                        "askama i18n error: fluent parse errors in `{}`",
+                        pretty_path
+                    );
                     for err in errs {
                         let (line, col) = linecol(&file_source, err.pos.0);
-                        println!(
-                            "error:     {}:{}:{}: {:?}",
+                        eprintln!(
+                            "askama i18n error:     {}:{}:{}: {:?}",
                             pretty_path, line, col, err.kind
                         );
                     }
@@ -72,121 +81,136 @@ pub fn init_askama_i18n(item: TokenStream) -> TokenStream {
                 }
             }
 
-            writeln!(
-                includes,
-                "    include_bytes!(\"{}\");",
-                ftl_file.path().display()
-            )
-            .unwrap();
+            includes.push(ftl_file.path().display().to_string());
 
             source.push_str(&file_source);
 
             message_counts.insert(locale.clone(), message_count);
         }
 
-        writeln!(
-            sources,
-            r#####"    ("{}", r####"{}"####),   "#####,
-            locale, source
-        )
-        .unwrap();
+        sources.push((locale, source));
     }
 
     if had_errors {
         // TODO: compile-fail test?
-        panic!("fluent source files have errors, not continuing")
+        panic!("askama i18n error: fluent source files have errors, not continuing")
     }
     if includes.len() == 0 {
-        eprintln!("warning: no fluent .ftl translation files provided in i18n directory, localize() won't do much");
+        eprintln!("askama i18n warning: no fluent .ftl translation files provided in i18n directory, localize() won't do much");
     }
 
-    write!(sources, "\n]").unwrap();
+    let coverage = coverage(message_counts);
+    let sources = sources
+        .into_iter()
+        .map(|(locale, source)| quote! { (#locale, #source) })
+        .collect::<Vec<_>>();
+    let includes = includes
+        .into_iter()
+        .map(|i| quote! { include_bytes!(#i); })
+        .collect::<Vec<_>>();
 
-    let result = format!(
-        r##"// Internationalization support. Automatically generated from files in the `i18n` folder.
+    let name = ast.name;
+    let default_locale = ast.default_locale; // TODO use; panic if missing
 
-use ::askama::i18n::{{
-    Localizations, FluentResource, FluentValue, Resources,
-    Sources, FallbackChains, parse_all, lazy_static,
-}};
-const SOURCES: Sources = {sources};
+    let result = (quote! {
+            /// Internationalization support. Automatically generated from files in the `i18n` folder.
+            pub struct #name(&'static str);
 
-const FALLBACK_CHAINS: FallbackChains = {fallback_chains};
+            impl ::askama::Localize for #name {
+                
+                fn new(locale: Option<&str>, accepts_language: Option<&str>) -> Self {
+                    #name(__i18n_hidden::STATIC_PARSER.choose_locale(locale, accepts_language))
+                }
 
-lazy_static! {{
-    static ref RESOURCES: Resources = parse_all(SOURCES);
-    pub static ref LOCALIZATIONS: Localizations<'static> = 
-        Localizations::new(&RESOURCES, FALLBACK_CHAINS);
-}}
+                #[inline]
+                fn localize_into(&self,
+                    writer: &mut ::std::fmt::Write,
+                    message: &str,
+                    args: Option<&::std::collections::HashMap<&str, ::askama::i18n::I18nValue>>) -> ::askama::Result<()> {
+                    __i18n_hidden::STATIC_PARSER.localize_into(self.0, writer, message, args)
+                }
+            }
 
-fn _bs() {{
-    {includes}
-}}
+            #[doc(hidden)]
+            mod __i18n_hidden {
+                use ::askama::i18n::I18nValue;
+                use ::askama::i18n::macro_impl::{
+                    StaticParser, Resources,
+                    Sources, FallbackChains, lazy_static,
+                };
+                pub const SOURCES: Sources = &[
+                    #(#sources),*
+                ];
 
-#[cfg(test)]
-mod tests {{
-    #[test]
-    fn parse() {{
-        let _parse_all_sources = &*super::LOCALIZATIONS;
-    }}
+                const FALLBACK_CHAINS: FallbackChains = &[&["en-US"]];
 
-    #[test]
-    fn i18n_coverage() {{
-        {coverage}
-    }}
-}}
-"##,
-        fallback_chains = r#"&[&["en-US"]]"#,
-        sources = sources,
-        includes = includes,
-        coverage = coverage(message_counts)
-    );
+                lazy_static! {
+                    static ref RESOURCES: Resources = Resources::new(SOURCES);
+                    pub static ref STATIC_PARSER: StaticParser<'static> =
+                        StaticParser::new(&RESOURCES, FALLBACK_CHAINS, #default_locale);
+                }
 
-    result.parse().unwrap()
+                #[allow(unused)]
+                fn i_depend_on_these_files() {
+                    #(#includes)*
+                }
+
+                #[cfg(test)]
+                mod tests {
+                    #[test]
+                    fn parse() {
+                        let _parse_all_sources = &*super::STATIC_PARSER;
+                    }
+
+                    #[test]
+                    fn i18n_coverage() {
+                        #coverage
+                    }
+                }
+            }
+        })
+    .into();
+    println!("{}", result);
+    result
 }
 
 /// Generate a test that gives a fluent coverage report when run.
-fn coverage(message_counts: BTreeMap<String, usize>) -> String {
-    let mut result =
-        "eprintln!(\"askama-i18n-coverage: translated messages and attributes per locale:\");"
-            .to_string();
-    let max = message_counts.values().max();
-    if max.is_none() {
-        writeln!(
-            result,
-            "eprintln!(\"askama-i18n-coverage: no translation files provided, coverage vacuous\");"
-        )
-        .unwrap();
-        return result;
+fn coverage(message_counts: BTreeMap<String, usize>) -> TokenStream {
+    if message_counts.len() == 0 {
+        return quote! {
+            eprintln!("askama-i18n-coverage: no translation files provided, coverage vacuous");
+        };
     }
-    let max = max.unwrap();
-    let mut found_bad = false;
 
-    for (locale, message_count) in message_counts.iter() {
-        if message_count < max {
-            found_bad = true;
+    let max = message_counts.values().max().unwrap();
+
+    let coverages = message_counts
+        .iter()
+        .map(|(locale, message_count)| {
+            let percent = 100.0 * (*message_count as f32) / (*max as f32);
+            quote! {
+                eprintln!("askama-i18n-coverage: {} \t{:3.0}% ({}/{})", #locale, #percent, #message_count / #max);
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let found_bad = message_counts.values().any(|count| count < max);
+    let end = if found_bad {
+        quote! {
+        eprintln!("askama-i18n-coverage: help: to get accurate results, make sure \
+        that messages\n not used directly by your software are prefixed with a dash (`-`).");
         }
-        let percent = 100.0 * (*message_count as f32) / (*max as f32);
-        writeln!(
-            result,
-            r#"eprintln!("askama-i18n-coverage: {} \t{:3.0}% ({}/{})");"#,
-            locale, percent, message_count, max
-        )
-        .unwrap();
-    }
-
-    if found_bad {
-        writeln!(result, "eprintln!(\"askama-i18n-coverage: help: to get accurate results, make sure \
-            that messages\n not used directly by your software are prefixed with a dash (`-`).\");").unwrap();
     } else {
-        writeln!(
-            result,
-            "eprintln!(\"askama-i18n-coverage: fully covered, nice job :)\");"
-        )
-        .unwrap();
-    }
+        quote! {
+            eprintln!("askama-i18n-coverage: fully covered, nice job :)");
+        }
+    };
 
-    result
+    quote! {
+        eprintln!("askama-i18n-coverage: translated messages and attributes per locale:");
+        #(coverages)*
+        #end
+    }
 }
 
 fn children(path: &Path) -> impl Iterator<Item = DirEntry> {
@@ -211,4 +235,78 @@ fn linecol(src: &str, offset: usize) -> (usize, usize) {
     }
 
     (line, col)
+}
+
+struct NamedArg {
+    name: Ident,
+    value: String,
+}
+
+impl Parse for NamedArg {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let name = input.parse::<Ident>()?;
+        input.parse::<Token![=]>()?;
+        let value = input.parse::<LitStr>()?.value();
+        Ok(NamedArg { name, value })
+    }
+}
+
+struct ImplLocalize {
+    name: Ident,
+    path: String,
+    default_locale: String,
+}
+
+impl Parse for ImplLocalize {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut path = None;
+        let mut default_locale = None;
+
+        input.parse::<Token![#]>()?;
+        let annotation;
+        bracketed!(annotation in input);
+
+        let ann_name = annotation.parse::<Ident>()?;
+        if ann_name.to_string() != "localize" {
+            return Err(syn::parse::Error::new(
+                ann_name.span(),
+                "expected `#[localize]` or `#[localize(path = \"...\", default_locale = \"...\")]",
+            ));
+        }
+
+        let lookahead = annotation.lookahead1();
+        if lookahead.peek(token::Paren) {
+            let args;
+            parenthesized!(args in annotation);
+            let args = Punctuated::<NamedArg, Token![,]>::parse_terminated(&args)?;
+            for arg in args.iter() {
+                match &arg.name.to_string()[..] {
+                    "path" => path = Some(arg.value.clone()),
+                    "default_locale" => default_locale = Some(arg.value.clone()),
+                    _ => {
+                        return Err(syn::parse::Error::new(
+                            arg.name.span(),
+                            "expected one of `path = \"...\"`, `default_locale = \"...\"`",
+                        ));
+                    }
+                }
+            }
+        }
+
+        let path = path.unwrap_or("i18n".to_string());
+        let default_locale = default_locale.unwrap_or("en-US".to_string());
+
+        input.parse::<Token![struct]>()?;
+        let name = input.parse::<Ident>()?;
+        let dummy;
+        parenthesized!(dummy in input);
+        dummy.parse::<Token![_]>()?;
+        input.parse::<Token![;]>()?;
+
+        Ok(ImplLocalize {
+            name,
+            path,
+            default_locale,
+        })
+    }
 }

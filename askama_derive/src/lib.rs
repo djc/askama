@@ -1,3 +1,5 @@
+#![recursion_limit = "128"]
+
 extern crate proc_macro;
 #[macro_use]
 extern crate nom;
@@ -223,8 +225,8 @@ fn get_template_source(tpl_path: &Path) -> String {
 
 #[cfg(feature = "with-i18n")]
 #[proc_macro]
-pub fn init_askama_i18n(_item: TokenStream) -> TokenStream {
-    i18n::init_askama_i18n(_item)
+pub fn impl_localize(_item: TokenStream) -> TokenStream {
+    i18n::impl_localize(_item)
 }
 
 #[cfg(test)]

@@ -7,7 +7,7 @@ pub type I18nValue = fluent_bundle::FluentValue;
 /// to use these types directly.
 pub mod macro_impl {
     use fluent_bundle::{FluentBundle, FluentResource, FluentValue};
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
     use super::super::{Error, Result};
 
@@ -43,12 +43,23 @@ pub mod macro_impl {
     /// `init_askama_i18n!()` macro or codegen for the `localize(...)` filter.
     pub struct StaticParser<'a> {
         bundles: HashMap<&'static str, FluentBundle<'a>>,
+        locales: HashSet<&'static str>,
         default_locale: &'static str,
     }
 
     impl<'a> StaticParser<'a> {
-        pub fn new(resources: &'a Resources, fallback_chains: FallbackChains) -> StaticParser<'a> {
+        pub fn new(
+            resources: &'a Resources,
+            fallback_chains: FallbackChains,
+            default_locale: &'static str,
+        ) -> StaticParser<'a> {
+            assert!(
+                resources.0.contains_key(default_locale),
+                "default locale not in available languages!"
+            );
+
             let mut bundles = HashMap::new();
+            let mut locales = HashSet::new();
             for (locale, resource) in resources.0.iter() {
                 let default_chain = &[*locale];
 
@@ -64,20 +75,40 @@ pub mod macro_impl {
                     .add_resource(resource)
                     .expect("failed to add resource");
                 bundles.insert(*locale, bundle);
+                locales.insert(*locale);
             }
 
             StaticParser {
                 bundles,
-                default_locale: "en-US", // TODO: actually parse this
+                locales,
+                default_locale,
             }
         }
 
-        pub fn localize(
+        /// Chooses a locale; see the documentation of `new` on the `Localize` trait.
+        /// Can return a `'static str` because all available locales are baked into the
+        /// output binary.
+        pub fn choose_locale(
+            &self,
+            locale: Option<&str>,
+            accepts_language: Option<&str>,
+        ) -> &'static str {
+            if let Some(locale) = locale {
+                if let Some(&static_locale) = self.locales.get(locale) {
+                    return static_locale;
+                }
+            }
+            // TODO: parse accepts_language
+            self.default_locale
+        }
+
+        pub fn localize_into(
             &self,
             locale: &str,
+            writer: &mut std::fmt::Write,
             path: &str,
             args: Option<&HashMap<&str, FluentValue>>,
-        ) -> Result<String> {
+        ) -> Result<()> {
             let bundle = self.bundles.get(locale).unwrap_or_else(|| {
                 // TODO: use fallback chains here? might be confusing, could just error
                 &self.bundles["en-US"]
@@ -92,7 +123,8 @@ pub mod macro_impl {
                     // TODO handle more than 1 error
                     Err(Error::I18n(Some(errs.pop().unwrap())))
                 } else {
-                    Ok(result)
+                    write!(writer, "{}", result)?;
+                    Ok(())
                 }
             } else {
                 // TODO better error message here, this shows up as Err(I18n(None)) w/ no explanation
