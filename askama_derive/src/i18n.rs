@@ -181,12 +181,16 @@ fn coverage(message_counts: BTreeMap<String, usize>) -> TokenStream {
 
     let max = message_counts.values().max().unwrap();
 
-    let _coverages = message_counts
+    let coverages = message_counts
         .iter()
         .map(|(locale, message_count)| {
             let percent = 100.0 * (*message_count as f32) / (*max as f32);
+            let message = format!(
+                "askama-i18n-coverage: {} \t{:3.0}% ({}/{})",
+                locale, percent, message_count, max
+            );
             quote! {
-                eprintln!("askama-i18n-coverage: {} \t{:3.0}% ({}/{})", #locale, #percent, #message_count / #max);
+                eprintln!(#message);
             }
         })
         .collect::<Vec<_>>();
@@ -205,7 +209,7 @@ fn coverage(message_counts: BTreeMap<String, usize>) -> TokenStream {
 
     quote! {
         eprintln!("askama-i18n-coverage: translated messages and attributes per locale:");
-        #(_coverages)*
+        #(#coverages)*
         #end
     }
 }

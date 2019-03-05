@@ -8,9 +8,8 @@ impl_localize! {
     struct BasicLocalizer(_);
 }
 
-//
 #[derive(Template)]
-#[template(path = "i18n.html", print = "code")]
+#[template(path = "i18n.html")]
 struct UsesI18n<'a> {
     #[localizer]
     localizer: BasicLocalizer,
