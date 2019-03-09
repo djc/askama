@@ -203,7 +203,7 @@ pub mod macro_impl {
         #[test]
         fn choose_locale() {
             let resources = Resources::new(SOURCES);
-            let bundles = StaticParser::new(&resources, FALLBACK_CHAINS, "en-US");
+            let bundles = StaticParser::new(&resources, "en-US");
 
             // first choice has precedence
             assert_eq!(
