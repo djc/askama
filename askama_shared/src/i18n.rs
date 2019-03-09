@@ -16,8 +16,6 @@ pub mod macro_impl {
 
     pub type Sources = &'static [(&'static str, &'static str)];
 
-    pub type FallbackChains = &'static [&'static [&'static str]];
-
     /// Parsed sources.
     pub struct Resources(HashMap<&'static str, FluentResource>);
 
@@ -55,7 +53,6 @@ pub mod macro_impl {
     impl<'a> StaticParser<'a> {
         pub fn new(
             resources: &'a Resources,
-            fallback_chains: FallbackChains,
             default_locale: &'static str,
         ) -> StaticParser<'a> {
             assert!(
@@ -66,15 +63,9 @@ pub mod macro_impl {
             let mut bundles = HashMap::new();
             let mut locales = HashMap::new();
             for (locale, resource) in resources.0.iter() {
-                let default_chain = &[*locale];
+                let fallback_chain = &[*locale, &locale[..2], default_locale, &default_locale[..2]];
 
-                let chain = fallback_chains
-                    .iter()
-                    .map(|chain| *chain)
-                    .find(|chain| chain[0] == *locale)
-                    .unwrap_or(default_chain);
-
-                let mut bundle = FluentBundle::new(chain);
+                let mut bundle = FluentBundle::new(fallback_chain);
 
                 bundle
                     .add_resource(resource)
@@ -178,12 +169,11 @@ pub mod macro_impl {
                 "greeting = ¡Hola, { $name }! Tienes { $hours } horas.",
             ),
         ];
-        const FALLBACK_CHAINS: FallbackChains = &[&["en-US", "en-UK"]];
 
         #[test]
         fn basic() -> Result<()> {
             let resources = Resources::new(SOURCES);
-            let bundles = StaticParser::new(&resources, FALLBACK_CHAINS, "en-US");
+            let bundles = StaticParser::new(&resources, "en-US");
             let name = FluentValue::from("Jamie");
             let hours = FluentValue::from(190321.31);
             let args = &[("name", &name), ("hours", &hours)][..];

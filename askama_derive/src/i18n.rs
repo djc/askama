@@ -135,18 +135,16 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
             use ::askama::i18n::I18nValue;
             use ::askama::i18n::macro_impl::{
                 StaticParser, Resources,
-                Sources, FallbackChains, lazy_static,
+                Sources, lazy_static,
             };
             pub const SOURCES: Sources = &[
                 #(#sources),*
             ];
 
-            const FALLBACK_CHAINS: FallbackChains = &[&["en-US"]];
-
             lazy_static! {
                 static ref RESOURCES: Resources = Resources::new(SOURCES);
                 pub static ref STATIC_PARSER: StaticParser<'static> =
-                    StaticParser::new(&RESOURCES, FALLBACK_CHAINS, #default_locale);
+                    StaticParser::new(&RESOURCES, #default_locale);
             }
 
             #[allow(unused)]
