@@ -4,7 +4,7 @@
 use askama::{impl_localize, Localize, Template};
 
 impl_localize! {
-    #[localize(path = "i18n-basic", default_locale = "en-US")]
+    #[localize(path = "i18n-basic", default_locale = "en_US")]
     struct BasicLocalizer(_);
 }
 
@@ -20,7 +20,7 @@ struct UsesI18n<'a> {
 #[test]
 fn basic() {
     let template = UsesI18n {
-        localizer: BasicLocalizer::new(Some("es-MX"), None),
+        localizer: BasicLocalizer::new(Some("es_MX"), None),
         name: "Hilda",
         hours: 300072.3,
     };

@@ -418,19 +418,19 @@
 //!
 //! Create a folder structure at your project root, organized like so:
 //! - `i18n`
-//!   - `en-US`
+//!   - `en_US`
 //!     - `greeting.ftl`
-//!   - `es-MX`
+//!   - `es_MX`
 //!     - `greeting.ftl`
 //!
 //! Add some localizations in [Fluent's `FTL` Syntax](https://projectfluent.org/fluent/guide/):
 //!
-//! `i18n/en-US/greeting.ftl`:
+//! `i18n/en_US/greeting.ftl`:
 //! ```txt
 //! hello = Hello, $name!
 //! age.tracker = You are $age_hours hours old.
 //! ```
-//! `i18n/es-MX/greeting.ftl`:
+//! `i18n/es_MX/greeting.ftl`:
 //! ```txt
 //! hello = ¡Hola, $name!
 //! age.tracker = Tiene $age_hours horas.
@@ -444,7 +444,7 @@
 //! use askama::{Localize, impl_localize};
 //!
 //! impl_localize! {
-//!     #[localize(path = "i18n", default_locale = "en-US")]
+//!     #[localize(path = "i18n", default_locale = "en_US")]
 //!     struct AppLocalizer(_);
 //! }
 //! # }
@@ -463,7 +463,7 @@
 //! # extern crate askama;
 //! # use askama::{Localize, impl_localize, Template};
 //! # impl_localize! {
-//! #     #[localize(path = "i18n", default_locale = "en-us")]
+//! #     #[localize(path = "i18n", default_locale = "en_US")]
 //! #     struct AppLocalizer(_);
 //! # }
 //! #[derive(Template)]
@@ -484,7 +484,6 @@
 //! ```
 //!
 //! Now, your template will be automatically translated when rendered:
-
 //! ```no_run
 //! # #[cfg(feature = "with-i18n")]
 //! # {
@@ -492,7 +491,7 @@
 //! # extern crate askama;
 //! # use askama::{Localize, impl_localize, Template};
 //! # impl_localize! {
-//! #     #[localize(path = "i18n", default_locale = "en-us")]
+//! #     #[localize(path = "i18n", default_locale = "en_US")]
 //! #     struct AppLocalizer(_);
 //! # }
 //! # #[derive(Template)]
@@ -507,7 +506,7 @@
 //! # use lmao_rustc::*;
 //! # use askama::Localize;
 //! println!("{}", HelloTemplate {
-//!     localizer: AppLocalizer::new(Some("en-US"), None),
+//!     localizer: AppLocalizer::new(Some("en_US"), None),
 //!     name: "Jamie",
 //!     age_hours: 195_481.8
 //! });
@@ -516,7 +515,7 @@
 //! <h3>You are 195,481.8 hours old.</h1>
 //! */
 //! println!("{}", HelloTemplate {
-//!     localizer: AppLocalizer::new(Some("es-MX"), None),
+//!     localizer: AppLocalizer::new(Some("es_MX"), None),
 //!     name: "Jamie",
 //!     age_hours: 195_481.8
 //! });
@@ -528,7 +527,7 @@
 //! ```
 //!
 //! To generate a coverage report, run:
-//! cargo test i18n_coverage -- --nocapture
+//! `cargo test i18n_coverage -- --nocapture`
 //!
 //! This will report on the percent of messages translated in each locale.
 
@@ -579,7 +578,7 @@ pub trait Localize: Sized {
     /// `user_locale` is not provided, the highest-priority available locale will be chosen from the accept-language
     /// header.
     /// If neither of these options are provided or available, the `default_locale` attribute provided to the
-    /// `impl_localize!` macro will be used, with "en-US" as a default.
+    /// `impl_localize!` macro will be used, with "en_US" as a default.
     fn new(user_locale: Option<&str>, accept_language: Option<&str>) -> Self;
 
     // TODO: refactor the following to be allocation-free once fluent is refactored

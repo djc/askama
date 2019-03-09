@@ -261,6 +261,7 @@ impl Parse for ImplLocalize {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut path = None;
         let mut default_locale = None;
+        // TODO: input pub?
 
         input.parse::<Token![#]>()?;
         let annotation;
@@ -294,7 +295,7 @@ impl Parse for ImplLocalize {
         }
 
         let path = path.unwrap_or("i18n".to_string());
-        let default_locale = default_locale.unwrap_or("en-US".to_string());
+        let default_locale = default_locale.unwrap_or("en_US".to_string());
 
         input.parse::<Token![struct]>()?;
         let name = input.parse::<Ident>()?;
