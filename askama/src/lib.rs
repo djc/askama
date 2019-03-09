@@ -445,7 +445,7 @@
 //!
 //! impl_localize! {
 //!     #[localize(path = "i18n", default_locale = "en_US")]
-//!     struct AppLocalizer(_);
+//!     pub struct AppLocalizer(_);
 //! }
 //! # }
 //! ```
@@ -580,8 +580,6 @@ pub trait Localize: Sized {
     /// If neither of these options are provided or available, the `default_locale` attribute provided to the
     /// `impl_localize!` macro will be used, with "en_US" as a default.
     fn new(user_locale: Option<&str>, accept_language: Option<&str>) -> Self;
-
-    // TODO: refactor the following to be allocation-free once fluent is refactored
 
     /// Localize a particular message
     fn localize(

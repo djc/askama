@@ -38,7 +38,7 @@ pub enum Error {
 
     /// internationalization error from fluent
     #[cfg(feature = "with-i18n")]
-    I18n(Option<::fluent_bundle::errors::FluentError>),
+    I18n(::fluent_bundle::errors::FluentError),
 
     /// missing locale error
     #[cfg(feature = "with-i18n")]
@@ -88,10 +88,7 @@ impl Display for Error {
             #[cfg(feature = "serde_yaml")]
             Error::Yaml(ref err) => write!(formatter, "yaml conversion error: {}", err),
             #[cfg(feature = "with-fluent")]
-            Error::I18n(ref err) => err
-                .as_ref()
-                .map(|e| write!(formatter, "fluent i18n error: {}", e))
-                .unwrap_or_else(|| write!(formatter, "unknown fluent i18n error")),
+            Error::I18n(ref err) => write!(formatter, "fluent i18n error: {}", err),
             #[cfg(feature = "with-fluent")]
             Error::NoTranslationsForLocale(locale) => {
                 write!("missing translations error for locale {:?}", locale)

@@ -43,10 +43,7 @@ pub struct StaticParser<'a> {
 }
 
 impl<'a> StaticParser<'a> {
-    pub fn new(
-        resources: &'a Resources,
-        default_locale: &'static str,
-    ) -> StaticParser<'a> {
+    pub fn new(resources: &'a Resources, default_locale: &'static str) -> StaticParser<'a> {
         assert!(
             resources.0.contains_key(default_locale),
             "default locale not in available languages!"
@@ -112,16 +109,14 @@ impl<'a> StaticParser<'a> {
         message: &str,
         args: &[(&str, &FluentValue)],
     ) -> Result<String> {
-        let bundle = self.bundles.get(locale).unwrap_or_else(|| 
-            // TODO: it would be possible to do something more elaborate here
-            &self.bundles[self.default_locale]
-        );
+        let bundle = self
+            .bundles
+            .get(locale)
+            .unwrap_or_else(|| &self.bundles[self.default_locale]);
 
         let args = if args.len() == 0 {
             None
         } else {
-            // TODO this is an extra copy:
-            // remove once fluent has been refactored
             Some(args.into_iter().map(|(k, v)| (*k, (*v).clone())).collect())
         };
         let args = args.as_ref();
@@ -133,8 +128,7 @@ impl<'a> StaticParser<'a> {
 
         if let Some((result, mut errs)) = result {
             if errs.len() > 0 {
-                // TODO handle more than 1 error
-                Err(Error::I18n(Some(errs.pop().unwrap())))
+                Err(Error::I18n(errs.pop().unwrap()))
             } else {
                 Ok(result)
             }
@@ -142,7 +136,10 @@ impl<'a> StaticParser<'a> {
             // TODO better error message here, this shows up as Err(I18n(None)) w/ no explanation
             // in panics
             // TODO find error for missing localizations and fall back to default_locale
-            Err(Error::I18n(None))
+            Err(Error::NoTranslationsForLocale(format!(
+                "no translations for locale {}, message {}",
+                locale, message
+            )))
         }
     }
 }

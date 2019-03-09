@@ -14,7 +14,6 @@ use syn::punctuated::Punctuated;
 use syn::{bracketed, parenthesized, token, Ident, LitStr, Token};
 
 pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    // TODO fancier parsing
     let ast = syn::parse_macro_input!(item as ImplLocalize);
 
     let mut root =
@@ -25,9 +24,6 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut sources = vec![];
 
-    // TODO: we could just use these as the sources and parse separately,
-    // might avoid contamination... also this might include sources twice
-    // if the linker doesn't throw out the useless strings
     let mut includes = vec![];
 
     let mut message_counts = BTreeMap::new();
@@ -39,8 +35,7 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         message_counts.insert(locale.clone(), 0);
 
-        // TODO: is this a valid locale-string check?
-        if locale.len() != 5 || locale.chars().nth(2).unwrap() != '-' {
+        if !child.file_type().unwrap().is_dir() {
             continue;
         }
 
@@ -49,6 +44,15 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let mut source = String::new();
 
         for ftl_file in children(&child.path()) {
+            if ftl_file
+                .path()
+                .extension()
+                .map(|x| x != "ftl")
+                .unwrap_or(false)
+            {
+                // not an ftl file
+                continue;
+            }
             let file_source = read_to_string(&ftl_file.path()).expect("failed to read .ftl file");
             let path = ftl_file.path();
             let pretty_path = path
@@ -58,7 +62,6 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             let parse_check = fluent_bundle::FluentResource::try_new(file_source.clone())
                 .unwrap_or_else(|(res, errs)| {
-                    // TODO: how should this be formatted?
                     eprintln!(
                         "askama i18n error: fluent parse errors in `{}`",
                         pretty_path
@@ -87,15 +90,31 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
             message_counts.insert(locale.clone(), message_count);
         }
 
+        if source.len() == 0 {
+            // empty directory
+            continue;
+        }
+
         sources.push((locale, source));
     }
 
     if had_errors {
-        // TODO: compile-fail test?
         panic!("askama i18n error: fluent source files have errors, not continuing")
     }
     if includes.len() == 0 {
         eprintln!("askama i18n warning: no fluent .ftl translation files provided in i18n directory, localize() won't do much");
+    }
+
+    let name = ast.name;
+    let default_locale = ast.default_locale;
+
+    if sources
+        .iter()
+        .filter(|(locale, _)| locale == &default_locale)
+        .next()
+        .is_none()
+    {
+        panic!("askama i18n error: no code for default locale");
     }
 
     let coverage = coverage(message_counts);
@@ -107,9 +126,6 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .into_iter()
         .map(|i| quote! { include_bytes!(#i); })
         .collect::<Vec<_>>();
-
-    let name = ast.name;
-    let default_locale = ast.default_locale; // TODO use; panic if missing
 
     let result = (quote! {
         /// Internationalization support. Automatically generated from files in the `i18n` folder.
@@ -261,7 +277,6 @@ impl Parse for ImplLocalize {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut path = None;
         let mut default_locale = None;
-        // TODO: input pub?
 
         input.parse::<Token![#]>()?;
         let annotation;
@@ -296,6 +311,12 @@ impl Parse for ImplLocalize {
 
         let path = path.unwrap_or("i18n".to_string());
         let default_locale = default_locale.unwrap_or("en_US".to_string());
+
+        let lookahead = input.lookahead1();
+        if lookahead.peek(Token![pub]) {
+            // note: currently the output is always pub. Shrug emoji
+            input.parse::<Token![pub]>()?;
+        }
 
         input.parse::<Token![struct]>()?;
         let name = input.parse::<Ident>()?;
