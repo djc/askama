@@ -436,29 +436,36 @@
 //! age.tracker = Tiene $age_hours horas.
 //! ```
 //!
-//! TODO remove no_builds here
-//!
 //! Call the `impl_localize!()` macro at your crate root:
-//! ```no_build
+//! ```
+//! # #[cfg(feature = "with-i18n")]
+//! # mod lmao_rustc {
 //! extern crate askama;
 //! use askama::{Localize, impl_localize};
 //!
 //! impl_localize! {
-//!     #[i18n(path = "i18n", default_locale = "en-us")]
+//!     #[localize(path = "i18n", default_locale = "en-US")]
 //!     struct AppLocalizer(_);
 //! }
+//! # }
 //! ```
 //!
-//! This creates a struct called `AppLocalizer` which implements the askama `Localize` trait.
+//! This creates a struct called `AppLocalizer` which implements the askama [`Localize`]() trait.
 //!
 //! This will bake translations you provide into the output executable, to ease
 //! deployment; all you need is one binary.
 //!
 //! Now, on templates you want to localize, add a member of type `AppLocalizer`
 //! annotated with the `#[localizer]` attribute:
-//! ```no_build
-//! use crate::AppLocalizer;
-//!
+//! ```
+//! # #[cfg(feature = "with-i18n")]
+//! # mod lmao_rustc {
+//! # extern crate askama;
+//! # use askama::{Localize, impl_localize, Template};
+//! # impl_localize! {
+//! #     #[localize(path = "i18n", default_locale = "en-us")]
+//! #     struct AppLocalizer(_);
+//! # }
 //! #[derive(Template)]
 //! #[template(path = "hello.html")]
 //! struct HelloTemplate<'a> {
@@ -467,6 +474,7 @@
 //!     name: &'a str,
 //!     age_hours: f32,
 //! }
+//! # }
 //! ```
 //!
 //! And now you can use the `localize` filter in your templates:
@@ -476,17 +484,47 @@
 //! ```
 //!
 //! Now, your template will be automatically translated when rendered:
-//!
-//! `println!("{}", HelloTemplate { localizer: AppLocalizer::new("en-US"), name: "Jamie", age_hours: 195_481.8 });`
-//! ```html
+
+//! ```no_run
+//! # #[cfg(feature = "with-i18n")]
+//! # {
+//! # mod lmao_rustc {
+//! # extern crate askama;
+//! # use askama::{Localize, impl_localize, Template};
+//! # impl_localize! {
+//! #     #[localize(path = "i18n", default_locale = "en-us")]
+//! #     struct AppLocalizer(_);
+//! # }
+//! # #[derive(Template)]
+//! # #[template(path = "hello.html")]
+//! # pub struct HelloTemplate<'a> {
+//! #     #[localizer]
+//! #     pub localizer: AppLocalizer,
+//! #     pub name: &'a str,
+//! #     pub age_hours: f32,
+//! # }
+//! # }
+//! # use lmao_rustc::*;
+//! # use askama::Localize;
+//! println!("{}", HelloTemplate {
+//!     localizer: AppLocalizer::new(Some("en-US"), None),
+//!     name: "Jamie",
+//!     age_hours: 195_481.8
+//! });
+//! /*
 //! <h1>Hello, Jamie!</h1>
 //! <h3>You are 195,481.8 hours old.</h1>
-//! ```
-//!
-//! `println!("{}", HelloTemplate { localizer: AppLocalizer::new("es-MX"), name: "Jamie", age_hours: 195_481.8 });`
-//! ```html
+//! */
+//! println!("{}", HelloTemplate {
+//!     localizer: AppLocalizer::new(Some("es-MX"), None),
+//!     name: "Jamie",
+//!     age_hours: 195_481.8
+//! });
+//! /*
 //! <h1>¡Hola, Jamie!</h1>
-//! <h3>Tienes 195.481,8 horas.</h1>
+//! <h3>Tienes 195.481,8 horas.You are 195,481.8 hours old.</h1>
+//! */
+//! # }
 //! ```
 //!
 //! To generate a coverage report, run:
