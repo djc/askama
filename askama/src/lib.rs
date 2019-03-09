@@ -537,12 +537,12 @@ pub trait Template {
 pub trait Localize: Sized {
     /// Create a localizer, following given locale preferences.
     /// If `user_locale` is provided and translations are available in that locale, it will be chosen.
-    /// If `accepts_language`, a transcription of an `Accepts-Language` HTTP header, is provided, and
-    /// `user_locale` is not provided, the highest-priority available locale will be chosen from the accepts-language
+    /// If `accept_language`, a transcription of an `Accept-Language` HTTP header, is provided, and
+    /// `user_locale` is not provided, the highest-priority available locale will be chosen from the accept-language
     /// header.
     /// If neither of these options are provided or available, the `default_locale` attribute provided to the
     /// `impl_localize!` macro will be used, with "en-US" as a default.
-    fn new(user_locale: Option<&str>, accepts_language: Option<&str>) -> Self;
+    fn new(user_locale: Option<&str>, accept_language: Option<&str>) -> Self;
 
     // TODO: refactor the following to be allocation-free once fluent is refactored
 

@@ -6,8 +6,9 @@ pub type I18nValue = fluent_bundle::FluentValue;
 /// Types and functions used in the implementation of `#[derive(Localizer)]`. You shouldn't ever need
 /// to use these types directly.
 pub mod macro_impl {
+    use accept_language::parse as accept_language_parse;
     use fluent_bundle::{FluentBundle, FluentResource, FluentValue};
-    use std::collections::{HashMap, HashSet};
+    use std::collections::HashMap;
 
     use super::super::{Error, Result};
 
@@ -42,8 +43,12 @@ pub mod macro_impl {
     /// Users should never need to interact with it; all uses are through the
     /// `init_askama_i18n!()` macro or codegen for the `localize(...)` filter.
     pub struct StaticParser<'a> {
+        /// Bundles used for localization.
         bundles: HashMap<&'static str, FluentBundle<'a>>,
-        locales: HashSet<&'static str>,
+        /// Available locales. Includes long form locales ("en-US" => "en-US")
+        /// and short-form locales ("en" => "en-US").
+        locales: HashMap<&'static str, &'static str>,
+        /// The default locale chosen if no others can be determined.
         default_locale: &'static str,
     }
 
@@ -59,7 +64,7 @@ pub mod macro_impl {
             );
 
             let mut bundles = HashMap::new();
-            let mut locales = HashSet::new();
+            let mut locales = HashMap::new();
             for (locale, resource) in resources.0.iter() {
                 let default_chain = &[*locale];
 
@@ -75,7 +80,12 @@ pub mod macro_impl {
                     .add_resource(resource)
                     .expect("failed to add resource");
                 bundles.insert(*locale, bundle);
-                locales.insert(*locale);
+                locales.insert(*locale, *locale);
+
+                // TODO: allow customizing which locale should be chosen for a short-form locale
+                // (e.g. should "en" map to "en-US" or "en-UK"?)
+                let short = &locale[..2];
+                locales.entry(short).or_insert(*locale);
             }
 
             StaticParser {
@@ -91,14 +101,25 @@ pub mod macro_impl {
         pub fn choose_locale(
             &self,
             locale: Option<&str>,
-            _accepts_language: Option<&str>,
+            accept_language: Option<&str>,
         ) -> &'static str {
             if let Some(locale) = locale {
                 if let Some(&static_locale) = self.locales.get(locale) {
                     return static_locale;
+                } else {
+                    // TODO: warn here?
                 }
             }
-            // TODO: parse accepts_language
+            if let Some(accepts) = accept_language {
+                // ordered list of language strings
+                let accepts = accept_language_parse(accepts);
+
+                for language in accepts.iter() {
+                    if let Some(static_locale) = self.locales.get(&language[..]) {
+                        return static_locale;
+                    }
+                }
+            }
             self.default_locale
         }
 
@@ -108,10 +129,10 @@ pub mod macro_impl {
             message: &str,
             args: &[(&str, &FluentValue)],
         ) -> Result<String> {
-            let bundle = self.bundles.get(locale).unwrap_or_else(|| {
-                // TODO: use fallback chains here? might be confusing, could just error
-                &self.bundles["en-US"]
-            });
+            let bundle = self.bundles.get(locale).unwrap_or_else(|| 
+                // TODO: it would be possible to do something more elaborate here
+                &self.bundles[self.default_locale]
+            );
 
             let args = if args.len() == 0 {
                 None
@@ -162,11 +183,10 @@ pub mod macro_impl {
         #[test]
         fn basic() -> Result<()> {
             let resources = Resources::new(SOURCES);
-            let bundles = StaticParser::new(&resources, FALLBACK_CHAINS);
-            let mut args = HashMap::new();
-            args.insert("name", FluentValue::from("Jamie"));
-            args.insert("hours", FluentValue::from(190321.31)); // about 21 years
-            let args = Some(&args);
+            let bundles = StaticParser::new(&resources, FALLBACK_CHAINS, "en-US");
+            let name = FluentValue::from("Jamie");
+            let hours = FluentValue::from(190321.31);
+            let args = &[("name", &name), ("hours", &hours)][..];
 
             assert_eq!(
                 bundles.localize("en-US", "greeting", args)?,
@@ -177,17 +197,38 @@ pub mod macro_impl {
                 "¡Hola, Jamie! Tienes 190321.31 horas."
             );
 
-            // missing locales should use english (for now)
+            // missing locales should use english
             assert_eq!(
                 bundles.localize("zh-HK", "greeting", args)?,
                 "Hello, Jamie! You are 190321.31 hours old."
             );
 
-            if let Ok(_) = bundles.localize("en-US", "bananas", None) {
+            if let Ok(_) = bundles.localize("en-US", "bananas", &[]) {
                 panic!("Should return Err on missing message");
             }
 
             Ok(())
+        }
+
+        #[test]
+        fn choose_locale() {
+            let resources = Resources::new(SOURCES);
+            let bundles = StaticParser::new(&resources, FALLBACK_CHAINS, "en-US");
+
+            // first choice has precedence
+            assert_eq!(
+                bundles.choose_locale(Some("es-MX"), Some("en-US; q=0.5")),
+                "es-MX"
+            );
+            // accept-language parser works
+            assert_eq!(bundles.choose_locale(None, Some("es-MX; q=0.5")), "es-MX");
+            // default works
+            assert_eq!(bundles.choose_locale(None, None), "en-US");
+            // missing languages fall through to default
+            assert_eq!(
+                bundles.choose_locale(Some("zh-HK"), Some("de-DE, en-NZ")),
+                "en-US"
+            );
         }
     }
 }

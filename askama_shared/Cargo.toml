@@ -11,7 +11,7 @@ edition = "2018"
 
 [features]
 full = ["with-i18n", "serde_json", "serde_yaml"]
-with-i18n = ["fluent-bundle", "lazy_static"]
+with-i18n = ["fluent-bundle", "lazy_static", "accept-language"]
 
 [dependencies]
 askama_escape = { version = "0.2.0", path = "../askama_escape" }
@@ -24,3 +24,4 @@ serde_yaml = { version = "0.8", optional = true }
 toml = "0.4"
 fluent-bundle = { version = "0.5", optional = true }
 lazy_static = { version = "1.2", optional = true }
+accept-language = { version = "2.0", optional = true }

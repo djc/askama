@@ -1,4 +1,5 @@
 //! Internationalization codegen.
+
 use proc_macro2::TokenStream;
 
 use fluent_syntax::ast;
@@ -116,8 +117,8 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         impl ::askama::Localize for #name {
 
-            fn new(locale: Option<&str>, accepts_language: Option<&str>) -> Self {
-                #name(__i18n_hidden::STATIC_PARSER.choose_locale(locale, accepts_language))
+            fn new(locale: Option<&str>, accept_language: Option<&str>) -> Self {
+                #name(__i18n_hidden::STATIC_PARSER.choose_locale(locale, accept_language))
             }
 
             #[inline]
