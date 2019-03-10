@@ -18,7 +18,10 @@ fn test_actix_web() {
     let request = srv.get().finish().unwrap();
     let response = srv.execute(request.send()).unwrap();
     assert!(response.status().is_success());
-    assert_eq!(response.headers().get(CONTENT_TYPE).unwrap(), "text/html");
+    assert_eq!(
+        response.headers().get(CONTENT_TYPE).unwrap(),
+        "text/html; charset=utf-8"
+    );
 
     let bytes = srv.execute(response.body()).unwrap();
     assert_eq!(bytes, Bytes::from_static("Hello, world!".as_ref()));
@@ -36,7 +39,10 @@ fn test_actix_web_responder() {
     let request = srv.get().finish().unwrap();
     let response = srv.execute(request.send()).unwrap();
     assert!(response.status().is_success());
-    assert_eq!(response.headers().get(CONTENT_TYPE).unwrap(), "text/html");
+    assert_eq!(
+        response.headers().get(CONTENT_TYPE).unwrap(),
+        "text/html; charset=utf-8"
+    );
 
     let bytes = srv.execute(response.body()).unwrap();
     assert_eq!(bytes, Bytes::from_static("Hello, world!".as_ref()));

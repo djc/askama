@@ -31,7 +31,10 @@ fn test_gotham() {
         let content_type = headers
             .get("content-type")
             .expect("Response did not contain content-type header");
-        assert_eq!(content_type.to_str().unwrap(), mime::TEXT_HTML.to_string());
+        assert_eq!(
+            content_type.to_str().unwrap(),
+            mime::TEXT_HTML_UTF_8.to_string()
+        );
     }
 
     let body = res.read_utf8_body().expect("failed to read response body");
