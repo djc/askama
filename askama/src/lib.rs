@@ -486,10 +486,29 @@ pub mod rocket {
     }
 }
 
+#[cfg(feature = "mime_guess")]
+fn get_mime_type(ext: &str) -> mime_guess::Mime {
+    let basic_type = mime_guess::get_mime_type(ext);
+    if basic_type == mime::TEXT_PLAIN {
+        mime::TEXT_PLAIN_UTF_8
+    } else if basic_type == mime::TEXT_HTML {
+        mime::TEXT_HTML_UTF_8
+    } else if basic_type == mime::TEXT_CSS {
+         mime::TEXT_CSS_UTF_8
+    } else if basic_type == mime::TEXT_CSV {
+         mime::TEXT_CSV_UTF_8
+    } else if basic_type == mime::TEXT_TAB_SEPARATED_VALUES {
+         mime::TEXT_TAB_SEPARATED_VALUES_UTF_8
+    } else if basic_type == mime::APPLICATION_JAVASCRIPT {
+         mime::APPLICATION_JAVASCRIPT_UTF_8
+    } else {
+        basic_type
+    }
+}
+
 #[cfg(feature = "with-actix-web")]
 pub mod actix_web {
     extern crate actix_web;
-    extern crate mime_guess;
 
     // actix_web technically has this as a pub fn in later versions, fs::file_extension_to_mime.
     // Older versions that don't have it exposed are easier this way. If ext is empty or no
@@ -498,7 +517,6 @@ pub mod actix_web {
     pub use self::actix_web::{
         error::ErrorInternalServerError, Error, HttpRequest, HttpResponse, Responder,
     };
-    use self::mime_guess::get_mime_type;
 
     pub trait TemplateIntoResponse {
         fn into_response(&self) -> Result<HttpResponse, Error>;
@@ -509,7 +527,7 @@ pub mod actix_web {
             let rsp = self
                 .render()
                 .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
-            let ctype = get_mime_type(T::extension().unwrap_or("txt")).to_string();
+            let ctype = super::get_mime_type(T::extension().unwrap_or("txt")).to_string();
             Ok(HttpResponse::Ok().content_type(ctype.as_str()).body(rsp))
         }
     }
@@ -521,10 +539,9 @@ pub mod gotham {
     use gotham::helpers::http::response::{create_empty_response, create_response};
     pub use gotham::state::State;
     pub use hyper::{Body, Response, StatusCode};
-    use mime_guess::get_mime_type;
 
     pub fn respond<T: super::Template>(t: &T, ext: &str) -> Response<Body> {
-        let mime_type = get_mime_type(ext).to_string();
+        let mime_type = super::get_mime_type(ext).to_string();
 
         match t.render() {
             Ok(body) => Response::builder()
