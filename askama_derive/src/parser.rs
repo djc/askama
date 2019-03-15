@@ -11,6 +11,7 @@ pub enum Expr<'a> {
     NumLit(&'a str),
     StrLit(&'a str),
     Var(&'a str),
+    RefVar(&'a str),
     Path(Vec<&'a str>),
     Array(Vec<Expr<'a>>),
     Attr(Box<Expr<'a>>, &'a str),
@@ -245,6 +246,11 @@ named!(param_str_lit<Input, MatchParameter>, map!(
     |s| MatchParameter::StrLit(str::from_utf8(&s).unwrap())
 ));
 
+named!(expr_ref_var<Input, Expr>, preceded!(
+    tag!("&"), map!(identifier, |s| Expr::RefVar(s))
+));
+
+
 named!(expr_var<Input, Expr>, map!(identifier,
     |s| Expr::Var(s))
 );
@@ -455,6 +461,7 @@ named!(expr_single<Input, Expr>, alt!(
     expr_str_lit |
     expr_path |
     expr_array_lit |
+    expr_ref_var |
     expr_var |
     expr_group
 ));

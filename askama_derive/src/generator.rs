@@ -534,8 +534,38 @@ impl<'a> Generator<'a> {
                 ", _loop_item) in ::askama::helpers::TemplateLoop::new({}) {{",
                 expr_code
             )),
-            _ => buf.writeln(&format!(
+            Expr::Attr(expr, _) => {
+                let expr: &Expr = &**expr;
+                match expr {
+                    Expr::RefVar(_) => buf.writeln(&format!(
+                        ", _loop_item) in ::askama::helpers::TemplateLoop::new((&{}).into_iter()) {{",
+                        expr_code
+                    )),
+                    _ => buf.writeln(&format!(
+                        ", _loop_item) in ::askama::helpers::TemplateLoop::new(({}).into_iter()) {{",
+                        expr_code
+                    )),
+                }
+            }, 
+            Expr::MethodCall(expr, _, _) => {
+                let expr: &Expr = &**expr;
+                match expr {
+                    Expr::RefVar(_) => buf.writeln(&format!(
+                        ", _loop_item) in ::askama::helpers::TemplateLoop::new((&{}).into_iter()) {{",
+                        expr_code
+                    )),
+                    _ => buf.writeln(&format!(
+                        ", _loop_item) in ::askama::helpers::TemplateLoop::new(({}).into_iter()) {{",
+                        expr_code
+                    )),
+                }
+            }, 
+            Expr::RefVar(_) => buf.writeln(&format!(
                 ", _loop_item) in ::askama::helpers::TemplateLoop::new((&{}).into_iter()) {{",
+                expr_code
+            )),
+            _ => buf.writeln(&format!(
+                ", _loop_item) in ::askama::helpers::TemplateLoop::new(({}).into_iter()) {{",
                 expr_code
             )),
         };
@@ -863,6 +893,7 @@ impl<'a> Generator<'a> {
             Expr::NumLit(s) => self.visit_num_lit(buf, s),
             Expr::StrLit(s) => self.visit_str_lit(buf, s),
             Expr::Var(s) => self.visit_var(buf, s),
+            Expr::RefVar(s) => self.visit_ref_var(buf, s),
             Expr::Path(ref path) => self.visit_path(buf, path),
             Expr::Array(ref elements) => self.visit_array(buf, elements),
             Expr::Attr(ref obj, name) => self.visit_attr(buf, obj, name),
@@ -1113,6 +1144,16 @@ impl<'a> Generator<'a> {
     }
 
     fn visit_var(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
+        if self.locals.contains(s) || s == "self" {
+            buf.write(s);
+        } else {
+            buf.write("self.");
+            buf.write(s);
+        }
+        DisplayWrap::Unwrapped
+    }
+
+    fn visit_ref_var(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
         if self.locals.contains(s) || s == "self" {
             buf.write(s);
         } else {

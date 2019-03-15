@@ -296,6 +296,10 @@
 //! * *loop.index0*: current loop iteration (starting from 0)
 //! * *loop.first*: whether this is the first iteration of the loop
 //! * *loop.last*: whether this is the last iteration of the loop
+//! 
+//! Loops should be passed references to collections so that they are not 
+//! consumed by the template. If the template struct owns the collection that is 
+//! being passed to a loop, make sure to prefix the collection with an `&`.
 //!
 //! ### If
 //!
