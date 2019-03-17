@@ -500,9 +500,9 @@ pub mod actix_web {
 
     impl BytesWriter {
         #[inline]
-        pub fn new() -> Self {
+        pub fn with_capacity(size: usize) -> Self {
             Self {
-                buf: bytes::BytesMut::with_capacity(4096)
+                buf: bytes::BytesMut::with_capacity(size)
             }
         }
 
@@ -510,7 +510,6 @@ pub mod actix_web {
         pub fn freeze(self) -> bytes::Bytes {
             self.buf.freeze()
         }
-
     }
 
     impl fmt::Write for BytesWriter {
@@ -536,7 +535,7 @@ pub mod actix_web {
 
     impl<T: super::Template> TemplateIntoResponse for T {
         fn into_response(&self) -> Result<HttpResponse, Error> {
-            let mut buffer = BytesWriter::new();
+            let mut buffer = BytesWriter::with_capacity(T::size_hint());
             self.render_into(&mut buffer)
                 .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
 
