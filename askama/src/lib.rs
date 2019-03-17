@@ -490,6 +490,36 @@ pub mod rocket {
 pub mod actix_web {
     extern crate actix_web;
     extern crate mime_guess;
+    extern crate bytes;
+
+    use std::fmt;
+
+    struct BytesWriter {
+        buf: bytes::BytesMut,
+    }
+
+    impl BytesWriter {
+        #[inline]
+        pub fn new() -> Self {
+            Self {
+                buf: bytes::BytesMut::with_capacity(4096)
+            }
+        }
+
+        #[inline]
+        pub fn freeze(self) -> bytes::Bytes {
+            self.buf.freeze()
+        }
+
+    }
+
+    impl fmt::Write for BytesWriter {
+        #[inline]
+        fn write_str(&mut self, buf: &str) -> fmt::Result {
+            self.buf.extend_from_slice(buf.as_bytes());
+            Ok(())
+        }
+    }
 
     // actix_web technically has this as a pub fn in later versions, fs::file_extension_to_mime.
     // Older versions that don't have it exposed are easier this way. If ext is empty or no
@@ -506,11 +536,12 @@ pub mod actix_web {
 
     impl<T: super::Template> TemplateIntoResponse for T {
         fn into_response(&self) -> Result<HttpResponse, Error> {
-            let rsp = self
-                .render()
+            let mut buffer = BytesWriter::new();
+            self.render_into(&mut buffer)
                 .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
+
             let ctype = get_mime_type(T::extension().unwrap_or("txt")).to_string();
-            Ok(HttpResponse::Ok().content_type(ctype.as_str()).body(rsp))
+            Ok(HttpResponse::Ok().content_type(ctype.as_str()).body(buffer.freeze()))
         }
     }
 }
