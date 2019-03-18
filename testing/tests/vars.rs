@@ -45,11 +45,7 @@ fn test_let_decl() {
 }
 
 #[derive(Template)]
-#[template(
-    source = "{% for v in self.0 %}{{ v }}{% endfor %}",
-    ext = "txt",
-    print = "code"
-)]
+#[template(source = "{% for v in self.0 %}{{ v }}{% endfor %}", ext = "txt")]
 struct SelfIterTemplate(Vec<usize>);
 
 #[test]
