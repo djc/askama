@@ -454,6 +454,7 @@ named!(expr_single<Input, Expr>, alt!(
     expr_num_lit |
     expr_str_lit |
     expr_path |
+    expr_rust_macro |
     expr_array_lit |
     expr_var |
     expr_group
@@ -554,7 +555,7 @@ named!(expr_unary<Input, Expr>, do_parse!(
     })
 ));
 
-named!(rust_macro<Input, Expr>, do_parse!(
+named!(expr_rust_macro<Input, Expr>, do_parse!(
     mname: identifier >>
     tag!("!") >>
     args: macro_arguments >>
@@ -595,7 +596,6 @@ named!(range_right<Input, Expr>, do_parse!(
 
 named!(expr_any<Input, Expr>, alt!(
     range_right |
-    rust_macro |
     do_parse!(
         left: expr_or >>
         rest: range_right >> (match rest {
