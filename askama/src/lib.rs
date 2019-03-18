@@ -489,8 +489,8 @@ pub mod rocket {
 #[cfg(feature = "with-actix-web")]
 pub mod actix_web {
     extern crate actix_web;
-    extern crate mime_guess;
     extern crate bytes;
+    extern crate mime_guess;
 
     use std::fmt;
 
@@ -502,7 +502,7 @@ pub mod actix_web {
         #[inline]
         pub fn with_capacity(size: usize) -> Self {
             Self {
-                buf: bytes::BytesMut::with_capacity(size)
+                buf: bytes::BytesMut::with_capacity(size),
             }
         }
 
@@ -540,7 +540,9 @@ pub mod actix_web {
                 .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
 
             let ctype = get_mime_type(T::extension().unwrap_or("txt")).to_string();
-            Ok(HttpResponse::Ok().content_type(ctype.as_str()).body(buffer.freeze()))
+            Ok(HttpResponse::Ok()
+                .content_type(ctype.as_str())
+                .body(buffer.freeze()))
         }
     }
 }
