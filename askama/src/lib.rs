@@ -398,9 +398,6 @@
 //! [render in place](https://github.com/djc/askama/blob/master/testing/tests/render_in_place.rs)
 //! using a vector of templates in a for block.
 //!
-//! See the example [using enums](https://github.com/djc/askama/blob/master/testing/tests/render_with_enums.rs)
-//! for another use case. You can use different template parts depending on the context.
-//!
 //! ## Comments
 //!
 //! Askama supports block comments delimited by `{#` and `#}`.
