@@ -8,14 +8,14 @@ struct RenderInPlace<'a> {
 }
 
 #[derive(Template)]
-#[template(path = "render_in_place_sec1.html")]
+#[template(source = "A={{ a }}\nB={{ b }}", ext = "html")]
 struct SectionOne<'a> {
     a: &'a str,
     b: &'a str,
 }
 
 #[derive(Template)]
-#[template(path = "render_in_place_sec2.html")]
+#[template(source = "C={{ c }}\nD={{ d }}", ext = "html")]
 struct SectionTwo<'a> {
     c: &'a str,
     d: &'a str,
