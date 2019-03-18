@@ -371,11 +371,11 @@
 //! recursion. This is because the `Display` implementation for that expression
 //! will in turn evaluate the expression and yield `self` again.
 //!
-//! ## Template in template
+//! ## Templates in templates
 //!
-//! Using expressions, it is possible to render a template inside another one. This functionality
-//! allows modularize template sections and inject them in another template. This
-//! facilitates testing, and reusing part of templates.
+//! Using expressions, it is possible to delegate rendering part of a template to another template.
+//! This makes it possible to inject modular template sections into other templates and facilitates
+//! testing and reuse.
 //!
 //! ```rust
 //! use askama::Template;
@@ -384,13 +384,14 @@
 //! struct RenderInPlace<'a> {
 //!    s1: SectionOne<'a>
 //! }
+//!
 //! #[derive(Template)]
 //! #[template(source = "A={{ a }}\nB={{ b }}", ext = "txt")]
 //! struct SectionOne<'a> {
 //!    a: &'a str,
 //!    b: &'a str,
 //! }
-//! let t = RenderInPlace{s1: SectionOne{a: "a", b: "b"}};
+//! let t = RenderInPlace { s1: SectionOne { a: "a", b: "b" } };
 //! assert_eq!(t.render().unwrap(), "Section 1: A=a\nB=b")
 //! ```
 //!
