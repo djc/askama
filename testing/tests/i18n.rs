@@ -12,7 +12,7 @@ impl_localize! {
 #[template(path = "i18n.html")]
 struct UsesI18n<'a> {
     #[localizer]
-    localizer: BasicLocalizer,
+    loc: BasicLocalizer,
     name: &'a str,
     hours: f32,
 }
@@ -20,7 +20,7 @@ struct UsesI18n<'a> {
 #[test]
 fn basic() {
     let template = UsesI18n {
-        localizer: BasicLocalizer::new(Some("es_MX"), None),
+        loc: BasicLocalizer::new(Some("es_MX"), None),
         name: "Hilda",
         hours: 300072.3,
     };

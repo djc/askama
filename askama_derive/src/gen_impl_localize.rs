@@ -151,6 +151,14 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     -> ::askama::Result<String> {
                     __i18n_hidden::STATIC_PARSER.localize(&self.0, message, args)
             }
+
+            fn has_message(&self, message: &str) -> bool {
+                __i18n_hidden::STATIC_PARSER.has_message(&self.0, message)
+            }
+
+            fn default_locale() -> &'static str {
+                #default_locale
+            }
         }
 
         #[doc(hidden)]

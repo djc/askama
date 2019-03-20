@@ -19,7 +19,7 @@ pub struct TemplateInput<'a> {
     pub ext: Option<String>,
     pub parent: Option<&'a syn::Type>,
     pub path: PathBuf,
-    pub localizer: Option<&'a syn::Ident>,
+    pub localizer: Option<(&'a syn::Ident, &'a syn::Type)>,
 }
 
 impl<'a> TemplateInput<'a> {
@@ -156,7 +156,7 @@ impl<'a> TemplateInput<'a> {
                         if localizer.is_some() {
                             panic!("Can't have multiple localizers for a single template!");
                         }
-                        localizer = Some(&attr.path.segments[0].ident)
+                        localizer = Some((ident, &field.ty));
                     }
                 }
             }

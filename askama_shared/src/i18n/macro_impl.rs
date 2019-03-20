@@ -171,6 +171,13 @@ impl<'a> StaticParser<'a> {
             message, locale_chain
         )))
     }
+
+    pub fn has_message(&self, locale_chain: &[Locale], message: &str) -> bool {
+        locale_chain
+            .iter()
+            .flat_map(|locale| self.bundles.get(locale))
+            .any(|bundle| bundle.has_message(message))
+    }
 }
 
 #[cfg(test)]

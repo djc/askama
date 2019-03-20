@@ -606,6 +606,14 @@ pub trait Localize: Sized {
         message_id: &str,
         args: &[(&str, &shared::i18n::I18nValue)],
     ) -> Result<String>;
+
+    /// Whether a localizer has a particular message available.
+    /// Used by automated tests; users shouldn't need to call this function directly.
+    fn has_message(&self, message_id: &str) -> bool;
+
+    /// Default locale of this localizer.
+    /// Used by automated tests.
+    fn default_locale() -> &'static str;
 }
 
 pub use crate::shared::filters;

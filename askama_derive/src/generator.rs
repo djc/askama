@@ -9,7 +9,7 @@ use proc_macro2::Span;
 
 use quote::ToTokens;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 use std::{cmp, hash, mem, str};
 
@@ -47,6 +47,8 @@ struct Generator<'a> {
     buf_writable: Vec<Writable<'a>>,
     // Counter for write! hash named arguments
     named: usize,
+    // Messages used with localize()
+    localized_messages: BTreeSet<String>,
 }
 
 impl<'a> Generator<'a> {
@@ -66,6 +68,7 @@ impl<'a> Generator<'a> {
             super_block: None,
             buf_writable: vec![],
             named: 0,
+            localized_messages: BTreeSet::new(),
         }
     }
 
@@ -85,6 +88,7 @@ impl<'a> Generator<'a> {
 
         self.impl_template(ctx, &mut buf);
         self.impl_display(&mut buf);
+        self.impl_tests(&mut buf);
         if cfg!(feature = "iron") {
             self.impl_modifier_response(&mut buf);
         }
@@ -258,6 +262,47 @@ impl<'a> Generator<'a> {
         buf.writeln(&format!("::askama::gotham::respond(&self, {:?})", ext));
         buf.writeln("}");
         buf.writeln("}");
+    }
+
+    fn impl_tests(&mut self, buf: &mut Buffer) {
+        buf.writeln(&format!(
+            "#[cfg(test)] mod __{}_tests_generated {{",
+            self.input.ast.ident.to_string().to_lowercase()
+        ));
+        if cfg!(feature = "with-i18n") {
+            self.impl_i18n_tests(buf);
+        }
+        buf.writeln("}");
+    }
+
+    fn impl_i18n_tests(&mut self, buf: &mut Buffer) {
+        let messages = &self.localized_messages;
+        if messages.len() > 0 {
+            let loc_ty = self.input.localizer.unwrap().1;
+            let ast = (quote! {
+                #[test]
+                fn test_i18n_default_coverage() {
+                    use askama::Localize;
+
+                    let messages = &[
+                        #(#messages),*
+                    ][..];
+
+                    // create default localizer
+                    let localizer = super::#loc_ty::new(None, None);
+
+                    let bad = messages.iter().filter(|m| !localizer.has_message(m)).collect::<Vec<_>>();
+
+                    if bad.len() > 0 {
+                        panic!("Missing translations in default locale ({:?}) for messages: {:?} ",
+                            bad, super::#loc_ty::default_locale());
+                    }
+                }
+            })
+            .to_string();
+
+            buf.writeln(&ast);
+        }
     }
 
     // Writes header for the `impl` for `TraitFromPathName` or `Template`
@@ -1082,9 +1127,11 @@ impl<'a> Generator<'a> {
             "message ids with quotes in them break the generator, please remove"
         );
 
+        self.localized_messages.insert(message.clone());
+
         buf.write(&format!(
             "::askama::Localize::localize(&self.{}, \"{}\", &[",
-            localizer, message
+            localizer.0, message
         ));
         for (i, (name, value)) in args.iter().enumerate() {
             if i > 0 {
