@@ -1060,15 +1060,12 @@ impl<'a> Generator<'a> {
         attribute: Option<&str>,
         args: &[(&str, Expr)],
     ) -> DisplayWrap {
-        // TODO error spans?
-
         if !cfg!(feature = "with-i18n") {
             panic!(
                 "The askama feature 'with-i18n' must be activated to enable calling `localize`."
             );
         }
 
-        // TODO is localize[r] terminology confusing?
         let localizer = self.input.localizer.expect(
             "A template struct must have a member with the `#[localizer]` \
              attribute that implements `askama::Localize` to enable calling the localize() filter",

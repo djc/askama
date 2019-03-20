@@ -572,6 +572,11 @@ pub trait Template {
 /// Implementations are generally derived.
 #[cfg(feature = "with-i18n")]
 pub trait Localize: Sized {
+    // Implementation notes:
+    // All of the code that actually talks to fluent is in the `askama_shared::i18n::macro_impl` module.
+    // Codegen for `impl_localize!` is in `askama_derive::gen_impl_localize`.
+    // Codegen for the `localize` filter is in `askama_derive::generator`.
+
     /// Create a localizer, following given locale preferences.
     /// If `user_locale` is provided and translations are available in that locale, it will be chosen.
     /// If `accept_language`, a transcription of an `Accept-Language` HTTP header, is provided, and
@@ -579,9 +584,14 @@ pub trait Localize: Sized {
     /// header.
     /// If neither of these options are provided or available, the `default_locale` attribute provided to the
     /// `impl_localize!` macro will be used, with "en_US" as a default.
+    ///
+    /// Note: short-form languages in the `Accept-Language` header
+    /// will be mapped to the first available locale, alphabetically. e.g. if `en` is in `Accept-Language`
+    /// and `en-US` and `en-UK` are available translations, then `en-US` will be used.
     fn new(user_locale: Option<&str>, accept_language: Option<&str>) -> Self;
 
-    /// Localize a particular message
+    /// Localize a particular message.
+    /// Used by templates; users shouldn't need to call this function directly.
     fn localize(
         &self,
         message_id: &str,

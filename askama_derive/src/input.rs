@@ -145,7 +145,6 @@ impl<'a> TemplateInput<'a> {
             for field in fields.named.iter() {
                 if field.ident.is_none() {
                     // can't use this field
-                    // TODO handle non-named fields?
                     continue;
                 }
                 let ident = field.ident.as_ref().unwrap();
@@ -155,7 +154,6 @@ impl<'a> TemplateInput<'a> {
                 for attr in field.attrs.iter() {
                     if attr.path.is_ident("localizer") {
                         if localizer.is_some() {
-                            // TODO span
                             panic!("Can't have multiple localizers for a single template!");
                         }
                         localizer = Some(&attr.path.segments[0].ident)

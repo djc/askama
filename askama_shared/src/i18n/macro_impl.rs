@@ -62,8 +62,6 @@ impl<'a> StaticParser<'a> {
             bundles.insert(*locale, bundle);
             locales.insert(*locale, *locale);
 
-            // TODO: allow customizing which locale should be chosen for a short-form locale
-            // (e.g. should "en" map to "en_US" or "en_UK"?)
             let short = &locale[..2];
             locales.entry(short).or_insert(*locale);
         }
@@ -134,11 +132,13 @@ impl<'a> StaticParser<'a> {
                 Ok(result)
             }
         } else {
-            // TODO find error for missing localizations and fall back to default_locale
-            Err(Error::NoTranslationsForLocale(format!(
-                "no translations for locale {}, message {}",
-                locale, message
-            )))
+            if locale == self.default_locale {
+                // nowhere to fall back to
+                Err(Error::NoTranslationsForLocale(format!(
+                    "no translations for locale {}, message {}",
+                    locale, message
+                )))
+            }
         }
     }
 }

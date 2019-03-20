@@ -232,9 +232,15 @@ fn coverage(message_counts: BTreeMap<String, usize>) -> TokenStream {
 }
 
 fn children(path: &Path) -> impl Iterator<Item = DirEntry> {
-    path.read_dir()
+    let mut results = path
+        .read_dir()
         .expect("no such path")
         .map(|entry| entry.expect("stop changing the filesystem underneath me"))
+        .collect::<Vec<_>>();
+
+    results.sort_by_key(DirEntry::file_name); // keep builds relatively deterministic
+
+    results.into_iter()
 }
 
 fn linecol(src: &str, offset: usize) -> (usize, usize) {

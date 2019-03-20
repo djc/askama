@@ -15,7 +15,7 @@ mod input;
 mod parser;
 
 #[cfg(feature = "with-i18n")]
-mod i18n;
+mod gen_impl_localize;
 
 use crate::input::{Print, Source, TemplateInput};
 use crate::parser::{Expr, Macro, Node};
@@ -226,7 +226,7 @@ fn get_template_source(tpl_path: &Path) -> String {
 #[cfg(feature = "with-i18n")]
 #[proc_macro]
 pub fn impl_localize(_item: TokenStream) -> TokenStream {
-    i18n::impl_localize(_item)
+    gen_impl_localize::impl_localize(_item)
 }
 
 #[cfg(test)]
