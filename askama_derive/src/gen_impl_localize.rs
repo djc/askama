@@ -120,7 +120,7 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let coverage = coverage(message_counts);
     let sources = sources
         .into_iter()
-        .map(|(locale, source)| quote! { (#locale, #source) })
+        .map(|(locale, source)| quote! { (Locale(#locale), #source) })
         .collect::<Vec<_>>();
     let includes = includes
         .into_iter()
@@ -131,12 +131,17 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let result = (quote! {
         /// Internationalization support. Automatically generated from files in the `i18n` folder.
-        pub struct #name(&'static str);
+        pub struct #name(Box<[askama::i18n::macro_impl::Locale]>);
 
         impl ::askama::Localize for #name {
 
+            #[inline(never)]
             fn new(locale: Option<&str>, accept_language: Option<&str>) -> Self {
-                #name(__i18n_hidden::STATIC_PARSER.choose_locale(locale, accept_language))
+                #name(
+                    __i18n_hidden::STATIC_PARSER
+                        .create_locale_chain(locale, accept_language)
+                        .into_boxed_slice()
+                )
             }
 
             #[inline]
@@ -144,7 +149,7 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 message: &str,
                 args: &[(&str, &askama::i18n::I18nValue)])
                     -> ::askama::Result<String> {
-                    __i18n_hidden::STATIC_PARSER.localize(self.0, message, args)
+                    __i18n_hidden::STATIC_PARSER.localize(&self.0, message, args)
             }
         }
 
@@ -152,7 +157,7 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
         mod __i18n_hidden {
             use ::askama::i18n::I18nValue;
             use ::askama::i18n::macro_impl::{
-                StaticParser, Resources,
+                StaticParser, Resources, Locale,
                 Sources, lazy_static,
             };
             pub const SOURCES: Sources = &[
@@ -162,7 +167,7 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
             lazy_static! {
                 static ref RESOURCES: Resources = Resources::new(SOURCES);
                 pub static ref STATIC_PARSER: StaticParser<'static> =
-                    StaticParser::new(&RESOURCES, #default_locale);
+                    StaticParser::new(&RESOURCES, Locale(#default_locale));
             }
 
             #[allow(unused)]
