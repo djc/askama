@@ -128,13 +128,12 @@ impl<'a> StaticParser<'a> {
 
         if let Some((result, mut errs)) = result {
             if errs.len() > 0 {
+                // TODO: fluent degrades gracefully; maybe just warn here?
                 Err(Error::I18n(errs.pop().unwrap()))
             } else {
                 Ok(result)
             }
         } else {
-            // TODO better error message here, this shows up as Err(I18n(None)) w/ no explanation
-            // in panics
             // TODO find error for missing localizations and fall back to default_locale
             Err(Error::NoTranslationsForLocale(format!(
                 "no translations for locale {}, message {}",
