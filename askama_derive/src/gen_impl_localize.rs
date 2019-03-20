@@ -127,8 +127,6 @@ pub fn impl_localize(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .map(|i| quote! { include_bytes!(#i); })
         .collect::<Vec<_>>();
 
-    // TODO bite the bullet and switch to indiv. fallback chains
-
     let result = (quote! {
         /// Internationalization support. Automatically generated from files in the `i18n` folder.
         pub struct #name(Box<[askama::i18n::macro_impl::Locale]>);

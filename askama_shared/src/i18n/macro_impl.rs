@@ -272,7 +272,6 @@ goodbye = Adiós.
         // short codes work
         assert_eq!(
             bundles.create_locale_chain(None, Some("en")),
-            // TODO: allow prioritizing locales for short codes?
             &[Locale("en_AU"), Locale("en_US")]
         );
 

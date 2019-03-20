@@ -535,8 +535,6 @@
 //!
 //! This will report on the percent of messages translated in each locale.
 
-// TODO doc links
-
 #![allow(unused_imports)]
 #[macro_use]
 extern crate askama_derive;
