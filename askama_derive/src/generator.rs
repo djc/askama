@@ -238,11 +238,8 @@ impl<'a> Generator<'a> {
              -> ::std::result::Result<Self::Item, Self::Error> {",
         );
 
-        let ext = match self.input.path.extension() {
-            Some(s) => s.to_str().unwrap(),
-            None => "txt",
-        };
-        buf.writeln(&format!("::askama::actix_web::respond(&self, {:?})", ext));
+        buf.writeln("use ::askama::actix_web::TemplateIntoResponse;");
+        buf.writeln("self.into_response()");
 
         buf.writeln("}");
         buf.writeln("}");
@@ -1214,7 +1211,7 @@ impl<'a> Generator<'a> {
     }
 
     fn visit_var(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
-        if self.locals.contains(s) {
+        if self.locals.contains(s) || s == "self" {
             buf.write(s);
         } else {
             buf.write("self.");

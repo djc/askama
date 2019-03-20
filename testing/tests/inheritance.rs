@@ -29,6 +29,18 @@ fn test_simple_extends() {
     );
 }
 
+#[derive(Template)]
+#[template(source = "{% extends \"base.html\" %}", ext = "html")]
+struct EmptyChild<'a> {
+    title: &'a str,
+}
+
+#[test]
+fn test_empty_child() {
+    let t = EmptyChild { title: "baz" };
+    assert_eq!(t.render().unwrap(), "baz\n\nFoo\nCopyright 2017");
+}
+
 pub mod parent {
     use askama::Template;
     #[derive(Template)]

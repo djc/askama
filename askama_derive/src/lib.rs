@@ -63,7 +63,7 @@ fn build_template(ast: &syn::DeriveInput) -> String {
     }
 
     let ctx = &contexts[&input.path];
-    let heritage = if !ctx.blocks.is_empty() {
+    let heritage = if !ctx.blocks.is_empty() || ctx.extends.is_some() {
         Some(Heritage::new(ctx, &contexts))
     } else {
         None

@@ -49,12 +49,9 @@
 //!   (`none`), the parsed syntax tree (`ast`), the generated code (`code`)
 //!   or `all` for both. The requested data will be printed to stdout at
 //!   compile time.
-//! * `escape` (as `escape = "none"`): set the escape mode for expression
-//!   output; the currently implemented modes are `none` and `html`. Askama
-//!   infers the escape mode from the template file name (with `path`) or
-//!   specified extension (`ext`): if the extension is `html`, `htm` or `xml`,
-//!   the `html` escape mode is used; otherwise, no implicit escaping is done.
-//!   Setting an escape mode explicitly overrides the inferred value.
+//! * `escape` (as `escape = "none"`): override the template's extension used for
+//!   the purpose of determining the escaper for this template. See the section
+//!   on configuring custom escapers for more information.
 //! * `syntax` (as `syntax = "foo"`): set the syntax name for a parser defined
 //!   in the configuration file. The default syntax , "default",  is the one
 //!   provided by Askama.
@@ -64,7 +61,7 @@
 //! At compile time, Askama will read optional configuration values from
 //! `askama.toml` in the crate root (the directory where `Cargo.toml` can
 //! be found). Currently, this covers the directories to search for templates,
-//! as well as custom syntax configuration.
+//! custom syntax configuration and escaper configuration.
 //!
 //! This example file demonstrates the default configuration:
 //!
@@ -108,6 +105,24 @@
 //!
 //! Values must be 2 characters long and start delimiters must all start with the same
 //! character. If a key is omitted, the value from the default syntax is used.
+//!
+//! Here is an example of a custom escaper:
+//!
+//! ```toml
+//! [[escaper]]
+//! path = "::tex_escape::Tex"
+//! extensions = ["tex"]
+//! ```
+//!
+//! An escaper block consists of the attributes `path` and `name`. `path`
+//! contains a Rust identifier that must be in scope for templates using this
+//! escaper. `extensions` defines a list of file extensions that will trigger
+//! the use of that escaper. Extensions are matched in order, starting with the
+//! first escaper configured and ending with the default escapers for HTML
+//! (extensions `html`, `htm`, `xml`, `j2`, `jinja`, `jinja2`) and plain text
+//! (no escaping; `none`, `txt`, and the empty string). Note that this means
+//! you can also define other escapers that match different extensions to the
+//! same escaper.
 //!
 //! ## Variables
 //!
@@ -355,6 +370,34 @@
 //! equivalent to `self`, this can result in a stack overflow from infinite
 //! recursion. This is because the `Display` implementation for that expression
 //! will in turn evaluate the expression and yield `self` again.
+//!
+//! ## Templates in templates
+//!
+//! Using expressions, it is possible to delegate rendering part of a template to another template.
+//! This makes it possible to inject modular template sections into other templates and facilitates
+//! testing and reuse.
+//!
+//! ```rust
+//! use askama::Template;
+//! #[derive(Template)]
+//! #[template(source = "Section 1: {{ s1.render().unwrap() }}", ext = "txt")]
+//! struct RenderInPlace<'a> {
+//!    s1: SectionOne<'a>
+//! }
+//!
+//! #[derive(Template)]
+//! #[template(source = "A={{ a }}\nB={{ b }}", ext = "txt")]
+//! struct SectionOne<'a> {
+//!    a: &'a str,
+//!    b: &'a str,
+//! }
+//! let t = RenderInPlace { s1: SectionOne { a: "a", b: "b" } };
+//! assert_eq!(t.render().unwrap(), "Section 1: A=a\nB=b")
+//! ```
+//!
+//! See the example
+//! [render in place](https://github.com/djc/askama/blob/master/testing/tests/render_in_place.rs)
+//! using a vector of templates in a for block.
 //!
 //! ## Comments
 //!
@@ -648,10 +691,66 @@ pub mod rocket {
     }
 }
 
+#[cfg(all(feature = "mime_guess", feature = "mime"))]
+fn get_mime_type(ext: &str) -> mime_guess::Mime {
+    let basic_type = mime_guess::get_mime_type(ext);
+    for (simple, utf_8) in &TEXT_TYPES {
+        if &basic_type == simple {
+            return utf_8.clone();
+        }
+    }
+    basic_type
+}
+
+#[cfg(all(feature = "mime_guess", feature = "mime"))]
+const TEXT_TYPES: [(mime_guess::Mime, mime_guess::Mime); 6] = [
+    (mime::TEXT_PLAIN, mime::TEXT_PLAIN_UTF_8),
+    (mime::TEXT_HTML, mime::TEXT_HTML_UTF_8),
+    (mime::TEXT_CSS, mime::TEXT_CSS_UTF_8),
+    (mime::TEXT_CSV, mime::TEXT_CSV_UTF_8),
+    (
+        mime::TEXT_TAB_SEPARATED_VALUES,
+        mime::TEXT_TAB_SEPARATED_VALUES_UTF_8,
+    ),
+    (
+        mime::APPLICATION_JAVASCRIPT,
+        mime::APPLICATION_JAVASCRIPT_UTF_8,
+    ),
+];
+
 #[cfg(feature = "with-actix-web")]
 pub mod actix_web {
     extern crate actix_web;
+    extern crate bytes;
     extern crate mime_guess;
+
+    use std::fmt;
+
+    struct BytesWriter {
+        buf: bytes::BytesMut,
+    }
+
+    impl BytesWriter {
+        #[inline]
+        pub fn with_capacity(size: usize) -> Self {
+            Self {
+                buf: bytes::BytesMut::with_capacity(size),
+            }
+        }
+
+        #[inline]
+        pub fn freeze(self) -> bytes::Bytes {
+            self.buf.freeze()
+        }
+    }
+
+    impl fmt::Write for BytesWriter {
+        #[inline]
+        fn write_str(&mut self, buf: &str) -> fmt::Result {
+            self.buf.extend_from_slice(buf.as_bytes());
+            Ok(())
+        }
+    }
 
     // actix_web technically has this as a pub fn in later versions, fs::file_extension_to_mime.
     // Older versions that don't have it exposed are easier this way. If ext is empty or no
@@ -660,14 +759,22 @@ pub mod actix_web {
     pub use self::actix_web::{
         error::ErrorInternalServerError, Error, HttpRequest, HttpResponse, Responder,
     };
-    use self::mime_guess::get_mime_type;
 
-    pub fn respond<T: super::Template>(t: &T, ext: &str) -> Result<HttpResponse, Error> {
-        let rsp = t
-            .render()
-            .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
-        let ctype = get_mime_type(ext).to_string();
-        Ok(HttpResponse::Ok().content_type(ctype.as_str()).body(rsp))
+    pub trait TemplateIntoResponse {
+        fn into_response(&self) -> Result<HttpResponse, Error>;
+    }
+
+    impl<T: super::Template> TemplateIntoResponse for T {
+        fn into_response(&self) -> Result<HttpResponse, Error> {
+            let mut buffer = BytesWriter::with_capacity(T::size_hint());
+            self.render_into(&mut buffer)
+                .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
+
+            let ctype = super::get_mime_type(T::extension().unwrap_or("txt")).to_string();
+            Ok(HttpResponse::Ok()
+                .content_type(ctype.as_str())
+                .body(buffer.freeze()))
+        }
     }
 }
 
@@ -677,10 +784,9 @@ pub mod gotham {
     use gotham::helpers::http::response::{create_empty_response, create_response};
     pub use gotham::state::State;
     pub use hyper::{Body, Response, StatusCode};
-    use mime_guess::get_mime_type;
 
     pub fn respond<T: super::Template>(t: &T, ext: &str) -> Response<Body> {
-        let mime_type = get_mime_type(ext).to_string();
+        let mime_type = super::get_mime_type(ext).to_string();
 
         match t.render() {
             Ok(body) => Response::builder()

@@ -21,7 +21,7 @@ serde = "1.0"
 serde_derive = "1.0"
 serde_json = { version = "1.0", optional = true }
 serde_yaml = { version = "0.8", optional = true }
-toml = "0.4"
+toml = "0.5"
 fluent-bundle = { version = "0.5", optional = true }
 lazy_static = { version = "1.2", optional = true }
 accept-language = { version = "2.0", optional = true }
