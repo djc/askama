@@ -225,7 +225,7 @@ static CONFIG_FILE_NAME: &str = "askama.toml";
 static DEFAULT_SYNTAX_NAME: &str = "default";
 static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
     (&["html", "htm", "xml"], "::askama::Html"),
-    (&["none", "txt", ""], "::askama::Text"),
+    (&["md", "none", "txt", "yml", ""], "::askama::Text"),
     (&["j2", "jinja", "jinja2"], "::askama::Html"),
 ];
 
@@ -404,7 +404,7 @@ mod tests {
             vec![
                 (str_set(&["js"]), "::askama::Js".into()),
                 (str_set(&["html", "htm", "xml"]), "::askama::Html".into()),
-                (str_set(&["md", "yml", "none", "txt", ""]), "::askama::Text".into()),
+                (str_set(&["md", "none", "txt", "yml", ""]), "::askama::Text".into()),
                 (str_set(&["j2", "jinja", "jinja2"]), "::askama::Html".into()),
             ]
         );
