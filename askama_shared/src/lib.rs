@@ -404,7 +404,7 @@ mod tests {
             vec![
                 (str_set(&["js"]), "::askama::Js".into()),
                 (str_set(&["html", "htm", "xml"]), "::askama::Html".into()),
-                (str_set(&["none", "txt", ""]), "::askama::Text".into()),
+                (str_set(&["md", "yml", "none", "txt", ""]), "::askama::Text".into()),
                 (str_set(&["j2", "jinja", "jinja2"]), "::askama::Html".into()),
             ]
         );

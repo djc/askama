@@ -120,9 +120,9 @@
 //! the use of that escaper. Extensions are matched in order, starting with the
 //! first escaper configured and ending with the default escapers for HTML
 //! (extensions `html`, `htm`, `xml`, `j2`, `jinja`, `jinja2`) and plain text
-//! (no escaping; `none`, `txt`, and the empty string). Note that this means
-//! you can also define other escapers that match different extensions to the
-//! same escaper.
+//! (no escaping; `md`, `yml`, `none`, `txt`, and the empty string). Note that
+//! this means you can also define other escapers that match different extensions
+//! to the same escaper.
 //!
 //! ## Variables
 //!
