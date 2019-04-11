@@ -172,9 +172,8 @@
 //! [filters module documentation](filters/index.html).
 //!
 //! To define your own filters, simply have a module named `filters` in
-//! scope of the context deriving a `Template` `impl`. Any filter names
-//! that are not part of the built-in filters will be referenced through
-//! the `filters::` prefix.
+//! scope of the context deriving a `Template` `impl`. Note that in case of
+//! name collision, the built in filters take precedence.
 //!
 //! ## Whitespace control
 //!
