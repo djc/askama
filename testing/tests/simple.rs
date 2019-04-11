@@ -300,6 +300,29 @@ fn test_empty() {
     assert_eq!(Empty.render().unwrap(), "foo");
 }
 
+#[derive(Template)]
+#[template(path = "raw-simple.html")]
+struct RawTemplate;
+
+#[test]
+fn test_raw_simple() {
+    let template = RawTemplate;
+    assert_eq!(template.render().unwrap(), "\n<span>{{ name }}</span>\n");
+}
+
+#[derive(Template)]
+#[template(path = "raw-complex.html")]
+struct RawTemplateComplex;
+
+#[test]
+fn test_raw_complex() {
+    let template = RawTemplateComplex;
+    assert_eq!(
+        template.render().unwrap(),
+        "\n{% block name %}\n  <span>{{ name }}</span>\n{% endblock %}\n"
+    );
+}
+
 mod without_import_on_derive {
     #[derive(askama::Template)]
     #[template(source = "foo", ext = "txt")]
