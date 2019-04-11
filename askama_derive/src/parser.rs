@@ -72,6 +72,7 @@ pub enum Node<'a> {
     Include(WS, &'a str),
     Import(WS, &'a str, &'a str),
     Macro(&'a str, Macro<'a>),
+    Raw(WS, &'a str, WS),
 }
 
 pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
@@ -126,6 +127,7 @@ fn split_ws_parts(s: &[u8]) -> Node {
     )
 }
 
+#[derive(Debug)]
 enum ContentState {
     Any,
     Brace(usize),
@@ -836,6 +838,24 @@ named_args!(block_macro<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     })
 ));
 
+named_args!(block_raw<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
+    pws1: opt!(tag!("-")) >>
+    ws!(tag!("raw")) >>
+    nws1: opt!(tag!("-")) >>
+    call!(tag_block_end, s) >>
+    contents: take_until!("{% endraw %}") >>
+    call!(tag_block_start, s) >>
+    pws2: opt!(tag!("-")) >>
+    ws!(tag!("endraw")) >>
+    nws2: opt!(tag!("-")) >>
+    ({
+        let str_contents = str::from_utf8(&contents).unwrap();
+        (Node::Raw(WS(pws1.is_some(), nws1.is_some()),
+                   str_contents,
+                   WS(pws2.is_some(), nws2.is_some())))
+    })
+));
+
 named_args!(block_node<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     call!(tag_block_start, s) >>
     contents: alt!(
@@ -848,7 +868,8 @@ named_args!(block_node<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
         block_include |
         block_import |
         call!(block_block, s) |
-        call!(block_macro, s)
+        call!(block_macro, s) |
+        call!(block_raw, s)
     ) >>
     call!(tag_block_end, s) >>
     (contents)
