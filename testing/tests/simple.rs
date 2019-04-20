@@ -301,12 +301,22 @@ fn test_empty() {
 }
 
 #[derive(Template)]
+#[template(source = "{% raw %}{% endraw %}", ext = "txt")]
+struct RawTemplateEmpty;
+
+#[test]
+fn test_raw_empty() {
+    let template = RawTemplateEmpty;
+    assert_eq!(template.render().unwrap(), "");
+}
+
+#[derive(Template)]
 #[template(path = "raw-simple.html")]
-struct RawTemplate;
+struct RawTemplateSimple;
 
 #[test]
 fn test_raw_simple() {
-    let template = RawTemplate;
+    let template = RawTemplateSimple;
     assert_eq!(template.render().unwrap(), "\n<span>{{ name }}</span>\n");
 }
 
@@ -316,11 +326,15 @@ struct RawTemplateComplex;
 
 #[test]
 fn test_raw_complex() {
+    let complex_block = "
+{% block name %}
+{% for row in table %}
+<tr>{% for col in row %}<td>{{ col|escape }}</td>{% endfor %}</tr>
+{% endfor %}
+{% endblock %}
+";
     let template = RawTemplateComplex;
-    assert_eq!(
-        template.render().unwrap(),
-        "\n{% block name %}\n  <span>{{ name }}</span>\n{% endblock %}\n"
-    );
+    assert_eq!(template.render().unwrap(), complex_block);
 }
 
 mod without_import_on_derive {
