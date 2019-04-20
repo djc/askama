@@ -761,20 +761,34 @@ named_args!(block_macro<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     })
 ));
 
+fn take_raw_block<'a>(
+    i: Input<'a>,
+    s: &'a Syntax<'a>
+) -> Result<(Input<'a>, &'a str), nom::Err<Input<'a>>> {
+    let bs = s.block_start.as_bytes()[0];
+
+    let mut last_brace = 0;
+    for (idx, c) in i.iter().enumerate() {
+        if *c == bs {
+            last_brace = idx;
+        }
+    }
+    Ok((Input(&i[last_brace..]), str::from_utf8(&i[..last_brace]).unwrap()))
+}
+
 named_args!(block_raw<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     pws1: opt!(tag!("-")) >>
     ws!(tag!("raw")) >>
     nws1: opt!(tag!("-")) >>
     call!(tag_block_end, s) >>
-    contents: take_until!("{% endraw %}") >>
+    contents: call!(take_raw_block, s) >>
     call!(tag_block_start, s) >>
     pws2: opt!(tag!("-")) >>
     ws!(tag!("endraw")) >>
     nws2: opt!(tag!("-")) >>
     ({
-        let str_contents = str::from_utf8(&contents).unwrap();
         (Node::Raw(WS(pws1.is_some(), nws1.is_some()),
-                   str_contents,
+                   contents,
                    WS(pws2.is_some(), nws2.is_some())))
     })
 ));

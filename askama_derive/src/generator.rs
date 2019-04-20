@@ -345,10 +345,9 @@ impl<'a> Generator<'a> {
                     self.flush_ws(m.ws1);
                     self.prepare_ws(m.ws2);
                 }
-                Node::Raw(ws1, contents, ws2) => {
+                Node::Raw(ws1, contents, _) => {
                     self.handle_ws(ws1);
                     self.buf_writable.push(Writable::Lit(contents));
-                    self.handle_ws(ws2);
                 }
                 Node::Import(ws, _, _) => {
                     if level != AstLevel::Top {
