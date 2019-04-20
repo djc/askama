@@ -402,6 +402,20 @@
 //!
 //! Askama supports block comments delimited by `{#` and `#}`.
 //!
+//! ## Raw
+//!
+//! Makes Askama to ignore parts it would otherwise handle as template control structures.
+//!
+//! ```text
+//! {% raw %}
+//!   {% block name %}
+//!     {% for row in table %}
+//!       <tr>{% for col in row %}<td>{{ col|escape }}</td>{% endfor %}</tr>
+//!     {% endfor %}
+//!   {% endblock %}
+//! {% endraw %}
+//! ```
+//!
 //! # Optional functionality
 //!
 //! ## Rocket integration
