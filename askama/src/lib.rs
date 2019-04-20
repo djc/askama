@@ -1,4 +1,4 @@
-//! Askama implements a type-safe compiler for Jinja-like templates.
+a/! Askama implements a type-safe compiler for Jinja-like templates.
 //! It lets you write templates in a Jinja-like syntax,
 //! which are linked to a `struct` defining the template context.
 //! This is done using a custom derive implementation (implemented
@@ -402,6 +402,18 @@
 //!
 //! Askama supports block comments delimited by `{#` and `#}`.
 //!
+//! ## Raw
+//!
+//! Makes Askama to ignore parts it would otherwise handle as template control structures.
+//!
+//! ```text
+//! {% raw %}
+//!   {% block name %}
+//!     {% for row in table %}
+//!       <tr>{% for col in row %}<td>{{ col|escape }}</td>{% endfor %}</tr>
+//!     {% endfor %}
+//!   {% endblock %}
+//! {% endraw %}
 //!
 //! ## Recursive Structures
 //!
