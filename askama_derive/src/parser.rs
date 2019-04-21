@@ -761,19 +761,40 @@ named_args!(block_macro<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     })
 ));
 
-fn take_raw_block<'a>(
-    i: Input<'a>,
-    s: &'a Syntax<'a>
+// Takes longest list of characters until last provided 'syntax' element is found,
+// but before 'tag' element
+fn take_until_last_and_before<'a>(
+    input: Input<'a>,
+    syntax: &'a str,
+    tag: &'a str,
 ) -> Result<(Input<'a>, &'a str), nom::Err<Input<'a>>> {
-    let bs = s.block_start.as_bytes()[0];
+    let bs = syntax.as_bytes()[0];
 
     let mut last_brace = 0;
-    for (idx, c) in i.iter().enumerate() {
-        if *c == bs {
+    let tag_len = tag.len() - 1;
+    let tag_bytes = tag.as_bytes();
+    let mut tag_idx = 0;
+    let mut cur_tag_ch = tag_bytes[tag_idx];
+    for (idx, ch) in input.iter().enumerate() {
+        if *ch == bs {
             last_brace = idx;
         }
+        if *ch == cur_tag_ch {
+            if tag_idx == tag_len {
+                break
+            } else {
+                tag_idx += 1;
+                cur_tag_ch = tag_bytes[tag_idx];
+            }
+        }
     }
-    Ok((Input(&i[last_brace..]), str::from_utf8(&i[..last_brace]).unwrap()))
+    if tag_idx != tag_len {
+        return Err(nom::Err::Error(error_position!(
+            input,
+            nom::ErrorKind::Custom(0)
+        )));
+    }
+    Ok((Input(&input[last_brace..]), str::from_utf8(&input[..last_brace]).unwrap()))
 }
 
 named_args!(block_raw<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
@@ -781,7 +802,7 @@ named_args!(block_raw<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     ws!(tag!("raw")) >>
     nws1: opt!(tag!("-")) >>
     call!(tag_block_end, s) >>
-    contents: call!(take_raw_block, s) >>
+    contents: call!(take_until_last_and_before, s.block_start, "endraw") >>
     call!(tag_block_start, s) >>
     pws2: opt!(tag!("-")) >>
     ws!(tag!("endraw")) >>
