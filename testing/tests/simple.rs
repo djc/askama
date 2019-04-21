@@ -337,6 +337,16 @@ fn test_raw_complex() {
     assert_eq!(template.render().unwrap(), complex_block);
 }
 
+#[derive(Template)]
+#[template(path = "raw-nested.html")]
+struct RawTemplateNested;
+
+#[test]
+fn test_raw_nested() {
+    let template = RawTemplateNested;
+    assert_eq!(template.render().unwrap(), "");
+}
+
 mod without_import_on_derive {
     #[derive(askama::Template)]
     #[template(source = "foo", ext = "txt")]
