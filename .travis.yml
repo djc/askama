@@ -12,6 +12,7 @@ before_script:
 
 script:
 - cargo test --all
+- cd askama_shared && cargo test --features full && cd ..
 - if [[ "${TRAVIS_RUST_VERSION}" == stable ]]; then
     cd testing && cargo test --features full && cargo fmt -- --check;
   fi

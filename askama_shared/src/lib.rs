@@ -2,6 +2,11 @@
 #[macro_use]
 extern crate serde_derive;
 
+#[cfg(feature = "with-i18n")]
+extern crate accept_language;
+#[cfg(feature = "with-i18n")]
+extern crate fluent_bundle;
+
 use toml;
 
 use std::collections::HashSet;
@@ -18,6 +23,9 @@ use std::collections::BTreeMap;
 
 pub mod filters;
 pub mod helpers;
+
+#[cfg(feature = "with-i18n")]
+pub mod i18n_runtime;
 
 #[derive(Debug)]
 pub struct Config<'a> {
@@ -404,7 +412,10 @@ mod tests {
             vec![
                 (str_set(&["js"]), "::askama::Js".into()),
                 (str_set(&["html", "htm", "xml"]), "::askama::Html".into()),
-                (str_set(&["md", "none", "txt", "yml", ""]), "::askama::Text".into()),
+                (
+                    str_set(&["md", "none", "txt", "yml", ""]),
+                    "::askama::Text".into()
+                ),
                 (str_set(&["j2", "jinja", "jinja2"]), "::askama::Html".into()),
             ]
         );
