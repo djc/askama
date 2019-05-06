@@ -6,70 +6,35 @@
 //! Maintenance note: in general, the policy is to move as much i18n code as possible into here;
 //! whatever absolutely *must* be included in the generated code is done in askama_derive.
 
-use accept_language::parse as accept_language_parse;
 use fluent_bundle::{FluentBundle, FluentResource, FluentValue};
-use std::collections::HashMap;
+use fluent_locale::{negotiate_languages, parse_accepted_languages, NegotiationStrategy};
+use std::collections::{HashMap, HashSet};
 
 use super::{Error, Result};
 
 pub use lazy_static::lazy_static;
-
-/// An I18n argument value. Instantiated only by the `{ localize() }` filter.
-pub type I18nValue = fluent_bundle::FluentValue;
-
-/// A known locale. Instantiated only by the `impl_localize!` macro.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
-pub struct Locale(pub &'static str);
-
-/// Sources; an array mapping Locales to fluent source strings. Instantiated only by the `impl_localize!` macro.
-pub type Sources = &'static [(Locale, &'static str)];
-
-/// Sources that have been parsed. Instantiated only by the `impl_localize!` macro.
-///
-/// This type is initialized in a lazy_static! in impl_localize!,
-/// because FluentBundle can only take FluentResources by reference;
-/// we have to store them somewhere to reference them.
-/// This can go away once https://github.com/projectfluent/fluent-rs/issues/103 lands.
-pub struct Resources(Vec<(Locale, FluentResource)>);
-
-impl Resources {
-    /// Parse a list of sources into a list of resources.
-    pub fn new(sources: Sources) -> Resources {
-        Resources(
-            sources
-                .iter()
-                .map(|(locale, source)| {
-                    (
-                        *locale,
-                        FluentResource::try_new(source.to_string())
-                            .expect("baked .ftl translation failed to parse"),
-                    )
-                })
-                .collect(),
-        )
-    }
-}
 
 /// StaticParser is a type that handles accessing the translations baked into
 /// the output executable / library easy. Instantiated only by the `impl_localize!` macro.
 pub struct StaticParser<'a> {
     /// Bundles used for localization.
     /// Maps long-form locales (e.g. "en_US", not just "en") to their respective bundles.
-    bundles: HashMap<Locale, FluentBundle<'a>>,
+    bundles: HashMap<&'static str, FluentBundle<'a>>,
 
-    /// A listing of available locales.
-    /// Long-form locales map to themselves ("en_US" => [Locale("en_US")]);
-    /// Short-form locales map to all available long-form locales, in alphabetical order:
-    /// ("en" => [Locale("en_UK"), Locale("en_US")]).
-    locales: HashMap<&'static str, Vec<Locale>>,
+    /// Available locales.
+    available: Vec<&'static str>,
+
+    /// Optimization: we always treat locales as &'static strs; this is used
+    /// to convert &'a strs to &'static strs
+    available_set: HashSet<&'static str>,
 
     /// The default locale chosen if no others can be determined.
-    default_locale: Locale,
+    default_locale: &'static str,
 }
 
 impl<'a> StaticParser<'a> {
     /// Create a StaticParser.
-    pub fn new(resources: &'a Resources, default_locale: Locale) -> StaticParser<'a> {
+    pub fn new(resources: &'a Resources, default_locale: &'static str) -> StaticParser<'a> {
         assert!(
             resources
                 .0
@@ -80,11 +45,11 @@ impl<'a> StaticParser<'a> {
         );
 
         let mut bundles = HashMap::new();
-        let mut locales = HashMap::new();
+        let mut available = Vec::new();
         for (locale, resource) in resources.0.iter() {
             // confusingly, this value is used by fluent for number and date formatting only.
             // we have to implement looking up missing messages in other bundles ourselves.
-            let fallback_chain = &[locale.0];
+            let fallback_chain = &[locale];
 
             let mut bundle = FluentBundle::new(fallback_chain);
 
@@ -92,18 +57,17 @@ impl<'a> StaticParser<'a> {
                 .add_resource(resource)
                 .expect("failed to add resource");
             bundles.insert(*locale, bundle);
-            locales.insert(locale.0, vec![*locale]);
 
-            let short = &locale.0[..2];
-            let shorts = locales.entry(short).or_insert_with(|| vec![]);
-            shorts.push(*locale);
-            // ensure determinism in fallback order
-            shorts.sort();
+            available.push(*locale);
         }
+        available.sort();
+
+        let available_set = available.iter().cloned().collect();
 
         StaticParser {
             bundles,
-            locales,
+            available,
+            available_set,
             default_locale,
         }
     }
@@ -118,47 +82,33 @@ impl<'a> StaticParser<'a> {
         &self,
         user_locales: &[&str],
         accept_language: Option<&str>,
-    ) -> Vec<Locale> {
-        let mut chain = vec![];
-
-        // when adding a locale "en_AU", also check its short form "en",
-        // and also add all locales that that short form maps to.
-        // this ensures that a locale chain like "es-AR", "en-US" will
-        // pull messages from "es-MX" before going to english.
-        //
-        // note: this has the side effect of discarding some ordering information.
-        //
-        // TODO: discuss whether this is a reasonable approach.
-        let mut add = |locale_code: &str| {
-            let mut codes = &[locale_code, &locale_code[..2]][..];
-            if locale_code.len() == 2 {
-                codes = &codes[..1]
-            }
-
-            for code in codes {
-                if let Some(locales) = self.locales.get(code) {
-                    for locale in locales {
-                        if !chain.contains(locale) {
-                            chain.push(*locale);
-                        }
-                    }
-                }
-            }
+    ) -> Vec<&'static str> {
+        let requested = accept_language.map(|accept_language| {
+            let mut accepted = user_locales.to_owned();
+            accepted.extend(&parse_accepted_languages(accept_language));
+            accepted
+        });
+        let requested = match requested {
+            Some(ref requested) => &requested[..],
+            None => user_locales,
         };
-        for locale_code in user_locales {
-            add(locale_code);
-        }
-        if let Some(accept_language) = accept_language {
-            for locale_code in &accept_language_parse(accept_language) {
-                add(locale_code);
-            }
-        }
+        let result = negotiate_languages(
+            requested,
+            &self.available,
+            Some(self.default_locale),
+            &NegotiationStrategy::Filtering,
+        );
 
-        if !chain.contains(&self.default_locale) {
-            chain.push(self.default_locale);
-        }
-
-        chain
+        // prove to borrowck that all locales are static strings
+        result
+            .into_iter()
+            .map(|l| {
+                *self
+                    .available_set
+                    .get(l)
+                    .expect("invariant violated: available and available_set have same contents")
+            })
+            .collect()
     }
 
     /// Localize a message.
@@ -167,7 +117,7 @@ impl<'a> StaticParser<'a> {
     /// * `args`: a slice of arguments to pass to Fluent.
     pub fn localize(
         &self,
-        locale_chain: &[Locale],
+        locale_chain: &[&'static str],
         message: &str,
         args: &[(&str, &FluentValue)],
     ) -> Result<String> {
@@ -209,7 +159,7 @@ impl<'a> StaticParser<'a> {
         )))
     }
 
-    pub fn has_message(&self, locale_chain: &[Locale], message: &str) -> bool {
+    pub fn has_message(&self, locale_chain: &[&'static str], message: &str) -> bool {
         locale_chain
             .iter()
             .flat_map(|locale| self.bundles.get(locale))
@@ -217,34 +167,65 @@ impl<'a> StaticParser<'a> {
     }
 }
 
+/// Sources that have been parsed. Instantiated only by the `impl_localize!` macro.
+///
+/// This type is initialized in a lazy_static! in impl_localize!,
+/// because FluentBundle can only take FluentResources by reference;
+/// we have to store them somewhere to reference them.
+/// This can go away once https://github.com/projectfluent/fluent-rs/issues/103 lands.
+pub struct Resources(Vec<(&'static str, FluentResource)>);
+
+impl Resources {
+    /// Parse a list of sources into a list of resources.
+    pub fn new(sources: Sources) -> Resources {
+        Resources(
+            sources
+                .iter()
+                .map(|(locale, source)| {
+                    (
+                        *locale,
+                        FluentResource::try_new(source.to_string())
+                            .expect("baked .ftl translation failed to parse"),
+                    )
+                })
+                .collect(),
+        )
+    }
+}
+
+/// Sources; an array mapping &'static strs to fluent source strings. Instantiated only by the `impl_localize!` macro.
+pub type Sources = &'static [(&'static str, &'static str)];
+
+pub use fluent_bundle::FluentValue as I18nValue;
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     const SOURCES: Sources = &[
         (
-            Locale("en_US"),
+            "en_US",
             r#"
 greeting = Hello, { $name }! You are { $hours } hours old.
 goodbye = Goodbye.
 "#,
         ),
         (
-            Locale("en_AU"),
+            "en_AU",
             r#"
 greeting = G'day, { $name }! You are { $hours } hours old.
 goodbye = Hooroo.
 "#,
         ),
         (
-            Locale("es_MX"),
+            "es_MX",
             r#"
 greeting = ¡Hola, { $name }! Tienes { $hours } horas.
 goodbye = Adiós.
 "#,
         ),
         (
-            Locale("de_DE"),
+            "de_DE",
             "greeting = Hallo { $name }! Du bist { $hours } Stunden alt.",
         ),
     ];
@@ -252,35 +233,31 @@ goodbye = Adiós.
     #[test]
     fn basic() -> Result<()> {
         let resources = Resources::new(SOURCES);
-        let bundles = StaticParser::new(&resources, Locale("en_US"));
+        let bundles = StaticParser::new(&resources, "en_US");
         let name = FluentValue::from("Jamie");
         let hours = FluentValue::from(190321.31);
         let args = &[("name", &name), ("hours", &hours)][..];
 
         assert_eq!(
-            bundles.localize(&[Locale("en_US")], "greeting", args)?,
+            bundles.localize(&["en_US"], "greeting", args)?,
             "Hello, Jamie! You are 190321.31 hours old."
         );
         assert_eq!(
-            bundles.localize(&[Locale("es_MX")], "greeting", args)?,
+            bundles.localize(&["es_MX"], "greeting", args)?,
             "¡Hola, Jamie! Tienes 190321.31 horas."
         );
         assert_eq!(
-            bundles.localize(&[Locale("de_DE")], "greeting", args)?,
+            bundles.localize(&["de_DE"], "greeting", args)?,
             "Hallo Jamie! Du bist 190321.31 Stunden alt."
         );
 
         // missing messages should fall back to first available
         assert_eq!(
-            bundles.localize(
-                &[Locale("de_DE"), Locale("es_MX"), Locale("en_US")],
-                "goodbye",
-                &[]
-            )?,
+            bundles.localize(&["de_DE", "es_MX", "en_US"], "goodbye", &[])?,
             "Adiós."
         );
 
-        if let Ok(_) = bundles.localize(&[Locale("en_US")], "bananas", &[]) {
+        if let Ok(_) = bundles.localize(&["en_US"], "bananas", &[]) {
             panic!("Should return Err on missing message");
         }
 
@@ -290,33 +267,33 @@ goodbye = Adiós.
     #[test]
     fn create_locale_chain() {
         let resources = Resources::new(SOURCES);
-        let bundles = StaticParser::new(&resources, Locale("en_US"));
+        let bundles = StaticParser::new(&resources, "en_US");
 
         // accept-language parser works + short-code lookup works
         assert_eq!(
             bundles.create_locale_chain(&[], Some("en_US, es_MX; q=0.5")),
-            &[Locale("en_US"), Locale("en_AU"), Locale("es_MX")]
+            &["en_US", "en_AU", "es_MX"]
         );
 
         // first choice has precedence
         assert_eq!(
             bundles.create_locale_chain(&["es_MX"], Some("en_US; q=0.5")),
-            &[Locale("es_MX"), Locale("en_US"), Locale("en_AU")]
+            &["es_MX", "en_US", "en_AU"]
         );
 
         // short codes work
         assert_eq!(
             bundles.create_locale_chain(&[], Some("en")),
-            &[Locale("en_AU"), Locale("en_US")]
+            &["en_US", "en_AU"]
         );
 
         // default works
-        assert_eq!(bundles.create_locale_chain(&[], None), &[Locale("en_US")]);
+        assert_eq!(bundles.create_locale_chain(&[], None), &["en_US"]);
 
         // missing languages fall through to default
         assert_eq!(
             bundles.create_locale_chain(&["zh_HK"], Some("xy_ZW")),
-            &[Locale("en_US")]
+            &["en_US"]
         );
     }
 }

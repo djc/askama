@@ -3,9 +3,9 @@
 extern crate serde_derive;
 
 #[cfg(feature = "with-i18n")]
-extern crate accept_language;
-#[cfg(feature = "with-i18n")]
 extern crate fluent_bundle;
+#[cfg(feature = "with-i18n")]
+extern crate fluent_locale;
 
 use toml;
 
