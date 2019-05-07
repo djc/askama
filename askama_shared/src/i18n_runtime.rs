@@ -46,16 +46,18 @@ impl<'a> StaticParser<'a> {
 
         let mut bundles = HashMap::new();
         let mut available = Vec::new();
-        for (locale, resource) in resources.0.iter() {
+        for (locale, resources) in resources.0.iter() {
             // confusingly, this value is used by fluent for number and date formatting only.
             // we have to implement looking up missing messages in other bundles ourselves.
             let fallback_chain = &[locale];
 
             let mut bundle = FluentBundle::new(fallback_chain);
 
-            bundle
-                .add_resource(resource)
-                .expect("failed to add resource");
+            for resource in resources {
+                bundle
+                    .add_resource(resource)
+                    .expect("failed to add resource");
+            }
             bundles.insert(*locale, bundle);
 
             available.push(*locale);
@@ -129,32 +131,24 @@ impl<'a> StaticParser<'a> {
         let args = args.as_ref();
 
         for locale in locale_chain {
-            let bundle = self.bundles.get(locale);
-            let bundle = if let Some(bundle) = bundle {
-                bundle
-            } else {
-                // TODO warn?
-                continue;
-            };
+            let bundle = self
+                .bundles
+                .get(locale)
+                .expect("invariant violated: available locales should have matching bundles");
             // this API is weirdly awful;
             // format returns Option<(String, Vec<FluentError>)>
             // which we have to cope with
             let result = bundle.format(message, args);
 
-            if let Some((result, errs)) = result {
-                if errs.len() == 0 {
-                    return Ok(result);
-                } else {
-                    continue;
+            if let Some((result, _errs)) = result {
+                return Ok(result);
 
-                    // TODO: fluent degrades gracefully; maybe just warn here?
-                    // Err(Error::I18n(errs.pop().unwrap()))
-                }
+                // TODO: warn on errors here?
             }
         }
         // nowhere to fall back to
         Err(Error::NoTranslationsForMessage(format!(
-            "no translations for message {} in locale chain {:?}",
+            "no non-erroring translations for message {} in locale chain {:?}",
             message, locale_chain
         )))
     }
@@ -173,7 +167,7 @@ impl<'a> StaticParser<'a> {
 /// because FluentBundle can only take FluentResources by reference;
 /// we have to store them somewhere to reference them.
 /// This can go away once https://github.com/projectfluent/fluent-rs/issues/103 lands.
-pub struct Resources(Vec<(&'static str, FluentResource)>);
+pub struct Resources(Vec<(&'static str, Vec<FluentResource>)>);
 
 impl Resources {
     /// Parse a list of sources into a list of resources.
@@ -181,11 +175,16 @@ impl Resources {
         Resources(
             sources
                 .iter()
-                .map(|(locale, source)| {
+                .map(|(locale, sources)| {
                     (
                         *locale,
-                        FluentResource::try_new(source.to_string())
-                            .expect("baked .ftl translation failed to parse"),
+                        sources
+                            .iter()
+                            .map(|source| {
+                                FluentResource::try_new(source.to_string())
+                                    .expect("baked .ftl translation failed to parse")
+                            })
+                            .collect(),
                     )
                 })
                 .collect(),
@@ -194,7 +193,7 @@ impl Resources {
 }
 
 /// Sources; an array mapping &'static strs to fluent source strings. Instantiated only by the `impl_localize!` macro.
-pub type Sources = &'static [(&'static str, &'static str)];
+pub type Sources = &'static [(&'static str, &'static [&'static str])];
 
 pub use fluent_bundle::FluentValue as I18nValue;
 
@@ -205,28 +204,28 @@ mod tests {
     const SOURCES: Sources = &[
         (
             "en_US",
-            r#"
+            &[r#"
 greeting = Hello, { $name }! You are { $hours } hours old.
 goodbye = Goodbye.
-"#,
+"#],
         ),
         (
             "en_AU",
-            r#"
+            &[r#"
 greeting = G'day, { $name }! You are { $hours } hours old.
 goodbye = Hooroo.
-"#,
+"#],
         ),
         (
             "es_MX",
-            r#"
+            &[r#"
 greeting = ¡Hola, { $name }! Tienes { $hours } horas.
 goodbye = Adiós.
-"#,
+"#],
         ),
         (
             "de_DE",
-            "greeting = Hallo { $name }! Du bist { $hours } Stunden alt.",
+            &["greeting = Hallo { $name }! Du bist { $hours } Stunden alt."],
         ),
     ];
 
