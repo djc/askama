@@ -1,5 +1,4 @@
-use std::fmt::{self, Display, Formatter};
-use std::io::{self, prelude::*};
+use std::fmt::{self, Display, Formatter, Write};
 use std::str;
 
 pub struct MarkupDisplay<E, T>
@@ -53,40 +52,33 @@ where
                 },
                 "{}",
                 t
-            )
-            .map_err(|_| fmt::Error),
+            ),
             DisplayValue::Safe(ref t) => t.fmt(fmt),
         }
     }
 }
 
-pub struct EscapeWriter<'a, 'b: 'a, E> {
-    fmt: &'a mut fmt::Formatter<'b>,
+pub struct EscapeWriter<'a, E, W> {
+    fmt: W,
     escaper: &'a E,
 }
 
-impl<E> io::Write for EscapeWriter<'_, '_, E>
+impl<'a, E, W> Write for EscapeWriter<'a, E, W>
 where
+    W: Write,
     E: Escaper,
 {
-    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        self.escaper
-            .write_escaped_bytes(self.fmt, bytes)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-        Ok(bytes.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.escaper.write_escaped(&mut self.fmt, s)
     }
 }
 
-pub fn escape<E>(s: &str, escaper: E) -> Escaped<'_, E>
+pub fn escape<E>(string: &str, escaper: E) -> Escaped<'_, E>
 where
     E: Escaper,
 {
     Escaped {
-        bytes: s.as_bytes(),
+        string,
         escaper,
     }
 }
@@ -95,7 +87,7 @@ pub struct Escaped<'a, E>
 where
     E: Escaper,
 {
-    bytes: &'a [u8],
+    string: &'a str,
     escaper: E,
 }
 
@@ -104,7 +96,7 @@ where
     E: Escaper,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.escaper.write_escaped_bytes(fmt, self.bytes)
+        self.escaper.write_escaped(fmt, self.string)
     }
 }
 
@@ -121,7 +113,11 @@ macro_rules! escaping_body {
 }
 
 impl Escaper for Html {
-    fn write_escaped_bytes(&self, fmt: &mut fmt::Formatter<'_>, bytes: &[u8]) -> fmt::Result {
+    fn write_escaped<W>(&self, mut fmt: W, string: &str) -> fmt::Result
+    where
+        W: Write,
+    {
+        let bytes = string.as_bytes();
         let mut start = 0;
         for (i, b) in bytes.iter().enumerate() {
             if b.wrapping_sub(b'"') <= FLAG {
@@ -143,8 +139,11 @@ impl Escaper for Html {
 pub struct Text;
 
 impl Escaper for Text {
-    fn write_escaped_bytes(&self, fmt: &mut fmt::Formatter<'_>, bytes: &[u8]) -> fmt::Result {
-        fmt.write_str(unsafe { str::from_utf8_unchecked(bytes) })
+    fn write_escaped<W>(&self, mut fmt: W, string: &str) -> fmt::Result
+    where
+        W: Write,
+    {
+        fmt.write_str(string)
     }
 }
 
@@ -158,7 +157,9 @@ where
 }
 
 pub trait Escaper {
-    fn write_escaped_bytes(&self, fmt: &mut fmt::Formatter<'_>, bytes: &[u8]) -> fmt::Result;
+    fn write_escaped<W>(&self, fmt: W, string: &str) -> fmt::Result
+    where
+        W: Write;
 }
 
 const FLAG: u8 = b'>' - b'"';
