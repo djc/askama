@@ -344,7 +344,7 @@ struct RawTemplateNested;
 #[test]
 fn test_raw_nested() {
     let template = RawTemplateNested;
-    assert_eq!(template.render().unwrap(), "");
+    assert_eq!(template.render().unwrap(), " {{ variable }} ");
 }
 
 mod without_import_on_derive {

@@ -769,6 +769,7 @@ fn take_until_last_and_before<'a>(
     tag: &'a str,
 ) -> Result<(Input<'a>, &'a str), nom::Err<Input<'a>>> {
     let bs = syntax.as_bytes()[0];
+    let be = syntax.as_bytes()[1];
 
     let mut last_brace = 0;
     let tag_len = tag.len() - 1;
@@ -776,7 +777,7 @@ fn take_until_last_and_before<'a>(
     let mut tag_idx = 0;
     let mut cur_tag_ch = tag_bytes[tag_idx];
     for (idx, ch) in input.iter().enumerate() {
-        if *ch == bs {
+        if *ch == bs && input[idx+1] == be {
             last_brace = idx;
         }
         if *ch == cur_tag_ch {
