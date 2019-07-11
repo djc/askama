@@ -454,14 +454,18 @@
 //! ## Actix-web integration
 //!
 //! Enabling the `with-actix-web` feature appends an implementation of Actix-web's
-//! `Responder` trait for each template type. This makes it easy to return a value of
-//! that type in an Actix-web handler.
+//! `Responder` trait for each template type. This makes it easy to trivially return
+//! a value of that type in an Actix-web handler. See
+//! [the example](https://github.com/djc/askama/blob/master/testing/tests/actix_web.rs)
+//! from the Askama test suite for more on how to integrate.
 //!
 //! ## Gotham integration
 //!
-//! Enabling the `with-gotham` feature appends an implementation of Gotham's `IntoResponse`
-//! trait for each template type. This makes it easy to return a value of that type in a
-//! Gotham handler.
+//! Enabling the `with-gotham` feature appends an implementation of Gotham's
+//! `IntoResponse` trait for each template type. This makes it easy to trivially
+//! return a value of that type in a Gotham handler. See
+//! [the example](https://github.com/djc/askama/blob/master/testing/tests/gotham.rs)
+//! from the Askama test suite for more on how to integrate.
 //!
 //! In case of a run-time error occurring during templating, the response will be of the same
 //! signature, with a status code of `500 Internal Server Error`, mime `*/*`, and an empty `Body`.
