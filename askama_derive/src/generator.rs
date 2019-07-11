@@ -109,7 +109,7 @@ impl<'a> Generator<'a> {
         );
 
         // Make sure the compiler understands that the generated code depends on the template files.
-        for (path, _) in self.contexts {
+        for path in self.contexts.keys() {
             // Skip the fake path of templates defined in rust source.
             let path_is_valid = match self.input.source {
                 Source::Path(_) => true,
