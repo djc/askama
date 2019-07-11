@@ -117,7 +117,7 @@ fn split_ws_parts(s: &[u8]) -> Node {
             (&s[..start], &s[start..], &s[0..0])
         } else {
             let end = end.unwrap();
-            (&s[..start], &s[start..end + 1], &s[end + 1..])
+            (&s[..start], &s[start..=end], &s[end + 1..])
         }
     };
     Node::Lit(

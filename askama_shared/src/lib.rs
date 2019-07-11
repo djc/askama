@@ -55,7 +55,7 @@ impl<'a> Config<'a> {
             for raw_s in raw_syntaxes {
                 let name = raw_s.name;
 
-                if let Some(_) = syntaxes.insert(name.to_string(), Syntax::from(raw_s)) {
+                if syntaxes.insert(name.to_string(), Syntax::from(raw_s)).is_some() {
                     panic!("syntax \"{}\" is already defined", name)
                 }
             }
