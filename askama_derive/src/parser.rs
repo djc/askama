@@ -20,6 +20,7 @@ pub enum Expr<'a> {
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
     Range(&'a str, Option<Box<Expr<'a>>>, Option<Box<Expr<'a>>>),
     Group(Box<Expr<'a>>),
+    FnCall(Box<Expr<'a>>, Vec<Expr<'a>>),
     MethodCall(Box<Expr<'a>>, &'a str, Vec<Expr<'a>>),
     RustMacro(&'a str, &'a str),
 }
@@ -431,8 +432,20 @@ named!(expr_attr<Input, Expr>, do_parse!(
     })
 ));
 
-named!(expr_index<Input, Expr>, do_parse!(
+named!(expr_fncall<Input, Expr>, do_parse!(
     obj: expr_attr >>
+    args: opt!(arguments) >>
+    ({
+        if let Some(args) = args {
+            Expr::FnCall(Box::new(obj), args)
+        } else {
+            obj
+        }
+    })
+));
+
+named!(expr_index<Input, Expr>, do_parse!(
+    obj: expr_fncall >>
     key: opt!(do_parse!(
         ws!(tag!("[")) >>
         key: expr_any >>

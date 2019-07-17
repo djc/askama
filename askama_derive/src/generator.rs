@@ -880,6 +880,9 @@ impl<'a> Generator<'a> {
             Expr::MethodCall(ref obj, method, ref args) => {
                 self.visit_method_call(buf, obj, method, args)
             }
+            Expr::FnCall(ref path, ref args) => {
+                self.visit_fn_call(buf, path, args)
+            }
             Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
         }
     }
@@ -1030,6 +1033,24 @@ impl<'a> Generator<'a> {
         buf.write("[");
         self.visit_expr(buf, key);
         buf.write("]");
+        DisplayWrap::Unwrapped
+    }
+
+    fn visit_fn_call(
+        &mut self,
+        buf: &mut Buffer,
+        path: &Expr,
+        args: &[Expr],
+    ) -> DisplayWrap {
+        if let Expr::Var("self") = path {
+            buf.write("self");
+        } else {
+            self.visit_expr(buf, path);
+        }
+
+        buf.write("(");
+        self._visit_args(buf, args);
+        buf.write(")");
         DisplayWrap::Unwrapped
     }
 
