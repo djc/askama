@@ -1,0 +1,19 @@
+[package]
+name = "askama_actix"
+version = "0.1.0"
+authors = ["Fabian Freyer <fabian.freyer@physik.tu-berlin.de>"]
+categories = ["template-engine"]
+workspace = ".."
+edition = "2018"
+
+[badges]
+appveyor = { repository = "djc/askama" }
+travis-ci = { repository = "djc/askama" }
+maintenance = { status = "actively-developed" }
+
+[dependencies]
+actix-web = "0.7"
+askama = { version = "0.8.0", path = "../askama" }
+mime = "0.3"
+mime_guess = "2.0.0-alpha"
+bytes = "0.4"

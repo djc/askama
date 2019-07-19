@@ -2,7 +2,8 @@
 use actix_web::http::header::CONTENT_TYPE;
 use actix_web::test;
 use actix_web::HttpMessage;
-use askama::{actix_web::TemplateIntoResponse, Template};
+use askama::Template;
+use askama_actix::TemplateIntoResponse;
 use bytes::Bytes;
 
 #[derive(Template)]
