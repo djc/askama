@@ -1,7 +1,7 @@
 [package]
 name = "askama_actix"
-version = "0.1.0"
-authors = ["Fabian Freyer <fabian.freyer@physik.tu-berlin.de>"]
+version = "0.8.0"
+authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 categories = ["template-engine"]
 workspace = ".."
 edition = "2018"
