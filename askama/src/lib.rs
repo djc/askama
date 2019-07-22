@@ -513,22 +513,19 @@ pub use askama_derive::*;
 
 #[cfg(feature = "with-iron")]
 pub mod iron {
-    extern crate iron;
-    pub use self::iron::headers::ContentType;
-    pub use self::iron::modifier::Modifier;
-    pub use self::iron::response::Response;
+    pub use iron::headers::ContentType;
+    pub use iron::modifier::Modifier;
+    pub use iron::response::Response;
 }
 
 #[cfg(feature = "with-rocket")]
 pub mod rocket {
-    extern crate rocket;
-
-    use self::rocket::http::{ContentType, Status};
-    pub use self::rocket::request::Request;
-    use self::rocket::response::Response;
+    use rocket::http::{ContentType, Status};
+    pub use rocket::request::Request;
+    use rocket::response::Response;
     use std::io::Cursor;
 
-    pub use self::rocket::response::{Responder, Result};
+    pub use rocket::response::{Responder, Result};
 
     pub fn respond<T: super::Template>(t: &T, ext: &str) -> Result<'static> {
         let rsp = t.render().map_err(|_| Status::InternalServerError)?;
@@ -569,9 +566,9 @@ const TEXT_TYPES: [(mime_guess::Mime, mime_guess::Mime); 6] = [
 
 #[cfg(feature = "with-actix-web")]
 pub mod actix_web {
-    extern crate actix_web;
-    extern crate bytes;
-    extern crate mime_guess;
+    use actix_web;
+    use bytes;
+    use mime_guess;
 
     use std::fmt;
 
