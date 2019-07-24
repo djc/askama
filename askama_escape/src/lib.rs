@@ -77,10 +77,7 @@ pub fn escape<E>(string: &str, escaper: E) -> Escaped<'_, E>
 where
     E: Escaper,
 {
-    Escaped {
-        string,
-        escaper,
-    }
+    Escaped { string, escaper }
 }
 
 pub struct Escaped<'a, E>

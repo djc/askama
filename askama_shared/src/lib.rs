@@ -55,7 +55,10 @@ impl<'a> Config<'a> {
             for raw_s in raw_syntaxes {
                 let name = raw_s.name;
 
-                if syntaxes.insert(name.to_string(), Syntax::from(raw_s)).is_some() {
+                if syntaxes
+                    .insert(name.to_string(), Syntax::from(raw_s))
+                    .is_some()
+                {
                     panic!("syntax \"{}\" is already defined", name)
                 }
             }
@@ -404,7 +407,10 @@ mod tests {
             vec![
                 (str_set(&["js"]), "::askama::Js".into()),
                 (str_set(&["html", "htm", "xml"]), "::askama::Html".into()),
-                (str_set(&["md", "none", "txt", "yml", ""]), "::askama::Text".into()),
+                (
+                    str_set(&["md", "none", "txt", "yml", ""]),
+                    "::askama::Text".into()
+                ),
                 (str_set(&["j2", "jinja", "jinja2"]), "::askama::Html".into()),
             ]
         );
