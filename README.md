@@ -2,7 +2,7 @@
 
 [![Documentation](https://docs.rs/askama/badge.svg)](https://docs.rs/askama/)
 [![Latest version](https://img.shields.io/crates/v/askama.svg)](https://crates.io/crates/askama)
-[![Build status](https://api.travis-ci.org/djc/askama.svg?branch=master)](https://travis-ci.org/djc/askama)
+[![Build Status](https://dev.azure.com/dochtman/Projects/_apis/build/status/Askama?branchName=master)](https://dev.azure.com/dochtman/Projects/_build/latest?definitionId=2&branchName=master)
 [![Windows build](https://ci.appveyor.com/api/projects/status/github/djc/askama?svg=true)](https://ci.appveyor.com/project/djc/askama)
 [![Chat](https://badges.gitter.im/gitterHQ/gitter.svg)](https://gitter.im/djc/askama)
 

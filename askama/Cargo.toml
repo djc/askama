@@ -14,8 +14,7 @@ readme = "../README.md"
 edition = "2018"
 
 [badges]
-appveyor = { repository = "djc/askama" }
-travis-ci = { repository = "djc/askama" }
+azure-devops = { project = "dochtman/Projects", pipeline = "Askama", build = "2" }
 maintenance = { status = "actively-developed" }
 
 [features]
