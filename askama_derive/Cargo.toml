@@ -21,6 +21,6 @@ gotham = []
 [dependencies]
 askama_shared = { version = "0.8", path = "../askama_shared" }
 nom = "4"
-proc-macro2 = "0.4"
+proc-macro2 = "1.0"
 quote = "0.6"
 syn = "0.15"
