@@ -26,7 +26,7 @@ mime = { version = "0.3", optional = true }
 hyper = { version = "0.12", optional = true }
 
 [dev-dependencies]
-criterion = "0.2"
+criterion = "0.3"
 
 [[bench]]
 name = "all"
