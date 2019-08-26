@@ -17,7 +17,7 @@ maintenance = { status = "actively-developed" }
 travis-ci = { repository = "djc/askama" }
 
 [dev-dependencies]
-criterion = "0.2"
+criterion = "0.3"
 
 [[bench]]
 name = "all"
