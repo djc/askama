@@ -20,7 +20,9 @@ gotham = []
 
 [dependencies]
 askama_shared = { version = "0.8", path = "../askama_shared" }
-nom = "4"
+# default for features for nom don't work result in linker errors:
+# https://github.com/rust-lang/rust/issues/62146
+nom = { version = "5", default-features = false, features = ["std"] }
 proc-macro2 = "1"
 quote = "1"
 syn = "1"
