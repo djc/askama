@@ -96,12 +96,6 @@ impl<'a> Default for MatchParameters<'a> {
     }
 }
 
-type Input<'a> = nom::types::CompleteByteSlice<'a>;
-#[allow(non_snake_case)]
-fn Input(input: &[u8]) -> Input {
-    nom::types::CompleteByteSlice(input)
-}
-
 fn split_ws_parts(s: &[u8]) -> Node {
     if s.is_empty() {
         let rs = str::from_utf8(&s).unwrap();
@@ -136,9 +130,9 @@ enum ContentState {
 }
 
 fn take_content<'a>(
-    i: Input<'a>,
+    i: &'a [u8],
     s: &'a Syntax<'a>,
-) -> Result<(Input<'a>, Node<'a>), nom::Err<Input<'a>>> {
+) -> Result<(&'a [u8], Node<'a>), nom::Err<(&'a [u8], nom::error::ErrorKind)>> {
     use crate::parser::ContentState::*;
     let bs = s.block_start.as_bytes()[0];
     let be = s.block_start.as_bytes()[1];
@@ -171,29 +165,29 @@ fn take_content<'a>(
         }
     }
     match state {
-        Any | Brace(_) => Ok((Input(&i[..0]), split_ws_parts(i.0))),
+        Any | Brace(_) => Ok((&i[..0], split_ws_parts(i))),
         End(0) => Err(nom::Err::Error(error_position!(
             i,
-            nom::ErrorKind::Custom(0)
+            nom::error::ErrorKind::TakeUntil
         ))),
-        End(start) => Ok((Input(&i[start..]), split_ws_parts(&i[..start]))),
+        End(start) => Ok((&i[start..], split_ws_parts(&i[..start]))),
     }
 }
 
-fn identifier(input: Input) -> Result<(Input, &str), nom::Err<Input>> {
-    if !nom::is_alphabetic(input[0]) && input[0] != b'_' && !non_ascii(input[0]) {
+fn identifier(input: &[u8]) -> Result<(&[u8], &str), nom::Err<(&[u8], nom::error::ErrorKind)>> {
+    if !nom::character::is_alphabetic(input[0]) && input[0] != b'_' && !non_ascii(input[0]) {
         return Err(nom::Err::Error(error_position!(
             input,
-            nom::ErrorKind::Custom(0)
+            nom::error::ErrorKind::AlphaNumeric
         )));
     }
     for (i, ch) in input.iter().enumerate() {
-        if i == 0 || nom::is_alphanumeric(*ch) || *ch == b'_' || non_ascii(*ch) {
+        if i == 0 || nom::character::is_alphanumeric(*ch) || *ch == b'_' || non_ascii(*ch) {
             continue;
         }
-        return Ok((Input(&input[i..]), str::from_utf8(&input[..i]).unwrap()));
+        return Ok((&input[i..], str::from_utf8(&input[..i]).unwrap()));
     }
-    Ok((Input(&input[1..]), str::from_utf8(&input[..1]).unwrap()))
+    Ok((&input[1..], str::from_utf8(&input[..1]).unwrap()))
 }
 
 #[inline]
@@ -201,20 +195,20 @@ fn non_ascii(chr: u8) -> bool {
     chr >= 0x80 && chr <= 0xFD
 }
 
-named!(expr_bool_lit<Input, Expr>, map!(
+named!(expr_bool_lit<&[u8], Expr>, map!(
     alt!(tag!("true") | tag!("false")),
     |s| Expr::BoolLit(str::from_utf8(&s).unwrap())
 ));
 
-named!(num_lit<Input, &str>, map!(nom::digit,
-    |s| str::from_utf8(s.0).unwrap()
+named!(num_lit<&[u8], &str>, map!(nom::character::complete::digit0,
+    |s| str::from_utf8(s).unwrap()
 ));
 
-named!(expr_num_lit<Input, Expr>, map!(num_lit,
+named!(expr_num_lit<&[u8], Expr>, map!(num_lit,
     |s| Expr::NumLit(s)
 ));
 
-named!(expr_array_lit<Input, Expr>,
+named!(expr_array_lit<&[u8], Expr>,
     delimited!(
         ws!(tag!("[")),
         map!(separated_nonempty_list!(
@@ -225,34 +219,34 @@ named!(expr_array_lit<Input, Expr>,
     )
 );
 
-named!(variant_num_lit<Input, MatchVariant>, map!(num_lit,
+named!(variant_num_lit<&[u8], MatchVariant>, map!(num_lit,
     |s| MatchVariant::NumLit(s)
 ));
 
-named!(param_num_lit<Input, MatchParameter>, map!(num_lit,
+named!(param_num_lit<&[u8], MatchParameter>, map!(num_lit,
     |s| MatchParameter::NumLit(s)
 ));
 
-named!(expr_str_lit<Input, Expr>, map!(
+named!(expr_str_lit<&[u8], Expr>, map!(
     delimited!(char!('"'), take_until!("\""), char!('"')),
     |s| Expr::StrLit(str::from_utf8(&s).unwrap())
 ));
 
-named!(variant_str_lit<Input, MatchVariant>, map!(
+named!(variant_str_lit<&[u8], MatchVariant>, map!(
     delimited!(char!('"'), is_not!("\""), char!('"')),
     |s| MatchVariant::StrLit(str::from_utf8(&s).unwrap())
 ));
 
-named!(param_str_lit<Input, MatchParameter>, map!(
+named!(param_str_lit<&[u8], MatchParameter>, map!(
     delimited!(char!('"'), is_not!("\""), char!('"')),
     |s| MatchParameter::StrLit(str::from_utf8(&s).unwrap())
 ));
 
-named!(expr_var<Input, Expr>, map!(identifier,
+named!(expr_var<&[u8], Expr>, map!(identifier,
     |s| Expr::Var(s))
 );
 
-named!(expr_path<Input, Expr>, do_parse!(
+named!(expr_path<&[u8], Expr>, do_parse!(
     start: call!(identifier) >>
     tag!("::") >>
     rest: separated_nonempty_list!(tag!("::"), identifier) >>
@@ -263,18 +257,18 @@ named!(expr_path<Input, Expr>, do_parse!(
     })
 ));
 
-named!(variant_path<Input, MatchVariant>,
+named!(variant_path<&[u8], MatchVariant>,
     map!(
         separated_nonempty_list!(tag!("::"), identifier),
         |path| MatchVariant::Path(path)
     )
 );
 
-named!(target_single<Input, Target>, map!(identifier,
+named!(target_single<&[u8], Target>, map!(identifier,
     |s| Target::Name(s)
 ));
 
-named!(target_tuple<Input, Target>, delimited!(
+named!(target_tuple<&[u8], Target>, delimited!(
     tag!("("),
     do_parse!(
         res: separated_list!(tag!(","), ws!(identifier)) >>
@@ -284,25 +278,25 @@ named!(target_tuple<Input, Target>, delimited!(
     tag!(")")
 ));
 
-named!(variant_name<Input, MatchVariant>, map!(identifier,
+named!(variant_name<&[u8], MatchVariant>, map!(identifier,
     |s| MatchVariant::Name(s)
 ));
 
-named!(param_name<Input, MatchParameter>, map!(identifier,
+named!(param_name<&[u8], MatchParameter>, map!(identifier,
     |s| MatchParameter::Name(s)
 ));
 
-named!(arguments<Input, Vec<Expr>>, delimited!(
+named!(arguments<&[u8], Vec<Expr>>, delimited!(
     tag!("("),
     separated_list!(tag!(","), ws!(expr_any)),
     tag!(")")
 ));
 
-named!(macro_arguments<Input, &str>,
+named!(macro_arguments<&[u8], &str>,
     delimited!(char!('('), nested_parenthesis, char!(')'))
 );
 
-fn nested_parenthesis(i: Input) -> Result<(Input, &str), nom::Err<Input>> {
+fn nested_parenthesis(i: &[u8]) -> Result<(&[u8], &str), nom::Err<(&[u8], nom::error::ErrorKind)>> {
     let mut nested = 0;
     let mut last = 0;
     let mut in_str = false;
@@ -343,45 +337,45 @@ fn nested_parenthesis(i: Input) -> Result<(Input, &str), nom::Err<Input>> {
     }
 
     if nested == 0 {
-        Ok((Input(&i[last..]), str::from_utf8(&i[..last]).unwrap()))
+        Ok((&i[last..], str::from_utf8(&i[..last]).unwrap()))
     } else {
         Err(nom::Err::Error(error_position!(
             i,
-            nom::ErrorKind::Custom(0)
+            nom::error::ErrorKind::SeparatedNonEmptyList
         )))
     }
 }
 
-named!(parameters<Input, Vec<&str>>, delimited!(
+named!(parameters<&[u8], Vec<&str>>, delimited!(
     tag!("("),
     separated_list!(tag!(","), ws!(identifier)),
     tag!(")")
 ));
 
-named!(with_parameters<Input, MatchParameters>, do_parse!(
+named!(with_parameters<&[u8], MatchParameters>, do_parse!(
     tag!("with") >>
     value: alt!(match_simple_parameters | match_named_parameters) >>
     (value)
 ));
 
-named!(match_simple_parameters<Input, MatchParameters>, delimited!(
+named!(match_simple_parameters<&[u8], MatchParameters>, delimited!(
     ws!(tag!("(")),
     map!(separated_list!(tag!(","), ws!(match_parameter)), |mps| MatchParameters::Simple(mps)),
     tag!(")")
 ));
 
-named!(match_named_parameters<Input, MatchParameters>, delimited!(
+named!(match_named_parameters<&[u8], MatchParameters>, delimited!(
     ws!(tag!("{")),
     map!(separated_list!(tag!(","), ws!(match_named_parameter)), |mps| MatchParameters::Named(mps)),
     tag!("}")
 ));
 
-named!(expr_group<Input, Expr>, map!(
+named!(expr_group<&[u8], Expr>, map!(
     delimited!(char!('('), expr_any, char!(')')),
     |s| Expr::Group(Box::new(s))
 ));
 
-named!(expr_single<Input, Expr>, alt!(
+named!(expr_single<&[u8], Expr>, alt!(
     expr_bool_lit |
     expr_num_lit |
     expr_str_lit |
@@ -392,20 +386,20 @@ named!(expr_single<Input, Expr>, alt!(
     expr_group
 ));
 
-named!(match_variant<Input, MatchVariant>, alt!(
+named!(match_variant<&[u8], MatchVariant>, alt!(
     variant_path |
     variant_name |
     variant_num_lit |
     variant_str_lit
 ));
 
-named!(match_parameter<Input, MatchParameter>, alt!(
+named!(match_parameter<&[u8], MatchParameter>, alt!(
     param_name |
     param_num_lit |
     param_str_lit
 ));
 
-named!(match_named_parameter<Input, (&str, Option<MatchParameter>)>, do_parse!(
+named!(match_named_parameter<&[u8], (&str, Option<MatchParameter>)>, do_parse!(
     name: identifier >>
     param: opt!(do_parse!(
         ws!(tag!(":")) >>
@@ -415,14 +409,14 @@ named!(match_named_parameter<Input, (&str, Option<MatchParameter>)>, do_parse!(
     ((name, param))
 ));
 
-named!(attr<Input, (&str, Option<Vec<Expr>>)>, do_parse!(
+named!(attr<&[u8], (&str, Option<Vec<Expr>>)>, do_parse!(
     tag!(".") >>
     attr: alt!(num_lit | identifier) >>
     args: opt!(arguments) >>
     (attr, args)
 ));
 
-named!(expr_attr<Input, Expr>, do_parse!(
+named!(expr_attr<&[u8], Expr>, do_parse!(
     obj: expr_single >>
     attrs: many0!(attr) >>
     ({
@@ -438,7 +432,7 @@ named!(expr_attr<Input, Expr>, do_parse!(
     })
 ));
 
-named!(expr_index<Input, Expr>, do_parse!(
+named!(expr_index<&[u8], Expr>, do_parse!(
     obj: expr_attr >>
     key: opt!(do_parse!(
         ws!(tag!("[")) >>
@@ -452,14 +446,14 @@ named!(expr_index<Input, Expr>, do_parse!(
     })
 ));
 
-named!(filter<Input, (&str, Option<Vec<Expr>>)>, do_parse!(
+named!(filter<&[u8], (&str, Option<Vec<Expr>>)>, do_parse!(
     tag!("|") >>
     fname: identifier >>
     args: opt!(arguments) >>
     (fname, args)
 ));
 
-named!(expr_filtered<Input, Expr>, do_parse!(
+named!(expr_filtered<&[u8], Expr>, do_parse!(
     obj: expr_index >>
     filters: many0!(filter) >>
     ({
@@ -478,16 +472,16 @@ named!(expr_filtered<Input, Expr>, do_parse!(
     })
 ));
 
-named!(expr_unary<Input, Expr>, do_parse!(
+named!(expr_unary<&[u8], Expr>, do_parse!(
     op: opt!(alt!(tag!("!") | tag!("-"))) >>
     expr: expr_filtered >>
     (match op {
-        Some(op) => Expr::Unary(str::from_utf8(op.0).unwrap(), Box::new(expr)),
+        Some(op) => Expr::Unary(str::from_utf8(op).unwrap(), Box::new(expr)),
         None => expr,
     })
 ));
 
-named!(expr_rust_macro<Input, Expr>, do_parse!(
+named!(expr_rust_macro<&[u8], Expr>, do_parse!(
     mname: identifier >>
     tag!("!") >>
     args: macro_arguments >>
@@ -496,12 +490,12 @@ named!(expr_rust_macro<Input, Expr>, do_parse!(
 
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $( $op:expr ),* ) => {
-        named!($name<Input, Expr>, do_parse!(
+        named!($name<&[u8], Expr>, do_parse!(
             left: $inner >>
             op_and_right: opt!(pair!(ws!(alt!($( tag!($op) )|*)), expr_any)) >>
             (match op_and_right {
                 Some((op, right)) => Expr::BinOp(
-                    str::from_utf8(op.0).unwrap(), Box::new(left), Box::new(right)
+                    str::from_utf8(op).unwrap(), Box::new(left), Box::new(right)
                 ),
                 None => left,
             })
@@ -519,14 +513,14 @@ expr_prec_layer!(expr_compare, expr_bor, "==", "!=", ">=", ">", "<=", "<");
 expr_prec_layer!(expr_and, expr_compare, "&&");
 expr_prec_layer!(expr_or, expr_and, "||");
 
-named!(range_right<Input, Expr>, do_parse!(
+named!(range_right<&[u8], Expr>, do_parse!(
     ws!(tag!("..")) >>
     incl: opt!(ws!(tag!("="))) >>
     right: opt!(expr_or) >>
     (Expr::Range(if incl.is_some() { "..=" } else { ".." }, None, right.map(Box::new)))
 ));
 
-named!(expr_any<Input, Expr>, alt!(
+named!(expr_any<&[u8], Expr>, alt!(
     range_right |
     do_parse!(
         left: expr_or >>
@@ -538,7 +532,7 @@ named!(expr_any<Input, Expr>, alt!(
     expr_or
 ));
 
-named_args!(expr_node<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
+named_args!(expr_node<'a>(s: &'a Syntax<'a>) <&'a [u8], Node<'a>>, do_parse!(
     call!(tag_expr_start, s) >>
     pws: opt!(tag!("-")) >>
     expr: ws!(expr_any) >>
@@ -547,7 +541,7 @@ named_args!(expr_node<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     (Node::Expr(WS(pws.is_some(), nws.is_some()), expr))
 ));
 
-named!(block_call<Input, Node>, do_parse!(
+named!(block_call<&[u8], Node>, do_parse!(
     pws: opt!(tag!("-")) >>
     ws!(tag!("call")) >>
     scope: opt!(do_parse!(
@@ -561,13 +555,13 @@ named!(block_call<Input, Node>, do_parse!(
     (Node::Call(WS(pws.is_some(), nws.is_some()), scope, name, args))
 ));
 
-named!(cond_if<Input, Expr>, do_parse!(
+named!(cond_if<&[u8], Expr>, do_parse!(
     ws!(tag!("if")) >>
     cond: ws!(expr_any) >>
     (cond)
 ));
 
-named_args!(cond_block<'a>(s: &'a Syntax<'a>) <Input<'a>, Cond<'a>>, do_parse!(
+named_args!(cond_block<'a>(s: &'a Syntax<'a>) <&'a [u8], Cond<'a>>, do_parse!(
     call!(tag_block_start, s) >>
     pws: opt!(tag!("-")) >>
     ws!(tag!("else")) >>
@@ -578,7 +572,7 @@ named_args!(cond_block<'a>(s: &'a Syntax<'a>) <Input<'a>, Cond<'a>>, do_parse!(
     (WS(pws.is_some(), nws.is_some()), cond, block)
 ));
 
-named_args!(block_if<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
+named_args!(block_if<'a>(s: &'a Syntax<'a>) <&'a [u8], Node<'a>>, do_parse!(
     pws1: opt!(tag!("-")) >>
     cond: ws!(cond_if) >>
     nws1: opt!(tag!("-")) >>
@@ -597,7 +591,7 @@ named_args!(block_if<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     })
 ));
 
-named_args!(match_else_block<'a>(s: &'a Syntax<'a>) <Input<'a>, When<'a>>, do_parse!(
+named_args!(match_else_block<'a>(s: &'a Syntax<'a>) <&'a [u8], When<'a>>, do_parse!(
     call!(tag_block_start, s) >>
     pws: opt!(tag!("-")) >>
     ws!(tag!("else")) >>
@@ -607,7 +601,7 @@ named_args!(match_else_block<'a>(s: &'a Syntax<'a>) <Input<'a>, When<'a>>, do_pa
     (WS(pws.is_some(), nws.is_some()), None, MatchParameters::Simple(vec![]), block)
 ));
 
-named_args!(when_block<'a>(s: &'a Syntax<'a>) <Input<'a>, When<'a>>, do_parse!(
+named_args!(when_block<'a>(s: &'a Syntax<'a>) <&'a [u8], When<'a>>, do_parse!(
     call!(tag_block_start, s) >>
     pws: opt!(tag!("-")) >>
     ws!(tag!("when")) >>
@@ -619,7 +613,7 @@ named_args!(when_block<'a>(s: &'a Syntax<'a>) <Input<'a>, When<'a>>, do_parse!(
     (WS(pws.is_some(), nws.is_some()), Some(variant), params.unwrap_or_default(), block)
 ));
 
-named_args!(block_match<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
+named_args!(block_match<'a>(s: &'a Syntax<'a>)<&'a [u8], Node<'a>>, do_parse!(
     pws1: opt!(tag!("-")) >>
     ws!(tag!("match")) >>
     expr: ws!(expr_any) >>
@@ -658,7 +652,7 @@ named_args!(block_match<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     })
 ));
 
-named!(block_let<Input, Node>, do_parse!(
+named!(block_let<&[u8], Node>, do_parse!(
     pws: opt!(tag!("-")) >>
     ws!(tag!("let")) >>
     var: ws!(alt!(target_single | target_tuple)) >>
@@ -675,7 +669,7 @@ named!(block_let<Input, Node>, do_parse!(
     })
 ));
 
-named_args!(block_for<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
+named_args!(block_for<'a>(s: &'a Syntax<'a>) <&'a [u8], Node<'a>>, do_parse!(
     pws1: opt!(tag!("-")) >>
     ws!(tag!("for")) >>
     var: ws!(alt!(target_single | target_tuple)) >>
@@ -693,13 +687,13 @@ named_args!(block_for<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
                 WS(pws2.is_some(), nws2.is_some())))
 ));
 
-named!(block_extends<Input, Node>, do_parse!(
+named!(block_extends<&[u8], Node>, do_parse!(
     ws!(tag!("extends")) >>
     name: ws!(expr_str_lit) >>
     (Node::Extends(name))
 ));
 
-named_args!(block_block<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
+named_args!(block_block<'a>(s: &'a Syntax<'a>) <&'a [u8], Node<'a>>, do_parse!(
     pws1: opt!(tag!("-")) >>
     ws!(tag!("block")) >>
     name: ws!(identifier) >>
@@ -716,7 +710,7 @@ named_args!(block_block<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
                     WS(pws2.is_some(), nws2.is_some())))
 ));
 
-named!(block_include<Input, Node>, do_parse!(
+named!(block_include<&[u8], Node>, do_parse!(
     pws: opt!(tag!("-")) >>
     ws!(tag!("include")) >>
     name: ws!(expr_str_lit) >>
@@ -727,7 +721,7 @@ named!(block_include<Input, Node>, do_parse!(
     }))
 ));
 
-named!(block_import<Input, Node>, do_parse!(
+named!(block_import<&[u8], Node>, do_parse!(
     pws: opt!(tag!("-")) >>
     ws!(tag!("import")) >>
     name: ws!(expr_str_lit) >>
@@ -740,7 +734,7 @@ named!(block_import<Input, Node>, do_parse!(
     }, scope))
 ));
 
-named_args!(block_macro<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
+named_args!(block_macro<'a>(s: &'a Syntax<'a>) <&'a [u8], Node<'a>>, do_parse!(
     pws1: opt!(tag!("-")) >>
     ws!(tag!("macro")) >>
     name: ws!(identifier) >>
@@ -768,7 +762,7 @@ named_args!(block_macro<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     })
 ));
 
-named_args!(block_raw<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
+named_args!(block_raw<'a>(s: &'a Syntax<'a>) <&'a [u8], Node<'a>>, do_parse!(
     pws1: opt!(tag!("-")) >>
     ws!(tag!("raw")) >>
     nws1: opt!(tag!("-")) >>
@@ -786,7 +780,7 @@ named_args!(block_raw<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     })
 ));
 
-named_args!(block_node<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
+named_args!(block_node<'a>(s: &'a Syntax<'a>) <&'a [u8], Node<'a>>, do_parse!(
     call!(tag_block_start, s) >>
     contents: alt!(
         block_call |
@@ -805,7 +799,7 @@ named_args!(block_node<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     (contents)
 ));
 
-named_args!(block_comment<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
+named_args!(block_comment<'a>(s: &'a Syntax<'a>) <&'a [u8], Node<'a>>, do_parse!(
     call!(tag_comment_start, s)  >>
     pws: opt!(tag!("-")) >>
     inner: take_until!(s.comment_end) >>
@@ -813,25 +807,25 @@ named_args!(block_comment<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse
     (Node::Comment(WS(pws.is_some(), inner.len() > 1 && inner[inner.len() - 1] == b'-')))
 ));
 
-named_args!(parse_template<'a>(s: &'a Syntax<'a>)<Input<'a>, Vec<Node<'a>>>, many0!(alt!(
+named_args!(parse_template<'a>(s: &'a Syntax<'a>)<&'a [u8], Vec<Node<'a>>>, many0!(alt!(
     call!(take_content, s) |
     call!(block_comment, s) |
     call!(expr_node, s) |
     call!(block_node, s)
 )));
 
-named_args!(tag_block_start<'a>(s: &'a Syntax<'a>) <Input<'a>, Input<'a>>, tag!(s.block_start));
-named_args!(tag_block_end<'a>(s: &'a Syntax<'a>) <Input<'a>, Input<'a>>, tag!(s.block_end));
-named_args!(tag_comment_start<'a>(s: &'a Syntax<'a>) <Input<'a>, Input<'a>>, tag!(s.comment_start));
-named_args!(tag_comment_end<'a>(s: &'a Syntax<'a>) <Input<'a>, Input<'a>>, tag!(s.comment_end));
-named_args!(tag_expr_start<'a>(s: &'a Syntax<'a>) <Input<'a>, Input<'a>>, tag!(s.expr_start));
-named_args!(tag_expr_end<'a>(s: &'a Syntax<'a>) <Input<'a>, Input<'a>>, tag!(s.expr_end));
+named_args!(tag_block_start<'a>(s: &'a Syntax<'a>) <&'a [u8], &'a [u8]>, tag!(s.block_start));
+named_args!(tag_block_end<'a>(s: &'a Syntax<'a>) <&'a [u8], &'a [u8]>, tag!(s.block_end));
+named_args!(tag_comment_start<'a>(s: &'a Syntax<'a>) <&'a [u8], &'a [u8]>, tag!(s.comment_start));
+named_args!(tag_comment_end<'a>(s: &'a Syntax<'a>) <&'a [u8], &'a [u8]>, tag!(s.comment_end));
+named_args!(tag_expr_start<'a>(s: &'a Syntax<'a>) <&'a [u8], &'a [u8]>, tag!(s.expr_start));
+named_args!(tag_expr_end<'a>(s: &'a Syntax<'a>) <&'a [u8], &'a [u8]>, tag!(s.expr_end));
 
 pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Vec<Node<'a>> {
-    match parse_template(Input(src.as_bytes()), syntax) {
+    match parse_template(src.as_bytes(), syntax) {
         Ok((left, res)) => {
             if !left.is_empty() {
-                let s = str::from_utf8(left.0).unwrap();
+                let s = str::from_utf8(left).unwrap();
                 panic!("unable to parse template:\n\n{:?}", s);
             } else {
                 res
