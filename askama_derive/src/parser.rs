@@ -472,7 +472,7 @@ named!(expr_filtered<Input, Expr>, do_parse!(
 ));
 
 named!(expr_unary<Input, Expr>, do_parse!(
-    op: opt!(alt!(tag!("!") | tag!("-"))) >>
+    op: opt!(alt!(tag!("!") | tag!("-") | tag!("*"))) >>
     expr: expr_filtered >>
     (match op {
         Some(op) => Expr::Unary(str::from_utf8(op.0).unwrap(), Box::new(expr)),
