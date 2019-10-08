@@ -114,7 +114,7 @@ struct LiteralsTemplate {}
 #[test]
 fn test_literals() {
     let s = LiteralsTemplate {};
-    assert_eq!(s.render().unwrap(), "a");
+    assert_eq!(s.render().unwrap(), "a\ntrue\nfalse");
 }
 
 struct Holder {

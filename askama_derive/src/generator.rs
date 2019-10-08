@@ -865,6 +865,7 @@ impl<'a> Generator<'a> {
 
     fn visit_expr(&mut self, buf: &mut Buffer, expr: &Expr) -> DisplayWrap {
         match *expr {
+            Expr::BoolLit(s) => self.visit_bool_lit(buf, s),
             Expr::NumLit(s) => self.visit_num_lit(buf, s),
             Expr::StrLit(s) => self.visit_str_lit(buf, s),
             Expr::Var(s) => self.visit_var(buf, s),
@@ -1124,6 +1125,11 @@ impl<'a> Generator<'a> {
             buf.write("self.");
             buf.write(s);
         }
+        DisplayWrap::Unwrapped
+    }
+
+    fn visit_bool_lit(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
+        buf.write(s);
         DisplayWrap::Unwrapped
     }
 
