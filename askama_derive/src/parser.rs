@@ -8,6 +8,7 @@ use askama_shared::Syntax;
 
 #[derive(Debug)]
 pub enum Expr<'a> {
+    BoolLit(&'a str),
     NumLit(&'a str),
     StrLit(&'a str),
     Var(&'a str),
@@ -200,6 +201,11 @@ fn non_ascii(chr: u8) -> bool {
     chr >= 0x80 && chr <= 0xFD
 }
 
+named!(expr_bool_lit<Input, Expr>, map!(
+    alt!(tag!("true") | tag!("false")),
+    |s| Expr::BoolLit(str::from_utf8(&s).unwrap())
+));
+
 named!(num_lit<Input, &str>, map!(nom::digit,
     |s| str::from_utf8(s.0).unwrap()
 ));
@@ -376,6 +382,7 @@ named!(expr_group<Input, Expr>, map!(
 ));
 
 named!(expr_single<Input, Expr>, alt!(
+    expr_bool_lit |
     expr_num_lit |
     expr_str_lit |
     expr_path |
