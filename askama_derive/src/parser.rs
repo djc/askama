@@ -808,7 +808,7 @@ named_args!(block_node<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
 named_args!(block_comment<'a>(s: &'a Syntax<'a>) <Input<'a>, Node<'a>>, do_parse!(
     call!(tag_comment_start, s)  >>
     pws: opt!(tag!("-")) >>
-    inner: take_until_s!(s.comment_end) >>
+    inner: take_until!(s.comment_end) >>
     call!(tag_comment_end, s) >>
     (Node::Comment(WS(pws.is_some(), inner.len() > 1 && inner[inner.len() - 1] == b'-')))
 ));
