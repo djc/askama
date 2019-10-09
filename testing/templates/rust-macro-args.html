@@ -1,15 +1,3 @@
-{{
-        call_a_or_b_on_tail!(
-            (a: compute_len, b: zero), call b: only the terminal rules care.
-        )
-}}
-{{
-        call_a_or_b_on_tail!(
-            (a: compute_len, b: zero), call a: some ninety one!
-        )
-}}
-{{
-        call_a_or_b_on_tail!(
-            (a: compute_len, b: zero), call a: some ninety "(\"()"nine!
-        )
-}}
+{{ call_a_or_b_on_tail!((a: compute_len, b: zero), call b: only the terminal rules care.) }}
+{{ call_a_or_b_on_tail!((a: compute_len, b: zero), call a: some ninety one!) }}
+{{ call_a_or_b_on_tail!((a: compute_len, b: zero), call a: some ninety "(\"()"nine!) }}
