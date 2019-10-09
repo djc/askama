@@ -45,5 +45,5 @@ struct RustMacrosArgTemplate {}
 #[test]
 fn args() {
     let template = RustMacrosArgTemplate {};
-    assert_eq!("0\n91\n99", template.render().unwrap());
+    assert_eq!("0\n17\n25", template.render().unwrap());
 }
