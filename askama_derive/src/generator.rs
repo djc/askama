@@ -136,23 +136,30 @@ impl<'a> Generator<'a> {
         buf.writeln("Ok(())");
         buf.writeln("}");
 
-        buf.writeln("fn extension() -> Option<&'static str> {");
+        buf.writeln("fn extension(&self) -> Option<&'static str> {");
         buf.writeln(&format!(
             "{:?}",
             self.input.path.extension().map(|s| s.to_str().unwrap())
         ));
         buf.writeln("}");
 
-        buf.writeln("fn dyn_size_hint(&self) -> usize {");
+        buf.writeln("fn size_hint(&self) -> usize {");
         buf.writeln(&format!("{}", size_hint));
         buf.writeln("}");
 
         buf.writeln("}");
 
-        self.write_header(buf, "::askama::TemplateSizeHint", None);
+        self.write_header(buf, "::askama::SizedTemplate", None);
 
         buf.writeln("fn size_hint() -> usize {");
         buf.writeln(&format!("{}", size_hint));
+        buf.writeln("}");
+
+        buf.writeln("fn extension() -> Option<&'static str> {");
+        buf.writeln(&format!(
+            "{:?}",
+            self.input.path.extension().map(|s| s.to_str().unwrap())
+        ));
         buf.writeln("}");
 
         buf.writeln("}");
