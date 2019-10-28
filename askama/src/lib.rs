@@ -492,16 +492,21 @@ pub use askama_escape::{Html, Text};
 pub trait Template {
     /// Helper method which allocates a new `String` and renders into it
     fn render(&self) -> Result<String> {
-        let mut buf = String::with_capacity(Self::size_hint());
+        let mut buf = String::with_capacity(self.size_hint());
         self.render_into(&mut buf)?;
         Ok(buf)
     }
     /// Renders the template to the given `writer` buffer
     fn render_into(&self, writer: &mut dyn std::fmt::Write) -> Result<()>;
     /// Helper function to inspect the template's extension
-    fn extension() -> Option<&'static str>
-    where
-        Self: Sized;
+    fn extension(&self) -> Option<&'static str>;
+    /// Provides an conservative estimate of the expanded length of the rendered template
+    fn size_hint(&self) -> usize;
+}
+
+pub trait SizedTemplate {
+    /// Helper function to inspect the template's extension
+    fn extension() -> Option<&'static str>;
     /// Provides an conservative estimate of the expanded length of the rendered template
     fn size_hint() -> usize;
 }
