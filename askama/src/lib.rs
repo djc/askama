@@ -496,14 +496,64 @@ pub trait Template {
         self.render_into(&mut buf)?;
         Ok(buf)
     }
+
     /// Renders the template to the given `writer` buffer
     fn render_into(&self, writer: &mut dyn std::fmt::Write) -> Result<()>;
+
     /// Helper function to inspect the template's extension
-    fn extension() -> Option<&'static str>
-    where
-        Self: Sized;
+    fn extension() -> Option<&'static str>;
+
     /// Provides an conservative estimate of the expanded length of the rendered template
     fn size_hint() -> usize;
+}
+
+/// An object-safe `Template` trait
+///
+/// ```rust
+/// use askama::{Template, TemplateDyn};
+///
+/// #[derive(Template)]
+/// #[template(source = "{{ name }}", ext = "html", escape = "none")]
+/// struct Tpl<'a> {
+///     name: &'a str,
+/// }
+///
+/// fn dyn_example() {
+///     let name = "foo";
+///     let tpl = Tpl { name };
+///     (&tpl as &dyn TemplateDyn).render();
+/// }
+/// ```
+pub trait TemplateDyn {
+    /// Helper method which allocates a new `String` and renders into it
+    fn render(&self) -> Result<String> {
+        let mut buf = String::with_capacity(self.dyn_size_hint());
+        self.render_into(&mut buf)?;
+        Ok(buf)
+    }
+
+    /// Renders the template to the given `writer` buffer
+    fn render_into(&self, writer: &mut dyn std::fmt::Write) -> Result<()>;
+
+    /// Helper function to inspect the template's extension
+    fn dyn_extension(&self) -> Option<&'static str>;
+
+    /// Provides an conservative estimate of the expanded length of the rendered template
+    fn dyn_size_hint(&self) -> usize;
+}
+
+impl<T: Template + ?Sized> TemplateDyn for T {
+    fn render_into(&self, writer: &mut dyn std::fmt::Write) -> Result<()> {
+        Template::render_into(self, writer)
+    }
+
+    fn dyn_extension(&self) -> Option<&'static str> {
+        Self::extension()
+    }
+
+    fn dyn_size_hint(&self) -> usize {
+        Self::size_hint()
+    }
 }
 
 pub use crate::shared::filters;
