@@ -143,6 +143,14 @@ impl<'a> Generator<'a> {
         ));
         buf.writeln("}");
 
+        buf.writeln("fn dyn_size_hint(&self) -> usize {");
+        buf.writeln(&format!("{}", size_hint));
+        buf.writeln("}");
+
+        buf.writeln("}");
+
+        self.write_header(buf, "::askama::TemplateSizeHint", None);
+
         buf.writeln("fn size_hint() -> usize {");
         buf.writeln(&format!("{}", size_hint));
         buf.writeln("}");

@@ -492,7 +492,7 @@ pub use askama_escape::{Html, Text};
 pub trait Template {
     /// Helper method which allocates a new `String` and renders into it
     fn render(&self) -> Result<String> {
-        let mut buf = String::with_capacity(Self::size_hint());
+        let mut buf = String::with_capacity(self.dyn_size_hint());
         self.render_into(&mut buf)?;
         Ok(buf)
     }
@@ -502,6 +502,10 @@ pub trait Template {
     fn extension() -> Option<&'static str>
     where
         Self: Sized;
+    fn dyn_size_hint(&self) -> usize;
+}
+
+pub trait TemplateSizeHint {
     /// Provides an conservative estimate of the expanded length of the rendered template
     fn size_hint() -> usize;
 }
