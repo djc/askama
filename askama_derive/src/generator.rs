@@ -327,6 +327,12 @@ impl<'a> Generator<'a> {
                 Node::Let(ws, ref var, ref val) => {
                     self.write_let(buf, ws, var, val);
                 }
+                Node::SetDecl(ws, ref var) => {
+                    self.write_set_decl(buf, ws, var);
+                }
+                Node::Set(ws, ref var, ref val) => {
+                    self.write_set(buf, ws, var, val);
+                }
                 Node::Cond(ref conds, ws) => {
                     self.write_cond(ctx, buf, conds, ws);
                 }
@@ -701,6 +707,54 @@ impl<'a> Generator<'a> {
             }
             Target::Tuple(ref targets) => {
                 buf.write("let (");
+                for name in targets {
+                    self.locals.insert(name);
+                    buf.write(name);
+                    buf.write(",");
+                }
+                buf.write(")");
+            }
+        }
+        buf.writeln(&format!(" = {};", &expr_buf.buf));
+    }
+
+    fn write_set_decl(&mut self, buf: &mut Buffer, ws: WS, var: &'a Target) {
+        self.handle_ws(ws);
+        self.write_buf_writable(buf);
+        buf.write("let mut ");
+        match *var {
+            Target::Name(name) => {
+                self.locals.insert(name);
+                buf.write(name);
+            }
+            Target::Tuple(ref targets) => {
+                buf.write("(");
+                for name in targets {
+                    self.locals.insert(name);
+                    buf.write(name);
+                    buf.write(",");
+                }
+                buf.write(")");
+            }
+        }
+        buf.writeln(";");
+    }
+
+    fn write_set(&mut self, buf: &mut Buffer, ws: WS, var: &'a Target, val: &Expr) {
+        self.handle_ws(ws);
+        let mut expr_buf = Buffer::new(0);
+        self.visit_expr(&mut expr_buf, val);
+
+        match *var {
+            Target::Name(name) => {
+                if !self.locals.contains(name) {
+                    buf.write("let mut ");
+                    self.locals.insert(name);
+                }
+                buf.write(name);
+            }
+            Target::Tuple(ref targets) => {
+                buf.write("let mut (");
                 for name in targets {
                     self.locals.insert(name);
                     buf.write(name);
