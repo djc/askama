@@ -69,6 +69,8 @@ pub enum Node<'a> {
     Call(WS, Option<&'a str>, &'a str, Vec<Expr<'a>>),
     LetDecl(WS, Target<'a>),
     Let(WS, Target<'a>, Expr<'a>),
+    SetDecl(WS, Target<'a>),
+    Set(WS, Target<'a>, Expr<'a>),
     Cond(Vec<(WS, Option<Expr<'a>>, Vec<Node<'a>>)>, WS),
     Match(WS, Expr<'a>, Option<&'a str>, Vec<When<'a>>, WS),
     Loop(WS, Target<'a>, Expr<'a>, Vec<Node<'a>>, WS),
@@ -758,6 +760,26 @@ fn block_let(i: &[u8]) -> IResult<&[u8], Node> {
     ))
 }
 
+fn block_set(i: &[u8]) -> IResult<&[u8], Node> {
+    let p = tuple((
+        opt(tag("-")),
+        ws(tag("set")),
+        ws(alt((target_single, target_tuple))),
+        opt(tuple((ws(tag("=")), ws(expr_any)))),
+        opt(tag("-")),
+    ));
+    let (i, (pws, _, var, val, nws)) = p(i)?;
+
+    Ok((
+        i,
+        if let Some((_, val)) = val {
+            Node::Set(WS(pws.is_some(), nws.is_some()), var, val)
+        } else {
+            Node::SetDecl(WS(pws.is_some(), nws.is_some()), var)
+        },
+    ))
+}
+
 fn block_for<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
     let p = tuple((
         opt(tag("-")),
@@ -930,6 +952,7 @@ fn block_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>>
         alt((
             block_call,
             block_let,
+            block_set,
             |i| block_if(i, s),
             |i| block_for(i, s),
             |i| block_match(i, s),
