@@ -199,6 +199,7 @@ impl<'a> Context<'a> {
     }
 }
 
+#[allow(clippy::match_wild_err_arm)]
 fn get_template_source(tpl_path: &Path) -> String {
     match fs::read_to_string(tpl_path) {
         Err(_) => panic!(

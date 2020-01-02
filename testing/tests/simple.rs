@@ -1,3 +1,5 @@
+#![allow(clippy::blacklisted_name)]
+
 use askama::{SizedTemplate, Template};
 
 use std::collections::HashMap;

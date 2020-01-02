@@ -36,7 +36,7 @@ impl<'a> Config<'a> {
         syntaxes.insert(DEFAULT_SYNTAX_NAME.to_string(), Syntax::default());
 
         let raw: RawConfig<'_> =
-            toml::from_str(&s).expect(&format!("invalid TOML in {}", CONFIG_FILE_NAME));
+            toml::from_str(&s).unwrap_or_else(|_| panic!("invalid TOML in {}", CONFIG_FILE_NAME));
 
         let (dirs, default_syntax) = match raw.general {
             Some(General {
@@ -75,14 +75,14 @@ impl<'a> Config<'a> {
                     escaper
                         .extensions
                         .iter()
-                        .map(|ext| ext.to_string())
+                        .map(|ext| (*ext).to_string())
                         .collect(),
                     escaper.path.to_string(),
                 ));
             }
         }
         for (extensions, path) in DEFAULT_ESCAPERS {
-            escapers.push((str_set(extensions), path.to_string()));
+            escapers.push((str_set(extensions), (*path).to_string()));
         }
 
         Config {
@@ -97,7 +97,7 @@ impl<'a> Config<'a> {
         if let Some(root) = start_at {
             let relative = root.with_file_name(path);
             if relative.exists() {
-                return relative.to_owned();
+                return relative;
             }
         }
 
@@ -166,7 +166,7 @@ impl<'a> From<RawSyntax<'a>> for Syntax<'a> {
         let ce = syntax.comment_start.as_bytes()[1];
         let es = syntax.block_start.as_bytes()[0];
         let ee = syntax.block_start.as_bytes()[1];
-        if !(bs == cs && bs == es) && !(be == ce && be == ee) {
+        if !((bs == cs && bs == es) || (be == ce && be == ee)) {
             panic!("bad delimiters block_start: {}, comment_start: {}, expr_start: {}, needs one of the two characters in common", syntax.block_start, syntax.comment_start, syntax.expr_start);
         }
 
@@ -211,7 +211,7 @@ pub fn read_config_file() -> String {
     let filename = root.join(CONFIG_FILE_NAME);
     if filename.exists() {
         fs::read_to_string(&filename)
-            .expect(&format!("unable to read {}", filename.to_str().unwrap()))
+            .unwrap_or_else(|_| panic!("unable to read {}", filename.to_str().unwrap()))
     } else {
         "".to_string()
     }
@@ -233,6 +233,7 @@ static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
 ];
 
 #[cfg(test)]
+#[allow(clippy::blacklisted_name)]
 mod tests {
     use super::*;
     use std::env;

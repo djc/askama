@@ -1,3 +1,5 @@
+#![allow(clippy::blacklisted_name)]
+
 #[cfg(feature = "serde-json")]
 #[macro_use]
 extern crate serde_json;
@@ -44,7 +46,7 @@ struct MyFilterTemplate<'a> {
 
 mod filters {
     pub fn myfilter(s: &str) -> ::askama::Result<String> {
-        Ok(s.replace("oo", "aa").to_string())
+        Ok(s.replace("oo", "aa"))
     }
     // for test_nested_filter_ref
     pub fn mytrim(s: &dyn (::std::fmt::Display)) -> ::askama::Result<String> {
