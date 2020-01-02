@@ -155,7 +155,7 @@ impl<'a> TemplateInput<'a> {
                 config
                     .syntaxes
                     .get(&s)
-                    .expect(&format!("attribute syntax {} not exist", s))
+                    .unwrap_or_else(|| panic!("attribute syntax {} not exist", s))
             },
         );
 

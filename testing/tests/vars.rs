@@ -1,3 +1,5 @@
+#![allow(clippy::useless_let_if_seq)]
+
 use askama::Template;
 
 #[derive(Template)]

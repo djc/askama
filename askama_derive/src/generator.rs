@@ -450,6 +450,7 @@ impl<'a> Generator<'a> {
         flushed + median(&mut arm_sizes)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn write_match(
         &mut self,
         ctx: &'a Context,
@@ -531,6 +532,7 @@ impl<'a> Generator<'a> {
         flushed + median(&mut arm_sizes)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn write_loop(
         &mut self,
         ctx: &'a Context,

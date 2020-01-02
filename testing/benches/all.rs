@@ -8,15 +8,15 @@ criterion_main!(benches);
 criterion_group!(benches, functions);
 
 fn functions(c: &mut Criterion) {
-    c.bench_function("Big table", |b| big_table(b, &100));
+    c.bench_function("Big table", |b| big_table(b, 100));
     c.bench_function("Teams", teams);
 }
 
-fn big_table(b: &mut criterion::Bencher, size: &usize) {
-    let mut table = Vec::with_capacity(*size);
-    for _ in 0..*size {
-        let mut inner = Vec::with_capacity(*size);
-        for i in 0..*size {
+fn big_table(b: &mut criterion::Bencher, size: usize) {
+    let mut table = Vec::with_capacity(size);
+    for _ in 0..size {
+        let mut inner = Vec::with_capacity(size);
+        for i in 0..size {
             inner.push(i);
         }
         table.push(inner);

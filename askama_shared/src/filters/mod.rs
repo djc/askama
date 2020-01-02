@@ -3,6 +3,7 @@
 //! Contains all the built-in filter functions for use in templates.
 //! You can define your own filters; for more information,
 //! see the top-level crate documentation.
+#![allow(clippy::trivially_copy_pass_by_ref)]
 
 #[cfg(feature = "serde_json")]
 mod json;
@@ -246,25 +247,25 @@ pub fn capitalize(s: &dyn fmt::Display) -> Result<String> {
 }
 
 /// Centers the value in a field of a given width
-pub fn center(s: &dyn fmt::Display, l: usize) -> Result<String> {
-    let s = s.to_string();
-    let len = s.len();
+pub fn center(src: &dyn fmt::Display, dst_len: usize) -> Result<String> {
+    let src = src.to_string();
+    let len = src.len();
 
-    if l <= len {
-        Ok(s)
+    if dst_len <= len {
+        Ok(src)
     } else {
-        let p = l - len;
-        let q = p / 2;
-        let r = p % 2;
-        let mut buf = String::with_capacity(l);
+        let diff = dst_len - len;
+        let mid = diff / 2;
+        let r = diff % 2;
+        let mut buf = String::with_capacity(dst_len);
 
-        for _ in 0..q {
+        for _ in 0..mid {
             buf.push(' ');
         }
 
-        buf.push_str(&s);
+        buf.push_str(&src);
 
-        for _ in 0..q + r {
+        for _ in 0..mid + r {
             buf.push(' ');
         }
 
@@ -347,6 +348,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::float_cmp)]
     fn test_into_f64() {
         assert_eq!(into_f64(1).unwrap(), 1.0 as f64);
         assert_eq!(into_f64(1.9).unwrap(), 1.9 as f64);
@@ -363,51 +365,46 @@ mod tests {
         assert_eq!(into_isize(1.5 as f64).unwrap(), 1 as isize);
         assert_eq!(into_isize(-1.5 as f64).unwrap(), -1 as isize);
         match into_isize(INFINITY) {
-            Err(Fmt(fmt::Error)) => assert!(true),
-            _ => assert!(false, "Should return error of type Err(Fmt(fmt::Error))"),
+            Err(Fmt(fmt::Error)) => {}
+            _ => panic!("Should return error of type Err(Fmt(fmt::Error))"),
         };
     }
 
     #[test]
     fn test_join() {
         assert_eq!(
-            join((&["hello", "world"]).into_iter(), ", ").unwrap(),
+            join((&["hello", "world"]).iter(), ", ").unwrap(),
             "hello, world"
         );
-        assert_eq!(join((&["hello"]).into_iter(), ", ").unwrap(), "hello");
+        assert_eq!(join((&["hello"]).iter(), ", ").unwrap(), "hello");
 
         let empty: &[&str] = &[];
-        assert_eq!(join(empty.into_iter(), ", ").unwrap(), "");
+        assert_eq!(join(empty.iter(), ", ").unwrap(), "");
 
         let input: Vec<String> = vec!["foo".into(), "bar".into(), "bazz".into()];
         assert_eq!(
-            join((&input).into_iter(), ":".to_string()).unwrap(),
+            join((&input).iter(), ":".to_string()).unwrap(),
             "foo:bar:bazz"
         );
-        assert_eq!(
-            join(input.clone().into_iter(), ":").unwrap(),
-            "foo:bar:bazz"
-        );
-        assert_eq!(
-            join(input.clone().into_iter(), ":".to_string()).unwrap(),
-            "foo:bar:bazz"
-        );
+        assert_eq!(join(input.clone().iter(), ":").unwrap(), "foo:bar:bazz");
+        assert_eq!(join(input.iter(), ":".to_string()).unwrap(), "foo:bar:bazz");
 
         let input: &[String] = &["foo".into(), "bar".into()];
-        assert_eq!(join(input.into_iter(), ":").unwrap(), "foo:bar");
-        assert_eq!(join(input.into_iter(), ":".to_string()).unwrap(), "foo:bar");
+        assert_eq!(join(input.iter(), ":").unwrap(), "foo:bar");
+        assert_eq!(join(input.iter(), ":".to_string()).unwrap(), "foo:bar");
 
         let real: String = "blah".into();
         let input: Vec<&str> = vec![&real];
-        assert_eq!(join(input.into_iter(), ";").unwrap(), "blah");
+        assert_eq!(join(input.iter(), ";").unwrap(), "blah");
 
         assert_eq!(
-            join((&&&&&["foo", "bar"]).into_iter(), ", ").unwrap(),
+            join((&&&&&["foo", "bar"]).iter(), ", ").unwrap(),
             "foo, bar"
         );
     }
 
     #[test]
+    #[allow(clippy::float_cmp)]
     fn test_abs() {
         assert_eq!(abs(1).unwrap(), 1);
         assert_eq!(abs(-1).unwrap(), 1);

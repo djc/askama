@@ -126,17 +126,15 @@ fn split_ws_parts(s: &[u8]) -> Node {
 
     let is_ws = |c: &u8| *c != b' ' && *c != b'\t' && *c != b'\r' && *c != b'\n';
     let start = s.iter().position(&is_ws);
-    let res = if start.is_none() {
-        (s, &s[0..0], &s[0..0])
-    } else {
-        let start = start.unwrap();
+    let res = if let Some(start) = start {
         let end = s.iter().rposition(&is_ws);
-        if end.is_none() {
-            (&s[..start], &s[start..], &s[0..0])
-        } else {
-            let end = end.unwrap();
+        if let Some(end) = end {
             (&s[..start], &s[start..=end], &s[end + 1..])
+        } else {
+            (&s[..start], &s[start..], &s[0..0])
         }
+    } else {
+        (s, &s[0..0], &s[0..0])
     };
 
     Node::Lit(
@@ -154,10 +152,7 @@ enum ContentState {
     End(usize),
 }
 
-fn take_content<'a>(
-    i: &'a [u8],
-    s: &'a Syntax<'a>,
-) -> Result<(&'a [u8], Node<'a>), nom::Err<(&'a [u8], nom::error::ErrorKind)>> {
+fn take_content<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> ParserError<'a, Node<'a>> {
     use crate::parser::ContentState::*;
     let bs = s.block_start.as_bytes()[0];
     let be = s.block_start.as_bytes()[1];
@@ -200,7 +195,7 @@ fn take_content<'a>(
     }
 }
 
-fn identifier(input: &[u8]) -> Result<(&[u8], &str), nom::Err<(&[u8], nom::error::ErrorKind)>> {
+fn identifier(input: &[u8]) -> ParserError<&str> {
     if !nom::character::is_alphabetic(input[0]) && input[0] != b'_' && !non_ascii(input[0]) {
         return Err(nom::Err::Error(error_position!(
             input,
@@ -319,7 +314,7 @@ fn macro_arguments(i: &[u8]) -> IResult<&[u8], &str> {
     delimited(char('('), nested_parenthesis, char(')'))(i)
 }
 
-fn nested_parenthesis(i: &[u8]) -> Result<(&[u8], &str), nom::Err<(&[u8], nom::error::ErrorKind)>> {
+fn nested_parenthesis(i: &[u8]) -> ParserError<&str> {
     let mut nested = 0;
     let mut last = 0;
     let mut in_str = false;
@@ -442,8 +437,8 @@ fn expr_attr(i: &[u8]) -> IResult<&[u8], Expr> {
 
     let mut res = obj;
     for (aname, args) in attrs {
-        res = if args.is_some() {
-            Expr::MethodCall(Box::new(res), aname, args.unwrap())
+        res = if let Some(args) = args {
+            Expr::MethodCall(Box::new(res), aname, args)
         } else {
             Expr::Attr(Box::new(res), aname)
         };
@@ -1056,3 +1051,5 @@ mod tests {
         super::parse("{~ strvar|e ~}", &syntax);
     }
 }
+
+type ParserError<'a, T> = Result<(&'a [u8], T), nom::Err<(&'a [u8], nom::error::ErrorKind)>>;
