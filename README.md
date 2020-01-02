@@ -2,7 +2,7 @@
 
 [![Documentation](https://docs.rs/askama/badge.svg)](https://docs.rs/askama/)
 [![Latest version](https://img.shields.io/crates/v/askama.svg)](https://crates.io/crates/askama)
-[![Build Status](https://dev.azure.com/dochtman/Projects/_apis/build/status/Askama?branchName=master)](https://dev.azure.com/dochtman/Projects/_build/latest?definitionId=2&branchName=master)
+[![Build Status](https://github.com/djc/quinn/workflows/CI/badge.svg)](https://github.com/djc/askama/actions?query=workflow%3ACI)
 [![Chat](https://badges.gitter.im/gitterHQ/gitter.svg)](https://gitter.im/djc/askama)
 
 Askama implements a template rendering engine based on Jinja.
@@ -92,7 +92,7 @@ struct HelloTemplate<'a> { // the name of the struct can be anything
     name: &'a str, // the field name should match the variable name
                    // in your template
 }
-   
+
 fn main() {
     let hello = HelloTemplate { name: "world" }; // instantiate your struct
     println!("{}", hello.render().unwrap()); // then render it.
