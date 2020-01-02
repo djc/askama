@@ -617,11 +617,11 @@ pub mod actix_web {
 
     impl<T: super::Template> TemplateIntoResponse for T {
         fn into_response(&self) -> Result<HttpResponse, Error> {
-            let mut buffer = BytesWriter::with_capacity(T::size_hint());
+            let mut buffer = BytesWriter::with_capacity(self.size_hint());
             self.render_into(&mut buffer)
                 .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
 
-            let ctype = super::get_mime_type(T::extension().unwrap_or("txt")).to_string();
+            let ctype = super::get_mime_type(self.extension().unwrap_or("txt")).to_string();
             Ok(HttpResponse::Ok()
                 .content_type(ctype.as_str())
                 .body(buffer.freeze()))
