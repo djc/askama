@@ -885,6 +885,7 @@ impl<'a> Generator<'a> {
             Expr::BoolLit(s) => self.visit_bool_lit(buf, s),
             Expr::NumLit(s) => self.visit_num_lit(buf, s),
             Expr::StrLit(s) => self.visit_str_lit(buf, s),
+            Expr::CharLit(s) => self.visit_char_lit(buf, s),
             Expr::Var(s) => self.visit_var(buf, s),
             Expr::Path(ref path) => self.visit_path(buf, path),
             Expr::Array(ref elements) => self.visit_array(buf, elements),
@@ -918,6 +919,7 @@ impl<'a> Generator<'a> {
                 expr_buf.write("&");
                 self.visit_str_lit(&mut expr_buf, s)
             }
+            MatchVariant::CharLit(s) => self.visit_char_lit(&mut expr_buf, s),
             MatchVariant::NumLit(s) => self.visit_num_lit(&mut expr_buf, s),
             MatchVariant::Name(s) => {
                 expr_buf.write(s);
@@ -937,6 +939,7 @@ impl<'a> Generator<'a> {
         let wrapped = match *param {
             MatchParameter::NumLit(s) => self.visit_num_lit(&mut expr_buf, s),
             MatchParameter::StrLit(s) => self.visit_str_lit(&mut expr_buf, s),
+            MatchParameter::CharLit(s) => self.visit_char_lit(&mut expr_buf, s),
             MatchParameter::Name(s) => {
                 expr_buf.write(s);
                 DisplayWrap::Unwrapped
@@ -1152,6 +1155,11 @@ impl<'a> Generator<'a> {
 
     fn visit_str_lit(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
         buf.write(&format!("\"{}\"", s));
+        DisplayWrap::Unwrapped
+    }
+
+    fn visit_char_lit(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
+        buf.write(&format!("'{}'", s));
         DisplayWrap::Unwrapped
     }
 

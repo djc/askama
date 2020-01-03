@@ -48,6 +48,21 @@ fn test_match_literal() {
 }
 
 #[derive(Template)]
+#[template(path = "match-literal-char.html")]
+struct MatchLitCharTemplate {
+    item: char,
+}
+
+#[test]
+fn test_match_literal_char() {
+    let s = MatchLitCharTemplate { item: 'b' };
+    assert_eq!(s.render().unwrap(), "\n\nFound literal b\n");
+
+    let s = MatchLitCharTemplate { item: 'c' };
+    assert_eq!(s.render().unwrap(), "\n\nElse found c\n");
+}
+
+#[derive(Template)]
 #[template(path = "match-literal-num.html")]
 struct MatchLitNumTemplate {
     item: u32,

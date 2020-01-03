@@ -15,6 +15,7 @@ pub enum Expr<'a> {
     BoolLit(&'a str),
     NumLit(&'a str),
     StrLit(&'a str),
+    CharLit(&'a str),
     Var(&'a str),
     Path(Vec<&'a str>),
     Array(Vec<Expr<'a>>),
@@ -35,6 +36,7 @@ pub enum MatchVariant<'a> {
     Name(&'a str),
     NumLit(&'a str),
     StrLit(&'a str),
+    CharLit(&'a str),
 }
 
 #[derive(Debug)]
@@ -42,6 +44,7 @@ pub enum MatchParameter<'a> {
     Name(&'a str),
     NumLit(&'a str),
     StrLit(&'a str),
+    CharLit(&'a str),
 }
 
 #[derive(Debug)]
@@ -266,6 +269,24 @@ fn param_str_lit(i: &[u8]) -> IResult<&[u8], MatchParameter> {
     })(i)
 }
 
+fn expr_char_lit(i: &[u8]) -> IResult<&[u8], Expr> {
+    map(delimited(char('\''), take_until("'"), char('\'')), |s| {
+        Expr::CharLit(str::from_utf8(s).unwrap())
+    })(i)
+}
+
+fn variant_char_lit(i: &[u8]) -> IResult<&[u8], MatchVariant> {
+    map(delimited(char('\''), is_not("'"), char('\'')), |s| {
+        MatchVariant::CharLit(str::from_utf8(s).unwrap())
+    })(i)
+}
+
+fn param_char_lit(i: &[u8]) -> IResult<&[u8], MatchParameter> {
+    map(delimited(char('\''), is_not("'"), char('\'')), |s| {
+        MatchParameter::CharLit(str::from_utf8(s).unwrap())
+    })(i)
+}
+
 fn expr_var(i: &[u8]) -> IResult<&[u8], Expr> {
     map(identifier, |s| Expr::Var(s))(i)
 }
@@ -405,6 +426,7 @@ fn expr_single(i: &[u8]) -> IResult<&[u8], Expr> {
         expr_bool_lit,
         expr_num_lit,
         expr_str_lit,
+        expr_char_lit,
         expr_path,
         expr_rust_macro,
         expr_array_lit,
@@ -414,11 +436,17 @@ fn expr_single(i: &[u8]) -> IResult<&[u8], Expr> {
 }
 
 fn match_variant(i: &[u8]) -> IResult<&[u8], MatchVariant> {
-    alt((variant_path, variant_name, variant_num_lit, variant_str_lit))(i)
+    alt((
+        variant_path,
+        variant_name,
+        variant_num_lit,
+        variant_str_lit,
+        variant_char_lit,
+    ))(i)
 }
 
 fn match_parameter(i: &[u8]) -> IResult<&[u8], MatchParameter> {
-    alt((param_name, param_num_lit, param_str_lit))(i)
+    alt((param_name, param_num_lit, param_str_lit, param_char_lit))(i)
 }
 
 fn match_named_parameter(i: &[u8]) -> IResult<&[u8], (&str, Option<MatchParameter>)> {
