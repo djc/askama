@@ -122,6 +122,19 @@ fn test_literals() {
     assert_eq!(s.render().unwrap(), "a\na\ntrue\nfalse");
 }
 
+#[derive(Template)]
+#[template(path = "literals-escape.html")]
+struct LiteralsEscapeTemplate {}
+
+#[test]
+fn test_literals_escape() {
+    let s = LiteralsEscapeTemplate {};
+    assert_eq!(
+        s.render().unwrap(),
+        "A\n\r\t\\\0♥&#x27;&quot;&quot;\nA\n\r\t\\\0♥&#x27;&quot;&#x27;"
+    );
+}
+
 struct Holder {
     a: usize,
 }
