@@ -6,7 +6,7 @@ workspace = ".."
 edition = "2018"
 
 [features]
-actix = ["actix-web", "bytes", "askama/with-actix-web"]
+actix = ["actix-web", "actix-rt", "bytes", "askama/with-actix-web", "futures"]
 default = []
 full = ["actix", "with-iron", "serde-json", "with-gotham"]
 serde-json = ["serde_json", "askama/serde-json"]
@@ -15,9 +15,11 @@ with-iron = ["iron", "askama/with-iron"]
 with-gotham = ["gotham", "askama/with-gotham", "mime", "hyper"]
 
 [dependencies]
-actix-web = { version = "0.7", optional = true }
+actix-web = { version = "2", optional = true }
+actix-rt = { version = "1", optional = true }
+futures = { version = "0.3", optional = true }
 askama = { path = "../askama", version = "*" }
-bytes = { version = "0.4", optional = true }
+bytes = { version = "0.5", optional = true }
 iron = { version = "0.6", optional = true }
 rocket = { version = "0.4", optional = true }
 serde_json = { version = "1.0", optional = true }

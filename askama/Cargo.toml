@@ -23,7 +23,7 @@ serde-json = ["askama_shared/serde_json"]
 serde-yaml = ["askama_shared/serde_yaml"]
 with-iron = ["iron", "askama_derive/iron"]
 with-rocket = ["rocket", "askama_derive/rocket"]
-with-actix-web = ["actix-web", "askama_derive/actix-web", "mime", "mime_guess", "bytes"]
+with-actix-web = ["actix-web", "askama_derive/actix-web", "mime", "mime_guess", "bytes", "futures"]
 with-gotham = ["gotham", "askama_derive/gotham", "hyper", "mime", "mime_guess"]
 
 [dependencies]
@@ -32,12 +32,13 @@ askama_escape = { version = "0.2.0", path = "../askama_escape" }
 askama_shared = { version = "0.8.0", path = "../askama_shared" }
 iron = { version = ">= 0.5, < 0.7", optional = true }
 rocket = { version = "0.4", optional = true }
-actix-web = { version = "0.7", optional = true }
+actix-web = { version = "2", optional = true }
+futures = { version = "0.3", optional = true }
 mime = { version = "0.3", optional = true }
 mime_guess = { version = "2.0.0-alpha", optional = true }
 gotham = { version = "0.3", optional = true }
 hyper = { version = "0.12", optional = true }
-bytes = { version = "0.4", optional = true }
+bytes = { version = "0.5", optional = true }
 
 [package.metadata.docs.rs]
 features = [ "serde-json" ]
