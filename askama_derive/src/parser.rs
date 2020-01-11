@@ -1,6 +1,6 @@
 use nom::branch::alt;
-use nom::bytes::complete::{is_not, tag, take_until};
-use nom::character::complete::{char, digit1};
+use nom::bytes::complete::{escaped, is_not, tag, take_until};
+use nom::character::complete::{anychar, char, digit1};
 use nom::combinator::{complete, map, opt};
 use nom::error::ParseError;
 use nom::multi::{many0, many1, separated_list, separated_nonempty_list};
@@ -251,40 +251,50 @@ fn param_num_lit(i: &[u8]) -> IResult<&[u8], MatchParameter> {
     map(num_lit, |s| MatchParameter::NumLit(s))(i)
 }
 
+fn str_lit(i: &[u8]) -> IResult<&[u8], &str> {
+    map(
+        delimited(
+            char('\"'),
+            opt(escaped(is_not("\\\""), '\\', anychar)),
+            char('\"'),
+        ),
+        |s| s.map(|s| str::from_utf8(s).unwrap()).unwrap_or(""),
+    )(i)
+}
+
 fn expr_str_lit(i: &[u8]) -> IResult<&[u8], Expr> {
-    map(delimited(char('"'), take_until("\""), char('"')), |s| {
-        Expr::StrLit(str::from_utf8(s).unwrap())
-    })(i)
+    map(str_lit, |s| Expr::StrLit(s))(i)
 }
 
 fn variant_str_lit(i: &[u8]) -> IResult<&[u8], MatchVariant> {
-    map(delimited(char('"'), is_not("\""), char('"')), |s| {
-        MatchVariant::StrLit(str::from_utf8(s).unwrap())
-    })(i)
+    map(str_lit, |s| MatchVariant::StrLit(s))(i)
 }
 
 fn param_str_lit(i: &[u8]) -> IResult<&[u8], MatchParameter> {
-    map(delimited(char('"'), is_not("\""), char('"')), |s| {
-        MatchParameter::StrLit(str::from_utf8(s).unwrap())
-    })(i)
+    map(str_lit, |s| MatchParameter::StrLit(s))(i)
+}
+
+fn char_lit(i: &[u8]) -> IResult<&[u8], &str> {
+    map(
+        delimited(
+            char('\''),
+            opt(escaped(is_not("\\\'"), '\\', anychar)),
+            char('\''),
+        ),
+        |s| s.map(|s| str::from_utf8(s).unwrap()).unwrap_or(""),
+    )(i)
 }
 
 fn expr_char_lit(i: &[u8]) -> IResult<&[u8], Expr> {
-    map(delimited(char('\''), take_until("'"), char('\'')), |s| {
-        Expr::CharLit(str::from_utf8(s).unwrap())
-    })(i)
+    map(char_lit, |s| Expr::CharLit(s))(i)
 }
 
 fn variant_char_lit(i: &[u8]) -> IResult<&[u8], MatchVariant> {
-    map(delimited(char('\''), is_not("'"), char('\'')), |s| {
-        MatchVariant::CharLit(str::from_utf8(s).unwrap())
-    })(i)
+    map(char_lit, |s| MatchVariant::CharLit(s))(i)
 }
 
 fn param_char_lit(i: &[u8]) -> IResult<&[u8], MatchParameter> {
-    map(delimited(char('\''), is_not("'"), char('\'')), |s| {
-        MatchParameter::CharLit(str::from_utf8(s).unwrap())
-    })(i)
+    map(char_lit, |s| MatchParameter::CharLit(s))(i)
 }
 
 fn expr_var(i: &[u8]) -> IResult<&[u8], Expr> {
