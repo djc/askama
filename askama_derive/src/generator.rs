@@ -242,15 +242,15 @@ impl<'a> Generator<'a> {
     // Implement Actix-web's `Responder`.
     fn impl_actix_web_responder(&mut self, buf: &mut Buffer) {
         self.write_header(buf, "::askama::actix_web::Responder", None);
-        buf.writeln("type Item = ::askama::actix_web::HttpResponse;");
+        buf.writeln("type Future = ::futures::future::Ready<::std::result::Result<::askama::actix_web::HttpResponse, Self::Error>>;");
         buf.writeln("type Error = ::askama::actix_web::Error;");
         buf.writeln(
-            "fn respond_to<S>(self, _req: &::askama::actix_web::HttpRequest<S>) \
-             -> ::std::result::Result<Self::Item, Self::Error> {",
+            "fn respond_to(self, _req: &::askama::actix_web::HttpRequest) \
+             -> Self::Future {",
         );
 
         buf.writeln("use ::askama::actix_web::TemplateIntoResponse;");
-        buf.writeln("self.into_response()");
+        buf.writeln("::futures::future::ready(self.into_response())");
 
         buf.writeln("}");
         buf.writeln("}");

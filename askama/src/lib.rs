@@ -577,32 +577,6 @@ pub mod actix_web {
 
     use std::fmt;
 
-    struct BytesWriter {
-        buf: bytes::BytesMut,
-    }
-
-    impl BytesWriter {
-        #[inline]
-        pub fn with_capacity(size: usize) -> Self {
-            Self {
-                buf: bytes::BytesMut::with_capacity(size),
-            }
-        }
-
-        #[inline]
-        pub fn freeze(self) -> bytes::Bytes {
-            self.buf.freeze()
-        }
-    }
-
-    impl fmt::Write for BytesWriter {
-        #[inline]
-        fn write_str(&mut self, buf: &str) -> fmt::Result {
-            self.buf.extend_from_slice(buf.as_bytes());
-            Ok(())
-        }
-    }
-
     // actix_web technically has this as a pub fn in later versions, fs::file_extension_to_mime.
     // Older versions that don't have it exposed are easier this way. If ext is empty or no
     // associated type was found, then this returns `application/octet-stream`, in line with how
@@ -617,7 +591,7 @@ pub mod actix_web {
 
     impl<T: super::Template> TemplateIntoResponse for T {
         fn into_response(&self) -> Result<HttpResponse, Error> {
-            let mut buffer = BytesWriter::with_capacity(self.size_hint());
+            let mut buffer = actix_web::web::BytesMut::with_capacity(self.size_hint());
             self.render_into(&mut buffer)
                 .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
 
