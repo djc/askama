@@ -1,9 +1,10 @@
-use askama_shared::{Config, Syntax};
-
 use std::path::PathBuf;
 
-use quote::ToTokens;
+use darling::FromDeriveInput;
+use darling::FromMeta;
 use syn;
+
+use askama_shared::{Config, Syntax};
 
 pub struct TemplateInput<'a> {
     pub ast: &'a syn::DeriveInput,
@@ -17,6 +18,17 @@ pub struct TemplateInput<'a> {
     pub path: PathBuf,
 }
 
+#[derive(FromDeriveInput, Default)]
+#[darling(attributes(template), default)]
+struct TemplateInputParser {
+    path: Option<String>,
+    source: Option<String>,
+    print: Print,
+    escape: Option<String>,
+    ext: Option<String>,
+    syntax: Option<String>,
+}
+
 impl<'a> TemplateInput<'a> {
     /// Extract the template metadata from the `DeriveInput` structure. This
     /// mostly recovers the data for the `TemplateInput` fields from the
@@ -25,106 +37,36 @@ impl<'a> TemplateInput<'a> {
     pub fn new<'n>(ast: &'n syn::DeriveInput, config: &'n Config) -> TemplateInput<'n> {
         // Check that an attribute called `template()` exists and that it is
         // the proper type (list).
-        let meta = ast
-            .attrs
-            .iter()
-            .find_map(|attr| match attr.parse_meta() {
-                Ok(m) => {
-                    if m.path().is_ident("template") {
-                        Some(m)
-                    } else {
-                        None
-                    }
-                }
-                Err(e) => panic!("unable to parse attribute: {}", e),
-            })
-            .expect("no attribute 'template' found");
+        let TemplateInputParser {
+            path,
+            source,
+            print,
+            escape,
+            ext,
+            syntax,
+        } = FromDeriveInput::from_derive_input(ast)
+            .expect("attribute 'template' not found or with wrong format");
 
-        let meta_list = match meta {
-            syn::Meta::List(inner) => inner,
-            _ => panic!("attribute 'template' has incorrect type"),
-        };
+        assert_ne!(
+            source.is_some(),
+            path.is_some(),
+            "One of path or source must exist and they are mutually exclusive",
+        );
+        assert_eq!(
+            source.is_some(),
+            ext.is_some(),
+            "must include 'ext' attribute when using 'source' attribute"
+        );
 
-        // Loop over the meta attributes and find everything that we
-        // understand. Raise panics if something is not right.
-        // `source` contains an enum that can represent `path` or `source`.
-        let mut source = None;
-        let mut print = Print::None;
-        let mut escaping = None;
-        let mut ext = None;
-        let mut syntax = None;
-        for item in meta_list.nested {
-            let pair = match item {
-                syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
-                _ => panic!(
-                    "unsupported attribute argument {:?}",
-                    item.to_token_stream()
-                ),
-            };
-
-            if pair.path.is_ident("path") {
-                if let syn::Lit::Str(ref s) = pair.lit {
-                    if source.is_some() {
-                        panic!("must specify 'source' or 'path', not both");
-                    }
-                    source = Some(Source::Path(s.value()));
-                } else {
-                    panic!("template path must be string literal");
-                }
-            } else if pair.path.is_ident("source") {
-                if let syn::Lit::Str(ref s) = pair.lit {
-                    if source.is_some() {
-                        panic!("must specify 'source' or 'path', not both");
-                    }
-                    source = Some(Source::Source(s.value()));
-                } else {
-                    panic!("template source must be string literal");
-                }
-            } else if pair.path.is_ident("print") {
-                if let syn::Lit::Str(ref s) = pair.lit {
-                    print = s.value().into();
-                } else {
-                    panic!("print value must be string literal");
-                }
-            } else if pair.path.is_ident("escape") {
-                if let syn::Lit::Str(ref s) = pair.lit {
-                    escaping = Some(s.value());
-                } else {
-                    panic!("escape value must be string literal");
-                }
-            } else if pair.path.is_ident("ext") {
-                if let syn::Lit::Str(ref s) = pair.lit {
-                    ext = Some(s.value());
-                } else {
-                    panic!("ext value must be string literal");
-                }
-            } else if pair.path.is_ident("syntax") {
-                if let syn::Lit::Str(ref s) = pair.lit {
-                    syntax = Some(s.value())
-                } else {
-                    panic!("syntax value must be string literal");
-                }
-            } else {
-                panic!(
-                    "unsupported attribute key '{}' found",
-                    pair.path.to_token_stream()
-                )
-            }
-        }
-
-        // Validate the `source` and `ext` value together, since they are
-        // related. In case `source` was used instead of `path`, the value
-        // of `ext` is merged into a synthetic `path` value here.
-        let source = source.expect("template path or source not found in attributes");
+        // Since 'source' and 'path' are related. In case `source` was used instead
+        // of `path`, the value of `ext` is merged into a synthetic `path` value here.
+        let source = source
+            .map(Source::Source)
+            .unwrap_or_else(|| Source::Path(path.unwrap()));
         let path = match (&source, &ext) {
             (&Source::Path(ref path), None) => config.find_template(path, None),
             (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
-            (&Source::Path(_), Some(_)) => {
-                panic!("'ext' attribute cannot be used with 'path' attribute")
-            }
-            (&Source::Source(_), None) => {
-                panic!("must include 'ext' attribute when using 'source' attribute")
-            }
+            _ => unreachable!(),
         };
 
         // Check to see if a `_parent` field was defined on the context
@@ -160,25 +102,20 @@ impl<'a> TemplateInput<'a> {
         );
 
         // Match extension against defined output formats
-
-        let extension = escaping.unwrap_or_else(|| {
+        let extension = escape.unwrap_or_else(|| {
             path.extension()
                 .map(|s| s.to_str().unwrap())
                 .unwrap_or("")
                 .to_string()
         });
 
-        let mut escaper = None;
-        for (extensions, path) in &config.escapers {
-            if extensions.contains(&extension) {
-                escaper = Some(path);
-                break;
-            }
-        }
-
-        let escaper = escaper.unwrap_or_else(|| {
-            panic!("no escaper defined for extension '{}'", extension);
-        });
+        let escaper = config
+            .escapers
+            .iter()
+            .find(|(extensions, _)| extensions.contains(&extension))
+            .as_ref()
+            .map(|x| &x.1)
+            .unwrap_or_else(|| panic!("no escaper defined for extension '{}'", extension));
 
         TemplateInput {
             ast,
@@ -199,7 +136,8 @@ pub enum Source {
     Source(String),
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, FromMeta)]
+#[darling(rename_all = "lowercase")]
 pub enum Print {
     All,
     Ast,
@@ -207,15 +145,8 @@ pub enum Print {
     None,
 }
 
-impl From<String> for Print {
-    fn from(s: String) -> Print {
-        use self::Print::*;
-        match s.as_ref() {
-            "all" => All,
-            "ast" => Ast,
-            "code" => Code,
-            "none" => None,
-            v => panic!("invalid value for print option: {}", v),
-        }
+impl Default for Print {
+    fn default() -> Self {
+        Self::None
     }
 }

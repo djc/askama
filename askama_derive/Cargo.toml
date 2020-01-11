@@ -26,3 +26,4 @@ nom = { version = "5", default-features = false, features = ["std"] }
 proc-macro2 = "1"
 quote = "1"
 syn = "1"
+darling = "0.10"
