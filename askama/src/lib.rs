@@ -544,7 +544,7 @@ pub mod rocket {
 
 #[cfg(all(feature = "mime_guess", feature = "mime"))]
 fn get_mime_type(ext: &str) -> mime_guess::Mime {
-    let basic_type = mime_guess::get_mime_type(ext);
+    let basic_type = mime_guess::from_ext(ext).first_or_octet_stream();
     for (simple, utf_8) in &TEXT_TYPES {
         if &basic_type == simple {
             return utf_8.clone();
@@ -616,7 +616,7 @@ pub mod gotham {
         match t.render() {
             Ok(body) => Response::builder()
                 .status(StatusCode::OK)
-                .header("content-type", mime_type.to_string())
+                .header("content-type", mime_type)
                 .body(body.into())
                 .unwrap(),
             Err(_) => Response::builder()
