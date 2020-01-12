@@ -55,3 +55,18 @@ fn test_self_iter() {
     let t = SelfIterTemplate(vec![1, 2, 3]);
     assert_eq!(t.render().unwrap(), "123");
 }
+
+#[derive(Template)]
+#[template(
+    source = "{% if true %}{% let t = a.unwrap() %}{{ t }}{% endif %}",
+    ext = "txt"
+)]
+struct IfLet {
+    a: Option<&'static str>,
+}
+
+#[test]
+fn test_if_let() {
+    let t = IfLet { a: Some("foo") };
+    assert_eq!(t.render().unwrap(), "foo");
+}

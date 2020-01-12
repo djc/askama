@@ -395,53 +395,43 @@ impl<'a> Generator<'a> {
         ws: WS,
     ) -> usize {
         let mut flushed = 0;
-        let mut arm_size = 0;
         let mut arm_sizes = Vec::new();
         let mut has_else = false;
         for (i, &(cws, ref cond, ref nodes)) in conds.iter().enumerate() {
             self.handle_ws(cws);
-
-            let size_hint = self.write_buf_writable(buf);
-            if i > 0 {
-                arm_size += size_hint;
-            } else {
-                flushed += size_hint;
+            if arm_sizes.is_empty() {
+                flushed += self.write_buf_writable(buf);
             }
 
+            let mut arm_size = 0;
             match *cond {
                 Some(ref expr) => {
-                    let expr_code = self.visit_expr_root(expr);
                     if i == 0 {
                         buf.write("if ");
                     } else {
-                        arm_size += self.write_buf_writable(buf);
-                        arm_sizes.push(arm_size);
-                        arm_size = 0;
-
                         buf.dedent();
                         buf.write("} else if ");
                     }
+                    let expr_code = self.visit_expr_root(expr);
                     buf.write(&expr_code);
                 }
                 None => {
-                    arm_size += self.write_buf_writable(buf);
-                    arm_sizes.push(arm_size);
-                    arm_size = 0;
-
                     buf.dedent();
                     buf.write("} else");
                     has_else = true;
                 }
             }
+
             buf.writeln(" {");
             self.locals.push();
+
             arm_size += self.handle(ctx, nodes, buf, AstLevel::Nested);
+            arm_size += self.write_buf_writable(buf);
+            arm_sizes.push(arm_size);
+
             self.locals.pop();
         }
-
         self.handle_ws(ws);
-        arm_size += self.write_buf_writable(buf);
-        arm_sizes.push(arm_size);
         buf.writeln("}");
 
         if !has_else {
@@ -1270,6 +1260,7 @@ impl Buffer {
     }
 }
 
+#[derive(Debug)]
 struct SetChain<'a, T: 'a>
 where
     T: cmp::Eq + hash::Hash,
