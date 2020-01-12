@@ -290,3 +290,17 @@ fn test_flat_deep() {
 </html>"
     );
 }
+
+#[derive(Template)]
+#[template(path = "let-base.html")]
+struct LetBase {}
+
+#[derive(Template)]
+#[template(path = "let-child.html")]
+struct LetChild {}
+
+#[test]
+fn test_let_block() {
+    let t = LetChild {};
+    assert_eq!(t.render().unwrap(), "1");
+}
