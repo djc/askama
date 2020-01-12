@@ -1285,12 +1285,14 @@ where
             scopes: vec![HashSet::new()],
         }
     }
+
     fn with_parent<'p>(parent: &'p SetChain<T>) -> SetChain<'p, T> {
         SetChain {
             parent: Some(parent),
             scopes: vec![HashSet::new()],
         }
     }
+
     fn contains(&self, val: T) -> bool {
         self.scopes.iter().rev().any(|set| set.contains(&val))
             || match self.parent {
@@ -1298,15 +1300,19 @@ where
                 None => false,
             }
     }
+
     fn is_current_empty(&self) -> bool {
         self.scopes.last().unwrap().is_empty()
     }
+
     fn insert(&mut self, val: T) {
         self.scopes.last_mut().unwrap().insert(val);
     }
+
     fn push(&mut self) {
         self.scopes.push(HashSet::new());
     }
+
     fn pop(&mut self) {
         self.scopes.pop().unwrap();
         assert!(!self.scopes.is_empty());
