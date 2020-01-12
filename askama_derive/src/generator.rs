@@ -751,6 +751,12 @@ impl<'a> Generator<'a> {
         self.prepare_ws(*ws1);
         self.locals.push();
         let size_hint = self.handle(ctx, nodes, buf, AstLevel::Block);
+
+        if !self.locals.is_current_empty() {
+            // Need to flush the buffer before popping the variable stack
+            self.write_buf_writable(buf);
+        }
+
         self.locals.pop();
         self.flush_ws(*ws2);
 
@@ -1291,6 +1297,9 @@ where
                 Some(set) => set.contains(val),
                 None => false,
             }
+    }
+    fn is_current_empty(&self) -> bool {
+        self.scopes.last().unwrap().is_empty()
     }
     fn insert(&mut self, val: T) {
         self.scopes.last_mut().unwrap().insert(val);
