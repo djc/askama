@@ -23,7 +23,7 @@ use askama_escape::{Escaper, MarkupDisplay};
 #[cfg(feature = "humansize")]
 use humansize::{file_size_opts, FileSize};
 #[cfg(feature = "num_traits")]
-use num_traits::{Signed, cast::NumCast};
+use num_traits::{cast::NumCast, Signed};
 
 use super::Result;
 
