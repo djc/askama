@@ -186,7 +186,7 @@ struct RawConfig<'d> {
 
 impl<'d> RawConfig<'d> {
     #[cfg(feature = "config")]
-    fn from_toml_str<'n>(s: &'n str) -> RawConfig<'n> {
+    fn from_toml_str(s: &str) -> RawConfig<'_> {
         toml::from_str(&s).unwrap_or_else(|_| panic!("invalid TOML in {}", CONFIG_FILE_NAME))
     }
 
