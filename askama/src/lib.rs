@@ -327,7 +327,7 @@
 //! ```
 //!
 //! That is, a `match` block can optionally contain some whitespace (but
-//! no other literal content), followed by a number of `when` blocks and
+//! no other literal content), followed by a number of `when` blocks
 //! and an optional `else` block. Each `when` block must name a list of
 //! matches (`(val)`), optionally introduced with a variant name. The
 //! `else` block is equivalent to matching on `_` (matching anything).
