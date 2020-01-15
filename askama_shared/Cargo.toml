@@ -13,8 +13,7 @@ edition = "2018"
 askama_escape = { version = "0.2.0", path = "../askama_escape" }
 humansize = "1.1.0"
 num-traits = "0.2.6"
-serde = "1.0"
-serde_derive = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", optional = true }
 serde_yaml = { version = "0.8", optional = true }
 toml = "0.5"

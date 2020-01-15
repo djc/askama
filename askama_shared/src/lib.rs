@@ -1,21 +1,17 @@
 #![cfg_attr(feature = "cargo-clippy", allow(unused_parens))]
-#[macro_use]
-extern crate serde_derive;
-
 use toml;
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-mod error;
+use serde::Deserialize;
 
-pub use crate::error::{Error, Result};
 pub use askama_escape::MarkupDisplay;
 
-use std::collections::BTreeMap;
-
+mod error;
+pub use crate::error::{Error, Result};
 pub mod filters;
 pub mod helpers;
 
