@@ -18,9 +18,12 @@ azure-devops = { project = "dochtman/Projects", pipeline = "Askama", build = "2"
 maintenance = { status = "actively-developed" }
 
 [features]
-default = []
-serde-json = ["askama_shared/serde_json"]
-serde-yaml = ["askama_shared/serde_yaml"]
+default = ["config", "humansize", "num-traits"]
+config = ["askama_shared/config"]
+humansize = ["askama_shared/humansize"]
+serde-json = ["askama_shared/json"]
+serde-yaml = ["askama_shared/yaml"]
+num-traits = ["askama_shared/num-traits"]
 with-iron = ["iron", "askama_derive/iron"]
 with-rocket = ["rocket", "askama_derive/rocket"]
 with-actix-web = ["actix-web", "askama_derive/actix-web", "mime", "mime_guess", "bytes", "futures"]
@@ -29,7 +32,7 @@ with-gotham = ["gotham", "askama_derive/gotham", "hyper", "mime", "mime_guess"]
 [dependencies]
 askama_derive = { version = "0.8.0", path = "../askama_derive" }
 askama_escape = { version = "0.2.0", path = "../askama_escape" }
-askama_shared = { version = "0.8.0", path = "../askama_shared" }
+askama_shared = { version = "0.8.0", path = "../askama_shared", default-features = false }
 iron = { version = ">= 0.5, < 0.7", optional = true }
 rocket = { version = "0.4", optional = true }
 actix-web = { version = "2", optional = true }
@@ -41,4 +44,4 @@ hyper = { version = "0.12", optional = true }
 bytes = { version = "0.5", optional = true }
 
 [package.metadata.docs.rs]
-features = [ "serde-json" ]
+features = ["config", "humansize", "num-traits", "serde-json", "serde-yaml"]

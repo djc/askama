@@ -5,6 +5,8 @@
 //! see the top-level crate documentation.
 #![allow(clippy::trivially_copy_pass_by_ref)]
 
+use std::fmt;
+
 #[cfg(feature = "serde_json")]
 mod json;
 #[cfg(feature = "serde_json")]
@@ -15,12 +17,13 @@ mod yaml;
 #[cfg(feature = "serde_yaml")]
 pub use self::yaml::yaml;
 
+#[allow(unused_imports)]
 use crate::error::Error::Fmt;
 use askama_escape::{Escaper, MarkupDisplay};
+#[cfg(feature = "humansize")]
 use humansize::{file_size_opts, FileSize};
-use num_traits::cast::NumCast;
-use num_traits::Signed;
-use std::fmt;
+#[cfg(feature = "num_traits")]
+use num_traits::{Signed, cast::NumCast};
 
 use super::Result;
 
@@ -92,6 +95,7 @@ where
     escape(e, v)
 }
 
+#[cfg(feature = "humansize")]
 /// Returns adequate string representation (in KB, ..) of number of bytes
 pub fn filesizeformat(b: usize) -> Result<String> {
     b.file_size(file_size_opts::DECIMAL)
@@ -182,6 +186,7 @@ pub fn indent(s: &dyn fmt::Display, width: &usize) -> Result<String> {
     Ok(indented)
 }
 
+#[cfg(feature = "num_traits")]
 /// Casts number to f64
 pub fn into_f64<T>(number: T) -> Result<f64>
 where
@@ -190,6 +195,7 @@ where
     number.to_f64().ok_or(Fmt(fmt::Error))
 }
 
+#[cfg(feature = "num_traits")]
 /// Casts number to isize
 pub fn into_isize<T>(number: T) -> Result<isize>
 where
@@ -220,6 +226,7 @@ where
     Ok(rv)
 }
 
+#[cfg(feature = "num_traits")]
 /// Absolute value
 pub fn abs<T>(number: T) -> Result<T>
 where
@@ -283,8 +290,10 @@ pub fn wordcount(s: &dyn fmt::Display) -> Result<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "num_traits")]
     use std::f64::INFINITY;
 
+    #[cfg(feature = "humansize")]
     #[test]
     fn test_filesizeformat() {
         assert_eq!(filesizeformat(0).unwrap(), "0 B");
@@ -347,6 +356,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "num_traits")]
     #[test]
     #[allow(clippy::float_cmp)]
     fn test_into_f64() {
@@ -357,6 +367,7 @@ mod tests {
         assert_eq!(into_f64(-INFINITY as f32).unwrap(), -INFINITY);
     }
 
+    #[cfg(feature = "num_traits")]
     #[test]
     fn test_into_isize() {
         assert_eq!(into_isize(1).unwrap(), 1 as isize);
@@ -403,6 +414,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "num_traits")]
     #[test]
     #[allow(clippy::float_cmp)]
     fn test_abs() {

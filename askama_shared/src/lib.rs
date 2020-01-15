@@ -1,12 +1,14 @@
 #![cfg_attr(feature = "cargo-clippy", allow(unused_parens))]
-use toml;
 
 use std::collections::{BTreeMap, HashSet};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "serde")]
 use serde::Deserialize;
+#[cfg(feature = "config")]
+use toml;
 
 pub use askama_escape::MarkupDisplay;
 
@@ -31,8 +33,11 @@ impl<'a> Config<'a> {
         let mut syntaxes = BTreeMap::new();
         syntaxes.insert(DEFAULT_SYNTAX_NAME.to_string(), Syntax::default());
 
-        let raw: RawConfig<'_> =
-            toml::from_str(&s).unwrap_or_else(|_| panic!("invalid TOML in {}", CONFIG_FILE_NAME));
+        let raw = if s.is_empty() {
+            RawConfig::default()
+        } else {
+            RawConfig::from_toml_str(s)
+        };
 
         let (dirs, default_syntax) = match raw.general {
             Some(General {
@@ -170,22 +175,35 @@ impl<'a> From<RawSyntax<'a>> for Syntax<'a> {
     }
 }
 
-#[derive(Deserialize)]
+#[cfg_attr(feature = "serde", derive(Deserialize))]
+#[derive(Default)]
 struct RawConfig<'d> {
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     general: Option<General<'d>>,
     syntax: Option<Vec<RawSyntax<'d>>>,
     escaper: Option<Vec<RawEscaper<'d>>>,
 }
 
-#[derive(Deserialize)]
+impl<'d> RawConfig<'d> {
+    #[cfg(feature = "config")]
+    fn from_toml_str<'n>(s: &'n str) -> RawConfig<'n> {
+        toml::from_str(&s).unwrap_or_else(|_| panic!("invalid TOML in {}", CONFIG_FILE_NAME))
+    }
+
+    #[cfg(not(feature = "config"))]
+    fn from_toml_str<'n>(_: &'n str) -> RawConfig<'n> {
+        panic!("toml support not available")
+    }
+}
+
+#[cfg_attr(feature = "serde", derive(Deserialize))]
 struct General<'a> {
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     dirs: Option<Vec<&'a str>>,
     default_syntax: Option<&'a str>,
 }
 
-#[derive(Deserialize)]
+#[cfg_attr(feature = "serde", derive(Deserialize))]
 struct RawSyntax<'a> {
     name: &'a str,
     block_start: Option<&'a str>,
@@ -196,7 +214,7 @@ struct RawSyntax<'a> {
     comment_end: Option<&'a str>,
 }
 
-#[derive(Deserialize)]
+#[cfg_attr(feature = "serde", derive(Deserialize))]
 struct RawEscaper<'a> {
     path: &'a str,
     extensions: Vec<&'a str>,
@@ -243,6 +261,7 @@ mod tests {
         assert_eq!(config.dirs, vec![root]);
     }
 
+    #[cfg(feature = "config")]
     #[test]
     fn test_config_dirs() {
         let mut root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
@@ -291,6 +310,7 @@ mod tests {
         assert_eq_rooted(&path, "sub/sub1/d.html");
     }
 
+    #[cfg(feature = "config")]
     #[test]
     fn add_syntax() {
         let raw_config = r#"
@@ -327,6 +347,7 @@ mod tests {
         assert_eq!(bar.comment_end, default_syntax.comment_end);
     }
 
+    #[cfg(feature = "config")]
     #[test]
     fn add_syntax_two() {
         let raw_config = r#"
@@ -358,6 +379,7 @@ mod tests {
         assert_eq!(bar.comment_end, default_syntax.comment_end);
     }
 
+    #[cfg(feature = "toml")]
     #[should_panic]
     #[test]
     fn use_default_at_syntax_name() {
@@ -368,6 +390,7 @@ mod tests {
         let _config = Config::new(raw_config);
     }
 
+    #[cfg(feature = "toml")]
     #[should_panic]
     #[test]
     fn duplicated_syntax_name_on_list() {
@@ -379,6 +402,7 @@ mod tests {
         let _config = Config::new(raw_config);
     }
 
+    #[cfg(feature = "toml")]
     #[should_panic]
     #[test]
     fn is_not_exist_default_syntax() {
@@ -390,6 +414,7 @@ mod tests {
         let _config = Config::new(raw_config);
     }
 
+    #[cfg(feature = "config")]
     #[test]
     fn escape_modes() {
         let config = Config::new(
