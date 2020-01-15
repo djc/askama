@@ -12,9 +12,7 @@ workspace = ".."
 edition = "2018"
 
 [badges]
-appveyor = { repository = "djc/askama" }
 maintenance = { status = "actively-developed" }
-travis-ci = { repository = "djc/askama" }
 
 [dev-dependencies]
 criterion = "0.3"
