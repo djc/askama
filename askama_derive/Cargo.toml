@@ -1,6 +1,6 @@
 [package]
 name = "askama_derive"
-version = "0.8.0"
+version = "0.9.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Procedural macro package for Askama"
 homepage = "https://github.com/djc/askama"
@@ -19,7 +19,7 @@ actix-web = []
 gotham = []
 
 [dependencies]
-askama_shared = { version = "0.8", path = "../askama_shared" }
+askama_shared = { version = "0.9", path = "../askama_shared" }
 # default for features for nom don't work result in linker errors:
 # https://github.com/rust-lang/rust/issues/62146
 nom = { version = "5", default-features = false, features = ["std"] }
