@@ -480,7 +480,7 @@
 #![allow(unused_imports)]
 #[macro_use]
 extern crate askama_derive;
-use askama_shared as shared;
+pub use askama_shared as shared;
 
 use std::fs::{self, DirEntry};
 use std::io;
