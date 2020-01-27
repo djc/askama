@@ -23,7 +23,7 @@ bytes = { version = "0.5", optional = true }
 iron = { version = "0.6", optional = true }
 rocket = { version = "0.4", default-features = false, optional = true }
 serde_json = { version = "1.0", optional = true }
-gotham = { version = "0.3", optional = true }
+gotham = { version = "0.3", default-features = false, optional = true }
 mime = { version = "0.3", optional = true }
 hyper = { version = "0.12", optional = true }
 
