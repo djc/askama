@@ -523,25 +523,6 @@ pub mod iron {
     pub use iron::response::Response;
 }
 
-#[cfg(feature = "with-rocket")]
-pub mod rocket {
-    use rocket::http::{ContentType, Status};
-    pub use rocket::request::Request;
-    use rocket::response::Response;
-    use std::io::Cursor;
-
-    pub use rocket::response::{Responder, Result};
-
-    pub fn respond<T: super::Template>(t: &T, ext: &str) -> Result<'static> {
-        let rsp = t.render().map_err(|_| Status::InternalServerError)?;
-        let ctype = ContentType::from_extension(ext).ok_or(Status::InternalServerError)?;
-        Response::build()
-            .header(ctype)
-            .sized_body(Cursor::new(rsp))
-            .ok()
-    }
-}
-
 pub mod mime {
     #[cfg(all(feature = "mime_guess", feature = "mime"))]
     pub fn extension_to_mime_type(ext: &str) -> mime_guess::Mime {

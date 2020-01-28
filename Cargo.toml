@@ -4,6 +4,7 @@ members = [
     "askama_actix",
     "askama_derive",
     "askama_escape",
+    "askama_rocket",
     "askama_shared",
     "testing",
 ]
