@@ -258,16 +258,16 @@ impl<'a> Generator<'a> {
 
     // Implement gotham's `IntoResponse`.
     fn impl_gotham_into_response(&mut self, buf: &mut Buffer) {
-        self.write_header(buf, "::askama::gotham::IntoResponse", None);
+        self.write_header(buf, "::askama_gotham::IntoResponse", None);
         buf.writeln(
-            "fn into_response(self, _state: &::askama::gotham::State)\
-             -> ::askama::gotham::Response<::askama::gotham::Body> {",
+            "fn into_response(self, _state: &::askama_gotham::State)\
+             -> ::askama_gotham::Response<::askama_gotham::Body> {",
         );
         let ext = match self.input.path.extension() {
             Some(s) => s.to_str().unwrap(),
             None => "txt",
         };
-        buf.writeln(&format!("::askama::gotham::respond(&self, {:?})", ext));
+        buf.writeln(&format!("::askama_gotham::respond(&self, {:?})", ext));
         buf.writeln("}");
         buf.writeln("}");
     }

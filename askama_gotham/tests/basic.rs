@@ -1,5 +1,3 @@
-#![cfg(feature = "with-gotham")]
-
 use askama::Template;
 use gotham::state::State;
 use gotham::test::TestServer;
