@@ -221,19 +221,19 @@ impl<'a> Generator<'a> {
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
         self.write_header(
             buf,
-            "::askama::rocket::Responder<'askama>",
+            "::askama_rocket::Responder<'askama>",
             Some(vec![param]),
         );
         buf.writeln(
-            "fn respond_to(self, _: &::askama::rocket::Request) \
-             -> ::askama::rocket::Result<'askama> {",
+            "fn respond_to(self, _: &::askama_rocket::Request) \
+             -> ::askama_rocket::Result<'askama> {",
         );
 
         let ext = match self.input.path.extension() {
             Some(s) => s.to_str().unwrap(),
             None => "txt",
         };
-        buf.writeln(&format!("::askama::rocket::respond(&self, {:?})", ext));
+        buf.writeln(&format!("::askama_rocket::respond(&self, {:?})", ext));
 
         buf.writeln("}");
         buf.writeln("}");

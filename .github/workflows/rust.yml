@@ -61,7 +61,7 @@ jobs:
           cargo test --package askama_actix --all-targets
           cargo clippy --package askama_actix --all-targets -- -D warnings
 
-  nightly:
+  Rocket:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
@@ -70,9 +70,10 @@ jobs:
           profile: minimal
           toolchain: nightly
           override: true
+          components: clippy
       - run: |
-          cd testing
-          cargo test --features with-rocket
+          cargo test --package askama_rocket --all-targets
+          cargo clippy --package askama_rocket --all-targets -- -D warnings
 
   lint:
     runs-on: ubuntu-latest
