@@ -516,13 +516,6 @@ pub use crate::shared::helpers;
 pub use crate::shared::{read_config_file, Error, MarkupDisplay, Result};
 pub use askama_derive::*;
 
-#[cfg(feature = "with-iron")]
-pub mod iron {
-    pub use iron::headers::ContentType;
-    pub use iron::modifier::Modifier;
-    pub use iron::response::Response;
-}
-
 pub mod mime {
     #[cfg(all(feature = "mime_guess", feature = "mime"))]
     pub fn extension_to_mime_type(ext: &str) -> mime_guess::Mime {

@@ -1,4 +1,3 @@
-#![cfg(feature = "iron")]
 use askama::Template;
 use iron::{status, Response};
 
