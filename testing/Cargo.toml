@@ -6,14 +6,10 @@ workspace = ".."
 edition = "2018"
 
 [features]
-default = []
-full = ["with-iron", "serde-json"]
-serde-json = ["serde_json", "askama/serde-json"]
-with-iron = ["iron", "askama/with-iron"]
+default = ["serde_json", "askama/serde-json"]
 
 [dependencies]
 askama = { path = "../askama", version = "*" }
-iron = { version = "0.6", optional = true }
 serde_json = { version = "1.0", optional = true }
 
 [dev-dependencies]

@@ -34,19 +34,6 @@ jobs:
         with:
           command: test
 
-  stable-integrations:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - run: |
-          cd testing
-          cargo test --features full
-
   Actix-Web:
     runs-on: ubuntu-latest
     steps:
@@ -56,7 +43,6 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-          components: clippy
       - run: |
           cargo test --package askama_actix --all-targets
           cargo clippy --package askama_actix --all-targets -- -D warnings
@@ -74,6 +60,20 @@ jobs:
       - run: |
           cargo test --package askama_gotham --all-targets
           cargo clippy --package askama_gotham --all-targets -- -D warnings
+
+  Iron:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: clippy
+      - run: |
+          cargo test --package askama_iron --all-targets
+          cargo clippy --package askama_iron --all-targets -- -D warnings
 
   Rocket:
     runs-on: ubuntu-latest

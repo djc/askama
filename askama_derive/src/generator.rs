@@ -191,12 +191,12 @@ impl<'a> Generator<'a> {
     fn impl_modifier_response(&mut self, buf: &mut Buffer) {
         self.write_header(
             buf,
-            "::askama::iron::Modifier<::askama::iron::Response>",
+            "::askama_iron::Modifier<::askama_iron::Response>",
             None,
         );
-        buf.writeln("fn modify(self, res: &mut ::askama::iron::Response) {");
+        buf.writeln("fn modify(self, res: &mut ::askama_iron::Response) {");
         buf.writeln(
-            "res.body = Some(Box::new(::askama::Template::render(&self).unwrap().into_bytes()));",
+            "res.body = Some(Box::new(::askama_iron::Template::render(&self).unwrap().into_bytes()));",
         );
 
         let ext = self
@@ -206,7 +206,7 @@ impl<'a> Generator<'a> {
             .map_or("", |s| s.to_str().unwrap_or(""));
         match ext {
             "html" | "htm" => {
-                buf.writeln("::askama::iron::ContentType::html().0.modify(res);");
+                buf.writeln("::askama_iron::ContentType::html().0.modify(res);");
             }
             _ => (),
         };

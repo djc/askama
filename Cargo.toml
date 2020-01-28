@@ -5,6 +5,7 @@ members = [
     "askama_gotham",
     "askama_derive",
     "askama_escape",
+    "askama_iron",
     "askama_rocket",
     "askama_shared",
     "testing",
