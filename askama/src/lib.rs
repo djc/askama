@@ -542,65 +542,33 @@ pub mod rocket {
     }
 }
 
-#[cfg(all(feature = "mime_guess", feature = "mime"))]
-fn get_mime_type(ext: &str) -> mime_guess::Mime {
-    let basic_type = mime_guess::from_ext(ext).first_or_octet_stream();
-    for (simple, utf_8) in &TEXT_TYPES {
-        if &basic_type == simple {
-            return utf_8.clone();
+pub mod mime {
+    #[cfg(all(feature = "mime_guess", feature = "mime"))]
+    pub fn extension_to_mime_type(ext: &str) -> mime_guess::Mime {
+        let basic_type = mime_guess::from_ext(ext).first_or_octet_stream();
+        for (simple, utf_8) in &TEXT_TYPES {
+            if &basic_type == simple {
+                return utf_8.clone();
+            }
         }
-    }
-    basic_type
-}
-
-#[cfg(all(feature = "mime_guess", feature = "mime"))]
-const TEXT_TYPES: [(mime_guess::Mime, mime_guess::Mime); 6] = [
-    (mime::TEXT_PLAIN, mime::TEXT_PLAIN_UTF_8),
-    (mime::TEXT_HTML, mime::TEXT_HTML_UTF_8),
-    (mime::TEXT_CSS, mime::TEXT_CSS_UTF_8),
-    (mime::TEXT_CSV, mime::TEXT_CSV_UTF_8),
-    (
-        mime::TEXT_TAB_SEPARATED_VALUES,
-        mime::TEXT_TAB_SEPARATED_VALUES_UTF_8,
-    ),
-    (
-        mime::APPLICATION_JAVASCRIPT,
-        mime::APPLICATION_JAVASCRIPT_UTF_8,
-    ),
-];
-
-#[cfg(feature = "with-actix-web")]
-pub mod actix_web {
-    use actix_web;
-    use bytes;
-    use mime_guess;
-
-    use std::fmt;
-
-    // actix_web technically has this as a pub fn in later versions, fs::file_extension_to_mime.
-    // Older versions that don't have it exposed are easier this way. If ext is empty or no
-    // associated type was found, then this returns `application/octet-stream`, in line with how
-    // actix_web handles it in newer releases.
-    pub use self::actix_web::{
-        error::ErrorInternalServerError, Error, HttpRequest, HttpResponse, Responder,
-    };
-
-    pub trait TemplateIntoResponse {
-        fn into_response(&self) -> Result<HttpResponse, Error>;
+        basic_type
     }
 
-    impl<T: super::Template> TemplateIntoResponse for T {
-        fn into_response(&self) -> Result<HttpResponse, Error> {
-            let mut buffer = actix_web::web::BytesMut::with_capacity(self.size_hint());
-            self.render_into(&mut buffer)
-                .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
-
-            let ctype = super::get_mime_type(self.extension().unwrap_or("txt")).to_string();
-            Ok(HttpResponse::Ok()
-                .content_type(ctype.as_str())
-                .body(buffer.freeze()))
-        }
-    }
+    #[cfg(all(feature = "mime_guess", feature = "mime"))]
+    const TEXT_TYPES: [(mime_guess::Mime, mime_guess::Mime); 6] = [
+        (mime::TEXT_PLAIN, mime::TEXT_PLAIN_UTF_8),
+        (mime::TEXT_HTML, mime::TEXT_HTML_UTF_8),
+        (mime::TEXT_CSS, mime::TEXT_CSS_UTF_8),
+        (mime::TEXT_CSV, mime::TEXT_CSV_UTF_8),
+        (
+            mime::TEXT_TAB_SEPARATED_VALUES,
+            mime::TEXT_TAB_SEPARATED_VALUES_UTF_8,
+        ),
+        (
+            mime::APPLICATION_JAVASCRIPT,
+            mime::APPLICATION_JAVASCRIPT_UTF_8,
+        ),
+    ];
 }
 
 #[cfg(feature = "with-gotham")]
@@ -611,7 +579,7 @@ pub mod gotham {
     pub use hyper::{Body, Response, StatusCode};
 
     pub fn respond<T: super::Template>(t: &T, ext: &str) -> Response<Body> {
-        let mime_type = super::get_mime_type(ext).to_string();
+        let mime_type = super::mime::extension_to_mime_type(ext).to_string();
 
         match t.render() {
             Ok(body) => Response::builder()

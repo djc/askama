@@ -1,8 +1,7 @@
-#![cfg(feature = "actix")]
 use actix_web::http::header::CONTENT_TYPE;
 use actix_web::test;
 use actix_web::web;
-use askama::{actix_web::TemplateIntoResponse, Template};
+use askama_actix::{Template, TemplateIntoResponse};
 use bytes::Bytes;
 
 #[derive(Template)]

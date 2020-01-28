@@ -29,11 +29,10 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --all-targets
+          args: --all-targets
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace
 
   stable-integrations:
     runs-on: ubuntu-latest
@@ -47,6 +46,20 @@ jobs:
       - run: |
           cd testing
           cargo test --features full
+
+  Actix-Web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: clippy
+      - run: |
+          cargo test --package askama_actix --all-targets
+          cargo clippy --package askama_actix --all-targets -- -D warnings
 
   nightly:
     runs-on: ubuntu-latest
@@ -71,12 +84,6 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-      - uses: actions-rs/cargo@v1
-        if: always()
-        with:
-          command: clippy
-          args: --workspace --all-targets -- -D warnings
+      - run: |
+          cargo fmt --all -- --check
+          cargo clippy --all-targets -- -D warnings
