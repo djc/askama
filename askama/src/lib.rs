@@ -552,30 +552,6 @@ pub mod mime {
     ];
 }
 
-#[cfg(feature = "with-gotham")]
-pub mod gotham {
-    pub use gotham::handler::IntoResponse;
-    use gotham::helpers::http::response::{create_empty_response, create_response};
-    pub use gotham::state::State;
-    pub use hyper::{Body, Response, StatusCode};
-
-    pub fn respond<T: super::Template>(t: &T, ext: &str) -> Response<Body> {
-        let mime_type = super::mime::extension_to_mime_type(ext).to_string();
-
-        match t.render() {
-            Ok(body) => Response::builder()
-                .status(StatusCode::OK)
-                .header("content-type", mime_type)
-                .body(body.into())
-                .unwrap(),
-            Err(_) => Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(vec![].into())
-                .unwrap(),
-        }
-    }
-}
-
 /// Old build script helper to rebuild crates if contained templates have changed
 ///
 /// This function is now deprecated and does nothing.
