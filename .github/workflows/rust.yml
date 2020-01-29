@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  Test:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -89,7 +89,7 @@ jobs:
           cargo test --package askama_rocket --all-targets
           cargo clippy --package askama_rocket --all-targets -- -D warnings
 
-  lint:
+  Lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
