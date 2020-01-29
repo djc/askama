@@ -1,19 +1,15 @@
 extern crate proc_macro;
 #[macro_use]
-extern crate nom;
-#[macro_use]
 extern crate quote;
 
 mod generator;
 mod input;
-mod parser;
 
 use crate::input::{Print, Source, TemplateInput};
-use crate::parser::{Expr, Macro, Node};
+use askama_shared::parser::{parse, Expr, Macro, Node};
 use askama_shared::{read_config_file, Config};
 use proc_macro::TokenStream;
 
-use crate::parser::parse;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};

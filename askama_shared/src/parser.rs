@@ -5,10 +5,10 @@ use nom::combinator::{complete, map, opt};
 use nom::error::ParseError;
 use nom::multi::{many0, many1, separated_list, separated_nonempty_list};
 use nom::sequence::{delimited, pair, tuple};
-use nom::{self, Compare, IResult, InputTake};
+use nom::{self, error_position, Compare, IResult, InputTake};
 use std::str;
 
-use askama_shared::Syntax;
+use crate::Syntax;
 
 #[derive(Debug)]
 pub enum Expr<'a> {
@@ -1042,7 +1042,7 @@ pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Vec<Node<'a>> {
 
 #[cfg(test)]
 mod tests {
-    use askama_shared::Syntax;
+    use crate::Syntax;
 
     fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
         let node = super::split_ws_parts(s.as_bytes());

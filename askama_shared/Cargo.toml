@@ -18,6 +18,9 @@ yaml = ["serde", "serde_yaml"]
 [dependencies]
 askama_escape = { version = "0.3.0", path = "../askama_escape" }
 humansize = { version = "1.1.0", optional = true }
+# default for features for nom don't work result in linker errors:
+# https://github.com/rust-lang/rust/issues/62146
+nom = { version = "5", default-features = false, features = ["std"] }
 num-traits = { version = "0.2.6", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 serde_derive = { version = "1.0", optional = true }
