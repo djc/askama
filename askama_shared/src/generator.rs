@@ -16,9 +16,9 @@ use std::{cmp, hash, mem, str};
 
 use syn;
 
-pub fn generate(
+pub fn generate<S: std::hash::BuildHasher>(
     input: &TemplateInput,
-    contexts: &HashMap<&PathBuf, Context>,
+    contexts: &HashMap<&PathBuf, Context, S>,
     heritage: &Option<Heritage>,
     integrations: Integrations,
 ) -> String {
@@ -26,11 +26,11 @@ pub fn generate(
         .build(&contexts[&input.path])
 }
 
-struct Generator<'a> {
+struct Generator<'a, S: std::hash::BuildHasher> {
     // The template input state: original struct AST and attributes
     input: &'a TemplateInput<'a>,
     // All contexts, keyed by the package-relative template path
-    contexts: &'a HashMap<&'a PathBuf, Context<'a>>,
+    contexts: &'a HashMap<&'a PathBuf, Context<'a>, S>,
     // The heritage contains references to blocks and their ancestry
     heritage: &'a Option<Heritage<'a>>,
     // What integrations need to be generated
@@ -52,14 +52,14 @@ struct Generator<'a> {
     named: usize,
 }
 
-impl<'a> Generator<'a> {
+impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn new<'n>(
         input: &'n TemplateInput,
-        contexts: &'n HashMap<&'n PathBuf, Context<'n>>,
+        contexts: &'n HashMap<&'n PathBuf, Context<'n>, S>,
         heritage: &'n Option<Heritage>,
         integrations: Integrations,
         locals: SetChain<'n, &'n str>,
-    ) -> Generator<'n> {
+    ) -> Generator<'n, S> {
         Generator {
             input,
             contexts,
@@ -74,7 +74,7 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn child(&mut self) -> Generator {
+    fn child(&mut self) -> Generator<'_, S> {
         let locals = SetChain::with_parent(&self.locals);
         Self::new(
             self.input,
