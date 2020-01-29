@@ -3,9 +3,8 @@ extern crate proc_macro;
 extern crate quote;
 
 mod generator;
-mod input;
 
-use crate::input::{Print, Source, TemplateInput};
+use askama_shared::input::{Print, Source, TemplateInput};
 use askama_shared::parser::{parse, Expr, Macro, Node};
 use askama_shared::{read_config_file, Config};
 use proc_macro::TokenStream;

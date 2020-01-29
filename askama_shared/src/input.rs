@@ -1,4 +1,4 @@
-use askama_shared::{Config, Syntax};
+use crate::{Config, Syntax};
 
 use std::path::PathBuf;
 
