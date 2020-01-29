@@ -1,6 +1,6 @@
 use super::{get_template_source, Context, Heritage};
-use crate::input::{Source, TemplateInput};
 use askama_shared::filters;
+use askama_shared::input::{Source, TemplateInput};
 use askama_shared::parser::{
     parse, Cond, Expr, MatchParameter, MatchParameters, MatchVariant, Node, Target, When, WS,
 };

@@ -22,10 +22,12 @@ humansize = { version = "1.1.0", optional = true }
 # https://github.com/rust-lang/rust/issues/62146
 nom = { version = "5", default-features = false, features = ["std"] }
 num-traits = { version = "0.2.6", optional = true }
+quote = "1"
 serde = { version = "1.0", optional = true, features = ["derive"] }
 serde_derive = { version = "1.0", optional = true }
 serde_json = { version = "1.0", optional = true }
 serde_yaml = { version = "0.8", optional = true }
+syn = "1"
 toml = { version = "0.5", optional = true }
 
 [package.metadata.docs.rs]
