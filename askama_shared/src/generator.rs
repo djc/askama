@@ -1,13 +1,14 @@
-use super::{get_template_source, Context, Heritage};
-use askama_shared::filters;
-use askama_shared::input::{Source, TemplateInput};
-use askama_shared::parser::{
+use super::{get_template_source, Integrations};
+use crate::filters;
+use crate::heritage::{Context, Heritage};
+use crate::input::{Source, TemplateInput};
+use crate::parser::{
     parse, Cond, Expr, MatchParameter, MatchParameters, MatchVariant, Node, Target, When, WS,
 };
 
 use proc_macro2::Span;
 
-use quote::ToTokens;
+use quote::{quote, ToTokens};
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -15,12 +16,14 @@ use std::{cmp, hash, mem, str};
 
 use syn;
 
-pub(crate) fn generate(
+pub fn generate(
     input: &TemplateInput,
     contexts: &HashMap<&PathBuf, Context>,
     heritage: &Option<Heritage>,
+    integrations: Integrations,
 ) -> String {
-    Generator::new(input, contexts, heritage, SetChain::new()).build(&contexts[&input.path])
+    Generator::new(input, contexts, heritage, integrations, SetChain::new())
+        .build(&contexts[&input.path])
 }
 
 struct Generator<'a> {
@@ -30,6 +33,8 @@ struct Generator<'a> {
     contexts: &'a HashMap<&'a PathBuf, Context<'a>>,
     // The heritage contains references to blocks and their ancestry
     heritage: &'a Option<Heritage<'a>>,
+    // What integrations need to be generated
+    integrations: Integrations,
     // Variables accessible directly from the current scope (not redirected to context)
     locals: SetChain<'a, &'a str>,
     // Suffix whitespace from the previous literal. Will be flushed to the
@@ -52,12 +57,14 @@ impl<'a> Generator<'a> {
         input: &'n TemplateInput,
         contexts: &'n HashMap<&'n PathBuf, Context<'n>>,
         heritage: &'n Option<Heritage>,
+        integrations: Integrations,
         locals: SetChain<'n, &'n str>,
     ) -> Generator<'n> {
         Generator {
             input,
             contexts,
             heritage,
+            integrations,
             locals,
             next_ws: None,
             skip_ws: false,
@@ -69,7 +76,13 @@ impl<'a> Generator<'a> {
 
     fn child(&mut self) -> Generator {
         let locals = SetChain::with_parent(&self.locals);
-        Self::new(self.input, self.contexts, self.heritage, locals)
+        Self::new(
+            self.input,
+            self.contexts,
+            self.heritage,
+            self.integrations,
+            locals,
+        )
     }
 
     // Takes a Context and generates the relevant implementations.
@@ -83,19 +96,19 @@ impl<'a> Generator<'a> {
 
         self.impl_template(ctx, &mut buf);
         self.impl_display(&mut buf);
-        if cfg!(feature = "iron") {
+        if self.integrations.iron {
             self.impl_modifier_response(&mut buf);
         }
-        if cfg!(feature = "rocket") {
+        if self.integrations.rocket {
             self.impl_rocket_responder(&mut buf);
         }
-        if cfg!(feature = "actix-web") {
+        if self.integrations.actix {
             self.impl_actix_web_responder(&mut buf);
         }
-        if cfg!(feature = "gotham") {
+        if self.integrations.gotham {
             self.impl_gotham_into_response(&mut buf);
         }
-        if cfg!(feature = "warp") {
+        if self.integrations.warp {
             self.impl_warp_reply(&mut buf);
         }
         buf.buf

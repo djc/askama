@@ -1,17 +1,13 @@
 extern crate proc_macro;
-#[macro_use]
-extern crate quote;
 
-mod generator;
-
+use askama_shared::heritage::{Context, Heritage};
 use askama_shared::input::{Print, Source, TemplateInput};
-use askama_shared::parser::{parse, Expr, Macro, Node};
-use askama_shared::{read_config_file, Config};
+use askama_shared::parser::{parse, Expr, Node};
+use askama_shared::{generator, get_template_source, read_config_file, Config, Integrations};
 use proc_macro::TokenStream;
 
 use std::collections::HashMap;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
@@ -59,7 +55,7 @@ fn build_template(ast: &syn::DeriveInput) -> String {
         eprintln!("{:?}", parsed[&input.path]);
     }
 
-    let code = generator::generate(&input, &contexts, &heritage);
+    let code = generator::generate(&input, &contexts, &heritage, INTEGRATIONS);
     if input.print == Print::Code || input.print == Print::All {
         eprintln!("{}", code);
     }
@@ -88,136 +84,10 @@ fn find_used_templates(input: &TemplateInput, map: &mut HashMap<PathBuf, String>
     }
 }
 
-pub(crate) struct Heritage<'a> {
-    root: &'a Context<'a>,
-    blocks: BlockAncestry<'a>,
-}
-
-impl<'a> Heritage<'a> {
-    fn new<'n>(
-        mut ctx: &'n Context<'n>,
-        contexts: &'n HashMap<&'n PathBuf, Context<'n>>,
-    ) -> Heritage<'n> {
-        let mut blocks: BlockAncestry<'n> = ctx
-            .blocks
-            .iter()
-            .map(|(name, def)| (*name, vec![(ctx, *def)]))
-            .collect();
-
-        while let Some(ref path) = ctx.extends {
-            ctx = &contexts[&path];
-            for (name, def) in &ctx.blocks {
-                blocks
-                    .entry(name)
-                    .or_insert_with(|| vec![])
-                    .push((ctx, def));
-            }
-        }
-
-        Heritage { root: ctx, blocks }
-    }
-}
-
-type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a Node<'a>)>>;
-
-pub(crate) struct Context<'a> {
-    nodes: &'a [Node<'a>],
-    extends: Option<PathBuf>,
-    blocks: HashMap<&'a str, &'a Node<'a>>,
-    macros: HashMap<&'a str, &'a Macro<'a>>,
-    imports: HashMap<&'a str, PathBuf>,
-}
-
-impl<'a> Context<'a> {
-    fn new<'n>(config: &Config, path: &Path, nodes: &'n [Node<'n>]) -> Context<'n> {
-        let mut extends = None;
-        let mut blocks = Vec::new();
-        let mut macros = HashMap::new();
-        let mut imports = HashMap::new();
-
-        for n in nodes {
-            match n {
-                Node::Extends(Expr::StrLit(extends_path)) => match extends {
-                    Some(_) => panic!("multiple extend blocks found"),
-                    None => {
-                        extends = Some(config.find_template(extends_path, Some(path)));
-                    }
-                },
-                def @ Node::BlockDef(_, _, _, _) => {
-                    blocks.push(def);
-                }
-                Node::Macro(name, m) => {
-                    macros.insert(*name, m);
-                }
-                Node::Import(_, import_path, scope) => {
-                    let path = config.find_template(import_path, Some(path));
-                    imports.insert(*scope, path);
-                }
-                _ => {}
-            }
-        }
-
-        let mut check_nested = 0;
-        let mut nested_blocks = Vec::new();
-        while check_nested < blocks.len() {
-            if let Node::BlockDef(_, _, ref nodes, _) = blocks[check_nested] {
-                for n in nodes {
-                    if let def @ Node::BlockDef(_, _, _, _) = n {
-                        nested_blocks.push(def);
-                    }
-                }
-            } else {
-                panic!("non block found in list of blocks");
-            }
-            blocks.append(&mut nested_blocks);
-            check_nested += 1;
-        }
-
-        let blocks: HashMap<_, _> = blocks
-            .iter()
-            .map(|def| {
-                if let Node::BlockDef(_, name, _, _) = def {
-                    (*name, *def)
-                } else {
-                    unreachable!()
-                }
-            })
-            .collect();
-
-        Context {
-            nodes,
-            extends,
-            blocks,
-            macros,
-            imports,
-        }
-    }
-}
-
-#[allow(clippy::match_wild_err_arm)]
-fn get_template_source(tpl_path: &Path) -> String {
-    match fs::read_to_string(tpl_path) {
-        Err(_) => panic!(
-            "unable to open template file '{}'",
-            tpl_path.to_str().unwrap()
-        ),
-        Ok(mut source) => {
-            if source.ends_with('\n') {
-                let _ = source.pop();
-            }
-            source
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::get_template_source;
-    use crate::Config;
-
-    #[test]
-    fn get_source() {
-        let path = Config::new("").find_template("b.html", None);
-        assert_eq!(get_template_source(&path), "bar");
-    }
-}
+const INTEGRATIONS: Integrations = Integrations {
+    actix: cfg!(feature = "actix-web"),
+    gotham: cfg!(feature = "gotham"),
+    iron: cfg!(feature = "iron"),
+    rocket: cfg!(feature = "rocket"),
+    warp: cfg!(feature = "warp"),
+};
