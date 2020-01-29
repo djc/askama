@@ -97,6 +97,9 @@ impl<'a> Generator<'a> {
         if cfg!(feature = "gotham") {
             self.impl_gotham_into_response(&mut buf);
         }
+        if cfg!(feature = "warp") {
+            self.impl_warp_reply(&mut buf);
+        }
         buf.buf
     }
 
@@ -268,6 +271,20 @@ impl<'a> Generator<'a> {
             None => "txt",
         };
         buf.writeln(&format!("::askama_gotham::respond(&self, {:?})", ext));
+        buf.writeln("}");
+        buf.writeln("}");
+    }
+
+    fn impl_warp_reply(&mut self, buf: &mut Buffer) {
+        self.write_header(buf, "::askama_warp::warp::reply::Reply", None);
+        buf.writeln("fn into_response(self) -> ::askama_warp::warp::reply::Response {");
+        let ext = self
+            .input
+            .path
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("txt");
+        buf.writeln(&format!("::askama_warp::reply(&self, {:?})", ext));
         buf.writeln("}");
         buf.writeln("}");
     }

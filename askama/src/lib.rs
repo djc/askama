@@ -471,6 +471,13 @@
 //! signature, with a status code of `500 Internal Server Error`, mime `*/*`, and an empty `Body`.
 //! This preserves the response chain if any custom error handling needs to occur.
 //!
+//! ## Warp integration
+//!
+//! Enabling the `with-warp` feature appends an implementation of Warp's `Reply`
+//! trait for each template type. This makes it simple to return a template from
+//! a Warp filter. See [the example](https://github.com/djc/askama/blob/master/testing/tests/warp.rs)
+//! from the Askama test suite for more on how to integrate.
+//!
 //! ## The `json` filter
 //!
 //! Enabling the `serde-json` filter will enable the use of the `json` filter.
