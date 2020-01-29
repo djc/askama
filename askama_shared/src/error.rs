@@ -1,4 +1,3 @@
-use std::error::Error as ErrorTrait;
 use std::fmt::{self, Display};
 
 pub type Result<I> = ::std::result::Result<I, Error>;
@@ -43,17 +42,8 @@ pub enum Error {
     __Nonexhaustive,
 }
 
-impl ErrorTrait for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::Fmt(ref err) => err.description(),
-            #[cfg(feature = "serde_json")]
-            Error::Json(ref err) => err.description(),
-            _ => "unknown error: __Nonexhaustive",
-        }
-    }
-
-    fn cause(&self) -> Option<&dyn ErrorTrait> {
+impl std::error::Error for Error {
+    fn cause(&self) -> Option<&dyn std::error::Error> {
         match *self {
             Error::Fmt(ref err) => err.source(),
             #[cfg(feature = "serde_json")]
