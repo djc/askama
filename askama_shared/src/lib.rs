@@ -15,8 +15,14 @@ pub use askama_escape::MarkupDisplay;
 mod error;
 pub use crate::error::{Error, Result};
 pub mod filters;
+#[doc(hidden)]
+pub mod generator;
 pub mod helpers;
+#[doc(hidden)]
+pub mod heritage;
+#[doc(hidden)]
 pub mod input;
+#[doc(hidden)]
 pub mod parser;
 
 #[derive(Debug)]
@@ -240,6 +246,31 @@ where
     vals.iter().map(|s| s.to_string()).collect()
 }
 
+#[allow(clippy::match_wild_err_arm)]
+pub fn get_template_source(tpl_path: &Path) -> String {
+    match fs::read_to_string(tpl_path) {
+        Err(_) => panic!(
+            "unable to open template file '{}'",
+            tpl_path.to_str().unwrap()
+        ),
+        Ok(mut source) => {
+            if source.ends_with('\n') {
+                let _ = source.pop();
+            }
+            source
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Integrations {
+    pub actix: bool,
+    pub gotham: bool,
+    pub iron: bool,
+    pub rocket: bool,
+    pub warp: bool,
+}
+
 static CONFIG_FILE_NAME: &str = "askama.toml";
 static DEFAULT_SYNTAX_NAME: &str = "default";
 static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
@@ -254,6 +285,12 @@ mod tests {
     use super::*;
     use std::env;
     use std::path::{Path, PathBuf};
+
+    #[test]
+    fn get_source() {
+        let path = Config::new("").find_template("b.html", None);
+        assert_eq!(get_template_source(&path), "bar");
+    }
 
     #[test]
     fn test_default_config() {
@@ -293,7 +330,7 @@ mod tests {
     fn find_relative_nonexistent() {
         let config = Config::new("");
         let root = config.find_template("a.html", None);
-        config.find_template("b.html", Some(&root));
+        config.find_template("c.html", Some(&root));
     }
 
     #[test]
