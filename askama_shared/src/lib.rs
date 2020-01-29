@@ -16,6 +16,7 @@ mod error;
 pub use crate::error::{Error, Result};
 pub mod filters;
 pub mod helpers;
+pub mod parser;
 
 #[derive(Debug)]
 pub struct Config<'a> {

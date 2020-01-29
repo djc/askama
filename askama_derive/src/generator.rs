@@ -1,9 +1,9 @@
 use super::{get_template_source, Context, Heritage};
 use crate::input::{Source, TemplateInput};
-use crate::parser::{
-    Cond, Expr, MatchParameter, MatchParameters, MatchVariant, Node, Target, When, WS,
-};
 use askama_shared::filters;
+use askama_shared::parser::{
+    parse, Cond, Expr, MatchParameter, MatchParameters, MatchVariant, Node, Target, When, WS,
+};
 
 use proc_macro2::Span;
 
@@ -14,8 +14,6 @@ use std::path::PathBuf;
 use std::{cmp, hash, mem, str};
 
 use syn;
-
-use crate::parser::parse;
 
 pub(crate) fn generate(
     input: &TemplateInput,
