@@ -8,8 +8,10 @@ members = [
     "askama_iron",
     "askama_rocket",
     "askama_shared",
+    "askama_warp",
     "testing",
 ]
+
 default-members = [
     "askama",
     "askama_derive",
