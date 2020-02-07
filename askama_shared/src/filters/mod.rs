@@ -158,7 +158,7 @@ pub fn trim(s: &dyn fmt::Display) -> Result<String> {
 /// Limit string length, appends '...' if truncated
 pub fn truncate(s: &dyn fmt::Display, len: &usize) -> Result<String> {
     let mut s = s.to_string();
-    if s.len() < *len {
+    if s.len() <= *len {
         Ok(s)
     } else {
         let mut real_len = *len;
@@ -347,6 +347,28 @@ mod tests {
     #[test]
     fn test_trim() {
         assert_eq!(trim(&" Hello\tworld\t").unwrap(), "Hello\tworld");
+    }
+    
+    #[test]
+    fn test_truncate() {
+        assert_eq!(truncate(&"hello", &2).unwrap(), "he...");
+        let a = String::from("您好");
+        assert_eq!(a.len(), 6);
+        assert_eq!(String::from("您").len(), 3);
+        assert_eq!(truncate(&"您好", &1).unwrap(), "您...");
+        assert_eq!(truncate(&"您好", &2).unwrap(), "您...");
+        assert_eq!(truncate(&"您好", &3).unwrap(), "您...");
+        assert_eq!(truncate(&"您好", &6).unwrap(), "您好");
+        assert_eq!(truncate(&"您好", &7).unwrap(), "您好");
+        let s = String::from("🤚a🤚");
+        assert_eq!(s.len(), 9);
+        assert_eq!(String::from("🤚").len(), 4);
+        assert_eq!(truncate(&"🤚a🤚", &1).unwrap(), "🤚...");
+        assert_eq!(truncate(&"🤚a🤚", &2).unwrap(), "🤚...");
+        assert_eq!(truncate(&"🤚a🤚", &3).unwrap(), "🤚...");
+        assert_eq!(truncate(&"🤚a🤚", &4).unwrap(), "🤚...");
+        assert_eq!(truncate(&"🤚a🤚", &9).unwrap(), "🤚a🤚");
+        assert_eq!(truncate(&"🤚a🤚", &10).unwrap(), "🤚a🤚");
     }
 
     #[test]
