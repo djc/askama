@@ -358,6 +358,7 @@ mod tests {
         assert_eq!(truncate(&"您好", &1).unwrap(), "您...");
         assert_eq!(truncate(&"您好", &2).unwrap(), "您...");
         assert_eq!(truncate(&"您好", &3).unwrap(), "您...");
+        assert_eq!(truncate(&"您好", &4).unwrap(), "您好...");
         assert_eq!(truncate(&"您好", &6).unwrap(), "您好");
         assert_eq!(truncate(&"您好", &7).unwrap(), "您好");
         let s = String::from("🤚a🤚");
@@ -367,6 +368,8 @@ mod tests {
         assert_eq!(truncate(&"🤚a🤚", &2).unwrap(), "🤚...");
         assert_eq!(truncate(&"🤚a🤚", &3).unwrap(), "🤚...");
         assert_eq!(truncate(&"🤚a🤚", &4).unwrap(), "🤚...");
+        assert_eq!(truncate(&"🤚a🤚", &5).unwrap(), "🤚a...");
+        assert_eq!(truncate(&"🤚a🤚", &6).unwrap(), "🤚a🤚...");
         assert_eq!(truncate(&"🤚a🤚", &9).unwrap(), "🤚a🤚");
         assert_eq!(truncate(&"🤚a🤚", &10).unwrap(), "🤚a🤚");
     }
