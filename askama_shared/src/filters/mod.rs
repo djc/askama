@@ -161,7 +161,11 @@ pub fn truncate(s: &dyn fmt::Display, len: &usize) -> Result<String> {
     if s.len() < *len {
         Ok(s)
     } else {
-        s.truncate(*len);
+        let mut real_len = *len;
+        while !s.is_char_boundary(real_len) {
+            real_len += 1;
+        }
+        s.truncate(real_len);
         s.push_str("...");
         Ok(s)
     }
