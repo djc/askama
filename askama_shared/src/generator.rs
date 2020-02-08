@@ -14,8 +14,6 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::{cmp, hash, mem, str};
 
-use syn;
-
 pub fn generate<S: std::hash::BuildHasher>(
     input: &TemplateInput,
     contexts: &HashMap<&PathBuf, Context, S>,

@@ -348,7 +348,7 @@ mod tests {
     fn test_trim() {
         assert_eq!(trim(&" Hello\tworld\t").unwrap(), "Hello\tworld");
     }
-    
+
     #[test]
     fn test_truncate() {
         assert_eq!(truncate(&"hello", &2).unwrap(), "he...");

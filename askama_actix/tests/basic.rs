@@ -32,11 +32,9 @@ async fn test_actix_web() {
 #[actix_rt::test]
 async fn test_actix_web_responder() {
     let srv = test::start(|| {
-        actix_web::App::new().service(web::resource("/").to(|| {
-            async {
-                let name = "world".to_owned();
-                HelloTemplate { name: &name }.into_response()
-            }
+        actix_web::App::new().service(web::resource("/").to(|| async {
+            let name = "world".to_owned();
+            HelloTemplate { name: &name }.into_response()
         }))
     });
 

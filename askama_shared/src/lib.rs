@@ -7,8 +7,6 @@ use std::path::{Path, PathBuf};
 
 #[cfg(feature = "serde")]
 use serde::Deserialize;
-#[cfg(feature = "config")]
-use toml;
 
 pub use askama_escape::MarkupDisplay;
 

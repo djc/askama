@@ -3,7 +3,6 @@ use crate::{Config, Syntax};
 use std::path::PathBuf;
 
 use quote::ToTokens;
-use syn;
 
 pub struct TemplateInput<'a> {
     pub ast: &'a syn::DeriveInput,
