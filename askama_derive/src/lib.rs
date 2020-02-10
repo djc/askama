@@ -80,6 +80,11 @@ fn find_used_templates(input: &TemplateInput, map: &mut HashMap<PathBuf, String>
                 _ => {}
             }
         }
+
+        if map.contains_key(&path) {
+            panic!("circular extend or import found: {:?}", path);
+        }
+
         map.insert(path, source);
     }
 }
