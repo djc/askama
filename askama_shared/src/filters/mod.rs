@@ -248,12 +248,13 @@ pub fn capitalize(s: &dyn fmt::Display) -> Result<String> {
         &*s
     }) {
         None => Ok(s),
-        _ => match s.get_mut(1..).map(|s| {
-            s.make_ascii_lowercase();
-            &*s
-        }) {
-            _ => Ok(s),
-        },
+        _ => {
+            s.get_mut(1..).map(|s| {
+                s.make_ascii_lowercase();
+                &*s
+            });
+            Ok(s)
+        }
     }
 }
 
