@@ -30,7 +30,7 @@ in a for-profit context, please consider supporting my open source work on
 * Construct templates using a familiar, easy-to-use syntax
 * Template code is compiled into your crate for [optimal performance][benchmarks]
 * Benefit from the safety provided by Rust's type system
-* Optional built-in support for Actix, Gotham, Iron and Rocket web frameworks
+* Optional built-in support for Actix, Gotham, Iron, Rocket and warp web frameworks
 * Debugging features to assist you in template development
 * Templates must be valid UTF-8 and produce UTF-8 when rendered
 * Works on stable Rust
