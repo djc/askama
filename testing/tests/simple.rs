@@ -263,6 +263,43 @@ fn test_slice_literal() {
 }
 
 #[derive(Template)]
+#[template(source = "Hello, {{ world(\"123\", 4) }}!", ext = "txt")]
+struct FunctionRefTemplate {
+    world: fn(s: &str, v: u8) -> String,
+}
+
+#[test]
+fn test_func_ref_call() {
+    let t = FunctionRefTemplate {
+        world: |s, r| format!("world({}, {})", s, r),
+    };
+    assert_eq!(t.render().unwrap(), "Hello, world(123, 4)!");
+}
+
+fn world2(s: &str, v: u8) -> String {
+    format!("world{}{}", v, s)
+}
+
+#[derive(Template)]
+#[template(source = "Hello, {{ self::world2(\"123\", 4) }}!", ext = "txt")]
+struct PathFunctionTemplate;
+
+#[test]
+fn test_path_func_call() {
+    assert_eq!(PathFunctionTemplate.render().unwrap(), "Hello, world4123!");
+}
+
+#[derive(Template)]
+#[template(source = "Hello, {{ Self::world3(self, \"123\", 4) }}!", ext = "txt")]
+struct FunctionTemplate;
+
+impl FunctionTemplate {
+    fn world3(&self, s: &str, v: u8) -> String {
+        format!("world{}{}", s, v)
+    }
+}
+
+#[derive(Template)]
 #[template(source = "  {# foo -#} ", ext = "txt")]
 struct CommentTemplate {}
 

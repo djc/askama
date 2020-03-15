@@ -10,14 +10,16 @@ use std::str;
 
 use crate::Syntax;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Expr<'a> {
     BoolLit(&'a str),
     NumLit(&'a str),
     StrLit(&'a str),
     CharLit(&'a str),
     Var(&'a str),
+    VarCall(&'a str, Vec<Expr<'a>>),
     Path(Vec<&'a str>),
+    PathCall(Vec<&'a str>, Vec<Expr<'a>>),
     Array(Vec<Expr<'a>>),
     Attr(Box<Expr<'a>>, &'a str),
     Index(Box<Expr<'a>>, Box<Expr<'a>>),
@@ -30,7 +32,7 @@ pub enum Expr<'a> {
     RustMacro(&'a str, &'a str),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum MatchVariant<'a> {
     Path(Vec<&'a str>),
     Name(&'a str),
@@ -39,7 +41,7 @@ pub enum MatchVariant<'a> {
     CharLit(&'a str),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum MatchParameter<'a> {
     Name(&'a str),
     NumLit(&'a str),
@@ -47,16 +49,16 @@ pub enum MatchParameter<'a> {
     CharLit(&'a str),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Target<'a> {
     Name(&'a str),
     Tuple(Vec<&'a str>),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WS(pub bool, pub bool);
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Macro<'a> {
     pub ws1: WS,
     pub args: Vec<&'a str>,
@@ -64,7 +66,7 @@ pub struct Macro<'a> {
     pub ws2: WS,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Node<'a> {
     Lit(&'a str, &'a str, &'a str),
     Comment(WS),
@@ -84,6 +86,7 @@ pub enum Node<'a> {
 }
 
 pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
+
 pub type When<'a> = (
     WS,
     Option<MatchVariant<'a>>,
@@ -91,7 +94,7 @@ pub type When<'a> = (
     Vec<Node<'a>>,
 );
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum MatchParameters<'a> {
     Simple(Vec<MatchParameter<'a>>),
     Named(Vec<(&'a str, Option<MatchParameter<'a>>)>),
@@ -301,13 +304,28 @@ fn expr_var(i: &[u8]) -> IResult<&[u8], Expr> {
     map(identifier, |s| Expr::Var(s))(i)
 }
 
-fn expr_path(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_var_call(i: &[u8]) -> IResult<&[u8], Expr> {
+    let (i, (s, args)) = tuple((identifier, arguments))(i)?;
+    Ok((i, Expr::VarCall(s, args)))
+}
+
+fn path(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
     let tail = separated_nonempty_list(tag("::"), identifier);
     let (i, (start, _, rest)) = tuple((identifier, tag("::"), tail))(i)?;
 
     let mut path = vec![start];
     path.extend(rest);
+    Ok((i, path))
+}
+
+fn expr_path(i: &[u8]) -> IResult<&[u8], Expr> {
+    let (i, path) = path(i)?;
     Ok((i, Expr::Path(path)))
+}
+
+fn expr_path_call(i: &[u8]) -> IResult<&[u8], Expr> {
+    let (i, (path, args)) = tuple((path, arguments))(i)?;
+    Ok((i, Expr::PathCall(path, args)))
 }
 
 fn variant_path(i: &[u8]) -> IResult<&[u8], MatchVariant> {
@@ -437,9 +455,11 @@ fn expr_single(i: &[u8]) -> IResult<&[u8], Expr> {
         expr_num_lit,
         expr_str_lit,
         expr_char_lit,
+        expr_path_call,
         expr_path,
         expr_rust_macro,
         expr_array_lit,
+        expr_var_call,
         expr_var,
         expr_group,
     ))(i)
@@ -1076,6 +1096,34 @@ mod tests {
     #[test]
     fn test_parse_filter() {
         super::parse("{{ strvar|e }}", &Syntax::default());
+    }
+
+    #[test]
+    fn test_parse_var_call() {
+        assert_eq!(
+            super::parse("{{ function(\"123\", 3) }}", &Syntax::default()),
+            vec![super::Node::Expr(
+                super::WS(false, false),
+                super::Expr::VarCall(
+                    "function",
+                    vec![super::Expr::StrLit("123"), super::Expr::NumLit("3")]
+                ),
+            )],
+        );
+    }
+
+    #[test]
+    fn test_parse_path_call() {
+        assert_eq!(
+            super::parse("{{ self::function(\"123\", 3) }}", &Syntax::default()),
+            vec![super::Node::Expr(
+                super::WS(false, false),
+                super::Expr::PathCall(
+                    vec!["self", "function"],
+                    vec![super::Expr::StrLit("123"), super::Expr::NumLit("3")],
+                ),
+            )],
+        );
     }
 
     #[test]

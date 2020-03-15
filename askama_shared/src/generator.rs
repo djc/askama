@@ -909,7 +909,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             Expr::StrLit(s) => self.visit_str_lit(buf, s),
             Expr::CharLit(s) => self.visit_char_lit(buf, s),
             Expr::Var(s) => self.visit_var(buf, s),
+            Expr::VarCall(var, ref args) => self.visit_var_call(buf, var, args),
             Expr::Path(ref path) => self.visit_path(buf, path),
+            Expr::PathCall(ref path, ref args) => self.visit_path_call(buf, path, args),
             Expr::Array(ref elements) => self.visit_array(buf, elements),
             Expr::Attr(ref obj, name) => self.visit_attr(buf, obj, name),
             Expr::Index(ref obj, ref key) => self.visit_index(buf, obj, key),
@@ -1160,6 +1162,24 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         DisplayWrap::Unwrapped
     }
 
+    fn visit_path_call(&mut self, buf: &mut Buffer, path: &[&str], args: &[Expr]) -> DisplayWrap {
+        for (i, part) in path.iter().enumerate() {
+            if i > 0 {
+                buf.write("::");
+            }
+            buf.write(part);
+        }
+        buf.write("(");
+        for (i, arg) in args.iter().enumerate() {
+            if i > 0 {
+                buf.write(",");
+            }
+            self.visit_expr(buf, arg);
+        }
+        buf.write(")");
+        DisplayWrap::Unwrapped
+    }
+
     fn visit_var(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
         if self.locals.contains(s) || s == "self" {
             buf.write(s);
@@ -1167,6 +1187,25 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             buf.write("self.");
             buf.write(s);
         }
+        DisplayWrap::Unwrapped
+    }
+
+    fn visit_var_call(&mut self, buf: &mut Buffer, s: &str, args: &[Expr]) -> DisplayWrap {
+        buf.write("(");
+        if self.locals.contains(s) || s == "self" {
+            buf.write(s);
+        } else {
+            buf.write("self.");
+            buf.write(s);
+        }
+        buf.write(")(");
+        for (i, arg) in args.iter().enumerate() {
+            if i > 0 {
+                buf.write(",");
+            }
+            self.visit_expr(buf, arg);
+        }
+        buf.write(")");
         DisplayWrap::Unwrapped
     }
 
