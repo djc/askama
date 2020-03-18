@@ -276,6 +276,7 @@ fn test_func_ref_call() {
     assert_eq!(t.render().unwrap(), "Hello, world(123, 4)!");
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn world2(s: &str, v: &u8) -> String {
     format!("world{}{}", v, s)
 }
@@ -294,6 +295,7 @@ fn test_path_func_call() {
 struct FunctionTemplate;
 
 impl FunctionTemplate {
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     fn world3(&self, s: &str, v: &u8) -> String {
         format!("world{}{}", s, v)
     }
