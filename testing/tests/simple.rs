@@ -265,7 +265,7 @@ fn test_slice_literal() {
 #[derive(Template)]
 #[template(source = "Hello, {{ world(\"123\", 4) }}!", ext = "txt")]
 struct FunctionRefTemplate {
-    world: fn(s: &str, v: u8) -> String,
+    world: fn(s: &str, v: &u8) -> String,
 }
 
 #[test]
@@ -276,7 +276,7 @@ fn test_func_ref_call() {
     assert_eq!(t.render().unwrap(), "Hello, world(123, 4)!");
 }
 
-fn world2(s: &str, v: u8) -> String {
+fn world2(s: &str, v: &u8) -> String {
     format!("world{}{}", v, s)
 }
 
@@ -294,7 +294,7 @@ fn test_path_func_call() {
 struct FunctionTemplate;
 
 impl FunctionTemplate {
-    fn world3(&self, s: &str, v: u8) -> String {
+    fn world3(&self, s: &str, v: &u8) -> String {
         format!("world{}{}", s, v)
     }
 }

@@ -1030,7 +1030,10 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
 
             let scoped = match *arg {
-                Expr::Filter(_, _) | Expr::MethodCall(_, _, _) => true,
+                Expr::Filter(_, _)
+                | Expr::MethodCall(_, _, _)
+                | Expr::VarCall(_, _)
+                | Expr::PathCall(_, _) => true,
                 _ => false,
             };
 
@@ -1169,13 +1172,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
             buf.write(part);
         }
-        buf.write("(");
-        for (i, arg) in args.iter().enumerate() {
-            if i > 0 {
-                buf.write(",");
-            }
-            self.visit_expr(buf, arg);
-        }
+        buf.write("(&");
+        self._visit_args(buf, args);
         buf.write(")");
         DisplayWrap::Unwrapped
     }
@@ -1198,13 +1196,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             buf.write("self.");
             buf.write(s);
         }
-        buf.write(")(");
-        for (i, arg) in args.iter().enumerate() {
-            if i > 0 {
-                buf.write(",");
-            }
-            self.visit_expr(buf, arg);
-        }
+        buf.write(")(&");
+        self._visit_args(buf, args);
         buf.write(")");
         DisplayWrap::Unwrapped
     }
