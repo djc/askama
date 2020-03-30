@@ -24,6 +24,8 @@ use askama_escape::{Escaper, MarkupDisplay};
 use humansize::{file_size_opts, FileSize};
 #[cfg(feature = "num_traits")]
 use num_traits::{cast::NumCast, Signed};
+#[cfg(feature = "percent-encoding")]
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 use super::Result;
 
@@ -31,7 +33,7 @@ use super::Result;
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 23] = [
+pub const BUILT_IN_FILTERS: [&str; 24] = [
     "abs",
     "capitalize",
     "center",
@@ -52,6 +54,7 @@ pub const BUILT_IN_FILTERS: [&str; 23] = [
     "truncate",
     "upper",
     "uppercase",
+    "urlencode",
     "wordcount",
     "json", // Optional feature; reserve the name anyway
     "yaml", // Optional feature; reserve the name anyway
@@ -100,6 +103,13 @@ where
 pub fn filesizeformat(b: usize) -> Result<String> {
     b.file_size(file_size_opts::DECIMAL)
         .map_err(|_| Fmt(fmt::Error))
+}
+
+#[cfg(feature = "percent-encoding")]
+/// Returns the the UTF-8 encoded String of the given input.
+pub fn urlencode(s: &dyn fmt::Display) -> Result<String> {
+    let s = s.to_string();
+    Ok(utf8_percent_encode(&s, NON_ALPHANUMERIC).to_string())
 }
 
 /// Formats arguments according to the specified format
@@ -306,6 +316,15 @@ mod tests {
         assert_eq!(filesizeformat(1000).unwrap(), "1 KB");
         assert_eq!(filesizeformat(1023).unwrap(), "1.02 KB");
         assert_eq!(filesizeformat(1024).unwrap(), "1.02 KB");
+    }
+
+    #[cfg(feature = "percent-encoding")]
+    #[test]
+    fn test_urlencoding() {
+        assert_eq!(
+            urlencode(&"/path/to/dir with spaces").unwrap(),
+            "%2Fpath%2Fto%2Fdir%20with%20spaces"
+        );
     }
 
     #[test]

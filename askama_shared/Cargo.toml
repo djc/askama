@@ -10,7 +10,7 @@ workspace = ".."
 edition = "2018"
 
 [features]
-default = ["config", "humansize", "num-traits"]
+default = ["config", "humansize", "num-traits", "percent-encoding"]
 config = ["serde", "toml"]
 json = ["serde", "serde_json"]
 yaml = ["serde", "serde_yaml"]
@@ -30,6 +30,7 @@ serde_json = { version = "1.0", optional = true }
 serde_yaml = { version = "0.8", optional = true }
 syn = "1"
 toml = { version = "0.5", optional = true }
+percent-encoding = { version = "2.1.0", optional = true }
 
 [package.metadata.docs.rs]
-features = ["config", "humansize", "num-traits", "json", "yaml"]
+features = ["config", "humansize", "num-traits", "json", "yaml", "percent-encoding"]
