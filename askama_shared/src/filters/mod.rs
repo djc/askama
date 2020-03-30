@@ -25,9 +25,34 @@ use humansize::{file_size_opts, FileSize};
 #[cfg(feature = "num_traits")]
 use num_traits::{cast::NumCast, Signed};
 #[cfg(feature = "percent-encoding")]
-use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 
 use super::Result;
+
+#[cfg(feature = "percent-encoding")]
+// urlencode char encoding set, escape all characters except the following:
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURI#Description
+const ENCODE_SET: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b';')
+    .remove(b',')
+    .remove(b'/')
+    .remove(b'?')
+    .remove(b':')
+    .remove(b'@')
+    .remove(b'&')
+    .remove(b'=')
+    .remove(b'+')
+    .remove(b'$')
+    .remove(b'-')
+    .remove(b'_')
+    .remove(b'.')
+    .remove(b'!')
+    .remove(b'~')
+    .remove(b'*')
+    .remove(b'\'')
+    .remove(b'(')
+    .remove(b')')
+    .remove(b'#');
 
 // This is used by the code generator to decide whether a named filter is part of
 // Askama or should refer to a local `filters` module. It should contain all the
@@ -109,7 +134,7 @@ pub fn filesizeformat(b: usize) -> Result<String> {
 /// Returns the the UTF-8 encoded String of the given input.
 pub fn urlencode(s: &dyn fmt::Display) -> Result<String> {
     let s = s.to_string();
-    Ok(utf8_percent_encode(&s, NON_ALPHANUMERIC).to_string())
+    Ok(utf8_percent_encode(&s, ENCODE_SET).to_string())
 }
 
 /// Formats arguments according to the specified format
@@ -321,10 +346,14 @@ mod tests {
     #[cfg(feature = "percent-encoding")]
     #[test]
     fn test_urlencoding() {
-        assert_eq!(
-            urlencode(&"/path/to/dir with spaces").unwrap(),
-            "%2Fpath%2Fto%2Fdir%20with%20spaces"
-        );
+        let set1 = ";,/?:@&=+$#";
+        let set2 = "-_.!~*'()";
+        let set3 = "ABC abc 123";
+        assert_eq!(urlencode(&set1).unwrap(), ";,/?:@&=+$#");
+
+        assert_eq!(urlencode(&set2).unwrap(), "-_.!~*'()");
+
+        assert_eq!(urlencode(&set3).unwrap(), "ABC%20abc%20123");
     }
 
     #[test]
