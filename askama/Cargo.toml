@@ -18,9 +18,10 @@ azure-devops = { project = "dochtman/Projects", pipeline = "Askama", build = "2"
 maintenance = { status = "actively-developed" }
 
 [features]
-default = ["config", "humansize", "num-traits"]
+default = ["config", "humansize", "num-traits", "urlencode"]
 config = ["askama_shared/config"]
 humansize = ["askama_shared/humansize"]
+urlencode = ["askama_shared/percent-encoding"]
 serde-json = ["askama_shared/json"]
 serde-yaml = ["askama_shared/yaml"]
 num-traits = ["askama_shared/num-traits"]
