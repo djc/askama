@@ -127,7 +127,7 @@ where
 
 #[cfg(feature = "humansize")]
 /// Returns adequate string representation (in KB, ..) of number of bytes
-pub fn filesizeformat<B: FileSize>(b: B) -> Result<String> {
+pub fn filesizeformat<B: FileSize>(b: &B) -> Result<String> {
     b.file_size(file_size_opts::DECIMAL)
         .map_err(|_| Fmt(fmt::Error))
 }
@@ -338,11 +338,11 @@ mod tests {
     #[cfg(feature = "humansize")]
     #[test]
     fn test_filesizeformat() {
-        assert_eq!(filesizeformat(0).unwrap(), "0 B");
-        assert_eq!(filesizeformat(999u64).unwrap(), "999 B");
-        assert_eq!(filesizeformat(1000i32).unwrap(), "1 KB");
-        assert_eq!(filesizeformat(1023).unwrap(), "1.02 KB");
-        assert_eq!(filesizeformat(1024usize).unwrap(), "1.02 KB");
+        assert_eq!(filesizeformat(&0).unwrap(), "0 B");
+        assert_eq!(filesizeformat(&999u64).unwrap(), "999 B");
+        assert_eq!(filesizeformat(&1000i32).unwrap(), "1 KB");
+        assert_eq!(filesizeformat(&1023).unwrap(), "1.02 KB");
+        assert_eq!(filesizeformat(&1024usize).unwrap(), "1.02 KB");
     }
 
     #[cfg(feature = "percent-encoding")]
