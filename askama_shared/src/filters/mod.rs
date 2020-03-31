@@ -22,6 +22,8 @@ use crate::error::Error::Fmt;
 use askama_escape::{Escaper, MarkupDisplay};
 #[cfg(feature = "humansize")]
 use humansize::{file_size_opts, FileSize};
+#[cfg(feature = "humansize")]
+use std::borrow::Borrow;
 #[cfg(feature = "num_traits")]
 use num_traits::{cast::NumCast, Signed};
 #[cfg(feature = "percent-encoding")]
@@ -125,8 +127,8 @@ where
 
 #[cfg(feature = "humansize")]
 /// Returns adequate string representation (in KB, ..) of number of bytes
-pub fn filesizeformat<R: AsRef<B>, B: FileSize>(b: R) -> Result<String> {
-    b.as_ref()
+pub fn filesizeformat<R: Borrow<B>, B: FileSize>(b: R) -> Result<String> {
+    b.borrow()
         .file_size(file_size_opts::DECIMAL)
         .map_err(|_| Fmt(fmt::Error))
 }
