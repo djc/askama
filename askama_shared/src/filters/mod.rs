@@ -26,8 +26,6 @@ use humansize::{file_size_opts, FileSize};
 use num_traits::{cast::NumCast, Signed};
 #[cfg(feature = "percent-encoding")]
 use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
-#[cfg(feature = "humansize")]
-use std::borrow::Borrow;
 
 use super::Result;
 
