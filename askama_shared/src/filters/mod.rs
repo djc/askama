@@ -22,12 +22,12 @@ use crate::error::Error::Fmt;
 use askama_escape::{Escaper, MarkupDisplay};
 #[cfg(feature = "humansize")]
 use humansize::{file_size_opts, FileSize};
-#[cfg(feature = "humansize")]
-use std::borrow::Borrow;
 #[cfg(feature = "num_traits")]
 use num_traits::{cast::NumCast, Signed};
 #[cfg(feature = "percent-encoding")]
 use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
+#[cfg(feature = "humansize")]
+use std::borrow::Borrow;
 
 use super::Result;
 
