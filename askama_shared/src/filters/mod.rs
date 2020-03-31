@@ -125,8 +125,9 @@ where
 
 #[cfg(feature = "humansize")]
 /// Returns adequate string representation (in KB, ..) of number of bytes
-pub fn filesizeformat<B: FileSize>(b: B) -> Result<String> {
-    b.file_size(file_size_opts::DECIMAL)
+pub fn filesizeformat<B: FileSize>(b: &dyn AsRef<B>) -> Result<String> {
+    b.as_ref()
+        .file_size(file_size_opts::DECIMAL)
         .map_err(|_| Fmt(fmt::Error))
 }
 
