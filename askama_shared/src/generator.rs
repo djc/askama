@@ -1242,13 +1242,13 @@ struct Buffer {
     // The buffer to generate the code into
     buf: String,
     // The current level of indentation (in spaces)
-    indent: u8,
+    indent: u16,
     // Whether the output buffer is currently at the start of a line
     start: bool,
 }
 
 impl Buffer {
-    fn new(indent: u8) -> Self {
+    fn new(indent: u16) -> Self {
         Self {
             buf: String::new(),
             indent,
