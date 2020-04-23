@@ -392,3 +392,13 @@ mod without_import_on_derive {
         assert_eq!(WithoutImport.render().unwrap(), "foo");
     }
 }
+
+#[derive(askama::Template)]
+#[template(source = "{% let s = String::new() %}{{ s }}", ext = "txt")]
+struct DefineStringVar;
+
+#[test]
+fn test_define_string_var() {
+    let template = DefineStringVar;
+    assert_eq!(template.render().unwrap(), "");
+}

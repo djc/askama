@@ -984,13 +984,13 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         if name == "escape" || name == "safe" || name == "e" || name == "json" {
             buf.write(&format!(
-                "::askama::filters::{}({}, &",
+                "::askama::filters::{}({}, ",
                 name, self.input.escaper
             ));
         } else if filters::BUILT_IN_FILTERS.contains(&name) {
-            buf.write(&format!("::askama::filters::{}(&", name));
+            buf.write(&format!("::askama::filters::{}(", name));
         } else {
-            buf.write(&format!("filters::{}(&", name));
+            buf.write(&format!("filters::{}(", name));
         }
 
         self._visit_args(buf, args);
@@ -1004,7 +1004,15 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
     fn _visit_format_filter(&mut self, buf: &mut Buffer, args: &[Expr]) {
         buf.write("format!(");
-        self._visit_args(buf, args);
+        if let Some(Expr::StrLit(v)) = args.first() {
+            self.visit_str_lit(buf, v);
+            if args.len() > 1 {
+                buf.write(", ");
+            }
+        } else {
+            panic!("invalid expression type for format filter");
+        }
+        self._visit_args(buf, &args[1..]);
         buf.write(")");
     }
 
@@ -1024,9 +1032,15 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     fn _visit_args(&mut self, buf: &mut Buffer, args: &[Expr]) {
+        if args.is_empty() {
+            return;
+        }
+
         for (i, arg) in args.iter().enumerate() {
             if i > 0 {
                 buf.write(", &");
+            } else {
+                buf.write("&");
             }
 
             let scoped = match *arg {
@@ -1172,7 +1186,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
             buf.write(part);
         }
-        buf.write("(&");
+        buf.write("(");
         self._visit_args(buf, args);
         buf.write(")");
         DisplayWrap::Unwrapped
@@ -1196,7 +1210,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             buf.write("self.");
             buf.write(s);
         }
-        buf.write(")(&");
+        buf.write(")(");
         self._visit_args(buf, args);
         buf.write(")");
         DisplayWrap::Unwrapped
