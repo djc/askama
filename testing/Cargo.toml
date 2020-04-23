@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 workspace = ".."
 edition = "2018"
+publish = false
 
 [features]
 default = ["serde_json", "askama/serde-json"]
