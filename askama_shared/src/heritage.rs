@@ -23,10 +23,7 @@ impl<'a> Heritage<'a> {
         while let Some(ref path) = ctx.extends {
             ctx = &contexts[&path];
             for (name, def) in &ctx.blocks {
-                blocks
-                    .entry(name)
-                    .or_insert_with(Vec::new)
-                    .push((ctx, def));
+                blocks.entry(name).or_insert_with(Vec::new).push((ctx, def));
             }
         }
 
