@@ -25,7 +25,7 @@ impl<'a> Heritage<'a> {
             for (name, def) in &ctx.blocks {
                 blocks
                     .entry(name)
-                    .or_insert_with(|| vec![])
+                    .or_insert_with(Vec::new)
                     .push((ctx, def));
             }
         }
