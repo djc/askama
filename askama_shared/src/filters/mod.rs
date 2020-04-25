@@ -22,7 +22,7 @@ use crate::error::Error::Fmt;
 use askama_escape::{Escaper, MarkupDisplay};
 #[cfg(feature = "humansize")]
 use humansize::{file_size_opts, FileSize};
-#[cfg(feature = "num_traits")]
+#[cfg(feature = "num-traits")]
 use num_traits::{cast::NumCast, Signed};
 #[cfg(feature = "percent-encoding")]
 use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
@@ -225,7 +225,7 @@ pub fn indent(s: &dyn fmt::Display, width: &usize) -> Result<String> {
     Ok(indented)
 }
 
-#[cfg(feature = "num_traits")]
+#[cfg(feature = "num-traits")]
 /// Casts number to f64
 pub fn into_f64<T>(number: T) -> Result<f64>
 where
@@ -234,7 +234,7 @@ where
     number.to_f64().ok_or(Fmt(fmt::Error))
 }
 
-#[cfg(feature = "num_traits")]
+#[cfg(feature = "num-traits")]
 /// Casts number to isize
 pub fn into_isize<T>(number: T) -> Result<isize>
 where
@@ -265,7 +265,7 @@ where
     Ok(rv)
 }
 
-#[cfg(feature = "num_traits")]
+#[cfg(feature = "num-traits")]
 /// Absolute value
 pub fn abs<T>(number: T) -> Result<T>
 where
@@ -330,7 +330,7 @@ pub fn wordcount(s: &dyn fmt::Display) -> Result<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(feature = "num_traits")]
+    #[cfg(feature = "num-traits")]
     use std::f64::INFINITY;
 
     #[cfg(feature = "humansize")]
@@ -434,7 +434,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "num_traits")]
+    #[cfg(feature = "num-traits")]
     #[test]
     #[allow(clippy::float_cmp)]
     fn test_into_f64() {
@@ -445,7 +445,7 @@ mod tests {
         assert_eq!(into_f64(-INFINITY as f32).unwrap(), -INFINITY);
     }
 
-    #[cfg(feature = "num_traits")]
+    #[cfg(feature = "num-traits")]
     #[test]
     fn test_into_isize() {
         assert_eq!(into_isize(1).unwrap(), 1 as isize);
@@ -492,7 +492,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "num_traits")]
+    #[cfg(feature = "num-traits")]
     #[test]
     #[allow(clippy::float_cmp)]
     fn test_abs() {
