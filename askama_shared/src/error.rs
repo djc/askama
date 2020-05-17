@@ -45,7 +45,6 @@ impl std::error::Error for Error {
             Error::Json(ref err) => err.source(),
             #[cfg(feature = "serde_yaml")]
             Error::Yaml(ref err) => err.source(),
-            _ => None,
         }
     }
 }
@@ -58,7 +57,6 @@ impl Display for Error {
             Error::Json(ref err) => write!(formatter, "json conversion error: {}", err),
             #[cfg(feature = "serde_yaml")]
             Error::Yaml(ref err) => write!(formatter, "yaml conversion error: {}", err),
-            _ => write!(formatter, "unknown error: __Nonexhaustive"),
         }
     }
 }
