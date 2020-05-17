@@ -332,6 +332,11 @@
 //! matches (`(val)`), optionally introduced with a variant name. The
 //! `else` block is equivalent to matching on `_` (matching anything).
 //!
+//! Struct-like enum variants are supported from version 0.8, with the list
+//! of matches surrounded by curly braces instead (`{ field }`).  New names
+//! for the fields can be specified after a colon in the list of matches
+//! (`{ field: val }`).
+//!
 //! ### Include
 //!
 //! The *include* statement lets you split large or repetitive blocks into
