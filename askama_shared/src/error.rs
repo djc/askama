@@ -22,6 +22,7 @@ pub type Result<I> = ::std::result::Result<I, Error>;
 /// bring to this crate are small, which is why
 /// `std::error::Error` was used.
 ///
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum Error {
     /// formatting error
@@ -34,12 +35,6 @@ pub enum Error {
     /// yaml conversion error
     #[cfg(feature = "serde_yaml")]
     Yaml(::serde_yaml::Error),
-
-    /// This error needs to be non-exhaustive as
-    /// the `Json` variants existence depends on
-    /// a feature.
-    #[doc(hidden)]
-    __Nonexhaustive,
 }
 
 impl std::error::Error for Error {
