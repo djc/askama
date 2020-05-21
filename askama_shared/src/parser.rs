@@ -124,6 +124,7 @@ where
     }
 }
 
+#[allow(clippy::reversed_empty_ranges)]
 fn split_ws_parts(s: &[u8]) -> Node {
     if s.is_empty() {
         let rs = str::from_utf8(s).unwrap();
