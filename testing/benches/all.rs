@@ -8,11 +8,21 @@ criterion_main!(benches);
 criterion_group!(benches, functions);
 
 fn functions(c: &mut Criterion) {
-    c.bench_function("Big table", |b| big_table(b, 100));
-    c.bench_function("Teams", teams);
+    c.bench_function("Big table (string)", |b| big_table_string(b, 100));
+    c.bench_function("Big table (bytes)", |b| big_table_bytes(b, 100));
+    c.bench_function("Teams (string)", teams_string);
+    c.bench_function("Teams (bytes)", teams_bytes);
 }
 
-fn big_table(b: &mut criterion::Bencher, size: usize) {
+fn big_table_string(b: &mut criterion::Bencher, size: usize) {
+    let ctx = big_table_build(size);
+    b.iter(|| ctx.render().unwrap());
+}
+fn big_table_bytes(b: &mut criterion::Bencher, size: usize) {
+    let ctx = big_table_build(size);
+    b.iter(|| ctx.render_bytes().unwrap());
+}
+fn big_table_build(size: usize) -> BigTable {
     let mut table = Vec::with_capacity(size);
     for _ in 0..size {
         let mut inner = Vec::with_capacity(size);
@@ -21,8 +31,7 @@ fn big_table(b: &mut criterion::Bencher, size: usize) {
         }
         table.push(inner);
     }
-    let ctx = BigTable { table };
-    b.iter(|| ctx.render().unwrap());
+    BigTable { table }
 }
 
 #[derive(Template)]
@@ -31,8 +40,16 @@ struct BigTable {
     table: Vec<Vec<usize>>,
 }
 
-fn teams(b: &mut criterion::Bencher) {
-    let teams = Teams {
+fn teams_string(b: &mut criterion::Bencher) {
+    let teams = teams_build();
+    b.iter(|| teams.render().unwrap());
+}
+fn teams_bytes(b: &mut criterion::Bencher) {
+    let teams = teams_build();
+    b.iter(|| teams.render_bytes().unwrap());
+}
+fn teams_build() -> Teams {
+    Teams {
         year: 2015,
         teams: vec![
             Team {
@@ -52,8 +69,7 @@ fn teams(b: &mut criterion::Bencher) {
                 score: 12,
             },
         ],
-    };
-    b.iter(|| teams.render().unwrap());
+    }
 }
 
 #[derive(Template)]
