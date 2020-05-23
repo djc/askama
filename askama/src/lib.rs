@@ -534,6 +534,17 @@ pub trait Template {
 }
 
 pub trait SizedTemplate {
+    /// Renders the template to the given `writer` buffer
+    fn write_into<W: std::fmt::Write + ?Sized>(&self, writer: &mut W) -> Result<()>;
+    /// Renders the template to the given `writer`. (It is recommended to use a buffered implementation.)
+    fn write_into_bytes<W: std::io::Write + ?Sized>(&self, writer: &mut W) -> Result<()> {
+        let mut adapter = shared::io::WriteIoToFmt::new(writer);
+        let result = self.write_into(&mut adapter);
+        match (adapter.error(), result) {
+            (Some(err), _) => Err(Error::Io(err)),
+            (None, result) => result,
+        }
+    }
     /// Helper function to inspect the template's extension
     fn extension() -> Option<&'static str>;
     /// Provides an conservative estimate of the expanded length of the rendered template

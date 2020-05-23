@@ -114,9 +114,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
     // Implement `Template` for the given context struct.
     fn impl_template(&mut self, ctx: &'a Context, buf: &mut Buffer) {
-        self.write_header(buf, "::askama::Template", None);
+        self.write_header(buf, "::askama::SizedTemplate", None);
         buf.writeln(
-            "fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
+            "fn write_into <W: ::std::fmt::Write + ?::std::marker::Sized> (&self, writer: &mut W) -> \
              ::askama::Result<()> {",
         );
 
@@ -148,21 +148,6 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("Ok(())");
         buf.writeln("}");
 
-        buf.writeln("fn extension(&self) -> Option<&'static str> {");
-        buf.writeln(&format!(
-            "{:?}",
-            self.input.path.extension().map(|s| s.to_str().unwrap())
-        ));
-        buf.writeln("}");
-
-        buf.writeln("fn size_hint(&self) -> usize {");
-        buf.writeln(&format!("{}", size_hint));
-        buf.writeln("}");
-
-        buf.writeln("}");
-
-        self.write_header(buf, "::askama::SizedTemplate", None);
-
         buf.writeln("fn size_hint() -> usize {");
         buf.writeln(&format!("{}", size_hint));
         buf.writeln("}");
@@ -172,6 +157,43 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             "{:?}",
             self.input.path.extension().map(|s| s.to_str().unwrap())
         ));
+        buf.writeln("}");
+
+        buf.writeln("}");
+
+        self.write_header(buf, "::askama::Template", None);
+        buf.writeln(
+            "fn render(&self) -> ::askama::Result<::std::string::String> {
+                use ::askama::SizedTemplate;
+                let mut buf = ::std::string::String::with_capacity(self.size_hint());
+                self.write_into(&mut buf)?;
+                Ok(buf)
+            }
+            fn render_into(&self, writer: &mut dyn ::std::fmt::Write) -> ::askama::Result<()> {
+                use ::askama::SizedTemplate;
+                return self.write_into(writer);
+            }
+            fn render_bytes(&self) -> ::askama::Result<::std::vec::Vec<u8>> {
+                use ::askama::SizedTemplate;
+                let mut buf = ::std::vec::Vec::with_capacity(self.size_hint());
+                self.write_into_bytes(&mut buf)?;
+                Ok(buf)
+            }
+            fn render_into_bytes(&self, writer: &mut dyn ::std::io::Write) -> ::askama::Result<()> {
+                use ::askama::SizedTemplate;
+                return self.write_into_bytes(writer);
+            }",
+        );
+
+        buf.writeln("fn extension(&self) -> Option<&'static str> {");
+        buf.writeln(&format!(
+            "{:?}",
+            self.input.path.extension().map(|s| s.to_str().unwrap())
+        ));
+        buf.writeln("}");
+
+        buf.writeln("fn size_hint(&self) -> usize {");
+        buf.writeln(&format!("{}", size_hint));
         buf.writeln("}");
 
         buf.writeln("}");
