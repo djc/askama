@@ -510,6 +510,23 @@ pub trait Template {
     }
     /// Renders the template to the given `writer` buffer
     fn render_into(&self, writer: &mut dyn std::fmt::Write) -> Result<()>;
+    /// Helper method which allocates a new `Vec<u8>` and renders into it
+    fn render_bytes(&self) -> Result<Vec<u8>> {
+        let mut buf = Vec::with_capacity(self.size_hint());
+        self.render_into_bytes(&mut buf)?;
+        Ok(buf)
+    }
+    /// Renders the template to the given `writer`
+    ///
+    /// It is recommended to use a buffered implementation.
+    fn render_into_bytes(&self, writer: &mut dyn std::io::Write) -> Result<()> {
+        let mut adapter = shared::io::WriteIoToFmt::new(writer);
+        let result = self.render_into(&mut adapter);
+        match (adapter.error(), result) {
+            (Some(err), _) => Err(Error::Io(err)),
+            (None, result) => result,
+        }
+    }
     /// Helper function to inspect the template's extension
     fn extension(&self) -> Option<&'static str>;
     /// Provides an conservative estimate of the expanded length of the rendered template

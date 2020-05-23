@@ -20,6 +20,7 @@ pub mod helpers;
 pub mod heritage;
 #[doc(hidden)]
 pub mod input;
+pub mod io;
 #[doc(hidden)]
 pub mod parser;
 

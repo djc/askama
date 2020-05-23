@@ -28,6 +28,9 @@ pub enum Error {
     /// formatting error
     Fmt(fmt::Error),
 
+    /// IO write error (only if used with `render_into_bytes`)
+    Io(std::io::Error),
+
     /// json conversion error
     #[cfg(feature = "serde_json")]
     Json(::serde_json::Error),
@@ -41,6 +44,7 @@ impl std::error::Error for Error {
     fn cause(&self) -> Option<&dyn std::error::Error> {
         match *self {
             Error::Fmt(ref err) => err.source(),
+            Error::Io(ref err) => err.source(),
             #[cfg(feature = "serde_json")]
             Error::Json(ref err) => err.source(),
             #[cfg(feature = "serde_yaml")]
@@ -53,6 +57,7 @@ impl Display for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Error::Fmt(ref err) => write!(formatter, "formatting error: {}", err),
+            Error::Io(ref err) => write!(formatter, "formatting error: {}", err),
             #[cfg(feature = "serde_json")]
             Error::Json(ref err) => write!(formatter, "json conversion error: {}", err),
             #[cfg(feature = "serde_yaml")]
