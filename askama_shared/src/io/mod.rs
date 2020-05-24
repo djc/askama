@@ -18,6 +18,9 @@ impl<W: std::io::Write> std::fmt::Write for WriteIoToFmt<W> {
         if self.error.is_some() {
             return Err(std::fmt::Error);
         }
+        if s.is_empty() {
+            return Ok(());
+        }
         match self.write.write_all(s.as_bytes()) {
             Ok(()) => Ok(()),
             Err(error) => {
