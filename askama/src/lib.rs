@@ -199,6 +199,21 @@
 //! includes only whitespace, whitespace suppression on either side will
 //! completely suppress that literal content.
 //!
+//! It is also possible to make all statements behave as if they were defined
+//! with `{%- ... -%}` by enclosing them in a `stripspace` block.
+//!
+//! For example the next snippet is equivalent with the previous one:
+//!
+//! ```text
+//! {% stripspace %}
+//!   {% if foo %}
+//!     {{ bar }}
+//!   {% else if %}
+//!     nothing
+//!   {% endif %}
+//! {% endstripspace %}
+//! ```
+//!
 //! ## Template inheritance
 //!
 //! Template inheritance allows you to build a base template with common

@@ -83,6 +83,7 @@ pub enum Node<'a> {
     Import(WS, &'a str, &'a str),
     Macro(&'a str, Macro<'a>),
     Raw(WS, &'a str, WS),
+    StripSpace(WS, Vec<Node<'a>>, WS),
 }
 
 pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
@@ -992,6 +993,7 @@ fn block_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>>
             |i| block_block(i, s),
             |i| block_macro(i, s),
             |i| block_raw(i, s),
+            |i| block_strip_space(i, s),
         )),
         |i| tag_block_end(i, s),
     ));
@@ -1013,6 +1015,29 @@ fn block_comment<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'
             pws.is_some(),
             inner.len() > 1 && inner[inner.len() - 1] == b'-',
         )),
+    ))
+}
+
+fn block_strip_space<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
+    let p = tuple((
+        opt(tag("-")),
+        ws(tag("stripspace")),
+        opt(tag("-")),
+        |i| tag_block_end(i, s),
+        |i| parse_template(i, s),
+        |i| tag_block_start(i, s),
+        opt(tag("-")),
+        ws(tag("endstripspace")),
+        opt(tag("-")),
+    ));
+    let (i, (pws1, _, nws1, _, contents, _, pws2, _, nws2)) = p(i)?;
+    Ok((
+        i,
+        Node::StripSpace(
+            WS(pws1.is_some(), nws1.is_some()),
+            contents,
+            WS(pws2.is_some(), nws2.is_some()),
+        ),
     ))
 }
 
