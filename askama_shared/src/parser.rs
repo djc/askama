@@ -1041,12 +1041,32 @@ fn block_strip_space<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], No
     ))
 }
 
+fn space_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
+    let p = tuple((
+        |i| tag_block_start(i, s),
+        opt(tag("-")),
+        ws(alt((tag("space"), tag("tab"), tag("newline")))),
+        opt(tag("-")),
+        |i| tag_block_end(i, s),
+    ));
+    let (i, (_, pws, tag, nws, _)) = p(i)?;
+    let ws1 = WS(pws.is_some(), false);
+    let ws2 = WS(false, nws.is_some());
+    match tag {
+        b"space" => Ok((i, Node::Raw(ws1, " ", ws2))),
+        b"tab" => Ok((i, Node::Raw(ws1, "\t", ws2))),
+        b"newline" => Ok((i, Node::Raw(ws1, "\n", ws2))),
+        _ => panic!("cannot happen"),
+    }
+}
+
 fn parse_template<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Vec<Node<'a>>> {
     many0(alt((
         complete(|i| take_content(i, s)),
         complete(|i| block_comment(i, s)),
         complete(|i| expr_node(i, s)),
         complete(|i| block_node(i, s)),
+        complete(|i| space_node(i, s)),
     )))(i)
 }
 

@@ -214,6 +214,9 @@
 //! {% endstripspace %}
 //! ```
 //!
+//! Within the `stripspace` blocks (and not only) one could use `{% space %}`,
+//! `{% tab %}` and `{% newline %}` to force spaces before and after other blocks.
+//!
 //! ## Template inheritance
 //!
 //! Template inheritance allows you to build a base template with common
