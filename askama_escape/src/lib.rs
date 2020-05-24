@@ -129,7 +129,11 @@ impl Escaper for Html {
                 }
             }
         }
-        fmt.write_str(unsafe { str::from_utf8_unchecked(&bytes[start..]) })
+        if start < bytes.len() {
+            fmt.write_str(unsafe { str::from_utf8_unchecked(&bytes[start..]) })
+        } else {
+            Ok(())
+        }
     }
 }
 
