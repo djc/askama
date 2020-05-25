@@ -27,6 +27,14 @@ fn test_variables() {
          in vars too: Iñtërnâtiônàlizætiøn"
     );
     assert_eq!(
+        s.render_bytes().unwrap().as_slice(),
+        "\nhello world, foo\n\
+         with number: 42\n\
+         Iñtërnâtiônàlizætiøn is important\n\
+         in vars too: Iñtërnâtiônàlizætiøn"
+            .as_bytes()
+    );
+    assert_eq!(
         <VariablesTemplate as SizedTemplate>::extension(),
         Some("html")
     );
