@@ -307,13 +307,13 @@ fn expr_var(i: &[u8]) -> IResult<&[u8], Expr> {
 }
 
 fn expr_var_call(i: &[u8]) -> IResult<&[u8], Expr> {
-    let (i, (s, args)) = tuple((identifier, arguments))(i)?;
+    let (i, (s, args)) = tuple((ws(identifier), arguments))(i)?;
     Ok((i, Expr::VarCall(s, args)))
 }
 
 fn path(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
-    let tail = separated_nonempty_list(tag("::"), identifier);
-    let (i, (start, _, rest)) = tuple((identifier, tag("::"), tail))(i)?;
+    let tail = separated_nonempty_list(ws(tag("::")), identifier);
+    let (i, (start, _, rest)) = tuple((identifier, ws(tag("::")), tail))(i)?;
 
     let mut path = vec![start];
     path.extend(rest);
@@ -326,12 +326,12 @@ fn expr_path(i: &[u8]) -> IResult<&[u8], Expr> {
 }
 
 fn expr_path_call(i: &[u8]) -> IResult<&[u8], Expr> {
-    let (i, (path, args)) = tuple((path, arguments))(i)?;
+    let (i, (path, args)) = tuple((ws(path), arguments))(i)?;
     Ok((i, Expr::PathCall(path, args)))
 }
 
 fn variant_path(i: &[u8]) -> IResult<&[u8], MatchVariant> {
-    map(separated_nonempty_list(tag("::"), identifier), |path| {
+    map(separated_nonempty_list(ws(tag("::")), identifier), |path| {
         MatchVariant::Path(path)
     })(i)
 }
@@ -358,7 +358,11 @@ fn param_name(i: &[u8]) -> IResult<&[u8], MatchParameter> {
 }
 
 fn arguments(i: &[u8]) -> IResult<&[u8], Vec<Expr>> {
-    delimited(tag("("), separated_list(tag(","), ws(expr_any)), tag(")"))(i)
+    delimited(
+        ws(tag("(")),
+        separated_list(tag(","), ws(expr_any)),
+        ws(tag(")")),
+    )(i)
 }
 
 fn macro_arguments(i: &[u8]) -> IResult<&[u8], &str> {
@@ -414,7 +418,11 @@ fn nested_parenthesis(i: &[u8]) -> ParserError<&str> {
 }
 
 fn parameters(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
-    delimited(tag("("), separated_list(tag(","), ws(identifier)), tag(")"))(i)
+    delimited(
+        ws(tag("(")),
+        separated_list(tag(","), ws(identifier)),
+        ws(tag(")")),
+    )(i)
 }
 
 fn with_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters> {
@@ -446,7 +454,7 @@ fn match_named_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters> {
 }
 
 fn expr_group(i: &[u8]) -> IResult<&[u8], Expr> {
-    map(delimited(char('('), expr_any, char(')')), |s| {
+    map(delimited(ws(char('(')), expr_any, ws(char(')'))), |s| {
         Expr::Group(Box::new(s))
     })(i)
 }
@@ -488,7 +496,8 @@ fn match_named_parameter(i: &[u8]) -> IResult<&[u8], (&str, Option<MatchParamete
 }
 
 fn attr(i: &[u8]) -> IResult<&[u8], (&str, Option<Vec<Expr>>)> {
-    let (i, (_, attr, args)) = tuple((tag("."), alt((num_lit, identifier)), opt(arguments)))(i)?;
+    let (i, (_, attr, args)) =
+        tuple((ws(tag(".")), alt((num_lit, identifier)), ws(opt(arguments))))(i)?;
     Ok((i, (attr, args)))
 }
 
@@ -522,7 +531,7 @@ fn expr_index(i: &[u8]) -> IResult<&[u8], Expr> {
 }
 
 fn filter(i: &[u8]) -> IResult<&[u8], (&str, Option<Vec<Expr>>)> {
-    let (i, (_, fname, args)) = tuple((tag("|"), identifier, opt(arguments)))(i)?;
+    let (i, (_, fname, args)) = tuple((tag("|"), ws(identifier), opt(arguments)))(i)?;
     Ok((i, (fname, args)))
 }
 
@@ -545,7 +554,7 @@ fn expr_filtered(i: &[u8]) -> IResult<&[u8], Expr> {
 }
 
 fn expr_unary(i: &[u8]) -> IResult<&[u8], Expr> {
-    let (i, (op, expr)) = tuple((opt(alt((tag("!"), tag("-")))), expr_filtered))(i)?;
+    let (i, (op, expr)) = tuple((opt(alt((ws(tag("!")), ws(tag("-"))))), expr_filtered))(i)?;
     Ok((
         i,
         match op {
