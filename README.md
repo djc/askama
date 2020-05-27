@@ -81,13 +81,11 @@ Hello, {{ name }}!
 In any Rust file inside your crate, add the following:
 
 ```rust
-extern crate askama; // for the Template trait and custom derive macro
-
 use askama::Template; // bring trait in scope
 
 #[derive(Template)] // this will generate the code...
 #[template(path = "hello.html")] // using the template in this path, relative
-                                 // to the templates dir in the crate root
+                                 // to the `templates` dir in the crate root
 struct HelloTemplate<'a> { // the name of the struct can be anything
     name: &'a str, // the field name should match the variable name
                    // in your template
