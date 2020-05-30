@@ -1,4 +1,5 @@
 use askama::Template;
+
 #[derive(Template)]
 #[template(path = "render_in_place.html")]
 struct RenderInPlace<'a> {

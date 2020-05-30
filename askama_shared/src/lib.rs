@@ -15,9 +15,9 @@ pub use crate::error::{Error, Result};
 pub mod filters;
 #[doc(hidden)]
 pub mod generator;
-pub mod helpers;
 #[doc(hidden)]
 pub mod heritage;
+pub mod loops;
 #[doc(hidden)]
 pub mod input;
 #[doc(hidden)]

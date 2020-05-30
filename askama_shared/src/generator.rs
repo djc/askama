@@ -119,6 +119,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             "fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
              ::askama::Result<()> {",
         );
+        buf.writeln("#[allow(unused_imports)]");
+        buf.writeln("use ::askama::loops::{ViaIterator as _, ViaIntoIterRef as _, ViaIntoIterator as _}");
 
         // Make sure the compiler understands that the generated code depends on the template files.
         for path in self.contexts.keys() {
@@ -565,18 +567,13 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let expr_code = self.visit_expr_root(iter);
 
         let flushed = self.write_buf_writable(buf);
+        let id = self.named;
+        self.named += 1;
+        buf.write(&format!("::askama::into_template_loop!(loop{}, {});", id, expr_code));
+
         buf.write("for (");
         self.visit_target(buf, var);
-        match iter {
-            Expr::Range(_, _, _) => buf.writeln(&format!(
-                ", _loop_item) in ::askama::helpers::TemplateLoop::new({}) {{",
-                expr_code
-            )),
-            _ => buf.writeln(&format!(
-                ", _loop_item) in ::askama::helpers::TemplateLoop::new((&{}).into_iter()) {{",
-                expr_code
-            )),
-        };
+        buf.writeln(&format!(", _loop_item) in loop{} {{", id));
 
         let mut size_hint = self.handle(ctx, body, buf, AstLevel::Nested);
         self.handle_ws(ws2);

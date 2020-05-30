@@ -493,6 +493,7 @@
 #[macro_use]
 extern crate askama_derive;
 pub use askama_shared as shared;
+pub use askama_shared::into_template_loop;
 
 use std::fs::{self, DirEntry};
 use std::io;
@@ -524,7 +525,6 @@ pub trait SizedTemplate {
 }
 
 pub use crate::shared::filters;
-pub use crate::shared::helpers;
 pub use crate::shared::{read_config_file, Error, MarkupDisplay, Result};
 pub use askama_derive::*;
 
