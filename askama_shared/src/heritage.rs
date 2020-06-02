@@ -75,6 +75,19 @@ impl<'a> Context<'a> {
                             nested.push(nodes);
                         }
                     }
+                    Node::Cond(branches, _) => {
+                        for (_, _, nodes) in branches {
+                            nested.push(nodes);
+                        }
+                    }
+                    Node::Loop(_, _, _, nodes, _) => {
+                        nested.push(nodes);
+                    }
+                    Node::Match(_, _, _, arms, _) => {
+                        for (_, _, _, arm) in arms {
+                            nested.push(arm);
+                        }
+                    }
                     _ => {}
                 }
             }

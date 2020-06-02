@@ -363,15 +363,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     self.write_loop(ctx, buf, ws1, var, iter, body, ws2);
                 }
                 Node::BlockDef(ws1, name, _, ws2) => {
-                    if AstLevel::Nested == level {
-                        panic!(
-                            "blocks ('{}') are only allowed at the top level of a template \
-                             or another block",
-                            name
-                        );
-                    }
-                    let outer = WS(ws1.0, ws2.1);
-                    self.write_block(buf, Some(name), outer);
+                    self.write_block(buf, Some(name), WS(ws1.0, ws2.1));
                 }
                 Node::Include(ws, path) => {
                     size_hint += self.handle_include(ctx, buf, ws, path);
