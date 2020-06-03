@@ -113,11 +113,11 @@ where
     E: ParseError<I>,
 {
     move |i: I| {
-        let i = alt::<_, _, (), _>((tag(b" "), tag(b"\t")))(i.clone())
+        let i = many0(alt::<_, _, (), _>((tag(b" "), tag(b"\t"))))(i.clone())
             .map(|(i, _)| i)
             .unwrap_or(i);
         let (i, res) = inner(i)?;
-        let i = alt::<_, _, (), _>((tag(b" "), tag(b"\t")))(i.clone())
+        let i = many0(alt::<_, _, (), _>((tag(b" "), tag(b"\t"))))(i.clone())
             .map(|(i, _)| i)
             .unwrap_or(i);
         Ok((i, res))
