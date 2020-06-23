@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use quote::ToTokens;
 
 pub struct TemplateInput<'a> {
-    pub ast: &'a syn::DeriveInput,
+    pub item: &'a syn::ItemStruct,
     pub config: &'a Config<'a>,
     pub syntax: &'a Syntax<'a>,
     pub source: Source,
@@ -21,29 +21,11 @@ impl<'a> TemplateInput<'a> {
     /// mostly recovers the data for the `TemplateInput` fields from the
     /// `template()` attribute list fields; it also finds the of the `_parent`
     /// field, if any.
-    pub fn new<'n>(ast: &'n syn::DeriveInput, config: &'n Config) -> TemplateInput<'n> {
-        // Check that an attribute called `template()` exists and that it is
-        // the proper type (list).
-        let meta = ast
-            .attrs
-            .iter()
-            .find_map(|attr| match attr.parse_meta() {
-                Ok(m) => {
-                    if m.path().is_ident("template") {
-                        Some(m)
-                    } else {
-                        None
-                    }
-                }
-                Err(e) => panic!("unable to parse attribute: {}", e),
-            })
-            .expect("no attribute 'template' found");
-
-        let meta_list = match meta {
-            syn::Meta::List(inner) => inner,
-            _ => panic!("attribute 'template' has incorrect type"),
-        };
-
+    pub fn new<'n>(
+        meta: &'n syn::MetaList,
+        item: &'n syn::ItemStruct,
+        config: &'n Config,
+    ) -> TemplateInput<'n> {
         // Loop over the meta attributes and find everything that we
         // understand. Raise panics if something is not right.
         // `source` contains an enum that can represent `path` or `source`.
@@ -52,7 +34,7 @@ impl<'a> TemplateInput<'a> {
         let mut escaping = None;
         let mut ext = None;
         let mut syntax = None;
-        for item in meta_list.nested {
+        for item in meta.nested {
             let pair = match item {
                 syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
                 _ => panic!(
@@ -117,7 +99,7 @@ impl<'a> TemplateInput<'a> {
         let source = source.expect("template path or source not found in attributes");
         let path = match (&source, &ext) {
             (&Source::Path(ref path), None) => config.find_template(path, None),
-            (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
+            (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", item.ident, ext)),
             (&Source::Path(_), Some(_)) => {
                 panic!("'ext' attribute cannot be used with 'path' attribute")
             }
@@ -128,11 +110,8 @@ impl<'a> TemplateInput<'a> {
 
         // Check to see if a `_parent` field was defined on the context
         // struct, and store the type for it for use in the code generator.
-        let parent = match ast.data {
-            syn::Data::Struct(syn::DataStruct {
-                fields: syn::Fields::Named(ref fields),
-                ..
-            }) => fields
+        let parent = match &item.fields {
+            syn::Fields::Named(named) => named
                 .named
                 .iter()
                 .find(|f| f.ident.as_ref().filter(|name| *name == "_parent").is_some())
@@ -141,9 +120,9 @@ impl<'a> TemplateInput<'a> {
         };
 
         if parent.is_some() {
-            eprint!(
-                "   --> in struct {}\n   = use of deprecated field '_parent'\n",
-                ast.ident
+            eprintln!(
+                "   --> in struct {}\n   = use of deprecated field '_parent'",
+                item.ident
             );
         }
 
@@ -180,7 +159,7 @@ impl<'a> TemplateInput<'a> {
         });
 
         TemplateInput {
-            ast,
+            item,
             config,
             source,
             print,

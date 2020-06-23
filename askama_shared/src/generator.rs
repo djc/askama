@@ -306,20 +306,21 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         target: &str,
         params: Option<Vec<syn::GenericParam>>,
     ) {
-        let mut generics = self.input.ast.generics.clone();
+        let mut new_generics = self.input.item.generics.clone();
         if let Some(params) = params {
             for param in params {
-                generics.params.push(param);
+                new_generics.params.push(param);
             }
         }
-        let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
+
+        let (_, orig_ty_generics, _) = self.input.item.generics.split_for_impl();
+        let (impl_generics, _, where_clause) = new_generics.split_for_impl();
         buf.writeln(
             format!(
                 "{} {} for {}{} {{",
                 quote!(impl#impl_generics),
                 target,
-                self.input.ast.ident,
+                self.input.item.ident,
                 quote!(#orig_ty_generics #where_clause),
             )
             .as_ref(),

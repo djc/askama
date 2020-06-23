@@ -12,7 +12,48 @@ use std::path::PathBuf;
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
-    build_template(&ast).parse().unwrap()
+
+    // Check that an attribute called `template()` exists and that it is
+    // the proper type (list).
+    let meta = ast
+        .attrs
+        .iter()
+        .find_map(|attr| match attr.parse_meta() {
+            Ok(m) => {
+                if m.path().is_ident("template") {
+                    Some(m)
+                } else {
+                    None
+                }
+            }
+            Err(e) => panic!("unable to parse attribute: {}", e),
+        })
+        .expect("no attribute 'template' found");
+
+    let meta_list = match meta {
+        syn::Meta::List(inner) => inner,
+        _ => panic!("attribute 'template' has incorrect type"),
+    };
+
+    let item = syn::Item::from(ast);
+    let config_toml = read_config_file();
+    let config = Config::new(&config_toml);
+    let input = TemplateInput::new(&meta_list, &item, &config);
+    build_template(input).parse().unwrap()
+}
+
+#[proc_macro_attribute]
+pub fn template(meta: TokenStream, item: TokenStream) -> TokenStream {
+    let item = match syn::parse::<syn::Item>(item) {
+        syn::Item::Struct(item) => item,
+        _ => panic!("only struct items are supported for now"),
+    };
+
+    let config_toml = read_config_file();
+    let config = Config::new(&config_toml);
+    let meta = syn::parse::<syn::MetaList>(meta);
+    let input = TemplateInput::new(&meta, &item, &config);
+    build_template(input).parse().unwrap()
 }
 
 /// Takes a `syn::DeriveInput` and generates source code for it
@@ -22,10 +63,7 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 /// parsed, and the parse tree is fed to the code generator. Will print
 /// the parse tree and/or generated source according to the `print` key's
 /// value as passed to the `template()` attribute.
-fn build_template(ast: &syn::DeriveInput) -> String {
-    let config_toml = read_config_file();
-    let config = Config::new(&config_toml);
-    let input = TemplateInput::new(ast, &config);
+fn build_template(input: TemplateInput) -> String {
     let source: String = match input.source {
         Source::Source(ref s) => s.clone(),
         Source::Path(_) => get_template_source(&input.path),
