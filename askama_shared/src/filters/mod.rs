@@ -475,7 +475,7 @@ mod tests {
             join((&input).iter(), ":".to_string()).unwrap(),
             "foo:bar:bazz"
         );
-        assert_eq!(join(input.clone().iter(), ":").unwrap(), "foo:bar:bazz");
+        assert_eq!(join(input.iter(), ":").unwrap(), "foo:bar:bazz");
         assert_eq!(join(input.iter(), ":".to_string()).unwrap(), "foo:bar:bazz");
 
         let input: &[String] = &["foo".into(), "bar".into()];
