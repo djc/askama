@@ -47,43 +47,51 @@ impl<'a> Context<'a> {
         let mut blocks = Vec::new();
         let mut macros = HashMap::new();
         let mut imports = HashMap::new();
+        let mut nested = vec![nodes];
+        let mut top = true;
 
-        for n in nodes {
-            match n {
-                Node::Extends(Expr::StrLit(extends_path)) => match extends {
-                    Some(_) => panic!("multiple extend blocks found"),
-                    None => {
-                        extends = Some(config.find_template(extends_path, Some(path)));
+        while let Some(nodes) = nested.pop() {
+            for n in nodes {
+                match n {
+                    Node::Extends(Expr::StrLit(extends_path)) if top => match extends {
+                        Some(_) => panic!("multiple extend blocks found"),
+                        None => {
+                            extends = Some(config.find_template(extends_path, Some(path)));
+                        }
+                    },
+                    Node::Macro(name, m) if top => {
+                        macros.insert(*name, m);
                     }
-                },
-                def @ Node::BlockDef(_, _, _, _) => {
-                    blocks.push(def);
-                }
-                Node::Macro(name, m) => {
-                    macros.insert(*name, m);
-                }
-                Node::Import(_, import_path, scope) => {
-                    let path = config.find_template(import_path, Some(path));
-                    imports.insert(*scope, path);
-                }
-                _ => {}
-            }
-        }
-
-        let mut check_nested = 0;
-        let mut nested_blocks = Vec::new();
-        while check_nested < blocks.len() {
-            if let Node::BlockDef(_, _, ref nodes, _) = blocks[check_nested] {
-                for n in nodes {
-                    if let def @ Node::BlockDef(_, _, _, _) = n {
-                        nested_blocks.push(def);
+                    Node::Import(_, import_path, scope) if top => {
+                        let path = config.find_template(import_path, Some(path));
+                        imports.insert(*scope, path);
                     }
+                    Node::Extends(_) | Node::Macro(_, _) | Node::Import(_, _, _) if !top => {
+                        panic!("extends, macro or import blocks not allowed below top level");
+                    }
+                    def @ Node::BlockDef(_, _, _, _) => {
+                        blocks.push(def);
+                        if let Node::BlockDef(_, _, nodes, _) = def {
+                            nested.push(nodes);
+                        }
+                    }
+                    Node::Cond(branches, _) => {
+                        for (_, _, nodes) in branches {
+                            nested.push(nodes);
+                        }
+                    }
+                    Node::Loop(_, _, _, nodes, _) => {
+                        nested.push(nodes);
+                    }
+                    Node::Match(_, _, _, arms, _) => {
+                        for (_, _, _, arm) in arms {
+                            nested.push(arm);
+                        }
+                    }
+                    _ => {}
                 }
-            } else {
-                panic!("non block found in list of blocks");
             }
-            blocks.append(&mut nested_blocks);
-            check_nested += 1;
+            top = false;
         }
 
         let blocks: HashMap<_, _> = blocks

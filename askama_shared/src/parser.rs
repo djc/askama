@@ -11,6 +11,25 @@ use std::str;
 use crate::Syntax;
 
 #[derive(Debug, PartialEq)]
+pub enum Node<'a> {
+    Lit(&'a str, &'a str, &'a str),
+    Comment(WS),
+    Expr(WS, Expr<'a>),
+    Call(WS, Option<&'a str>, &'a str, Vec<Expr<'a>>),
+    LetDecl(WS, Target<'a>),
+    Let(WS, Target<'a>, Expr<'a>),
+    Cond(Vec<(WS, Option<Expr<'a>>, Vec<Node<'a>>)>, WS),
+    Match(WS, Expr<'a>, Option<&'a str>, Vec<When<'a>>, WS),
+    Loop(WS, Target<'a>, Expr<'a>, Vec<Node<'a>>, WS),
+    Extends(Expr<'a>),
+    BlockDef(WS, &'a str, Vec<Node<'a>>, WS),
+    Include(WS, &'a str),
+    Import(WS, &'a str, &'a str),
+    Macro(&'a str, Macro<'a>),
+    Raw(WS, &'a str, WS),
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Expr<'a> {
     BoolLit(&'a str),
     NumLit(&'a str),
@@ -32,61 +51,6 @@ pub enum Expr<'a> {
     RustMacro(&'a str, &'a str),
 }
 
-#[derive(Debug, PartialEq)]
-pub enum MatchVariant<'a> {
-    Path(Vec<&'a str>),
-    Name(&'a str),
-    NumLit(&'a str),
-    StrLit(&'a str),
-    CharLit(&'a str),
-}
-
-#[derive(Debug, PartialEq)]
-pub enum MatchParameter<'a> {
-    Name(&'a str),
-    NumLit(&'a str),
-    StrLit(&'a str),
-    CharLit(&'a str),
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Target<'a> {
-    Name(&'a str),
-    Tuple(Vec<&'a str>),
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct WS(pub bool, pub bool);
-
-#[derive(Debug, PartialEq)]
-pub struct Macro<'a> {
-    pub ws1: WS,
-    pub args: Vec<&'a str>,
-    pub nodes: Vec<Node<'a>>,
-    pub ws2: WS,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Node<'a> {
-    Lit(&'a str, &'a str, &'a str),
-    Comment(WS),
-    Expr(WS, Expr<'a>),
-    Call(WS, Option<&'a str>, &'a str, Vec<Expr<'a>>),
-    LetDecl(WS, Target<'a>),
-    Let(WS, Target<'a>, Expr<'a>),
-    Cond(Vec<(WS, Option<Expr<'a>>, Vec<Node<'a>>)>, WS),
-    Match(WS, Expr<'a>, Option<&'a str>, Vec<When<'a>>, WS),
-    Loop(WS, Target<'a>, Expr<'a>, Vec<Node<'a>>, WS),
-    Extends(Expr<'a>),
-    BlockDef(WS, &'a str, Vec<Node<'a>>, WS),
-    Include(WS, &'a str),
-    Import(WS, &'a str, &'a str),
-    Macro(&'a str, Macro<'a>),
-    Raw(WS, &'a str, WS),
-}
-
-pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
-
 pub type When<'a> = (
     WS,
     Option<MatchVariant<'a>>,
@@ -106,6 +70,42 @@ impl<'a> Default for MatchParameters<'a> {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum MatchParameter<'a> {
+    Name(&'a str),
+    NumLit(&'a str),
+    StrLit(&'a str),
+    CharLit(&'a str),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum MatchVariant<'a> {
+    Path(Vec<&'a str>),
+    Name(&'a str),
+    NumLit(&'a str),
+    StrLit(&'a str),
+    CharLit(&'a str),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Macro<'a> {
+    pub ws1: WS,
+    pub args: Vec<&'a str>,
+    pub nodes: Vec<Node<'a>>,
+    pub ws2: WS,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Target<'a> {
+    Name(&'a str),
+    Tuple(Vec<&'a str>),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WS(pub bool, pub bool);
+
+pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
+
 fn ws<F, I, O, E>(inner: F) -> impl Fn(I) -> IResult<I, O, E>
 where
     F: Fn(I) -> IResult<I, O, E>,
@@ -113,13 +113,15 @@ where
     E: ParseError<I>,
 {
     move |i: I| {
-        let i = many1(alt::<_, _, (), _>((tag(b" "), tag(b"\t"))))(i.clone())
-            .map(|(i, _)| i)
-            .unwrap_or(i);
+        let ws = many0(alt::<_, _, (), _>((
+            tag(b" "),
+            tag(b"\t"),
+            tag(b"\r"),
+            tag(b"\n"),
+        )));
+        let i = ws(i.clone()).map(|(i, _)| i).unwrap_or(i);
         let (i, res) = inner(i)?;
-        let i = many1(alt::<_, _, (), _>((tag(b" "), tag(b"\t"))))(i.clone())
-            .map(|(i, _)| i)
-            .unwrap_or(i);
+        let i = ws(i.clone()).map(|(i, _)| i).unwrap_or(i);
         Ok((i, res))
     }
 }
