@@ -1,0 +1,6 @@
+[book]
+authors = ["cetra3"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Askama"
