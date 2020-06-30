@@ -8,7 +8,7 @@
 Askama implements a template rendering engine based on Jinja.
 It generates Rust code from your templates at compile time
 based on a user-defined `struct` to hold the template's context.
-See below for an example, or read [the documentation][docs].
+See below for an example, or read [the book][docs].
 
 **"I use Askama for actix's TechEmpower benchmarks."** --
 [Nikolay Kim][fafhrd91], creator of actix-web
@@ -46,7 +46,7 @@ in a for-profit context, please consider supporting my open source work on
 * Opt-out HTML escaping
 * Syntax customization
 
-[docs]: https://docs.rs/askama
+[docs]: https://djc.github.io/askama/
 [fafhrd91]: https://github.com/fafhrd91
 [mitsuhiko]: http://lucumr.pocoo.org/
 [issues]: https://github.com/djc/askama/issues

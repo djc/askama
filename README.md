@@ -8,7 +8,7 @@
 Askama implements a template rendering engine based on Jinja.
 It generates Rust code from your templates at compile time
 based on a user-defined `struct` to hold the template's context.
-See below for an example, or read [the documentation][docs].
+See below for an example, or read [the book][docs].
 
 **"I use Askama for actix's TechEmpower benchmarks."** --
 [Nikolay Kim][fafhrd91], creator of actix-web
@@ -46,11 +46,7 @@ in a for-profit context, please consider supporting my open source work on
 * Opt-out HTML escaping
 * Syntax customization
 
-### Limitations
-
-* A limited number of built-in filters have been implemented
-
-[docs]: https://docs.rs/askama
+[docs]: https://djc.github.io/askama/
 [fafhrd91]: https://github.com/fafhrd91
 [mitsuhiko]: http://lucumr.pocoo.org/
 [issues]: https://github.com/djc/askama/issues
@@ -102,55 +98,3 @@ You should now be able to compile and run this code.
 Review the [test cases] for more examples.
 
 [test cases]: https://github.com/djc/askama/tree/master/testing
-
-
-Debugging and troubleshooting
------------------------------
-
-You can view the parse tree for a template as well as the generated code by
-changing the `template` attribute item list for the template struct:
-
-```rust
-#[derive(Template)]
-#[template(path = "hello.html", print = "all")]
-struct HelloTemplate<'a> { ... }
-```
-
-The `print` key can take one of four values:
-
-* `none` (the default value)
-* `ast` (print the parse tree)
-* `code` (print the generated code)
-* `all` (print both parse tree and code)
-
-The resulting output will be printed to `stderr` during the compilation process.
-
-The parse tree looks like this for the example template:
-
-```
-[Lit("", "Hello,", " "), Expr(WS(false, false), Var("name")),
-Lit("", "!", "\n")]
-```
-
-The generated code looks like this:
-
-```rust
-impl < 'a > ::askama::Template for HelloTemplate< 'a > {
-    fn render_into(&self, writer: &mut ::std::fmt::Write) -> ::askama::Result<()> {
-        write!(
-            writer,
-            "Hello, {expr0}!",
-            expr0 = &::askama::MarkupDisplay::from(&self.name),
-        )?;
-        Ok(())
-    }
-    fn extension() -> Option<&'static str> {
-        Some("html")
-    }
-}
-impl < 'a > ::std::fmt::Display for HelloTemplate< 'a > {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        ::askama::Template::render_into(self, f).map_err(|_| ::std::fmt::Error {})
-    }
-}
-```
