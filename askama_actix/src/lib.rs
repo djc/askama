@@ -20,3 +20,10 @@ impl<T: askama::Template> TemplateIntoResponse for T {
             .body(buffer.freeze()))
     }
 }
+
+// Re-exported for use by generated code
+#[doc(hidden)]
+pub mod futures {
+    pub use futures_util::future::ready;
+    pub use futures_util::future::Ready;
+}

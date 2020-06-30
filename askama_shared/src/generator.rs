@@ -254,7 +254,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     // Implement Actix-web's `Responder`.
     fn impl_actix_web_responder(&mut self, buf: &mut Buffer) {
         self.write_header(buf, "::actix_web::Responder", None);
-        buf.writeln("type Future = ::futures::future::Ready<::std::result::Result<::actix_web::HttpResponse, Self::Error>>;");
+        buf.writeln("type Future = ::askama_actix::futures::Ready<::std::result::Result<::actix_web::HttpResponse, Self::Error>>;");
         buf.writeln("type Error = ::actix_web::Error;");
         buf.writeln(
             "fn respond_to(self, _req: &::actix_web::HttpRequest) \
@@ -262,7 +262,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         );
 
         buf.writeln("use ::askama_actix::TemplateIntoResponse;");
-        buf.writeln("::futures::future::ready(self.into_response())");
+        buf.writeln("::askama_actix::futures::ready(self.into_response())");
 
         buf.writeln("}");
         buf.writeln("}");
