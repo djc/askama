@@ -50,26 +50,3 @@ Enabling the `with-warp` feature appends an implementation of Warp's `Reply`
 trait for each template type. This makes it simple to return a template from
 a Warp filter. See [the example](https://github.com/djc/askama/blob/master/askama_warp/tests/warp.rs)
 from the Askama test suite for more on how to integrate.
-
-## The `json` filter
-
-Enabling the `serde-json` filter will enable the use of the `json` filter.
-This will output formatted JSON for any value that implements the required
-`Serialize` trait.
-
-```
-{
-  "foo": "{{ foo }}",
-  "bar": {{ bar|json }}
-}
-```
-
-## The `yaml` filter
-
-Enabling the `serde-yaml` filter will enable the use of the `yaml` filter.
-This will output formatted JSON for any value that implements the required
-`Serialize` trait.
-
-```
-{{ foo|yaml }}
-```

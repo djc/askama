@@ -11,7 +11,8 @@ is passed to the next.
 {{"HELLO" | lower}}
 ```
 
-Askama has a collection of built-in filters, documented below, but can also include custom filters.
+Askama has a collection of built-in filters, documented below, but can also include custom filters. Additionally, the `json` and `yaml` filters are included in the built-in filters,
+but are disabled by default. Enable them with Cargo features (see below for more information).
 
 ## Built-In Filters
 
@@ -251,4 +252,27 @@ fn main() {
     let t = MyFilterTemplate { s: "foo" };
     assert_eq!(t.render().unwrap(), "faa");
 }
+```
+
+## The `json` filter
+
+Enabling the `serde-json` filter will enable the use of the `json` filter.
+This will output formatted JSON for any value that implements the required
+`Serialize` trait.
+
+```
+{
+  "foo": "{{ foo }}",
+  "bar": {{ bar|json }}
+}
+```
+
+## The `yaml` filter
+
+Enabling the `serde-yaml` filter will enable the use of the `yaml` filter.
+This will output formatted JSON for any value that implements the required
+`Serialize` trait.
+
+```
+{{ foo|yaml }}
 ```
