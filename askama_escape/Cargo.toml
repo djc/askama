@@ -1,6 +1,6 @@
 [package]
 name = "askama_escape"
-version = "0.3.0"
+version = "0.10.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Optimized HTML escaping code, extracted from Askama"
 documentation = "https://docs.rs/askama_escape"

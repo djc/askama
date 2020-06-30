@@ -1,6 +1,6 @@
 [package]
 name = "askama_actix"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Actix-Web integration for Askama templates"
 documentation = "https://docs.rs/askama"
@@ -14,7 +14,7 @@ edition = "2018"
 
 [dependencies]
 actix-web = { version = "2" }
-askama = { version = "0.9.0", path = "../askama", features = ["with-actix-web", "mime", "mime_guess"] }
+askama = { version = "0.10", path = "../askama", features = ["with-actix-web", "mime", "mime_guess"] }
 bytes = { version = "0.5" }
 futures = { version = "0.3" }
 

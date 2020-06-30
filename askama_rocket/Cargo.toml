@@ -1,6 +1,6 @@
 [package]
 name = "askama_rocket"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Rocket integration for Askama templates"
 documentation = "https://docs.rs/askama"
@@ -13,5 +13,5 @@ workspace = ".."
 edition = "2018"
 
 [dependencies]
-askama = { version = "0.9.0", path = "../askama", features = ["with-rocket", "mime", "mime_guess"] }
+askama = { version = "0.10", path = "../askama", features = ["with-rocket", "mime", "mime_guess"] }
 rocket = { version = "0.4", default-features = false }

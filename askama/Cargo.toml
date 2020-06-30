@@ -1,6 +1,6 @@
 [package]
 name = "askama"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Type-safe, compiled Jinja-like templates for Rust"
 documentation = "https://docs.rs/askama"
@@ -14,7 +14,6 @@ readme = "../README.md"
 edition = "2018"
 
 [badges]
-azure-devops = { project = "dochtman/Projects", pipeline = "Askama", build = "2" }
 maintenance = { status = "actively-developed" }
 
 [features]
@@ -32,9 +31,9 @@ with-gotham = ["askama_derive/gotham"]
 with-warp = ["askama_derive/warp"]
 
 [dependencies]
-askama_derive = { version = "0.9.0", path = "../askama_derive" }
-askama_escape = { version = "0.3.0", path = "../askama_escape" }
-askama_shared = { version = "0.9.0", path = "../askama_shared", default-features = false }
+askama_derive = { version = "0.10", path = "../askama_derive" }
+askama_escape = { version = "0.10", path = "../askama_escape" }
+askama_shared = { version = "0.10", path = "../askama_shared", default-features = false }
 mime = { version = "0.3", optional = true }
 mime_guess = { version = "2.0.0-alpha", optional = true }
 

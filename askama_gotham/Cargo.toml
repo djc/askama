@@ -1,6 +1,6 @@
 [package]
 name = "askama_gotham"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Gotham integration for Askama templates"
 documentation = "https://docs.rs/askama"
@@ -13,7 +13,7 @@ workspace = ".."
 edition = "2018"
 
 [dependencies]
-askama = { version = "0.9.0", path = "../askama", features = ["with-gotham", "mime", "mime_guess"] }
+askama = { version = "0.10", path = "../askama", features = ["with-gotham", "mime", "mime_guess"] }
 gotham = { version = "0.4", default-features = false }
 hyper = "0.12"
 

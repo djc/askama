@@ -1,6 +1,6 @@
 [package]
 name = "askama_shared"
-version = "0.9.1"
+version = "0.10.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Shared code for Askama"
 homepage = "https://github.com/djc/askama"
@@ -16,7 +16,7 @@ json = ["serde", "serde_json"]
 yaml = ["serde", "serde_yaml"]
 
 [dependencies]
-askama_escape = { version = "0.3.0", path = "../askama_escape" }
+askama_escape = { version = "0.10", path = "../askama_escape" }
 humansize = { version = "1.1.0", optional = true }
 # default for features for nom don't work result in linker errors:
 # https://github.com/rust-lang/rust/issues/62146

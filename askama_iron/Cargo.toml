@@ -1,6 +1,6 @@
 [package]
 name = "askama_iron"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Iron integration for Askama templates"
 documentation = "https://docs.rs/askama"
@@ -13,5 +13,5 @@ workspace = ".."
 edition = "2018"
 
 [dependencies]
-askama = { version = "0.9.0", path = "../askama", features = ["with-iron"] }
+askama = { version = "0.10", path = "../askama", features = ["with-iron"] }
 iron = { version = ">= 0.5, < 0.7" }
