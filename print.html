@@ -91,7 +91,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="askama.html"><strong aria-hidden="true">1.</strong> Askama</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="creating_templates.html"><strong aria-hidden="true">3.</strong> Creating Templates</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">4.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="template_syntax.html"><strong aria-hidden="true">6.</strong> Template Syntax</a></li><li class="chapter-item expanded "><a href="filters.html"><strong aria-hidden="true">7.</strong> Filters</a></li><li class="chapter-item expanded "><a href="integrations.html"><strong aria-hidden="true">8.</strong> Integrations</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="askama.html"><strong aria-hidden="true">1.</strong> Askama</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="creating_templates.html"><strong aria-hidden="true">3.</strong> Creating templates</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">4.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="template_syntax.html"><strong aria-hidden="true">6.</strong> Template syntax</a></li><li class="chapter-item expanded "><a href="filters.html"><strong aria-hidden="true">7.</strong> Filters</a></li><li class="chapter-item expanded "><a href="integrations.html"><strong aria-hidden="true">8.</strong> Integrations</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -165,7 +165,7 @@
 <p>Askama implements a template rendering engine based on Jinja.
 It generates Rust code from your templates at compile time
 based on a user-defined <code>struct</code> to hold the template's context.
-See below for an example, or read <a href="https://docs.rs/askama">the documentation</a>.</p>
+See below for an example, or read <a href="https://djc.github.io/askama/">the book</a>.</p>
 <p><strong>&quot;I use Askama for actix's TechEmpower benchmarks.&quot;</strong> --
 <a href="https://github.com/fafhrd91">Nikolay Kim</a>, creator of actix-web</p>
 <p><strong>&quot;Pretty exciting. I would love to use this already.&quot;</strong> --
@@ -749,7 +749,8 @@ Filters can be chained, in which case the output from one filter
 is passed to the next.</p>
 <pre><code>{{&quot;HELLO&quot; | lower}}
 </code></pre>
-<p>Askama has a collection of built-in filters, documented below, but can also include custom filters.</p>
+<p>Askama has a collection of built-in filters, documented below, but can also include custom filters. Additionally, the <code>json</code> and <code>yaml</code> filters are included in the built-in filters,
+but are disabled by default. Enable them with Cargo features (see below for more information).</p>
 <h2><a class="header" href="#built-in-filters" id="built-in-filters">Built-In Filters</a></h2>
 <h3><a class="header" href="#capitalize" id="capitalize">capitalize</a></h3>
 <p>Capitalize a value. The first character will be uppercase, all others lowercase:</p>
@@ -879,6 +880,21 @@ fn main() {
     assert_eq!(t.render().unwrap(), &quot;faa&quot;);
 }
 </code></pre></pre>
+<h2><a class="header" href="#the-json-filter" id="the-json-filter">The <code>json</code> filter</a></h2>
+<p>Enabling the <code>serde-json</code> filter will enable the use of the <code>json</code> filter.
+This will output formatted JSON for any value that implements the required
+<code>Serialize</code> trait.</p>
+<pre><code>{
+  &quot;foo&quot;: &quot;{{ foo }}&quot;,
+  &quot;bar&quot;: {{ bar|json }}
+}
+</code></pre>
+<h2><a class="header" href="#the-yaml-filter" id="the-yaml-filter">The <code>yaml</code> filter</a></h2>
+<p>Enabling the <code>serde-yaml</code> filter will enable the use of the <code>yaml</code> filter.
+This will output formatted JSON for any value that implements the required
+<code>Serialize</code> trait.</p>
+<pre><code>{{ foo|yaml }}
+</code></pre>
 <h1><a class="header" href="#integrations" id="integrations">Integrations</a></h1>
 <h2><a class="header" href="#rocket-integration" id="rocket-integration">Rocket integration</a></h2>
 <p>Enabling the <code>with-rocket</code> feature appends an implementation of Rocket's
@@ -917,21 +933,6 @@ This preserves the response chain if any custom error handling needs to occur.</
 trait for each template type. This makes it simple to return a template from
 a Warp filter. See <a href="https://github.com/djc/askama/blob/master/askama_warp/tests/warp.rs">the example</a>
 from the Askama test suite for more on how to integrate.</p>
-<h2><a class="header" href="#the-json-filter" id="the-json-filter">The <code>json</code> filter</a></h2>
-<p>Enabling the <code>serde-json</code> filter will enable the use of the <code>json</code> filter.
-This will output formatted JSON for any value that implements the required
-<code>Serialize</code> trait.</p>
-<pre><code>{
-  &quot;foo&quot;: &quot;{{ foo }}&quot;,
-  &quot;bar&quot;: {{ bar|json }}
-}
-</code></pre>
-<h2><a class="header" href="#the-yaml-filter" id="the-yaml-filter">The <code>yaml</code> filter</a></h2>
-<p>Enabling the <code>serde-yaml</code> filter will enable the use of the <code>yaml</code> filter.
-This will output formatted JSON for any value that implements the required
-<code>Serialize</code> trait.</p>
-<pre><code>{{ foo|yaml }}
-</code></pre>
 
                     </main>
 

@@ -89,7 +89,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="askama.html"><strong aria-hidden="true">1.</strong> Askama</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="creating_templates.html"><strong aria-hidden="true">3.</strong> Creating Templates</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">4.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="template_syntax.html"><strong aria-hidden="true">6.</strong> Template Syntax</a></li><li class="chapter-item expanded "><a href="filters.html"><strong aria-hidden="true">7.</strong> Filters</a></li><li class="chapter-item expanded "><a href="integrations.html" class="active"><strong aria-hidden="true">8.</strong> Integrations</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="askama.html"><strong aria-hidden="true">1.</strong> Askama</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="creating_templates.html"><strong aria-hidden="true">3.</strong> Creating templates</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">4.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="template_syntax.html"><strong aria-hidden="true">6.</strong> Template syntax</a></li><li class="chapter-item expanded "><a href="filters.html"><strong aria-hidden="true">7.</strong> Filters</a></li><li class="chapter-item expanded "><a href="integrations.html" class="active"><strong aria-hidden="true">8.</strong> Integrations</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -193,21 +193,6 @@ This preserves the response chain if any custom error handling needs to occur.</
 trait for each template type. This makes it simple to return a template from
 a Warp filter. See <a href="https://github.com/djc/askama/blob/master/askama_warp/tests/warp.rs">the example</a>
 from the Askama test suite for more on how to integrate.</p>
-<h2><a class="header" href="#the-json-filter" id="the-json-filter">The <code>json</code> filter</a></h2>
-<p>Enabling the <code>serde-json</code> filter will enable the use of the <code>json</code> filter.
-This will output formatted JSON for any value that implements the required
-<code>Serialize</code> trait.</p>
-<pre><code>{
-  &quot;foo&quot;: &quot;{{ foo }}&quot;,
-  &quot;bar&quot;: {{ bar|json }}
-}
-</code></pre>
-<h2><a class="header" href="#the-yaml-filter" id="the-yaml-filter">The <code>yaml</code> filter</a></h2>
-<p>Enabling the <code>serde-yaml</code> filter will enable the use of the <code>yaml</code> filter.
-This will output formatted JSON for any value that implements the required
-<code>Serialize</code> trait.</p>
-<pre><code>{{ foo|yaml }}
-</code></pre>
 
                     </main>
 
