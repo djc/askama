@@ -1,6 +1,6 @@
 [package]
 name = "askama_shared"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Shared code for Askama"
 homepage = "https://github.com/djc/askama"
