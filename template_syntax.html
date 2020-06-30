@@ -1,0 +1,519 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Template Syntax - Askama</title>
+        
+        
+
+
+        <!-- Custom HTML head -->
+        
+
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        
+        <link rel="stylesheet" href="fonts/fonts.css">
+        
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="askama.html"><strong aria-hidden="true">1.</strong> Askama</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="creating_templates.html"><strong aria-hidden="true">3.</strong> Creating Templates</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">4.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="template_syntax.html" class="active"><strong aria-hidden="true">6.</strong> Template Syntax</a></li><li class="chapter-item expanded "><a href="filters.html"><strong aria-hidden="true">7.</strong> Filters</a></li><li class="chapter-item expanded "><a href="integrations.html"><strong aria-hidden="true">8.</strong> Integrations</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">Askama</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1><a class="header" href="#template-syntax" id="template-syntax">Template Syntax</a></h1>
+<h2><a class="header" href="#variables" id="variables">Variables</a></h2>
+<p>Top-level template variables are defined by the template's context type.
+You can use a dot (<code>.</code>) to access variable's attributes or methods.
+Reading from variables is subject to the usual borrowing policies.
+For example, <code>{{ name }}</code> will get the <code>name</code> field from the template
+context,
+while <code>{{ user.name }}</code> will get the <code>name</code> field of the <code>user</code>
+field from the template context.</p>
+<h2><a class="header" href="#assignments" id="assignments">Assignments</a></h2>
+<p>Inside code blocks, you can also declare variables or assign values
+to variables.
+Assignments can't be imported by other templates.</p>
+<p>Assignments use the let tag:</p>
+<pre><code class="language-text">{% let name = user.name %}
+{% let len = name.len() %}
+
+{% let val -%}
+{% if len == 0 -%}
+  {% let val = &quot;foo&quot; -%}
+{% else -%}
+  {% let val = name -%}
+{% endif -%}
+{{ val }}
+</code></pre>
+<h2><a class="header" href="#filters" id="filters">Filters</a></h2>
+<p>Values such as those obtained from variables can be post-processed
+using <strong>filters</strong>.
+Filters are applied to values using the pipe symbol (<code>|</code>) and may
+have optional extra arguments in parentheses.
+Filters can be chained, in which case the output from one filter
+is passed to the next.</p>
+<p>For example, <code>{{ &quot;{:?}&quot;|format(name|escape) }}</code> will escape HTML
+characters from the value obtained by accessing the <code>name</code> field,
+and print the resulting string as a Rust literal.</p>
+<p>The built-in filters are documented as part of the
+<a href="filters.html">filters documentation</a>.</p>
+<p>To define your own filters, simply have a module named <code>filters</code> in
+scope of the context deriving a <code>Template</code> <code>impl</code>. Note that in case of
+name collision, the built in filters take precedence.</p>
+<h2><a class="header" href="#whitespace-control" id="whitespace-control">Whitespace control</a></h2>
+<p>Askama considers all tabs, spaces, newlines and carriage returns to be
+whitespace. By default, it preserves all whitespace in template code,
+except that a single trailing newline character is suppressed.
+However, whitespace before and after expression and block delimiters
+can be suppressed by writing a minus sign directly following a
+start delimiter or leading into an end delimiter.</p>
+<p>Here is an example:</p>
+<pre><code class="language-text">{% if foo %}
+  {{- bar -}}
+{% else if -%}
+  nothing
+{%- endif %}
+</code></pre>
+<p>This discards all whitespace inside the if/else block. If a literal
+(any part of the template not surrounded by <code>{% %}</code> or <code>{{ }}</code>)
+includes only whitespace, whitespace suppression on either side will
+completely suppress that literal content.</p>
+<h2><a class="header" href="#template-inheritance" id="template-inheritance">Template inheritance</a></h2>
+<p>Template inheritance allows you to build a base template with common
+elements that can be shared by all inheriting templates.
+A base template defines <strong>blocks</strong> that child templates can override.</p>
+<h3><a class="header" href="#base-template" id="base-template">Base template</a></h3>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+  &lt;head&gt;
+    &lt;title&gt;{% block title %}{{ title }} - My Site{% endblock %}&lt;/title&gt;
+    {% block head %}{% endblock %}
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div id=&quot;content&quot;&gt;
+      {% block content %}{% endblock %}
+    &lt;/div&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>The <code>block</code> tags define three blocks that can be filled in by child
+templates. The base template defines a default version of the block.
+A base template must define one or more blocks in order to enable
+inheritance. Blocks can only be specified at the top level of a template
+or inside other blocks, not inside <code>if</code>/<code>else</code> branches or in <code>for</code>-loop
+bodies.</p>
+<h3><a class="header" href="#child-template" id="child-template">Child template</a></h3>
+<p>Here's an example child template:</p>
+<pre><code class="language-html">{% extends &quot;base.html&quot; %}
+
+{% block title %}Index{% endblock %}
+
+{% block head %}
+  &lt;style&gt;
+  &lt;/style&gt;
+{% endblock %}
+
+{% block content %}
+  &lt;h1&gt;Index&lt;/h1&gt;
+  &lt;p&gt;Hello, world!&lt;/p&gt;
+{% endblock %}
+</code></pre>
+<p>The <code>extends</code> tag tells the code generator that this template inherits
+from another template. It will search for the base template relative to
+itself before looking relative to the template base directory. It will
+render the top-level content from the base template, and substitute
+blocks from the base template with those from the child template. Inside
+a block in a child template, the <code>super()</code> macro can be called to render
+the parent block's contents.</p>
+<h2><a class="header" href="#html-escaping" id="html-escaping">HTML escaping</a></h2>
+<p>Askama by default escapes variables if it thinks it is rendering HTML
+content. It infers the escaping context from the extension of template
+filenames, escaping by default if the extension is one of <code>html</code>, <code>htm</code>,
+or <code>xml</code>. When specifying a template as <code>source</code> in an attribute, the
+<code>ext</code> attribute parameter must be used to specify a type. Additionally,
+you can specify an escape mode explicitly for your template by setting
+the <code>escape</code> attribute parameter value (to <code>none</code> or <code>html</code>).</p>
+<p>Askama escapes <code>&lt;</code>, <code>&gt;</code>, <code>&amp;</code>, <code>&quot;</code>, <code>'</code>, <code>\</code> and <code>/</code>, according to the
+<a href="https://www.owasp.org/index.php/XSS_(Cross_Site_Scripting)_Prevention_Cheat_Sheet#RULE_.231_-_HTML_Escape_Before_Inserting_Untrusted_Data_into_HTML_Element_Content">OWASP escaping recommendations</a>. Use the <code>safe</code> filter to
+prevent escaping for a single expression, or the <code>escape</code> (or <code>e</code>)
+filter to escape a single expression in an unescaped context.</p>
+<pre><pre class="playground"><code class="language-rust">#[derive(Template)]
+#[template(source = &quot;{{strvar}}&quot;)]
+struct TestTemplate {
+    strvar: String,
+}
+
+fn main() {
+    let s = TestTemplate {
+        strvar: &quot;// my &lt;html&gt; is \&quot;unsafe\&quot; &amp; should be 'escaped'&quot;.to_string(),
+    };
+    assert_eq!(
+        s.render().unwrap(),
+        &quot;&amp;#x2f;&amp;#x2f; my &amp;lt;html&amp;gt; is &amp;quot;unsafe&amp;quot; &amp;amp; \
+         should be &amp;#x27;escaped&amp;#x27;&quot;
+    );
+}
+</code></pre></pre>
+<h2><a class="header" href="#control-structures" id="control-structures">Control structures</a></h2>
+<h3><a class="header" href="#for" id="for">For</a></h3>
+<p>Loop over each item in an iterator. For example:</p>
+<pre><code class="language-html">&lt;h1&gt;Users&lt;/h1&gt;
+&lt;ul&gt;
+{% for user in users %}
+  &lt;li&gt;{{ user.name|e }}&lt;/li&gt;
+{% endfor %}
+&lt;/ul&gt;
+</code></pre>
+<p>Inside for-loop blocks, some useful variables are accessible:</p>
+<ul>
+<li><em>loop.index</em>: current loop iteration (starting from 1)</li>
+<li><em>loop.index0</em>: current loop iteration (starting from 0)</li>
+<li><em>loop.first</em>: whether this is the first iteration of the loop</li>
+<li><em>loop.last</em>: whether this is the last iteration of the loop</li>
+</ul>
+<pre><code class="language-html">&lt;h1&gt;Users&lt;/h1&gt;
+&lt;ul&gt;
+{% for user in users %}
+   {% if loop.first %}
+   &lt;li&gt;First: {{user.name}}&lt;/li&gt;
+   {% else %}
+   &lt;li&gt;User#{{loop.index}}: {{user.name}}&lt;/li&gt;
+   {% endif %}
+{% endfor %}
+&lt;/ul&gt;
+</code></pre>
+<h3><a class="header" href="#if" id="if">If</a></h3>
+<p>The <em>if</em> statement is used as you might expect:</p>
+<pre><code class="language-text">{% if users.len() == 0 %}
+  No users
+{% else if users.len() == 1 %}
+  1 user
+{% else %}
+  {{ users.len() }} users
+{% endif %}
+</code></pre>
+<h3><a class="header" href="#match" id="match">Match</a></h3>
+<p>In order to deal with Rust <code>enum</code>s in a type-safe way, templates support
+match blocks from version 0.6. Here is a simple example showing how to
+expand an <code>Option</code>:</p>
+<pre><code class="language-text">{% match item %}
+  {% when Some with (&quot;foo&quot;) %}
+    Found literal foo
+  {% when Some with (val) %}
+    Found {{ val }}
+  {% when None %}
+{% endmatch %}
+</code></pre>
+<p>That is, a <code>match</code> block can optionally contain some whitespace (but
+no other literal content), followed by a number of <code>when</code> blocks
+and an optional <code>else</code> block. Each <code>when</code> block must name a list of
+matches (<code>(val)</code>), optionally introduced with a variant name. The
+<code>else</code> block is equivalent to matching on <code>_</code> (matching anything).</p>
+<p>Struct-like enum variants are supported from version 0.8, with the list
+of matches surrounded by curly braces instead (<code>{ field }</code>).  New names
+for the fields can be specified after a colon in the list of matches
+(<code>{ field: val }</code>).</p>
+<h3><a class="header" href="#include" id="include">Include</a></h3>
+<p>The <em>include</em> statement lets you split large or repetitive blocks into
+separate template files. Included templates get full access to the context
+in which they're used, including local variables like those from loops:</p>
+<pre><code class="language-text">{% for i in iter %}
+  {% include &quot;item.html&quot; %}
+{% endfor %}
+</code></pre>
+<pre><code class="language-text">* Item: {{ i }}
+</code></pre>
+<p>The path to include must be a string literal, so that it is known at
+compile time. Askama will try to find the specified template relative
+to the including template's path before falling back to the absolute
+template path. Use <code>include</code> within the branches of an <code>if</code>/<code>else</code>
+block to use includes more dynamically.</p>
+<h2><a class="header" href="#expressions" id="expressions">Expressions</a></h2>
+<p>Askama supports string literals (<code>&quot;foo&quot;</code>) and integer literals (<code>1</code>).
+It supports almost all binary operators that Rust supports,
+including arithmetic, comparison and logic operators.
+The parser applies the same precedence order as the Rust compiler.
+Expressions can be grouped using parentheses.
+The HTML special characters <code>&amp;</code>, <code>&lt;</code> and <code>&gt;</code> will be replaced with their
+character entities unless the <code>escape</code> mode is disabled for a template.
+Methods can be called on variables that are in scope, including <code>self</code>.</p>
+<pre><code>{{ 3 * 4 / 2 }}
+{{ 26 / 2 % 7 }}
+{{ 3 % 2 * 6 }}
+{{ 1 * 2 + 4 }}
+{{ 11 - 15 / 3 }}
+{{ 4 + 5 % 3 }}
+{{ 4 | 2 + 5 &amp; 2 }}
+</code></pre>
+<p><strong>Warning</strong>: if the result of an expression (a <code>{{ }}</code> block) is
+equivalent to <code>self</code>, this can result in a stack overflow from infinite
+recursion. This is because the <code>Display</code> implementation for that expression
+will in turn evaluate the expression and yield <code>self</code> again.</p>
+<h2><a class="header" href="#templates-in-templates" id="templates-in-templates">Templates in templates</a></h2>
+<p>Using expressions, it is possible to delegate rendering part of a template to another template.
+This makes it possible to inject modular template sections into other templates and facilitates
+testing and reuse.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use askama::Template;
+#[derive(Template)]
+#[template(source = &quot;Section 1: {{ s1.render().unwrap() }}&quot;, ext = &quot;txt&quot;)]
+struct RenderInPlace&lt;'a&gt; {
+   s1: SectionOne&lt;'a&gt;
+}
+
+#[derive(Template)]
+#[template(source = &quot;A={{ a }}\nB={{ b }}&quot;, ext = &quot;txt&quot;)]
+struct SectionOne&lt;'a&gt; {
+   a: &amp;'a str,
+   b: &amp;'a str,
+}
+let t = RenderInPlace { s1: SectionOne { a: &quot;a&quot;, b: &quot;b&quot; } };
+assert_eq!(t.render().unwrap(), &quot;Section 1: A=a\nB=b&quot;)
+<span class="boring">}
+</span></code></pre></pre>
+<p>See the example
+<a href="https://github.com/djc/askama/blob/master/testing/tests/render_in_place.rs">render in place</a>
+using a vector of templates in a for block.</p>
+<h2><a class="header" href="#comments" id="comments">Comments</a></h2>
+<p>Askama supports block comments delimited by <code>{#</code> and <code>#}</code>.</p>
+<pre><code>{# A Comment #}
+</code></pre>
+<h2><a class="header" href="#recursive-structures" id="recursive-structures">Recursive Structures</a></h2>
+<p>Recursive implementations should preferably use a custom iterator and
+use a plain loop. If that is not doable, call <code>.render()</code>
+directly by using an expression as shown below.
+Including self does not work, see #105 and #220 .</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use askama::Template;
+
+#[derive(Template)]
+#[template(source = r#&quot;
+//! {% for item in children %}
+   {{ item.render().unwrap() }}
+{% endfor %}
+&quot;#, ext = &quot;html&quot;, escape = &quot;none&quot;)]
+struct Item&lt;'a&gt; {
+    name: &amp;'a str,
+    children: &amp;'a [Item&lt;'a&gt;],
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2><a class="header" href="#macros" id="macros">Macros</a></h2>
+<p>You can define macros within your template by using <code>{% macro name(args) %}</code>, ending with <code>{% endmacro %}</code></p>
+<p>You can then call it later with <code>{% call name(args) %}</code></p>
+<pre><code>{% macro heading(arg) %}
+
+&lt;h1&gt;{{arg}}&lt;/h1&gt;
+
+{% endmacro %}
+
+{% call heading(s) %}
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="configuration.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="filters.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a rel="prev" href="configuration.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="filters.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>

@@ -1,0 +1,365 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Filters - Askama</title>
+        
+        
+
+
+        <!-- Custom HTML head -->
+        
+
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        
+        <link rel="stylesheet" href="fonts/fonts.css">
+        
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="askama.html"><strong aria-hidden="true">1.</strong> Askama</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="creating_templates.html"><strong aria-hidden="true">3.</strong> Creating Templates</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">4.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="template_syntax.html"><strong aria-hidden="true">6.</strong> Template Syntax</a></li><li class="chapter-item expanded "><a href="filters.html" class="active"><strong aria-hidden="true">7.</strong> Filters</a></li><li class="chapter-item expanded "><a href="integrations.html"><strong aria-hidden="true">8.</strong> Integrations</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">Askama</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1><a class="header" href="#filters" id="filters">Filters</a></h1>
+<p>Values such as those obtained from variables can be post-processed
+using <strong>filters</strong>.
+Filters are applied to values using the pipe symbol (<code>|</code>) and may
+have optional extra arguments in parentheses.
+Filters can be chained, in which case the output from one filter
+is passed to the next.</p>
+<pre><code>{{&quot;HELLO&quot; | lower}}
+</code></pre>
+<p>Askama has a collection of built-in filters, documented below, but can also include custom filters.</p>
+<h2><a class="header" href="#built-in-filters" id="built-in-filters">Built-In Filters</a></h2>
+<h3><a class="header" href="#capitalize" id="capitalize">capitalize</a></h3>
+<p>Capitalize a value. The first character will be uppercase, all others lowercase:</p>
+<pre><code>{{ &quot;hello&quot; | capitalize}}
+</code></pre>
+<p>Output:</p>
+<pre><code>Hello
+</code></pre>
+<h3><a class="header" href="#center" id="center">center</a></h3>
+<p>Centers the value in a field of a given width:</p>
+<pre><code>-{{ &quot;a&quot; | center(5)}}-
+</code></pre>
+<p>Output:</p>
+<pre><code>-  a  -
+</code></pre>
+<h3><a class="header" href="#escape--e" id="escape--e">escape | e</a></h3>
+<p>Escapes html characters in strings:</p>
+<pre><code>{{ &quot;Escape &lt;&gt;&amp;&quot; | e}}
+</code></pre>
+<p>Output:</p>
+<pre><code>Escape &amp;lt;&amp;gt;&amp;amp;
+</code></pre>
+<h3><a class="header" href="#filesizeformat" id="filesizeformat">filesizeformat</a></h3>
+<p>Returns adequate string representation (in KB, ..) of number of bytes:</p>
+<pre><code>{{ 1000 | filesizeformat }}
+</code></pre>
+<p>Output:</p>
+<pre><code>1 KB
+</code></pre>
+<h3><a class="header" href="#format" id="format">format</a></h3>
+<p>Formats arguments according to the specified format</p>
+<p>The first argument to this filter must be a string literal (as in normal Rust).</p>
+<p>All arguments are passed through to the format!() macro by the Askama code generator.</p>
+<pre><code>{{ &quot;{:?}&quot;|format(var) }}
+</code></pre>
+<h3><a class="header" href="#indent" id="indent">indent</a></h3>
+<p>Indent newlines with width spaces</p>
+<pre><code>{{ &quot;hello\nfoo\nbar&quot; | indent(4) }}
+</code></pre>
+<p>Output:</p>
+<pre><code>hello
+    foo
+    bar
+</code></pre>
+<h3><a class="header" href="#join" id="join">join</a></h3>
+<p>Joins iterable into a string separated by provided argument</p>
+<pre><code>array = &amp;[&quot;foo&quot;, &quot;bar&quot;, &quot;bazz&quot;]
+</code></pre>
+<pre><code>{{ array | join(&quot;, &quot;)}}
+</code></pre>
+<p>Output:</p>
+<pre><code>foo, bar, bazz
+</code></pre>
+<h3><a class="header" href="#linebreaks" id="linebreaks">linebreaks</a></h3>
+<p>Replaces line breaks in plain text with appropriate HTML</p>
+<p>A single newline becomes an HTML line break <br> and a new line followed by a blank line becomes a paragraph break <p>.</p>
+<pre><code>{{ &quot;hello\nworld\n\nfrom\naskama&quot; | linebreaks }}
+</code></pre>
+<p>Output:</p>
+<pre><code>&lt;p&gt;hello&lt;br /&gt;world&lt;/p&gt;&lt;p&gt;from&lt;br /&gt;askama&lt;/p&gt;
+</code></pre>
+<h3><a class="header" href="#linebreaksbr" id="linebreaksbr">linebreaksbr</a></h3>
+<p>Converts all newlines in a piece of plain text to HTML line breaks</p>
+<pre><code>{{ &quot;hello\nworld\n\nfrom\naskama&quot; | linebreaks }}
+</code></pre>
+<p>Output:</p>
+<pre><code>hello&lt;br /&gt;world&lt;br /&gt;&lt;br /&gt;from&lt;br /&gt;askama
+</code></pre>
+<h3><a class="header" href="#lower--lowercase" id="lower--lowercase">lower | lowercase</a></h3>
+<p>Converts to lowercase</p>
+<pre><code>{{ &quot;HELLO&quot; | lower }}
+</code></pre>
+<p>Output:</p>
+<pre><code>hello
+</code></pre>
+<h3><a class="header" href="#safe" id="safe">safe</a></h3>
+<p>Marks a string (or other Display type) as safe.  By default all strings are escaped according to the format</p>
+<pre><code>{{ &quot;&lt;p&gt;I'm Safe&lt;/p&gt;&quot; | safe}}
+</code></pre>
+<p>Output:</p>
+<pre><code>&lt;p&gt;I'm Safe&lt;/p&gt;
+</code></pre>
+<h3><a class="header" href="#trim" id="trim">trim</a></h3>
+<p>Strip leading and trailing whitespace</p>
+<pre><code>{{ &quot; hello &quot; | trim}}
+</code></pre>
+<p>Output:</p>
+<pre><code>hello
+</code></pre>
+<h3><a class="header" href="#truncate" id="truncate">truncate</a></h3>
+<p>Limit string length, appends '...' if truncated</p>
+<pre><code>{{ &quot;hello&quot; | truncate(2) }}
+</code></pre>
+<p>Output:</p>
+<pre><code>he...
+</code></pre>
+<h3><a class="header" href="#upper--uppercase" id="upper--uppercase">upper | uppercase</a></h3>
+<p>Converts to uppercase</p>
+<pre><code>{{ &quot;hello&quot; | upper}}
+</code></pre>
+<p>Output:</p>
+<pre><code>HELLO
+</code></pre>
+<h3><a class="header" href="#wordcount" id="wordcount">wordcount</a></h3>
+<p>Count the words in that string</p>
+<pre><code>{{ &quot;askama is sort of cool&quot; | wordcount}}
+</code></pre>
+<pre><code>5
+</code></pre>
+<h2><a class="header" href="#custom-filters" id="custom-filters">Custom Filters</a></h2>
+<p>To define your own filters, simply have a module named filters in scope of the context deriving a Template impl.</p>
+<p>Note that in case of name collision, the built in filters take precedence.</p>
+<pre><pre class="playground"><code class="language-rust">#[derive(Template)]
+#[template(source = &quot;{{ s|myfilter }}&quot;, ext = &quot;txt&quot;)]
+struct MyFilterTemplate&lt;'a&gt; {
+    s: &amp;'a str,
+}
+
+mod filters {
+    pub fn myfilter(s: &amp;str) -&gt; ::askama::Result&lt;String&gt; {
+        Ok(s.replace(&quot;oo&quot;, &quot;aa&quot;))
+    }
+}
+
+fn main() {
+    let t = MyFilterTemplate { s: &quot;foo&quot; };
+    assert_eq!(t.render().unwrap(), &quot;faa&quot;);
+}
+</code></pre></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="template_syntax.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="integrations.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a rel="prev" href="template_syntax.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="integrations.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>
