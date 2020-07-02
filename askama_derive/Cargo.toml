@@ -21,7 +21,7 @@ gotham = []
 warp = []
 
 [dependencies]
-askama_shared = { version = "0.10", path = "../askama_shared" }
+askama_shared = { version = "0.10", path = "../askama_shared", default-features = false }
 proc-macro2 = "1"
 quote = "1"
 syn = "1"
