@@ -1,6 +1,6 @@
 [package]
 name = "askama"
-version = "0.10.0"
+version = "0.10.1"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Type-safe, compiled Jinja-like templates for Rust"
 documentation = "https://docs.rs/askama"
