@@ -999,6 +999,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         if name == "format" {
             self._visit_format_filter(buf, args);
             return DisplayWrap::Unwrapped;
+        } else if name == "fmt" {
+            self._visit_fmt_filter(buf, args);
+            return DisplayWrap::Unwrapped;
         } else if name == "join" {
             self._visit_join_filter(buf, args);
             return DisplayWrap::Unwrapped;
@@ -1035,6 +1038,21 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             panic!("invalid expression type for format filter");
         }
         self._visit_args(buf, &args[1..]);
+        buf.write(")");
+    }
+
+    fn _visit_fmt_filter(&mut self, buf: &mut Buffer, args: &[Expr]) {
+        buf.write("format!(");
+        if let Some(Expr::StrLit(v)) = args.get(1) {
+            self.visit_str_lit(buf, v);
+            buf.write(", ");
+        } else {
+            panic!("invalid expression type for fmt filter");
+        }
+        self._visit_args(buf, &args[0..1]);
+        if args.len() > 2 {
+            panic!("only two arguments allowed to fmt filter");
+        }
         buf.write(")");
     }
 

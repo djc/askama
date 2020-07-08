@@ -39,6 +39,18 @@ fn filter_format() {
 }
 
 #[derive(Template)]
+#[template(source = "{{ var|fmt(\"{:?}\") }}", ext = "html", escape = "none")]
+struct FmtTemplate<'a> {
+    var: &'a str,
+}
+
+#[test]
+fn filter_fmt() {
+    let t = FmtTemplate { var: "formatted" };
+    assert_eq!(t.render().unwrap(), "\"formatted\"");
+}
+
+#[derive(Template)]
 #[template(source = "{{ s|myfilter }}", ext = "txt")]
 struct MyFilterTemplate<'a> {
     s: &'a str,
