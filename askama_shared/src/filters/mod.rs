@@ -58,13 +58,14 @@ const ENCODE_SET: &AsciiSet = &NON_ALPHANUMERIC
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 24] = [
+pub const BUILT_IN_FILTERS: [&str; 25] = [
     "abs",
     "capitalize",
     "center",
     "e",
     "escape",
     "filesizeformat",
+    "fmt",
     "format",
     "indent",
     "into_f64",
@@ -139,10 +140,31 @@ pub fn urlencode(s: &dyn fmt::Display) -> Result<String> {
 
 /// Formats arguments according to the specified format
 ///
+/// The *second* argument to this filter must be a string literal (as in normal
+/// Rust). The two arguments are passed through to the `format!()`
+/// [macro](https://doc.rust-lang.org/stable/std/macro.format.html) by
+/// the Askama code generator, but the order is swapped to support filter
+/// composition.
+///
+/// ```ignore
+/// {{ value | fmt("{:?}") }}
+/// ```
+///
+/// Compare with [format](./fn.format.html).
+pub fn fmt() {}
+
+/// Formats arguments according to the specified format
+///
 /// The first argument to this filter must be a string literal (as in normal
 /// Rust). All arguments are passed through to the `format!()`
 /// [macro](https://doc.rust-lang.org/stable/std/macro.format.html) by
 /// the Askama code generator.
+///
+/// ```ignore
+/// {{ "{:?}{:?}" | format(value, other_value) }}
+/// ```
+///
+/// Compare with [fmt](./fn.fmt.html).
 pub fn format() {}
 
 /// Replaces line breaks in plain text with appropriate HTML
