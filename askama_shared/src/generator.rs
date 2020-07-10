@@ -109,6 +109,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         if self.integrations.warp {
             self.impl_warp_reply(&mut buf);
         }
+        if self.integrations.tide {
+            self.impl_tide_integrations(&mut buf);
+        }
         buf.buf
     }
 
@@ -296,6 +299,32 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln(&format!("::askama_warp::reply(&self, {:?})", ext));
         buf.writeln("}");
         buf.writeln("}");
+    }
+
+    fn impl_tide_integrations(&mut self, buf: &mut Buffer) {
+        let ext = self
+            .input
+            .path
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("txt");
+
+        self.write_header(
+            buf,
+            "std::convert::TryInto<::askama_tide::tide::Body>",
+            None,
+        );
+        buf.writeln(
+            "type Error = ::askama_tide::askama::Error;\n\
+            fn try_into(self) -> ::askama_tide::askama::Result<::askama_tide::tide::Body> {",
+        );
+        buf.writeln(&format!("::askama_tide::try_into_body(&self, {:?})", &ext));
+        buf.writeln("}");
+        buf.writeln("}");
+        self.write_header(buf, "Into<::askama_tide::tide::Response>", None);
+        buf.writeln("fn into(self) -> ::askama_tide::tide::Response {");
+        buf.writeln(&format!("::askama_tide::into_response(&self, {:?})", ext));
+        buf.writeln("}\n}");
     }
 
     // Writes header for the `impl` for `TraitFromPathName` or `Template`

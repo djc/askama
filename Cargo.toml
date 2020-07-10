@@ -8,6 +8,7 @@ members = [
     "askama_iron",
     "askama_rocket",
     "askama_shared",
+    "askama_tide",
     "askama_warp",
     "testing",
 ]
