@@ -1,0 +1,18 @@
+[package]
+name = "askama_tide"
+version = "0.1.0"
+authors = ["Jacob Rothstein <hi@jbr.me>"]
+edition = "2018"
+description = "Tide integration for Askama templates"
+keywords = ["markup", "template", "jinja2", "html", "tide", "http-types"]
+homepage = "https://github.com/djc/askama"
+repository = "https://github.com/djc/askama"
+documentation = "https://docs.rs/askama"
+license = "MIT OR Apache-2.0"
+workspace = ".."
+readme = "README.md"
+
+[dependencies]
+askama = { version = "0.10", path = "../askama", features = ["with-tide"] }
+tide = "0.11"
+async-std = { version = "1.6.0", features = ["unstable", "attributes"] }

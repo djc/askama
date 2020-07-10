@@ -29,6 +29,7 @@ with-rocket = ["askama_derive/rocket"]
 with-actix-web = ["askama_derive/actix-web"]
 with-gotham = ["askama_derive/gotham"]
 with-warp = ["askama_derive/warp"]
+with-tide = ["askama_derive/tide"]
 
 [dependencies]
 askama_derive = { version = "0.10", path = "../askama_derive" }

@@ -50,3 +50,12 @@ Enabling the `with-warp` feature appends an implementation of Warp's `Reply`
 trait for each template type. This makes it simple to return a template from
 a Warp filter. See [the example](https://github.com/djc/askama/blob/master/askama_warp/tests/warp.rs)
 from the Askama test suite for more on how to integrate.
+
+## Tide integration
+
+Enabling the `with-tide` feature appends `Into<tide::Response>` and
+`TryInto<tide::Body>` implementations for each template type. This
+provides the ability for tide apps to build a response directly from
+a template, or to append a templated body to an existing
+`Response`. See [the example](https://github.com/djc/askama/blob/master/askama_tide/tests/tide.rs)
+from the Askama test suite for more on how to integrate.

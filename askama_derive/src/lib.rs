@@ -90,4 +90,5 @@ const INTEGRATIONS: Integrations = Integrations {
     iron: cfg!(feature = "iron"),
     rocket: cfg!(feature = "rocket"),
     warp: cfg!(feature = "warp"),
+    tide: cfg!(feature = "tide"),
 };

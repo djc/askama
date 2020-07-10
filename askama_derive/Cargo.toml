@@ -19,6 +19,7 @@ rocket = []
 actix-web = []
 gotham = []
 warp = []
+tide = []
 
 [dependencies]
 askama_shared = { version = "0.10", path = "../askama_shared", default-features = false }
