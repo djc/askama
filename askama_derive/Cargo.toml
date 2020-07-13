@@ -14,12 +14,12 @@ edition = "2018"
 proc-macro = true
 
 [features]
-iron = []
-rocket = []
 actix-web = []
 gotham = []
-warp = []
+iron = []
+rocket = []
 tide = []
+warp = []
 
 [dependencies]
 askama_shared = { version = "0.10", path = "../askama_shared", default-features = false }
