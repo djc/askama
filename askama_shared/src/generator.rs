@@ -94,23 +94,24 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         self.impl_template(ctx, &mut buf);
         self.impl_display(&mut buf);
-        if self.integrations.iron {
-            self.impl_modifier_response(&mut buf);
-        }
-        if self.integrations.rocket {
-            self.impl_rocket_responder(&mut buf);
-        }
+
         if self.integrations.actix {
             self.impl_actix_web_responder(&mut buf);
         }
         if self.integrations.gotham {
             self.impl_gotham_into_response(&mut buf);
         }
-        if self.integrations.warp {
-            self.impl_warp_reply(&mut buf);
+        if self.integrations.iron {
+            self.impl_iron_modifier_response(&mut buf);
+        }
+        if self.integrations.rocket {
+            self.impl_rocket_responder(&mut buf);
         }
         if self.integrations.tide {
             self.impl_tide_integrations(&mut buf);
+        }
+        if self.integrations.warp {
+            self.impl_warp_reply(&mut buf);
         }
         buf.buf
     }
@@ -202,8 +203,41 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("}");
     }
 
+    // Implement Actix-web's `Responder`.
+    fn impl_actix_web_responder(&mut self, buf: &mut Buffer) {
+        self.write_header(buf, "::actix_web::Responder", None);
+        buf.writeln("type Future = ::askama_actix::futures::Ready<::std::result::Result<::actix_web::HttpResponse, Self::Error>>;");
+        buf.writeln("type Error = ::actix_web::Error;");
+        buf.writeln(
+            "fn respond_to(self, _req: &::actix_web::HttpRequest) \
+             -> Self::Future {",
+        );
+
+        buf.writeln("use ::askama_actix::TemplateIntoResponse;");
+        buf.writeln("::askama_actix::futures::ready(self.into_response())");
+
+        buf.writeln("}");
+        buf.writeln("}");
+    }
+
+    // Implement gotham's `IntoResponse`.
+    fn impl_gotham_into_response(&mut self, buf: &mut Buffer) {
+        self.write_header(buf, "::askama_gotham::IntoResponse", None);
+        buf.writeln(
+            "fn into_response(self, _state: &::askama_gotham::State)\
+             -> ::askama_gotham::Response<::askama_gotham::Body> {",
+        );
+        let ext = match self.input.path.extension() {
+            Some(s) => s.to_str().unwrap(),
+            None => "txt",
+        };
+        buf.writeln(&format!("::askama_gotham::respond(&self, {:?})", ext));
+        buf.writeln("}");
+        buf.writeln("}");
+    }
+
     // Implement iron's Modifier<Response> if enabled
-    fn impl_modifier_response(&mut self, buf: &mut Buffer) {
+    fn impl_iron_modifier_response(&mut self, buf: &mut Buffer) {
         self.write_header(
             buf,
             "::askama_iron::Modifier<::askama_iron::Response>",
@@ -254,53 +288,6 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("}");
     }
 
-    // Implement Actix-web's `Responder`.
-    fn impl_actix_web_responder(&mut self, buf: &mut Buffer) {
-        self.write_header(buf, "::actix_web::Responder", None);
-        buf.writeln("type Future = ::askama_actix::futures::Ready<::std::result::Result<::actix_web::HttpResponse, Self::Error>>;");
-        buf.writeln("type Error = ::actix_web::Error;");
-        buf.writeln(
-            "fn respond_to(self, _req: &::actix_web::HttpRequest) \
-             -> Self::Future {",
-        );
-
-        buf.writeln("use ::askama_actix::TemplateIntoResponse;");
-        buf.writeln("::askama_actix::futures::ready(self.into_response())");
-
-        buf.writeln("}");
-        buf.writeln("}");
-    }
-
-    // Implement gotham's `IntoResponse`.
-    fn impl_gotham_into_response(&mut self, buf: &mut Buffer) {
-        self.write_header(buf, "::askama_gotham::IntoResponse", None);
-        buf.writeln(
-            "fn into_response(self, _state: &::askama_gotham::State)\
-             -> ::askama_gotham::Response<::askama_gotham::Body> {",
-        );
-        let ext = match self.input.path.extension() {
-            Some(s) => s.to_str().unwrap(),
-            None => "txt",
-        };
-        buf.writeln(&format!("::askama_gotham::respond(&self, {:?})", ext));
-        buf.writeln("}");
-        buf.writeln("}");
-    }
-
-    fn impl_warp_reply(&mut self, buf: &mut Buffer) {
-        self.write_header(buf, "::askama_warp::warp::reply::Reply", None);
-        buf.writeln("fn into_response(self) -> ::askama_warp::warp::reply::Response {");
-        let ext = self
-            .input
-            .path
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("txt");
-        buf.writeln(&format!("::askama_warp::reply(&self, {:?})", ext));
-        buf.writeln("}");
-        buf.writeln("}");
-    }
-
     fn impl_tide_integrations(&mut self, buf: &mut Buffer) {
         let ext = self
             .input
@@ -325,6 +312,20 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("fn into(self) -> ::askama_tide::tide::Response {");
         buf.writeln(&format!("::askama_tide::into_response(&self, {:?})", ext));
         buf.writeln("}\n}");
+    }
+
+    fn impl_warp_reply(&mut self, buf: &mut Buffer) {
+        self.write_header(buf, "::askama_warp::warp::reply::Reply", None);
+        buf.writeln("fn into_response(self) -> ::askama_warp::warp::reply::Response {");
+        let ext = self
+            .input
+            .path
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("txt");
+        buf.writeln(&format!("::askama_warp::reply(&self, {:?})", ext));
+        buf.writeln("}");
+        buf.writeln("}");
     }
 
     // Writes header for the `impl` for `TraitFromPathName` or `Template`
