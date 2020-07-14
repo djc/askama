@@ -103,6 +103,20 @@ jobs:
           cargo test --package askama_warp --all-targets
           cargo clippy --package askama_warp --all-targets -- -D warnings
 
+  Tide:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: clippy
+      - run: |
+          cargo test --package askama_tide --all-targets
+          cargo clippy --package askama_tide --all-targets -- -D warnings
+
   Lint:
     runs-on: ubuntu-latest
     steps:
