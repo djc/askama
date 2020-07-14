@@ -933,6 +933,13 @@ This preserves the response chain if any custom error handling needs to occur.</
 trait for each template type. This makes it simple to return a template from
 a Warp filter. See <a href="https://github.com/djc/askama/blob/master/askama_warp/tests/warp.rs">the example</a>
 from the Askama test suite for more on how to integrate.</p>
+<h2><a class="header" href="#tide-integration" id="tide-integration">Tide integration</a></h2>
+<p>Enabling the <code>with-tide</code> feature appends <code>Into&lt;tide::Response&gt;</code> and
+<code>TryInto&lt;tide::Body&gt;</code> implementations for each template type. This
+provides the ability for tide apps to build a response directly from
+a template, or to append a templated body to an existing
+<code>Response</code>. See <a href="https://github.com/djc/askama/blob/master/askama_tide/tests/tide.rs">the example</a>
+from the Askama test suite for more on how to integrate.</p>
 
                     </main>
 
