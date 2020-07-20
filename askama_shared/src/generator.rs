@@ -826,10 +826,11 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             return 0;
         }
 
-        if self.buf_writable.iter().all(|w| match w {
-            Writable::Lit(_) => true,
-            _ => false,
-        }) {
+        if self
+            .buf_writable
+            .iter()
+            .all(|w| matches!(w, Writable::Lit(_)))
+        {
             let mut buf_lit = Buffer::new(0);
             for s in mem::replace(&mut self.buf_writable, vec![]) {
                 if let Writable::Lit(s) = s {
@@ -1083,13 +1084,11 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 buf.write("&");
             }
 
-            let scoped = match *arg {
+            let scoped = matches!(arg,
                 Expr::Filter(_, _)
                 | Expr::MethodCall(_, _, _)
                 | Expr::VarCall(_, _)
-                | Expr::PathCall(_, _) => true,
-                _ => false,
-            };
+                | Expr::PathCall(_, _));
 
             if scoped {
                 buf.writeln("{");
