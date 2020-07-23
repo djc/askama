@@ -1,8 +1,8 @@
 //! Module for built-in filter functions
 //!
 //! Contains all the built-in filter functions for use in templates.
-//! You can define your own filters; for more information,
-//! see the top-level crate documentation.
+//! You can define your own filters, as well.
+//! For more information, read the [book](https://djc.github.io/askama/filters.html).
 #![allow(clippy::trivially_copy_pass_by_ref)]
 
 use std::fmt;
