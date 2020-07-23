@@ -4,11 +4,13 @@ Values such as those obtained from variables can be post-processed
 using **filters**.
 Filters are applied to values using the pipe symbol (`|`) and may
 have optional extra arguments in parentheses.
+Note that the pipe symbol must not be surrounded by spaces;
+otherwise, it will be interpreted as the `BitOr` operator.
 Filters can be chained, in which case the output from one filter
 is passed to the next.
 
 ```
-{{"HELLO" | lower}}
+{{ "HELLO"|lower }}
 ```
 
 Askama has a collection of built-in filters, documented below, but can also include custom filters. Additionally, the `json` and `yaml` filters are included in the built-in filters,
@@ -21,7 +23,7 @@ but are disabled by default. Enable them with Cargo features (see below for more
 Capitalize a value. The first character will be uppercase, all others lowercase:
 
 ```
-{{ "hello" | capitalize}}
+{{ "hello"|capitalize }}
 ```
 
 Output:
@@ -35,7 +37,7 @@ Hello
 Centers the value in a field of a given width:
 
 ```
--{{ "a" | center(5)}}-
+-{{ "a"|center(5) }}-
 ```
 
 Output:
@@ -48,7 +50,7 @@ Output:
 Escapes html characters in strings:
 
 ```
-{{ "Escape <>&" | e}}
+{{ "Escape <>&"|e }}
 ```
 
 Output:
@@ -62,7 +64,7 @@ Escape &lt;&gt;&amp;
 Returns adequate string representation (in KB, ..) of number of bytes:
 
 ```
-{{ 1000 | filesizeformat }}
+{{ 1000|filesizeformat }}
 ```
 
 Output:
@@ -87,7 +89,7 @@ All arguments are passed through to the format!() macro by the Askama code gener
 Indent newlines with width spaces
 
 ```
-{{ "hello\nfoo\nbar" | indent(4) }}
+{{ "hello\nfoo\nbar"|indent(4) }}
 ```
 
 Output:
@@ -107,7 +109,7 @@ array = &["foo", "bar", "bazz"]
 ```
 
 ```
-{{ array | join(", ")}}
+{{ array|join(", ") }}
 ```
 
 Output:
@@ -123,7 +125,7 @@ Replaces line breaks in plain text with appropriate HTML
 A single newline becomes an HTML line break <br> and a new line followed by a blank line becomes a paragraph break <p>.
 
 ```
-{{ "hello\nworld\n\nfrom\naskama" | linebreaks }}
+{{ "hello\nworld\n\nfrom\naskama"|linebreaks }}
 ```
 
 Output:
@@ -137,7 +139,7 @@ Output:
 Converts all newlines in a piece of plain text to HTML line breaks
 
 ```
-{{ "hello\nworld\n\nfrom\naskama" | linebreaks }}
+{{ "hello\nworld\n\nfrom\naskama"|linebreaks }}
 ```
 
 Output:
@@ -151,7 +153,7 @@ hello<br />world<br /><br />from<br />askama
 Converts to lowercase
 
 ```
-{{ "HELLO" | lower }}
+{{ "HELLO"|lower }}
 ```
 
 Output:
@@ -165,7 +167,7 @@ hello
 Marks a string (or other Display type) as safe.  By default all strings are escaped according to the format
 
 ```
-{{ "<p>I'm Safe</p>" | safe}}
+{{ "<p>I'm Safe</p>"|safe }}
 ```
 
 Output:
@@ -179,7 +181,7 @@ Output:
 Strip leading and trailing whitespace
 
 ```
-{{ " hello " | trim}}
+{{ " hello "|trim }}
 ```
 
 Output:
@@ -194,7 +196,7 @@ Limit string length, appends '...' if truncated
 
 
 ```
-{{ "hello" | truncate(2) }}
+{{ "hello"|truncate(2) }}
 ```
 
 Output:
@@ -208,7 +210,7 @@ he...
 Converts to uppercase
 
 ```
-{{ "hello" | upper}}
+{{ "hello"|upper }}
 ```
 
 Output:
@@ -222,7 +224,7 @@ HELLO
 Count the words in that string
 
 ```
-{{ "askama is sort of cool" | wordcount}}
+{{ "askama is sort of cool"|wordcount }}
 ```
 
 ```
@@ -231,7 +233,7 @@ Count the words in that string
 
 ## Custom Filters
 
-To define your own filters, simply have a module named filters in scope of the context deriving a Template impl.
+To define your own filters, simply have a module named filters in scope of the context deriving a `Template` impl.
 
 Note that in case of name collision, the built in filters take precedence.
 
