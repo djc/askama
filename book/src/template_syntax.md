@@ -304,7 +304,7 @@ testing and reuse.
 ```rust
 use askama::Template;
 #[derive(Template)]
-#[template(source = "Section 1: {{ s1.render().unwrap() }}", ext = "txt")]
+#[template(source = "Section 1: {{ s1 }}", ext = "txt")]
 struct RenderInPlace<'a> {
    s1: SectionOne<'a>
 }
@@ -315,6 +315,7 @@ struct SectionOne<'a> {
    a: &'a str,
    b: &'a str,
 }
+
 let t = RenderInPlace { s1: SectionOne { a: "a", b: "b" } };
 assert_eq!(t.render().unwrap(), "Section 1: A=a\nB=b")
 ```
@@ -344,7 +345,7 @@ use askama::Template;
 #[derive(Template)]
 #[template(source = r#"
 //! {% for item in children %}
-   {{ item.render().unwrap() }}
+   {{ item }}
 {% endfor %}
 "#, ext = "html", escape = "none")]
 struct Item<'a> {

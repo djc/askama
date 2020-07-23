@@ -1,6 +1,6 @@
-Section 1: {{ s1.render().unwrap() }}
-Section 2: {{ s2.render().unwrap()|safe }}
+Section 1: {{ s1 }}
+Section 2: {{ s2|safe }}
 Section 3 for:
 {% for s in s3.as_slice() -%}
-* {{ s.render().unwrap() }}
+* {{ s }}
 {% endfor %}
