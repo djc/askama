@@ -17,6 +17,7 @@ proc-macro = true
 actix-web = []
 gotham = []
 iron = []
+mendes = []
 rocket = []
 tide = []
 warp = []

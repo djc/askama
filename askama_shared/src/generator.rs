@@ -104,6 +104,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         if self.integrations.iron {
             self.impl_iron_modifier_response(&mut buf);
         }
+        if self.integrations.mendes {
+            self.impl_mendes_responder(&mut buf);
+        }
         if self.integrations.rocket {
             self.impl_rocket_responder(&mut buf);
         }
@@ -260,6 +263,54 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             _ => (),
         };
 
+        buf.writeln("}");
+        buf.writeln("}");
+    }
+
+    // Implement mendes' `Responder`.
+    fn impl_mendes_responder(&mut self, buf: &mut Buffer) {
+        let param = syn::parse_str("A: ::mendes::Application").unwrap();
+
+        let mut generics = self.input.ast.generics.clone();
+        generics.params.push(param);
+        let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
+        let (impl_generics, _, where_clause) = generics.split_for_impl();
+
+        let mut where_clause = match where_clause {
+            Some(clause) => clause.clone(),
+            None => syn::WhereClause {
+                where_token: syn::Token![where](Span::call_site()),
+                predicates: syn::punctuated::Punctuated::new(),
+            },
+        };
+
+        where_clause
+            .predicates
+            .push(syn::parse_str("A::ResponseBody: From<String>").unwrap());
+        where_clause
+            .predicates
+            .push(syn::parse_str("A::Error: From<::mendes::askama::Error>").unwrap());
+
+        buf.writeln(
+            format!(
+                "{} {} for {} {} {{",
+                quote!(impl#impl_generics),
+                "::mendes::application::Responder<A>",
+                self.input.ast.ident,
+                quote!(#orig_ty_generics #where_clause),
+            )
+            .as_ref(),
+        );
+
+        buf.writeln(
+            "fn into_response(self, app: &A) \
+             -> ::mendes::http::Response<A::ResponseBody> {",
+        );
+
+        buf.writeln(&format!(
+            "::mendes::askama::into_response(app, &self, {:?})",
+            self.input.path.extension()
+        ));
         buf.writeln("}");
         buf.writeln("}");
     }

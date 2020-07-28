@@ -88,6 +88,7 @@ const INTEGRATIONS: Integrations = Integrations {
     actix: cfg!(feature = "actix-web"),
     gotham: cfg!(feature = "gotham"),
     iron: cfg!(feature = "iron"),
+    mendes: cfg!(feature = "mendes"),
     rocket: cfg!(feature = "rocket"),
     tide: cfg!(feature = "tide"),
     warp: cfg!(feature = "warp"),
