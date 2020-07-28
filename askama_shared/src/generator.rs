@@ -120,7 +120,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn impl_template(&mut self, ctx: &'a Context, buf: &mut Buffer) {
         self.write_header(buf, "::askama::Template", None);
         buf.writeln(
-            "fn render_into(&self, writer: &mut ::std::fmt::Write) -> \
+            "fn render_into(&self, writer: &mut dyn ::std::fmt::Write) -> \
              ::askama::Result<()> {",
         );
 
