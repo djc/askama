@@ -23,9 +23,9 @@ pub fn into_response<T: Template>(t: &T, ext: &str) -> Response {
             response
         }
 
-        Err(e) => {
+        Err(error) => {
             let mut response = Response::new(500);
-            response.set_body(e.to_string());
+            response.set_error(error);
             response
         }
     }
