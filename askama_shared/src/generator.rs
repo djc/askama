@@ -1482,7 +1482,7 @@ where
 }
 
 fn median(sizes: &mut [usize]) -> usize {
-    sizes.sort();
+    sizes.sort_unstable();
     if sizes.len() % 2 == 1 {
         sizes[sizes.len() / 2]
     } else {
