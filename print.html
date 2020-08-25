@@ -19,8 +19,12 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
 
+        
         <link rel="icon" href="favicon.svg">
+        
+        
         <link rel="shortcut icon" href="favicon.png">
+        
         <link rel="stylesheet" href="css/variables.css">
         <link rel="stylesheet" href="css/general.css">
         <link rel="stylesheet" href="css/chrome.css">
@@ -685,7 +689,7 @@ testing and reuse.</p>
 </span><span class="boring">fn main() {
 </span>use askama::Template;
 #[derive(Template)]
-#[template(source = &quot;Section 1: {{ s1.render().unwrap() }}&quot;, ext = &quot;txt&quot;)]
+#[template(source = &quot;Section 1: {{ s1 }}&quot;, ext = &quot;txt&quot;)]
 struct RenderInPlace&lt;'a&gt; {
    s1: SectionOne&lt;'a&gt;
 }
@@ -696,6 +700,7 @@ struct SectionOne&lt;'a&gt; {
    a: &amp;'a str,
    b: &amp;'a str,
 }
+
 let t = RenderInPlace { s1: SectionOne { a: &quot;a&quot;, b: &quot;b&quot; } };
 assert_eq!(t.render().unwrap(), &quot;Section 1: A=a\nB=b&quot;)
 <span class="boring">}
@@ -720,7 +725,7 @@ Including self does not work, see #105 and #220 .</p>
 #[derive(Template)]
 #[template(source = r#&quot;
 //! {% for item in children %}
-   {{ item.render().unwrap() }}
+   {{ item }}
 {% endfor %}
 &quot;#, ext = &quot;html&quot;, escape = &quot;none&quot;)]
 struct Item&lt;'a&gt; {
