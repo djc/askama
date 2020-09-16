@@ -51,6 +51,20 @@ fn filter_fmt() {
 }
 
 #[derive(Template)]
+#[template(
+    source = "{{ 1|into_f64 }} {{ 1.9|into_isize }}",
+    ext = "txt",
+    escape = "none"
+)]
+struct IntoNumbersTemplate;
+
+#[test]
+fn into_numbers_fmt() {
+    let t = IntoNumbersTemplate;
+    assert_eq!(t.render().unwrap(), "1 1");
+}
+
+#[derive(Template)]
 #[template(source = "{{ s|myfilter }}", ext = "txt")]
 struct MyFilterTemplate<'a> {
     s: &'a str,
