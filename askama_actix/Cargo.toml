@@ -16,7 +16,7 @@ edition = "2018"
 [dependencies]
 actix-web = { version = "3", default-features = false }
 askama = { version = "0.10", path = "../askama", features = ["with-actix-web", "mime", "mime_guess"] }
-bytes = { version = "0.5" }
+bytes = { version = "0.6" }
 futures-util = { version = "0.3" }
 
 [dev-dependencies]
