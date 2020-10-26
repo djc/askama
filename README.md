@@ -97,4 +97,4 @@ You should now be able to compile and run this code.
 
 Review the [test cases] for more examples.
 
-[test cases]: https://github.com/djc/askama/tree/master/testing
+[test cases]: https://github.com/djc/askama/tree/main/testing

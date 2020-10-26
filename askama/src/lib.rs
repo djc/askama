@@ -5,7 +5,7 @@
 //! in [`askama_derive`](https://crates.io/crates/askama_derive)).
 //!
 //! For feature highlights and a quick start, please review the
-//! [README](https://github.com/djc/askama/blob/master/README.md).
+//! [README](https://github.com/djc/askama/blob/main/README.md).
 //!
 //! The primary documentation for this crate now lives in
 //! [the book](https://djc.github.io/askama/).

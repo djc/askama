@@ -321,7 +321,7 @@ assert_eq!(t.render().unwrap(), "Section 1: A=a\nB=b")
 ```
 
 See the example
-[render in place](https://github.com/djc/askama/blob/master/testing/tests/render_in_place.rs)
+[render in place](https://github.com/djc/askama/blob/main/testing/tests/render_in_place.rs)
 using a vector of templates in a for block.
 
 ## Comments
