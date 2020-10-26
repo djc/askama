@@ -28,7 +28,9 @@
         <link rel="stylesheet" href="css/variables.css">
         <link rel="stylesheet" href="css/general.css">
         <link rel="stylesheet" href="css/chrome.css">
+        
         <link rel="stylesheet" href="css/print.css" media="print">
+        
 
         <!-- Fonts -->
         <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
@@ -130,9 +132,11 @@
                     <h1 class="menu-title">Askama</h1>
 
                     <div class="right-buttons">
+                        
                         <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
+                        
                         
                     </div>
                 </div>
@@ -706,7 +710,7 @@ assert_eq!(t.render().unwrap(), &quot;Section 1: A=a\nB=b&quot;)
 <span class="boring">}
 </span></code></pre></pre>
 <p>See the example
-<a href="https://github.com/djc/askama/blob/master/testing/tests/render_in_place.rs">render in place</a>
+<a href="https://github.com/djc/askama/blob/main/testing/tests/render_in_place.rs">render in place</a>
 using a vector of templates in a for block.</p>
 <h2><a class="header" href="#comments" id="comments">Comments</a></h2>
 <p>Askama supports block comments delimited by <code>{#</code> and <code>#}</code>.</p>
@@ -907,7 +911,7 @@ This will output formatted JSON for any value that implements the required
 <p>Enabling the <code>with-rocket</code> feature appends an implementation of Rocket's
 <code>Responder</code> trait for each template type. This makes it easy to trivially
 return a value of that type in a Rocket handler. See
-<a href="https://github.com/djc/askama/blob/master/askama_rocket/tests/basic.rs">the example</a>
+<a href="https://github.com/djc/askama/blob/main/askama_rocket/tests/basic.rs">the example</a>
 from the Askama test suite for more on how to integrate.</p>
 <p>In case a run-time error occurs during templating, a <code>500 Internal Server Error</code> <code>Status</code> value will be returned, so that this can be further
 handled by your error catcher.</p>
@@ -915,7 +919,7 @@ handled by your error catcher.</p>
 <p>Enabling the <code>with-iron</code> feature appends an implementation of Iron's
 <code>Modifier&lt;Response&gt;</code> trait for each template type. This makes it easy to
 trivially return a value of that type in an Iron handler. See
-<a href="https://github.com/djc/askama/blob/master/askama_iron/tests/basic.rs">the example</a>
+<a href="https://github.com/djc/askama/blob/main/askama_iron/tests/basic.rs">the example</a>
 from the Askama test suite for more on how to integrate.</p>
 <p>Note that Askama's generated <code>Modifier&lt;Response&gt;</code> implementation currently
 unwraps any run-time errors from the template. If you have a better
@@ -924,13 +928,13 @@ suggestion, please <a href="https://github.com/djc/askama/issues/new">file an is
 <p>Enabling the <code>with-actix-web</code> feature appends an implementation of Actix-web's
 <code>Responder</code> trait for each template type. This makes it easy to trivially return
 a value of that type in an Actix-web handler. See
-<a href="https://github.com/djc/askama/blob/master/askama_actix/tests/basic.rs">the example</a>
+<a href="https://github.com/djc/askama/blob/main/askama_actix/tests/basic.rs">the example</a>
 from the Askama test suite for more on how to integrate.</p>
 <h2><a class="header" href="#gotham-integration" id="gotham-integration">Gotham integration</a></h2>
 <p>Enabling the <code>with-gotham</code> feature appends an implementation of Gotham's
 <code>IntoResponse</code> trait for each template type. This makes it easy to trivially
 return a value of that type in a Gotham handler. See
-<a href="https://github.com/djc/askama/blob/master/askama_gotham/tests/basic.rs">the example</a>
+<a href="https://github.com/djc/askama/blob/main/askama_gotham/tests/basic.rs">the example</a>
 from the Askama test suite for more on how to integrate.</p>
 <p>In case of a run-time error occurring during templating, the response will be of the same
 signature, with a status code of <code>500 Internal Server Error</code>, mime <code>*/*</code>, and an empty <code>Body</code>.
@@ -938,14 +942,14 @@ This preserves the response chain if any custom error handling needs to occur.</
 <h2><a class="header" href="#warp-integration" id="warp-integration">Warp integration</a></h2>
 <p>Enabling the <code>with-warp</code> feature appends an implementation of Warp's <code>Reply</code>
 trait for each template type. This makes it simple to return a template from
-a Warp filter. See <a href="https://github.com/djc/askama/blob/master/askama_warp/tests/warp.rs">the example</a>
+a Warp filter. See <a href="https://github.com/djc/askama/blob/main/askama_warp/tests/warp.rs">the example</a>
 from the Askama test suite for more on how to integrate.</p>
 <h2><a class="header" href="#tide-integration" id="tide-integration">Tide integration</a></h2>
 <p>Enabling the <code>with-tide</code> feature appends <code>Into&lt;tide::Response&gt;</code> and
 <code>TryInto&lt;tide::Body&gt;</code> implementations for each template type. This
 provides the ability for tide apps to build a response directly from
 a template, or to append a templated body to an existing
-<code>Response</code>. See <a href="https://github.com/djc/askama/blob/master/askama_tide/tests/tide.rs">the example</a>
+<code>Response</code>. See <a href="https://github.com/djc/askama/blob/main/askama_tide/tests/tide.rs">the example</a>
 from the Askama test suite for more on how to integrate.</p>
 
                     </main>

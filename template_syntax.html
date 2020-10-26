@@ -26,7 +26,9 @@
         <link rel="stylesheet" href="css/variables.css">
         <link rel="stylesheet" href="css/general.css">
         <link rel="stylesheet" href="css/chrome.css">
+        
         <link rel="stylesheet" href="css/print.css" media="print">
+        
 
         <!-- Fonts -->
         <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
@@ -128,9 +130,11 @@
                     <h1 class="menu-title">Askama</h1>
 
                     <div class="right-buttons">
+                        
                         <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
+                        
                         
                     </div>
                 </div>
@@ -414,7 +418,7 @@ assert_eq!(t.render().unwrap(), &quot;Section 1: A=a\nB=b&quot;)
 <span class="boring">}
 </span></code></pre></pre>
 <p>See the example
-<a href="https://github.com/djc/askama/blob/master/testing/tests/render_in_place.rs">render in place</a>
+<a href="https://github.com/djc/askama/blob/main/testing/tests/render_in_place.rs">render in place</a>
 using a vector of templates in a for block.</p>
 <h2><a class="header" href="#comments" id="comments">Comments</a></h2>
 <p>Askama supports block comments delimited by <code>{#</code> and <code>#}</code>.</p>
