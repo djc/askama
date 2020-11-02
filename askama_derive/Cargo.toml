@@ -25,5 +25,4 @@ warp = []
 [dependencies]
 askama_shared = { version = "0.10.4", path = "../askama_shared", default-features = false }
 proc-macro2 = "1"
-quote = "1"
 syn = "1"
