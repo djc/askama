@@ -1,9 +1,9 @@
 #![cfg_attr(feature = "cargo-clippy", allow(unused_parens))]
 
 use std::collections::{BTreeMap, HashSet};
-use std::env;
-use std::fs;
+use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
+use std::{env, fmt, fs};
 
 #[cfg(feature = "serde")]
 use serde::Deserialize;
@@ -32,7 +32,7 @@ pub struct Config<'a> {
 }
 
 impl<'a> Config<'a> {
-    pub fn new(s: &str) -> Config<'_> {
+    pub fn new(s: &str) -> std::result::Result<Config<'_>, CompileError> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default_dirs = vec![root.join("templates")];
 
@@ -42,7 +42,7 @@ impl<'a> Config<'a> {
         let raw = if s.is_empty() {
             RawConfig::default()
         } else {
-            RawConfig::from_toml_str(s)
+            RawConfig::from_toml_str(s)?
         };
 
         let (dirs, default_syntax) = match raw.general {
@@ -63,16 +63,16 @@ impl<'a> Config<'a> {
                 let name = raw_s.name;
 
                 if syntaxes
-                    .insert(name.to_string(), Syntax::from(raw_s))
+                    .insert(name.to_string(), Syntax::try_from(raw_s)?)
                     .is_some()
                 {
-                    panic!("syntax \"{}\" is already defined", name)
+                    return Err(format!("syntax \"{}\" is already defined", name).into());
                 }
             }
         }
 
         if !syntaxes.contains_key(default_syntax) {
-            panic!("default syntax \"{}\" not found", default_syntax)
+            return Err(format!("default syntax \"{}\" not found", default_syntax).into());
         }
 
         let mut escapers = Vec::new();
@@ -92,33 +92,38 @@ impl<'a> Config<'a> {
             escapers.push((str_set(extensions), (*path).to_string()));
         }
 
-        Config {
+        Ok(Config {
             dirs,
             syntaxes,
             default_syntax,
             escapers,
-        }
+        })
     }
 
-    pub fn find_template(&self, path: &str, start_at: Option<&Path>) -> PathBuf {
+    pub fn find_template(
+        &self,
+        path: &str,
+        start_at: Option<&Path>,
+    ) -> std::result::Result<PathBuf, CompileError> {
         if let Some(root) = start_at {
             let relative = root.with_file_name(path);
             if relative.exists() {
-                return relative;
+                return Ok(relative);
             }
         }
 
         for dir in &self.dirs {
             let rooted = dir.join(path);
             if rooted.exists() {
-                return rooted;
+                return Ok(rooted);
             }
         }
 
-        panic!(
+        Err(format!(
             "template {:?} not found in directories {:?}",
             path, self.dirs
         )
+        .into())
     }
 }
 
@@ -145,8 +150,10 @@ impl<'a> Default for Syntax<'a> {
     }
 }
 
-impl<'a> From<RawSyntax<'a>> for Syntax<'a> {
-    fn from(raw: RawSyntax<'a>) -> Self {
+impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
+    type Error = CompileError;
+
+    fn try_from(raw: RawSyntax<'a>) -> std::result::Result<Self, Self::Error> {
         let default = Self::default();
         let syntax = Self {
             block_start: raw.block_start.unwrap_or(default.block_start),
@@ -164,7 +171,7 @@ impl<'a> From<RawSyntax<'a>> for Syntax<'a> {
             || syntax.comment_start.len() != 2
             || syntax.comment_end.len() != 2
         {
-            panic!("length of delimiters must be two")
+            return Err("length of delimiters must be two".into());
         }
 
         let bs = syntax.block_start.as_bytes()[0];
@@ -174,10 +181,10 @@ impl<'a> From<RawSyntax<'a>> for Syntax<'a> {
         let es = syntax.block_start.as_bytes()[0];
         let ee = syntax.block_start.as_bytes()[1];
         if !((bs == cs && bs == es) || (be == ce && be == ee)) {
-            panic!("bad delimiters block_start: {}, comment_start: {}, expr_start: {}, needs one of the two characters in common", syntax.block_start, syntax.comment_start, syntax.expr_start);
+            return Err(format!("bad delimiters block_start: {}, comment_start: {}, expr_start: {}, needs one of the two characters in common", syntax.block_start, syntax.comment_start, syntax.expr_start).into());
         }
 
-        syntax
+        Ok(syntax)
     }
 }
 
@@ -192,13 +199,15 @@ struct RawConfig<'d> {
 
 impl<'d> RawConfig<'d> {
     #[cfg(feature = "config")]
-    fn from_toml_str(s: &str) -> RawConfig<'_> {
-        toml::from_str(&s).unwrap_or_else(|_| panic!("invalid TOML in {}", CONFIG_FILE_NAME))
+    fn from_toml_str(s: &str) -> std::result::Result<RawConfig<'_>, CompileError> {
+        toml::from_str(&s).map_err(|e| {
+            CompileError::String(format!("invalid TOML in {}: {}", CONFIG_FILE_NAME, e))
+        })
     }
 
     #[cfg(not(feature = "config"))]
-    fn from_toml_str<'n>(_: &'n str) -> RawConfig<'n> {
-        panic!("toml support not available")
+    fn from_toml_str<'n>(_: &'n str) -> std::result::Result<RawConfig<'_>, CompileError> {
+        Err("TOML support not available".into())
     }
 }
 
@@ -226,14 +235,15 @@ struct RawEscaper<'a> {
     extensions: Vec<&'a str>,
 }
 
-pub fn read_config_file() -> String {
+pub fn read_config_file() -> std::result::Result<String, CompileError> {
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let filename = root.join(CONFIG_FILE_NAME);
     if filename.exists() {
-        fs::read_to_string(&filename)
-            .unwrap_or_else(|_| panic!("unable to read {}", filename.to_str().unwrap()))
+        fs::read_to_string(&filename).map_err(|_| {
+            CompileError::String(format!("unable to read {}", filename.to_str().unwrap()))
+        })
     } else {
-        "".to_string()
+        Ok("".to_string())
     }
 }
 
@@ -245,17 +255,17 @@ where
 }
 
 #[allow(clippy::match_wild_err_arm)]
-pub fn get_template_source(tpl_path: &Path) -> String {
+pub fn get_template_source(tpl_path: &Path) -> std::result::Result<String, CompileError> {
     match fs::read_to_string(tpl_path) {
-        Err(_) => panic!(
+        Err(_) => Err(CompileError::String(format!(
             "unable to open template file '{}'",
             tpl_path.to_str().unwrap()
-        ),
+        ))),
         Ok(mut source) => {
             if source.ends_with('\n') {
                 let _ = source.pop();
             }
-            source
+            Ok(source)
         }
     }
 }
@@ -279,6 +289,33 @@ static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
     (&["j2", "jinja", "jinja2"], "::askama::Html"),
 ];
 
+#[derive(Debug)]
+pub enum CompileError {
+    Static(&'static str),
+    String(String),
+}
+
+impl fmt::Display for CompileError {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CompileError::Static(s) => write!(fmt, "{}", s),
+            CompileError::String(s) => write!(fmt, "{}", s),
+        }
+    }
+}
+
+impl From<&'static str> for CompileError {
+    fn from(s: &'static str) -> Self {
+        CompileError::Static(s)
+    }
+}
+
+impl From<String> for CompileError {
+    fn from(s: String) -> Self {
+        CompileError::String(s)
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::blacklisted_name)]
 mod tests {
@@ -288,15 +325,17 @@ mod tests {
 
     #[test]
     fn get_source() {
-        let path = Config::new("").find_template("b.html", None);
-        assert_eq!(get_template_source(&path), "bar");
+        let path = Config::new("")
+            .and_then(|config| config.find_template("b.html", None))
+            .unwrap();
+        assert_eq!(get_template_source(&path).unwrap(), "bar");
     }
 
     #[test]
     fn test_default_config() {
         let mut root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         root.push("templates");
-        let config = Config::new("");
+        let config = Config::new("").unwrap();
         assert_eq!(config.dirs, vec![root]);
     }
 
@@ -305,7 +344,7 @@ mod tests {
     fn test_config_dirs() {
         let mut root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         root.push("tpl");
-        let config = Config::new("[general]\ndirs = [\"tpl\"]");
+        let config = Config::new("[general]\ndirs = [\"tpl\"]").unwrap();
         assert_eq!(config.dirs, vec![root]);
     }
 
@@ -319,33 +358,33 @@ mod tests {
 
     #[test]
     fn find_absolute() {
-        let config = Config::new("");
-        let root = config.find_template("a.html", None);
-        let path = config.find_template("sub/b.html", Some(&root));
+        let config = Config::new("").unwrap();
+        let root = config.find_template("a.html", None).unwrap();
+        let path = config.find_template("sub/b.html", Some(&root)).unwrap();
         assert_eq_rooted(&path, "sub/b.html");
     }
 
     #[test]
     #[should_panic]
     fn find_relative_nonexistent() {
-        let config = Config::new("");
-        let root = config.find_template("a.html", None);
-        config.find_template("c.html", Some(&root));
+        let config = Config::new("").unwrap();
+        let root = config.find_template("a.html", None).unwrap();
+        config.find_template("c.html", Some(&root)).unwrap();
     }
 
     #[test]
     fn find_relative() {
-        let config = Config::new("");
-        let root = config.find_template("sub/b.html", None);
-        let path = config.find_template("c.html", Some(&root));
+        let config = Config::new("").unwrap();
+        let root = config.find_template("sub/b.html", None).unwrap();
+        let path = config.find_template("c.html", Some(&root)).unwrap();
         assert_eq_rooted(&path, "sub/c.html");
     }
 
     #[test]
     fn find_relative_sub() {
-        let config = Config::new("");
-        let root = config.find_template("sub/b.html", None);
-        let path = config.find_template("sub1/d.html", Some(&root));
+        let config = Config::new("").unwrap();
+        let root = config.find_template("sub/b.html", None).unwrap();
+        let path = config.find_template("sub1/d.html", Some(&root)).unwrap();
         assert_eq_rooted(&path, "sub/sub1/d.html");
     }
 
@@ -366,7 +405,7 @@ mod tests {
         "#;
 
         let default_syntax = Syntax::default();
-        let config = Config::new(raw_config);
+        let config = Config::new(raw_config).unwrap();
         assert_eq!(config.default_syntax, "foo");
 
         let foo = config.syntaxes.get("foo").unwrap();
@@ -398,7 +437,7 @@ mod tests {
         "#;
 
         let default_syntax = Syntax::default();
-        let config = Config::new(raw_config);
+        let config = Config::new(raw_config).unwrap();
         assert_eq!(config.default_syntax, "foo");
 
         let foo = config.syntaxes.get("foo").unwrap();
@@ -426,7 +465,7 @@ mod tests {
         syntax = [{ name = "default" }]
         "#;
 
-        let _config = Config::new(raw_config);
+        let _config = Config::new(raw_config).unwrap();
     }
 
     #[cfg(feature = "toml")]
@@ -438,7 +477,7 @@ mod tests {
                   { name = "foo", block_start = "%%" } ]
         "#;
 
-        let _config = Config::new(raw_config);
+        let _config = Config::new(raw_config).unwrap();
     }
 
     #[cfg(feature = "toml")]
@@ -450,7 +489,7 @@ mod tests {
         default_syntax = "foo"
         "#;
 
-        let _config = Config::new(raw_config);
+        let _config = Config::new(raw_config).unwrap();
     }
 
     #[cfg(feature = "config")]
@@ -462,7 +501,8 @@ mod tests {
             path = "::askama::Js"
             extensions = ["js"]
         "#,
-        );
+        )
+        .unwrap();
         assert_eq!(
             config.escapers,
             vec![
