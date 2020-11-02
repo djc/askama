@@ -1,6 +1,7 @@
-use crate::{Config, Syntax};
+use crate::{CompileError, Config, Syntax};
 
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use quote::ToTokens;
 
@@ -21,7 +22,10 @@ impl<'a> TemplateInput<'a> {
     /// mostly recovers the data for the `TemplateInput` fields from the
     /// `template()` attribute list fields; it also finds the of the `_parent`
     /// field, if any.
-    pub fn new<'n>(ast: &'n syn::DeriveInput, config: &'n Config) -> TemplateInput<'n> {
+    pub fn new<'n>(
+        ast: &'n syn::DeriveInput,
+        config: &'n Config,
+    ) -> Result<TemplateInput<'n>, CompileError> {
         // Check that an attribute called `template()` exists and that it is
         // the proper type (list).
         let meta = ast
@@ -30,18 +34,18 @@ impl<'a> TemplateInput<'a> {
             .find_map(|attr| match attr.parse_meta() {
                 Ok(m) => {
                     if m.path().is_ident("template") {
-                        Some(m)
+                        Some(Ok(m))
                     } else {
                         None
                     }
                 }
-                Err(e) => panic!("unable to parse attribute: {}", e),
+                Err(e) => Some(Err(format!("unable to parse attribute: {}", e).into())),
             })
-            .expect("no attribute 'template' found");
+            .unwrap_or(Err(CompileError::Static("no attribute 'template' found")))?;
 
         let meta_list = match meta {
             syn::Meta::List(inner) => inner,
-            _ => panic!("attribute 'template' has incorrect type"),
+            _ => return Err("attribute 'template' has incorrect type".into()),
         };
 
         // Loop over the meta attributes and find everything that we
@@ -55,59 +59,63 @@ impl<'a> TemplateInput<'a> {
         for item in meta_list.nested {
             let pair = match item {
                 syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
-                _ => panic!(
-                    "unsupported attribute argument {:?}",
-                    item.to_token_stream()
-                ),
+                _ => {
+                    return Err(format!(
+                        "unsupported attribute argument {:?}",
+                        item.to_token_stream()
+                    )
+                    .into())
+                }
             };
 
             if pair.path.is_ident("path") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     if source.is_some() {
-                        panic!("must specify 'source' or 'path', not both");
+                        return Err("must specify 'source' or 'path', not both".into());
                     }
                     source = Some(Source::Path(s.value()));
                 } else {
-                    panic!("template path must be string literal");
+                    return Err("template path must be string literal".into());
                 }
             } else if pair.path.is_ident("source") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     if source.is_some() {
-                        panic!("must specify 'source' or 'path', not both");
+                        return Err("must specify 'source' or 'path', not both".into());
                     }
                     source = Some(Source::Source(s.value()));
                 } else {
-                    panic!("template source must be string literal");
+                    return Err("template source must be string literal".into());
                 }
             } else if pair.path.is_ident("print") {
                 if let syn::Lit::Str(ref s) = pair.lit {
-                    print = s.value().into();
+                    print = s.value().parse()?;
                 } else {
-                    panic!("print value must be string literal");
+                    return Err("print value must be string literal".into());
                 }
             } else if pair.path.is_ident("escape") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     escaping = Some(s.value());
                 } else {
-                    panic!("escape value must be string literal");
+                    return Err("escape value must be string literal".into());
                 }
             } else if pair.path.is_ident("ext") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     ext = Some(s.value());
                 } else {
-                    panic!("ext value must be string literal");
+                    return Err("ext value must be string literal".into());
                 }
             } else if pair.path.is_ident("syntax") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     syntax = Some(s.value())
                 } else {
-                    panic!("syntax value must be string literal");
+                    return Err("syntax value must be string literal".into());
                 }
             } else {
-                panic!(
+                return Err(format!(
                     "unsupported attribute key '{}' found",
                     pair.path.to_token_stream()
                 )
+                .into());
             }
         }
 
@@ -116,13 +124,13 @@ impl<'a> TemplateInput<'a> {
         // of `ext` is merged into a synthetic `path` value here.
         let source = source.expect("template path or source not found in attributes");
         let path = match (&source, &ext) {
-            (&Source::Path(ref path), None) => config.find_template(path, None),
+            (&Source::Path(ref path), None) => config.find_template(path, None)?,
             (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
             (&Source::Path(_), Some(_)) => {
-                panic!("'ext' attribute cannot be used with 'path' attribute")
+                return Err("'ext' attribute cannot be used with 'path' attribute".into())
             }
             (&Source::Source(_), None) => {
-                panic!("must include 'ext' attribute when using 'source' attribute")
+                return Err("must include 'ext' attribute when using 'source' attribute".into())
             }
         };
 
@@ -149,14 +157,13 @@ impl<'a> TemplateInput<'a> {
 
         // Validate syntax
         let syntax = syntax.map_or_else(
-            || config.syntaxes.get(config.default_syntax).unwrap(),
+            || Ok(config.syntaxes.get(config.default_syntax).unwrap()),
             |s| {
-                config
-                    .syntaxes
-                    .get(&s)
-                    .unwrap_or_else(|| panic!("attribute syntax {} not exist", s))
+                config.syntaxes.get(&s).ok_or_else(|| {
+                    CompileError::String(format!("attribute syntax {} not exist", s))
+                })
             },
-        );
+        )?;
 
         // Match extension against defined output formats
 
@@ -175,11 +182,11 @@ impl<'a> TemplateInput<'a> {
             }
         }
 
-        let escaper = escaper.unwrap_or_else(|| {
-            panic!("no escaper defined for extension '{}'", extension);
-        });
+        let escaper = escaper.ok_or_else(|| {
+            CompileError::String(format!("no escaper defined for extension '{}'", extension,))
+        })?;
 
-        TemplateInput {
+        Ok(TemplateInput {
             ast,
             config,
             source,
@@ -189,7 +196,7 @@ impl<'a> TemplateInput<'a> {
             parent,
             path,
             syntax,
-        }
+        })
     }
 }
 
@@ -206,15 +213,17 @@ pub enum Print {
     None,
 }
 
-impl From<String> for Print {
-    fn from(s: String) -> Print {
+impl FromStr for Print {
+    type Err = CompileError;
+
+    fn from_str(s: &str) -> Result<Print, Self::Err> {
         use self::Print::*;
-        match s.as_ref() {
+        Ok(match s {
             "all" => All,
             "ast" => Ast,
             "code" => Code,
             "none" => None,
-            v => panic!("invalid value for print option: {}", v),
-        }
+            v => return Err(format!("invalid value for print option: {}", v,).into()),
+        })
     }
 }

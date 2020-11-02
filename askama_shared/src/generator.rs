@@ -1,4 +1,4 @@
-use super::{get_template_source, Integrations};
+use super::{get_template_source, CompileError, Integrations};
 use crate::filters;
 use crate::heritage::{Context, Heritage};
 use crate::input::{Source, TemplateInput};
@@ -19,7 +19,7 @@ pub fn generate<S: std::hash::BuildHasher>(
     contexts: &HashMap<&PathBuf, Context, S>,
     heritage: &Option<Heritage>,
     integrations: Integrations,
-) -> String {
+) -> Result<String, CompileError> {
     Generator::new(input, contexts, heritage, integrations, SetChain::new())
         .build(&contexts[&input.path])
 }
@@ -84,48 +84,48 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Takes a Context and generates the relevant implementations.
-    fn build(mut self, ctx: &'a Context) -> String {
+    fn build(mut self, ctx: &'a Context) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
         if !ctx.blocks.is_empty() {
             if let Some(parent) = self.input.parent {
-                self.deref_to_parent(&mut buf, parent);
+                self.deref_to_parent(&mut buf, parent)?;
             }
         };
 
-        self.impl_template(ctx, &mut buf);
-        self.impl_display(&mut buf);
+        self.impl_template(ctx, &mut buf)?;
+        self.impl_display(&mut buf)?;
 
         if self.integrations.actix {
-            self.impl_actix_web_responder(&mut buf);
+            self.impl_actix_web_responder(&mut buf)?;
         }
         if self.integrations.gotham {
-            self.impl_gotham_into_response(&mut buf);
+            self.impl_gotham_into_response(&mut buf)?;
         }
         if self.integrations.iron {
-            self.impl_iron_modifier_response(&mut buf);
+            self.impl_iron_modifier_response(&mut buf)?;
         }
         if self.integrations.mendes {
-            self.impl_mendes_responder(&mut buf);
+            self.impl_mendes_responder(&mut buf)?;
         }
         if self.integrations.rocket {
-            self.impl_rocket_responder(&mut buf);
+            self.impl_rocket_responder(&mut buf)?;
         }
         if self.integrations.tide {
-            self.impl_tide_integrations(&mut buf);
+            self.impl_tide_integrations(&mut buf)?;
         }
         if self.integrations.warp {
-            self.impl_warp_reply(&mut buf);
+            self.impl_warp_reply(&mut buf)?;
         }
-        buf.buf
+        Ok(buf.buf)
     }
 
     // Implement `Template` for the given context struct.
-    fn impl_template(&mut self, ctx: &'a Context, buf: &mut Buffer) {
-        self.write_header(buf, "::askama::Template", None);
+    fn impl_template(&mut self, ctx: &'a Context, buf: &mut Buffer) -> Result<(), CompileError> {
+        self.write_header(buf, "::askama::Template", None)?;
         buf.writeln(
             "fn render_into(&self, writer: &mut dyn ::std::fmt::Write) -> \
              ::askama::Result<()> {",
-        );
+        )?;
 
         // Make sure the compiler understands that the generated code depends on the template files.
         for path in self.contexts.keys() {
@@ -141,7 +141,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                         include_bytes!(#path);
                     }
                     .to_string(),
-                );
+                )?;
             }
         }
 
@@ -149,107 +149,112 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             self.handle(heritage.root, heritage.root.nodes, buf, AstLevel::Top)
         } else {
             self.handle(ctx, &ctx.nodes, buf, AstLevel::Top)
-        };
+        }?;
 
         self.flush_ws(WS(false, false));
-        buf.writeln("Ok(())");
-        buf.writeln("}");
+        buf.writeln("Ok(())")?;
+        buf.writeln("}")?;
 
-        buf.writeln("fn extension(&self) -> Option<&'static str> {");
+        buf.writeln("fn extension(&self) -> Option<&'static str> {")?;
         buf.writeln(&format!(
             "{:?}",
             self.input.path.extension().map(|s| s.to_str().unwrap())
-        ));
-        buf.writeln("}");
+        ))?;
+        buf.writeln("}")?;
 
-        buf.writeln("fn size_hint(&self) -> usize {");
-        buf.writeln(&format!("{}", size_hint));
-        buf.writeln("}");
+        buf.writeln("fn size_hint(&self) -> usize {")?;
+        buf.writeln(&format!("{}", size_hint))?;
+        buf.writeln("}")?;
 
-        buf.writeln("}");
+        buf.writeln("}")?;
 
-        self.write_header(buf, "::askama::SizedTemplate", None);
+        self.write_header(buf, "::askama::SizedTemplate", None)?;
 
-        buf.writeln("fn size_hint() -> usize {");
-        buf.writeln(&format!("{}", size_hint));
-        buf.writeln("}");
+        buf.writeln("fn size_hint() -> usize {")?;
+        buf.writeln(&format!("{}", size_hint))?;
+        buf.writeln("}")?;
 
-        buf.writeln("fn extension() -> Option<&'static str> {");
+        buf.writeln("fn extension() -> Option<&'static str> {")?;
         buf.writeln(&format!(
             "{:?}",
             self.input.path.extension().map(|s| s.to_str().unwrap())
-        ));
-        buf.writeln("}");
+        ))?;
+        buf.writeln("}")?;
 
-        buf.writeln("}");
+        buf.writeln("}")?;
+        Ok(())
     }
 
     // Implement `Deref<Parent>` for an inheriting context struct.
-    fn deref_to_parent(&mut self, buf: &mut Buffer, parent_type: &syn::Type) {
-        self.write_header(buf, "::std::ops::Deref", None);
+    fn deref_to_parent(
+        &mut self,
+        buf: &mut Buffer,
+        parent_type: &syn::Type,
+    ) -> Result<(), CompileError> {
+        self.write_header(buf, "::std::ops::Deref", None)?;
         buf.writeln(&format!(
             "type Target = {};",
             parent_type.into_token_stream()
-        ));
-        buf.writeln("fn deref(&self) -> &Self::Target {");
-        buf.writeln("&self._parent");
-        buf.writeln("}");
-        buf.writeln("}");
+        ))?;
+        buf.writeln("fn deref(&self) -> &Self::Target {")?;
+        buf.writeln("&self._parent")?;
+        buf.writeln("}")?;
+        buf.writeln("}")
     }
 
     // Implement `Display` for the given context struct.
-    fn impl_display(&mut self, buf: &mut Buffer) {
-        self.write_header(buf, "::std::fmt::Display", None);
-        buf.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {");
-        buf.writeln("::askama::Template::render_into(self, f).map_err(|_| ::std::fmt::Error {})");
-        buf.writeln("}");
-        buf.writeln("}");
+    fn impl_display(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+        self.write_header(buf, "::std::fmt::Display", None)?;
+        buf.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {")?;
+        buf.writeln("::askama::Template::render_into(self, f).map_err(|_| ::std::fmt::Error {})")?;
+        buf.writeln("}")?;
+        buf.writeln("}")
     }
 
     // Implement Actix-web's `Responder`.
-    fn impl_actix_web_responder(&mut self, buf: &mut Buffer) {
-        self.write_header(buf, "::actix_web::Responder", None);
-        buf.writeln("type Future = ::askama_actix::futures::Ready<::std::result::Result<::actix_web::HttpResponse, Self::Error>>;");
-        buf.writeln("type Error = ::actix_web::Error;");
+    fn impl_actix_web_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+        self.write_header(buf, "::actix_web::Responder", None)?;
+        buf.writeln("type Future = ::askama_actix::futures::Ready<::std::result::Result<::actix_web::HttpResponse, Self::Error>>;")?;
+        buf.writeln("type Error = ::actix_web::Error;")?;
         buf.writeln(
             "fn respond_to(self, _req: &::actix_web::HttpRequest) \
              -> Self::Future {",
-        );
+        )?;
 
-        buf.writeln("use ::askama_actix::TemplateIntoResponse;");
-        buf.writeln("::askama_actix::futures::ready(self.into_response())");
+        buf.writeln("use ::askama_actix::TemplateIntoResponse;")?;
+        buf.writeln("::askama_actix::futures::ready(self.into_response())")?;
 
-        buf.writeln("}");
-        buf.writeln("}");
+        buf.writeln("}")?;
+        buf.writeln("}")
     }
 
     // Implement gotham's `IntoResponse`.
-    fn impl_gotham_into_response(&mut self, buf: &mut Buffer) {
-        self.write_header(buf, "::askama_gotham::IntoResponse", None);
+    fn impl_gotham_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+        self.write_header(buf, "::askama_gotham::IntoResponse", None)?;
         buf.writeln(
             "fn into_response(self, _state: &::askama_gotham::State)\
              -> ::askama_gotham::Response<::askama_gotham::Body> {",
-        );
+        )?;
         let ext = match self.input.path.extension() {
             Some(s) => s.to_str().unwrap(),
             None => "txt",
         };
-        buf.writeln(&format!("::askama_gotham::respond(&self, {:?})", ext));
-        buf.writeln("}");
-        buf.writeln("}");
+        buf.writeln(&format!("::askama_gotham::respond(&self, {:?})", ext))?;
+        buf.writeln("}")?;
+        buf.writeln("}")
     }
 
     // Implement iron's Modifier<Response> if enabled
-    fn impl_iron_modifier_response(&mut self, buf: &mut Buffer) {
+    fn impl_iron_modifier_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(
             buf,
             "::askama_iron::Modifier<::askama_iron::Response>",
             None,
-        );
-        buf.writeln("fn modify(self, res: &mut ::askama_iron::Response) {");
+        )?;
+        buf.writeln("fn modify(self, res: &mut ::askama_iron::Response) {")?;
         buf.writeln(
             "res.body = Some(Box::new(::askama_iron::Template::render(&self).unwrap().into_bytes()));",
-        );
+        )?;
 
         let ext = self
             .input
@@ -258,17 +263,17 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             .map_or("", |s| s.to_str().unwrap_or(""));
         match ext {
             "html" | "htm" => {
-                buf.writeln("::askama_iron::ContentType::html().0.modify(res);");
+                buf.writeln("::askama_iron::ContentType::html().0.modify(res);")?;
             }
             _ => (),
         };
 
-        buf.writeln("}");
-        buf.writeln("}");
+        buf.writeln("}")?;
+        buf.writeln("}")
     }
 
     // Implement mendes' `Responder`.
-    fn impl_mendes_responder(&mut self, buf: &mut Buffer) {
+    fn impl_mendes_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         let param = syn::parse_str("A: ::mendes::Application").unwrap();
 
         let mut generics = self.input.ast.generics.clone();
@@ -300,46 +305,48 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 quote!(#orig_ty_generics #where_clause),
             )
             .as_ref(),
-        );
+        )?;
 
         buf.writeln(
             "fn into_response(self, app: &A) \
              -> ::mendes::http::Response<A::ResponseBody> {",
-        );
+        )?;
 
         buf.writeln(&format!(
             "::mendes::askama::into_response(app, &self, {:?})",
             self.input.path.extension()
-        ));
-        buf.writeln("}");
-        buf.writeln("}");
+        ))?;
+        buf.writeln("}")?;
+        buf.writeln("}")?;
+        Ok(())
     }
 
     // Implement Rocket's `Responder`.
-    fn impl_rocket_responder(&mut self, buf: &mut Buffer) {
+    fn impl_rocket_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         let lifetime = syn::Lifetime::new("'askama", Span::call_site());
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
         self.write_header(
             buf,
             "::askama_rocket::Responder<'askama>",
             Some(vec![param]),
-        );
+        )?;
         buf.writeln(
             "fn respond_to(self, _: &::askama_rocket::Request) \
              -> ::askama_rocket::Result<'askama> {",
-        );
+        )?;
 
         let ext = match self.input.path.extension() {
             Some(s) => s.to_str().unwrap(),
             None => "txt",
         };
-        buf.writeln(&format!("::askama_rocket::respond(&self, {:?})", ext));
+        buf.writeln(&format!("::askama_rocket::respond(&self, {:?})", ext))?;
 
-        buf.writeln("}");
-        buf.writeln("}");
+        buf.writeln("}")?;
+        buf.writeln("}")?;
+        Ok(())
     }
 
-    fn impl_tide_integrations(&mut self, buf: &mut Buffer) {
+    fn impl_tide_integrations(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         let ext = self
             .input
             .path
@@ -351,32 +358,32 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             buf,
             "std::convert::TryInto<::askama_tide::tide::Body>",
             None,
-        );
+        )?;
         buf.writeln(
             "type Error = ::askama_tide::askama::Error;\n\
             fn try_into(self) -> ::askama_tide::askama::Result<::askama_tide::tide::Body> {",
-        );
-        buf.writeln(&format!("::askama_tide::try_into_body(&self, {:?})", &ext));
-        buf.writeln("}");
-        buf.writeln("}");
-        self.write_header(buf, "Into<::askama_tide::tide::Response>", None);
-        buf.writeln("fn into(self) -> ::askama_tide::tide::Response {");
-        buf.writeln(&format!("::askama_tide::into_response(&self, {:?})", ext));
-        buf.writeln("}\n}");
+        )?;
+        buf.writeln(&format!("::askama_tide::try_into_body(&self, {:?})", &ext))?;
+        buf.writeln("}")?;
+        buf.writeln("}")?;
+        self.write_header(buf, "Into<::askama_tide::tide::Response>", None)?;
+        buf.writeln("fn into(self) -> ::askama_tide::tide::Response {")?;
+        buf.writeln(&format!("::askama_tide::into_response(&self, {:?})", ext))?;
+        buf.writeln("}\n}")
     }
 
-    fn impl_warp_reply(&mut self, buf: &mut Buffer) {
-        self.write_header(buf, "::askama_warp::warp::reply::Reply", None);
-        buf.writeln("fn into_response(self) -> ::askama_warp::warp::reply::Response {");
+    fn impl_warp_reply(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+        self.write_header(buf, "::askama_warp::warp::reply::Reply", None)?;
+        buf.writeln("fn into_response(self) -> ::askama_warp::warp::reply::Response {")?;
         let ext = self
             .input
             .path
             .extension()
             .and_then(|s| s.to_str())
             .unwrap_or("txt");
-        buf.writeln(&format!("::askama_warp::reply(&self, {:?})", ext));
-        buf.writeln("}");
-        buf.writeln("}");
+        buf.writeln(&format!("::askama_warp::reply(&self, {:?})", ext))?;
+        buf.writeln("}")?;
+        buf.writeln("}")
     }
 
     // Writes header for the `impl` for `TraitFromPathName` or `Template`
@@ -386,7 +393,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         target: &str,
         params: Option<Vec<syn::GenericParam>>,
-    ) {
+    ) -> Result<(), CompileError> {
         let mut generics = self.input.ast.generics.clone();
         if let Some(params) = params {
             for param in params {
@@ -404,7 +411,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 quote!(#orig_ty_generics #where_clause),
             )
             .as_ref(),
-        );
+        )
     }
 
     /* Helper methods for handling node types */
@@ -415,7 +422,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         nodes: &'a [Node],
         buf: &mut Buffer,
         level: AstLevel,
-    ) -> usize {
+    ) -> Result<usize, CompileError> {
         let mut size_hint = 0;
         for n in nodes {
             match *n {
@@ -429,32 +436,32 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     self.write_expr(ws, val);
                 }
                 Node::LetDecl(ws, ref var) => {
-                    self.write_let_decl(buf, ws, var);
+                    self.write_let_decl(buf, ws, var)?;
                 }
                 Node::Let(ws, ref var, ref val) => {
-                    self.write_let(buf, ws, var, val);
+                    self.write_let(buf, ws, var, val)?;
                 }
                 Node::Cond(ref conds, ws) => {
-                    self.write_cond(ctx, buf, conds, ws);
+                    self.write_cond(ctx, buf, conds, ws)?;
                 }
                 Node::Match(ws1, ref expr, inter, ref arms, ws2) => {
-                    self.write_match(ctx, buf, ws1, expr, inter, arms, ws2);
+                    self.write_match(ctx, buf, ws1, expr, inter, arms, ws2)?;
                 }
                 Node::Loop(ws1, ref var, ref iter, ref body, ws2) => {
-                    self.write_loop(ctx, buf, ws1, var, iter, body, ws2);
+                    self.write_loop(ctx, buf, ws1, var, iter, body, ws2)?;
                 }
                 Node::BlockDef(ws1, name, _, ws2) => {
-                    self.write_block(buf, Some(name), WS(ws1.0, ws2.1));
+                    self.write_block(buf, Some(name), WS(ws1.0, ws2.1))?;
                 }
                 Node::Include(ws, path) => {
-                    size_hint += self.handle_include(ctx, buf, ws, path);
+                    size_hint += self.handle_include(ctx, buf, ws, path)?;
                 }
                 Node::Call(ws, scope, name, ref args) => {
-                    size_hint += self.write_call(ctx, buf, ws, scope, name, args);
+                    size_hint += self.write_call(ctx, buf, ws, scope, name, args)?;
                 }
                 Node::Macro(_, ref m) => {
                     if level != AstLevel::Top {
-                        panic!("macro blocks only allowed at the top level");
+                        return Err("macro blocks only allowed at the top level".into());
                     }
                     self.flush_ws(m.ws1);
                     self.prepare_ws(m.ws2);
@@ -466,13 +473,13 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 }
                 Node::Import(ws, _, _) => {
                     if level != AstLevel::Top {
-                        panic!("import blocks only allowed at the top level");
+                        return Err("import blocks only allowed at the top level".into());
                     }
                     self.handle_ws(ws);
                 }
                 Node::Extends(_) => {
                     if level != AstLevel::Top {
-                        panic!("extend blocks only allowed at the top level");
+                        return Err("extend blocks only allowed at the top level".into());
                     }
                     // No whitespace handling: child template top-level is not used,
                     // except for the blocks defined in it.
@@ -481,9 +488,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         }
 
         if AstLevel::Top == level {
-            size_hint += self.write_buf_writable(buf);
+            size_hint += self.write_buf_writable(buf)?;
         }
-        size_hint
+        Ok(size_hint)
     }
 
     fn write_cond(
@@ -492,14 +499,14 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         conds: &'a [Cond],
         ws: WS,
-    ) -> usize {
+    ) -> Result<usize, CompileError> {
         let mut flushed = 0;
         let mut arm_sizes = Vec::new();
         let mut has_else = false;
         for (i, &(cws, ref cond, ref nodes)) in conds.iter().enumerate() {
             self.handle_ws(cws);
             if arm_sizes.is_empty() {
-                flushed += self.write_buf_writable(buf);
+                flushed += self.write_buf_writable(buf)?;
             }
 
             let mut arm_size = 0;
@@ -508,35 +515,35 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     if i == 0 {
                         buf.write("if ");
                     } else {
-                        buf.dedent();
+                        buf.dedent()?;
                         buf.write("} else if ");
                     }
-                    let expr_code = self.visit_expr_root(expr);
+                    let expr_code = self.visit_expr_root(expr)?;
                     buf.write(&expr_code);
                 }
                 None => {
-                    buf.dedent();
+                    buf.dedent()?;
                     buf.write("} else");
                     has_else = true;
                 }
             }
 
-            buf.writeln(" {");
+            buf.writeln(" {")?;
             self.locals.push();
 
-            arm_size += self.handle(ctx, nodes, buf, AstLevel::Nested);
-            arm_size += self.write_buf_writable(buf);
+            arm_size += self.handle(ctx, nodes, buf, AstLevel::Nested)?;
+            arm_size += self.write_buf_writable(buf)?;
             arm_sizes.push(arm_size);
 
             self.locals.pop();
         }
         self.handle_ws(ws);
-        buf.writeln("}");
+        buf.writeln("}")?;
 
         if !has_else {
             arm_sizes.push(0);
         }
-        flushed + median(&mut arm_sizes)
+        Ok(flushed + median(&mut arm_sizes))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -549,9 +556,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         inter: Option<&'a str>,
         arms: &'a [When],
         ws2: WS,
-    ) -> usize {
+    ) -> Result<usize, CompileError> {
         self.flush_ws(ws1);
-        let flushed = self.write_buf_writable(buf);
+        let flushed = self.write_buf_writable(buf)?;
         let mut arm_sizes = Vec::new();
         if let Some(inter) = inter {
             if !inter.is_empty() {
@@ -559,8 +566,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
         }
 
-        let expr_code = self.visit_expr_root(expr);
-        buf.writeln(&format!("match &{} {{", expr_code));
+        let expr_code = self.visit_expr_root(expr)?;
+        buf.writeln(&format!("match &{} {{", expr_code))?;
         for arm in arms {
             let &(ws, ref variant, ref params, ref body) = arm;
             self.locals.push();
@@ -608,17 +615,17 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     buf.write("}");
                 }
             }
-            buf.writeln(" => {");
+            buf.writeln(" => {")?;
             self.handle_ws(ws);
-            let arm_size = self.handle(ctx, body, buf, AstLevel::Nested);
-            arm_sizes.push(arm_size + self.write_buf_writable(buf));
-            buf.writeln("}");
+            let arm_size = self.handle(ctx, body, buf, AstLevel::Nested)?;
+            arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
+            buf.writeln("}")?;
             self.locals.pop();
         }
 
-        buf.writeln("}");
+        buf.writeln("}")?;
         self.handle_ws(ws2);
-        flushed + median(&mut arm_sizes)
+        Ok(flushed + median(&mut arm_sizes))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -631,13 +638,13 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         iter: &Expr,
         body: &'a [Node],
         ws2: WS,
-    ) -> usize {
+    ) -> Result<usize, CompileError> {
         self.handle_ws(ws1);
         self.locals.push();
 
-        let expr_code = self.visit_expr_root(iter);
+        let expr_code = self.visit_expr_root(iter)?;
 
-        let flushed = self.write_buf_writable(buf);
+        let flushed = self.write_buf_writable(buf)?;
         buf.write("for (");
         self.visit_target(buf, var);
         match iter {
@@ -649,15 +656,15 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 ", _loop_item) in ::askama::helpers::TemplateLoop::new((&{}).into_iter()) {{",
                 expr_code
             )),
-        };
+        }?;
 
-        let mut size_hint = self.handle(ctx, body, buf, AstLevel::Nested);
+        let mut size_hint = self.handle(ctx, body, buf, AstLevel::Nested)?;
         self.handle_ws(ws2);
 
-        size_hint += self.write_buf_writable(buf);
-        buf.writeln("}");
+        size_hint += self.write_buf_writable(buf)?;
+        buf.writeln("}")?;
         self.locals.pop();
-        flushed + (size_hint * 3)
+        Ok(flushed + (size_hint * 3))
     }
 
     fn write_call(
@@ -668,69 +675,72 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         scope: Option<&str>,
         name: &str,
         args: &[Expr],
-    ) -> usize {
+    ) -> Result<usize, CompileError> {
         if name == "super" {
             return self.write_block(buf, None, ws);
         }
 
         let (def, own_ctx) = if let Some(s) = scope {
-            let path = ctx
-                .imports
-                .get(s)
-                .unwrap_or_else(|| panic!("no import found for scope '{}'", s));
-            let mctx = self
-                .contexts
-                .get(path)
-                .unwrap_or_else(|| panic!("context for '{:?}' not found", path));
+            let path = ctx.imports.get(s).ok_or_else(|| {
+                CompileError::String(format!("no import found for scope '{}'", s))
+            })?;
+            let mctx = self.contexts.get(path).ok_or_else(|| {
+                CompileError::String(format!("context for '{:?}' not found", path))
+            })?;
             (
-                mctx.macros
-                    .get(name)
-                    .unwrap_or_else(|| panic!("macro '{}' not found in scope '{}'", s, name)),
+                mctx.macros.get(name).ok_or_else(|| {
+                    CompileError::String(format!("macro '{}' not found in scope '{}'", s, name))
+                })?,
                 mctx,
             )
         } else {
             (
                 ctx.macros
                     .get(name)
-                    .unwrap_or_else(|| panic!("macro '{}' not found", name)),
+                    .ok_or_else(|| CompileError::String(format!("macro '{}' not found", name)))?,
                 ctx,
             )
         };
 
         self.flush_ws(ws); // Cannot handle_ws() here: whitespace from macro definition comes first
         self.locals.push();
-        self.write_buf_writable(buf);
-        buf.writeln("{");
+        self.write_buf_writable(buf)?;
+        buf.writeln("{")?;
         self.prepare_ws(def.ws1);
 
         for (i, arg) in def.args.iter().enumerate() {
-            let expr_code = self.visit_expr_root(
-                args.get(i)
-                    .unwrap_or_else(|| panic!("macro '{}' takes more than {} arguments", name, i)),
-            );
-            buf.writeln(&format!("let {} = &{};", arg, expr_code));
+            let expr_code = self.visit_expr_root(args.get(i).ok_or_else(|| {
+                CompileError::String(format!("macro '{}' takes more than {} arguments", name, i))
+            })?)?;
+            buf.writeln(&format!("let {} = &{};", arg, expr_code))?;
             self.locals.insert(arg);
         }
 
-        let mut size_hint = self.handle(own_ctx, &def.nodes, buf, AstLevel::Nested);
+        let mut size_hint = self.handle(own_ctx, &def.nodes, buf, AstLevel::Nested)?;
 
         self.flush_ws(def.ws2);
-        size_hint += self.write_buf_writable(buf);
-        buf.writeln("}");
+        size_hint += self.write_buf_writable(buf)?;
+        buf.writeln("}")?;
         self.locals.pop();
         self.prepare_ws(ws);
-        size_hint
+        Ok(size_hint)
     }
 
-    fn handle_include(&mut self, ctx: &'a Context, buf: &mut Buffer, ws: WS, path: &str) -> usize {
+    fn handle_include(
+        &mut self,
+        ctx: &'a Context,
+        buf: &mut Buffer,
+        ws: WS,
+        path: &str,
+    ) -> Result<usize, CompileError> {
         self.flush_ws(ws);
-        self.write_buf_writable(buf);
+        self.write_buf_writable(buf)?;
         let path = self
             .input
             .config
-            .find_template(path, Some(&self.input.path));
-        let src = get_template_source(&path);
-        let nodes = parse(&src, self.input.syntax);
+            .find_template(path, Some(&self.input.path))?;
+        let src = get_template_source(&path)?;
+        let nodes = parse(&src, self.input.syntax)?;
 
         // Make sure the compiler understands that the generated code depends on the template file.
         {
@@ -740,24 +750,29 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     include_bytes!(#path);
                 }
                 .to_string(),
-            );
+            )?;
         }
 
         let size_hint = {
             // Since nodes must not outlive the Generator, we instantiate
             // a nested Generator here to handle the include's nodes.
             let mut gen = self.child();
-            let mut size_hint = gen.handle(ctx, &nodes, buf, AstLevel::Nested);
-            size_hint += gen.write_buf_writable(buf);
+            let mut size_hint = gen.handle(ctx, &nodes, buf, AstLevel::Nested)?;
+            size_hint += gen.write_buf_writable(buf)?;
             size_hint
         };
         self.prepare_ws(ws);
-        size_hint
+        Ok(size_hint)
     }
 
-    fn write_let_decl(&mut self, buf: &mut Buffer, ws: WS, var: &'a Target) {
+    fn write_let_decl(
+        &mut self,
+        buf: &mut Buffer,
+        ws: WS,
+        var: &'a Target,
+    ) -> Result<(), CompileError> {
         self.handle_ws(ws);
-        self.write_buf_writable(buf);
+        self.write_buf_writable(buf)?;
         buf.write("let ");
         match *var {
             Target::Name(name) => {
@@ -774,13 +789,19 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 buf.write(")");
             }
         }
-        buf.writeln(";");
+        buf.writeln(";")
     }
 
-    fn write_let(&mut self, buf: &mut Buffer, ws: WS, var: &'a Target, val: &Expr) {
+    fn write_let(
+        &mut self,
+        buf: &mut Buffer,
+        ws: WS,
+        var: &'a Target,
+        val: &Expr,
+    ) -> Result<(), CompileError> {
         self.handle_ws(ws);
         let mut expr_buf = Buffer::new(0);
-        self.visit_expr(&mut expr_buf, val);
+        self.visit_expr(&mut expr_buf, val)?;
 
         match *var {
             Target::Name(name) => {
@@ -800,13 +821,18 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 buf.write(")");
             }
         }
-        buf.writeln(&format!(" = {};", &expr_buf.buf));
+        buf.writeln(&format!(" = {};", &expr_buf.buf))
     }
 
     // If `name` is `Some`, this is a call to a block definition, and we have to find
     // the first block for that name from the ancestry chain. If name is `None`, this
     // is from a `super()` call, and we can get the name from `self.super_block`.
-    fn write_block(&mut self, buf: &mut Buffer, name: Option<&'a str>, outer: WS) -> usize {
+    fn write_block(
+        &mut self,
+        buf: &mut Buffer,
+        name: Option<&'a str>,
+        outer: WS,
+    ) -> Result<usize, CompileError> {
         // Flush preceding whitespace according to the outer WS spec
         self.flush_ws(outer);
 
@@ -816,14 +842,14 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             (Some(cur_name), None) => (cur_name, 0),
             // A block definition contains a block definition of the same name
             (Some(cur_name), Some((prev_name, _))) if cur_name == prev_name => {
-                panic!("cannot define recursive blocks ({})", cur_name)
+                return Err(format!("cannot define recursive blocks ({})", cur_name).into());
             }
             // A block definition contains a definition of another block
             (Some(cur_name), Some((_, _))) => (cur_name, 0),
             // `super()` was called inside a block
             (None, Some((prev_name, gen))) => (prev_name, gen + 1),
             // `super()` is called from outside a block
-            (None, None) => panic!("cannot call 'super()' outside block"),
+            (None, None) => return Err("cannot call 'super()' outside block".into()),
         };
         self.super_block = Some(cur);
 
@@ -831,13 +857,13 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let heritage = self
             .heritage
             .as_ref()
-            .unwrap_or_else(|| panic!("no block ancestors available"));
-        let (ctx, def) = heritage.blocks[cur.0]
-            .get(cur.1)
-            .unwrap_or_else(|| match name {
-                None => panic!("no super() block found for block '{}'", cur.0),
-                Some(name) => panic!("no block found for name '{}'", name),
-            });
+            .ok_or(CompileError::Static("no block ancestors available"))?;
+        let (ctx, def) = heritage.blocks[cur.0].get(cur.1).ok_or_else(|| {
+            CompileError::from(match name {
+                None => format!("no super() block found for block '{}'", cur.0),
+                Some(name) => format!("no block found for name '{}'", name),
+            })
+        })?;
 
         // Get the nodes and whitespace suppression data from the block definition
         let (ws1, nodes, ws2) = if let Node::BlockDef(ws1, _, nodes, ws2) = def {
@@ -849,11 +875,11 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         // Handle inner whitespace suppression spec and process block nodes
         self.prepare_ws(*ws1);
         self.locals.push();
-        let size_hint = self.handle(ctx, nodes, buf, AstLevel::Block);
+        let size_hint = self.handle(ctx, nodes, buf, AstLevel::Block)?;
 
         if !self.locals.is_current_empty() {
             // Need to flush the buffer before popping the variable stack
-            self.write_buf_writable(buf);
+            self.write_buf_writable(buf)?;
         }
 
         self.locals.pop();
@@ -863,7 +889,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         // succeeding whitespace according to the outer WS spec
         self.super_block = prev_block;
         self.prepare_ws(outer);
-        size_hint
+        Ok(size_hint)
     }
 
     fn write_expr(&mut self, ws: WS, s: &'a Expr<'a>) {
@@ -872,9 +898,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Write expression buffer and empty
-    fn write_buf_writable(&mut self, buf: &mut Buffer) -> usize {
+    fn write_buf_writable(&mut self, buf: &mut Buffer) -> Result<usize, CompileError> {
         if self.buf_writable.is_empty() {
-            return 0;
+            return Ok(0);
         }
 
         if self
@@ -888,8 +914,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     buf_lit.write(s);
                 };
             }
-            buf.writeln(&format!("writer.write_str({:#?})?;", &buf_lit.buf));
-            return buf_lit.buf.len();
+            buf.writeln(&format!("writer.write_str({:#?})?;", &buf_lit.buf))?;
+            return Ok(buf_lit.buf.len());
         }
 
         let mut size_hint = 0;
@@ -905,7 +931,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 Writable::Expr(s) => {
                     use self::DisplayWrap::*;
                     let mut expr_buf = Buffer::new(0);
-                    let wrapped = self.visit_expr(&mut expr_buf, s);
+                    let wrapped = self.visit_expr(&mut expr_buf, s)?;
                     let expression = match wrapped {
                         Wrapped => expr_buf.buf,
                         Unwrapped => format!(
@@ -914,17 +940,22 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                         ),
                     };
 
-                    let id = expr_cache.entry(expression.clone()).or_insert_with(|| {
-                        let id = self.named;
-                        self.named += 1;
+                    use std::collections::hash_map::Entry;
+                    let id = match expr_cache.entry(expression.clone()) {
+                        Entry::Occupied(e) => *e.get(),
+                        Entry::Vacant(e) => {
+                            let id = self.named;
+                            self.named += 1;
 
-                        buf_expr.write(&format!("expr{} = ", id));
-                        buf_expr.write("&");
-                        buf_expr.write(&expression);
-                        buf_expr.writeln(",");
+                            buf_expr.write(&format!("expr{} = ", id));
+                            buf_expr.write("&");
+                            buf_expr.write(&expression);
+                            buf_expr.writeln(",")?;
 
-                        id
-                    });
+                            e.insert(id);
+                            id
+                        }
+                    };
 
                     buf_format.write(&format!("{{expr{}}}", id));
                     size_hint += 3;
@@ -932,14 +963,14 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
         }
 
-        buf.writeln("write!(");
+        buf.writeln("write!(")?;
         buf.indent();
-        buf.writeln("writer,");
-        buf.writeln(&format!("{:#?},", &buf_format.buf));
-        buf.writeln(buf_expr.buf.trim());
-        buf.dedent();
-        buf.writeln(")?;");
-        size_hint
+        buf.writeln("writer,")?;
+        buf.writeln(&format!("{:#?},", &buf_format.buf))?;
+        buf.writeln(buf_expr.buf.trim())?;
+        buf.dedent()?;
+        buf.writeln(")?;")?;
+        Ok(size_hint)
     }
 
     fn visit_lit(&mut self, lws: &'a str, val: &'a str, rws: &'a str) {
@@ -970,35 +1001,35 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
     /* Visitor methods for expression types */
 
-    fn visit_expr_root(&mut self, expr: &Expr) -> String {
+    fn visit_expr_root(&mut self, expr: &Expr) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
-        self.visit_expr(&mut buf, expr);
-        buf.buf
+        self.visit_expr(&mut buf, expr)?;
+        Ok(buf.buf)
     }
 
-    fn visit_expr(&mut self, buf: &mut Buffer, expr: &Expr) -> DisplayWrap {
-        match *expr {
+    fn visit_expr(&mut self, buf: &mut Buffer, expr: &Expr) -> Result<DisplayWrap, CompileError> {
+        Ok(match *expr {
             Expr::BoolLit(s) => self.visit_bool_lit(buf, s),
             Expr::NumLit(s) => self.visit_num_lit(buf, s),
             Expr::StrLit(s) => self.visit_str_lit(buf, s),
             Expr::CharLit(s) => self.visit_char_lit(buf, s),
             Expr::Var(s) => self.visit_var(buf, s),
-            Expr::VarCall(var, ref args) => self.visit_var_call(buf, var, args),
+            Expr::VarCall(var, ref args) => self.visit_var_call(buf, var, args)?,
             Expr::Path(ref path) => self.visit_path(buf, path),
-            Expr::PathCall(ref path, ref args) => self.visit_path_call(buf, path, args),
-            Expr::Array(ref elements) => self.visit_array(buf, elements),
-            Expr::Attr(ref obj, name) => self.visit_attr(buf, obj, name),
-            Expr::Index(ref obj, ref key) => self.visit_index(buf, obj, key),
-            Expr::Filter(name, ref args) => self.visit_filter(buf, name, args),
-            Expr::Unary(op, ref inner) => self.visit_unary(buf, op, inner),
-            Expr::BinOp(op, ref left, ref right) => self.visit_binop(buf, op, left, right),
-            Expr::Range(op, ref left, ref right) => self.visit_range(buf, op, left, right),
-            Expr::Group(ref inner) => self.visit_group(buf, inner),
+            Expr::PathCall(ref path, ref args) => self.visit_path_call(buf, path, args)?,
+            Expr::Array(ref elements) => self.visit_array(buf, elements)?,
+            Expr::Attr(ref obj, name) => self.visit_attr(buf, obj, name)?,
+            Expr::Index(ref obj, ref key) => self.visit_index(buf, obj, key)?,
+            Expr::Filter(name, ref args) => self.visit_filter(buf, name, args)?,
+            Expr::Unary(op, ref inner) => self.visit_unary(buf, op, inner)?,
+            Expr::BinOp(op, ref left, ref right) => self.visit_binop(buf, op, left, right)?,
+            Expr::Range(op, ref left, ref right) => self.visit_range(buf, op, left, right)?,
+            Expr::Group(ref inner) => self.visit_group(buf, inner)?,
             Expr::MethodCall(ref obj, method, ref args) => {
-                self.visit_method_call(buf, obj, method, args)
+                self.visit_method_call(buf, obj, method, args)?
             }
             Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
-        }
+        })
     }
 
     fn visit_rust_macro(&mut self, buf: &mut Buffer, name: &str, args: &str) -> DisplayWrap {
@@ -1047,16 +1078,21 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         wrapped
     }
 
-    fn visit_filter(&mut self, buf: &mut Buffer, name: &str, args: &[Expr]) -> DisplayWrap {
+    fn visit_filter(
+        &mut self,
+        buf: &mut Buffer,
+        name: &str,
+        args: &[Expr],
+    ) -> Result<DisplayWrap, CompileError> {
         if name == "format" {
-            self._visit_format_filter(buf, args);
-            return DisplayWrap::Unwrapped;
+            self._visit_format_filter(buf, args)?;
+            return Ok(DisplayWrap::Unwrapped);
         } else if name == "fmt" {
-            self._visit_fmt_filter(buf, args);
-            return DisplayWrap::Unwrapped;
+            self._visit_fmt_filter(buf, args)?;
+            return Ok(DisplayWrap::Unwrapped);
         } else if name == "join" {
-            self._visit_join_filter(buf, args);
-            return DisplayWrap::Unwrapped;
+            self._visit_join_filter(buf, args)?;
+            return Ok(DisplayWrap::Unwrapped);
         }
 
         if name == "escape" || name == "safe" || name == "e" || name == "json" {
@@ -1070,16 +1106,22 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             buf.write(&format!("filters::{}(", name));
         }
 
-        self._visit_args(buf, args);
+        self._visit_args(buf, args)?;
         buf.write(")?");
-        if name == "safe" || name == "escape" || name == "e" || name == "json" {
-            DisplayWrap::Wrapped
-        } else {
-            DisplayWrap::Unwrapped
-        }
+        Ok(
+            if name == "safe" || name == "escape" || name == "e" || name == "json" {
+                DisplayWrap::Wrapped
+            } else {
+                DisplayWrap::Unwrapped
+            },
+        )
     }
 
-    fn _visit_format_filter(&mut self, buf: &mut Buffer, args: &[Expr]) {
+    fn _visit_format_filter(
+        &mut self,
+        buf: &mut Buffer,
+        args: &[Expr],
+    ) -> Result<(), CompileError> {
         buf.write("format!(");
         if let Some(Expr::StrLit(v)) = args.first() {
             self.visit_str_lit(buf, v);
@@ -1087,45 +1129,48 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 buf.write(", ");
             }
         } else {
-            panic!("invalid expression type for format filter");
+            return Err("invalid expression type for format filter".into());
         }
-        self._visit_args(buf, &args[1..]);
+        self._visit_args(buf, &args[1..])?;
         buf.write(")");
+        Ok(())
     }
 
-    fn _visit_fmt_filter(&mut self, buf: &mut Buffer, args: &[Expr]) {
+    fn _visit_fmt_filter(&mut self, buf: &mut Buffer, args: &[Expr]) -> Result<(), CompileError> {
         buf.write("format!(");
         if let Some(Expr::StrLit(v)) = args.get(1) {
             self.visit_str_lit(buf, v);
             buf.write(", ");
         } else {
-            panic!("invalid expression type for fmt filter");
+            return Err("invalid expression type for fmt filter".into());
         }
-        self._visit_args(buf, &args[0..1]);
+        self._visit_args(buf, &args[0..1])?;
         if args.len() > 2 {
-            panic!("only two arguments allowed to fmt filter");
+            return Err("only two arguments allowed to fmt filter".into());
         }
         buf.write(")");
+        Ok(())
     }
 
     // Force type coercion on first argument to `join` filter (see #39).
-    fn _visit_join_filter(&mut self, buf: &mut Buffer, args: &[Expr]) {
+    fn _visit_join_filter(&mut self, buf: &mut Buffer, args: &[Expr]) -> Result<(), CompileError> {
         buf.write("::askama::filters::join((&");
         for (i, arg) in args.iter().enumerate() {
             if i > 0 {
                 buf.write(", &");
             }
-            self.visit_expr(buf, arg);
+            self.visit_expr(buf, arg)?;
             if i == 0 {
                 buf.write(").into_iter()");
             }
         }
         buf.write(")?");
+        Ok(())
     }
 
-    fn _visit_args(&mut self, buf: &mut Buffer, args: &[Expr]) {
+    fn _visit_args(&mut self, buf: &mut Buffer, args: &[Expr]) -> Result<(), CompileError> {
         if args.is_empty() {
-            return;
+            return Ok(());
         }
 
         for (i, arg) in args.iter().enumerate() {
@@ -1142,47 +1187,58 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 | Expr::PathCall(_, _));
 
             if scoped {
-                buf.writeln("{");
-                self.visit_expr(buf, arg);
-                buf.writeln("}");
+                buf.writeln("{")?;
+                self.visit_expr(buf, arg)?;
+                buf.writeln("}")?;
             } else {
-                self.visit_expr(buf, arg);
+                self.visit_expr(buf, arg)?;
             }
         }
+        Ok(())
     }
 
-    fn visit_attr(&mut self, buf: &mut Buffer, obj: &Expr, attr: &str) -> DisplayWrap {
+    fn visit_attr(
+        &mut self,
+        buf: &mut Buffer,
+        obj: &Expr,
+        attr: &str,
+    ) -> Result<DisplayWrap, CompileError> {
         if let Expr::Var(name) = *obj {
             if name == "loop" {
                 if attr == "index" {
                     buf.write("(_loop_item.index + 1)");
-                    return DisplayWrap::Unwrapped;
+                    return Ok(DisplayWrap::Unwrapped);
                 } else if attr == "index0" {
                     buf.write("_loop_item.index");
-                    return DisplayWrap::Unwrapped;
+                    return Ok(DisplayWrap::Unwrapped);
                 } else if attr == "first" {
                     buf.write("_loop_item.first");
-                    return DisplayWrap::Unwrapped;
+                    return Ok(DisplayWrap::Unwrapped);
                 } else if attr == "last" {
                     buf.write("_loop_item.last");
-                    return DisplayWrap::Unwrapped;
+                    return Ok(DisplayWrap::Unwrapped);
                 } else {
-                    panic!("unknown loop variable");
+                    return Err("unknown loop variable".into());
                 }
             }
         }
-        self.visit_expr(buf, obj);
+        self.visit_expr(buf, obj)?;
         buf.write(&format!(".{}", attr));
-        DisplayWrap::Unwrapped
+        Ok(DisplayWrap::Unwrapped)
     }
 
-    fn visit_index(&mut self, buf: &mut Buffer, obj: &Expr, key: &Expr) -> DisplayWrap {
+    fn visit_index(
+        &mut self,
+        buf: &mut Buffer,
+        obj: &Expr,
+        key: &Expr,
+    ) -> Result<DisplayWrap, CompileError> {
         buf.write("&");
-        self.visit_expr(buf, obj);
+        self.visit_expr(buf, obj)?;
         buf.write("[");
-        self.visit_expr(buf, key);
+        self.visit_expr(buf, key)?;
         buf.write("]");
-        DisplayWrap::Unwrapped
+        Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_method_call(
@@ -1191,23 +1247,28 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         obj: &Expr,
         method: &str,
         args: &[Expr],
-    ) -> DisplayWrap {
+    ) -> Result<DisplayWrap, CompileError> {
         if let Expr::Var("self") = obj {
             buf.write("self");
         } else {
-            self.visit_expr(buf, obj);
+            self.visit_expr(buf, obj)?;
         }
 
         buf.write(&format!(".{}(", method));
-        self._visit_args(buf, args);
+        self._visit_args(buf, args)?;
         buf.write(")");
-        DisplayWrap::Unwrapped
+        Ok(DisplayWrap::Unwrapped)
     }
 
-    fn visit_unary(&mut self, buf: &mut Buffer, op: &str, inner: &Expr) -> DisplayWrap {
+    fn visit_unary(
+        &mut self,
+        buf: &mut Buffer,
+        op: &str,
+        inner: &Expr,
+    ) -> Result<DisplayWrap, CompileError> {
         buf.write(op);
-        self.visit_expr(buf, inner);
-        DisplayWrap::Unwrapped
+        self.visit_expr(buf, inner)?;
+        Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_range(
@@ -1216,15 +1277,15 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         op: &str,
         left: &Option<Box<Expr>>,
         right: &Option<Box<Expr>>,
-    ) -> DisplayWrap {
+    ) -> Result<DisplayWrap, CompileError> {
         if let Some(left) = left {
-            self.visit_expr(buf, left);
+            self.visit_expr(buf, left)?;
         }
         buf.write(op);
         if let Some(right) = right {
-            self.visit_expr(buf, right);
+            self.visit_expr(buf, right)?;
         }
-        DisplayWrap::Unwrapped
+        Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_binop(
@@ -1233,30 +1294,34 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         op: &str,
         left: &Expr,
         right: &Expr,
-    ) -> DisplayWrap {
-        self.visit_expr(buf, left);
+    ) -> Result<DisplayWrap, CompileError> {
+        self.visit_expr(buf, left)?;
         buf.write(&format!(" {} ", op));
-        self.visit_expr(buf, right);
-        DisplayWrap::Unwrapped
+        self.visit_expr(buf, right)?;
+        Ok(DisplayWrap::Unwrapped)
     }
 
-    fn visit_group(&mut self, buf: &mut Buffer, inner: &Expr) -> DisplayWrap {
+    fn visit_group(&mut self, buf: &mut Buffer, inner: &Expr) -> Result<DisplayWrap, CompileError> {
         buf.write("(");
-        self.visit_expr(buf, inner);
+        self.visit_expr(buf, inner)?;
         buf.write(")");
-        DisplayWrap::Unwrapped
+        Ok(DisplayWrap::Unwrapped)
     }
 
-    fn visit_array(&mut self, buf: &mut Buffer, elements: &[Expr]) -> DisplayWrap {
+    fn visit_array(
+        &mut self,
+        buf: &mut Buffer,
+        elements: &[Expr],
+    ) -> Result<DisplayWrap, CompileError> {
         buf.write("[");
         for (i, el) in elements.iter().enumerate() {
             if i > 0 {
                 buf.write(", ");
             }
-            self.visit_expr(buf, el);
+            self.visit_expr(buf, el)?;
         }
         buf.write("]");
-        DisplayWrap::Unwrapped
+        Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_path(&mut self, buf: &mut Buffer, path: &[&str]) -> DisplayWrap {
@@ -1269,7 +1334,12 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         DisplayWrap::Unwrapped
     }
 
-    fn visit_path_call(&mut self, buf: &mut Buffer, path: &[&str], args: &[Expr]) -> DisplayWrap {
+    fn visit_path_call(
+        &mut self,
+        buf: &mut Buffer,
+        path: &[&str],
+        args: &[Expr],
+    ) -> Result<DisplayWrap, CompileError> {
         for (i, part) in path.iter().enumerate() {
             if i > 0 {
                 buf.write("::");
@@ -1277,9 +1347,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             buf.write(part);
         }
         buf.write("(");
-        self._visit_args(buf, args);
+        self._visit_args(buf, args)?;
         buf.write(")");
-        DisplayWrap::Unwrapped
+        Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_var(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
@@ -1292,7 +1362,12 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         DisplayWrap::Unwrapped
     }
 
-    fn visit_var_call(&mut self, buf: &mut Buffer, s: &str, args: &[Expr]) -> DisplayWrap {
+    fn visit_var_call(
+        &mut self,
+        buf: &mut Buffer,
+        s: &str,
+        args: &[Expr],
+    ) -> Result<DisplayWrap, CompileError> {
         buf.write("(");
         if self.locals.contains(s) || s == "self" {
             buf.write(s);
@@ -1301,9 +1376,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             buf.write(s);
         }
         buf.write(")(");
-        self._visit_args(buf, args);
+        self._visit_args(buf, args)?;
         buf.write(")");
-        DisplayWrap::Unwrapped
+        Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_bool_lit(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
@@ -1392,9 +1467,9 @@ impl Buffer {
         }
     }
 
-    fn writeln(&mut self, s: &str) {
+    fn writeln(&mut self, s: &str) -> Result<(), CompileError> {
         if s == "}" {
-            self.dedent();
+            self.dedent()?;
         }
         if !s.is_empty() {
             self.write(s);
@@ -1404,6 +1479,7 @@ impl Buffer {
             self.indent();
         }
         self.start = true;
+        Ok(())
     }
 
     fn write(&mut self, s: &str) {
@@ -1420,11 +1496,12 @@ impl Buffer {
         self.indent += 1;
     }
 
-    fn dedent(&mut self) {
+    fn dedent(&mut self) -> Result<(), CompileError> {
         if self.indent == 0 {
-            panic!("dedent() called while indentation == 0");
+            return Err("dedent() called while indentation == 0".into());
         }
         self.indent -= 1;
+        Ok(())
     }
 }
 

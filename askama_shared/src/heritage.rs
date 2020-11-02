@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::parser::{Expr, Macro, Node};
-use crate::Config;
+use crate::{CompileError, Config};
 
 pub struct Heritage<'a> {
     pub root: &'a Context<'a>,
@@ -42,7 +42,11 @@ pub struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    pub fn new<'n>(config: &Config, path: &Path, nodes: &'n [Node<'n>]) -> Context<'n> {
+    pub fn new<'n>(
+        config: &Config,
+        path: &Path,
+        nodes: &'n [Node<'n>],
+    ) -> Result<Context<'n>, CompileError> {
         let mut extends = None;
         let mut blocks = Vec::new();
         let mut macros = HashMap::new();
@@ -54,20 +58,22 @@ impl<'a> Context<'a> {
             for n in nodes {
                 match n {
                     Node::Extends(Expr::StrLit(extends_path)) if top => match extends {
-                        Some(_) => panic!("multiple extend blocks found"),
+                        Some(_) => return Err("multiple extend blocks found".into()),
                         None => {
-                            extends = Some(config.find_template(extends_path, Some(path)));
+                            extends = Some(config.find_template(extends_path, Some(path))?);
                         }
                     },
                     Node::Macro(name, m) if top => {
                         macros.insert(*name, m);
                     }
                     Node::Import(_, import_path, scope) if top => {
-                        let path = config.find_template(import_path, Some(path));
+                        let path = config.find_template(import_path, Some(path))?;
                         imports.insert(*scope, path);
                     }
                     Node::Extends(_) | Node::Macro(_, _) | Node::Import(_, _, _) if !top => {
-                        panic!("extends, macro or import blocks not allowed below top level");
+                        return Err(
+                            "extends, macro or import blocks not allowed below top level".into(),
+                        );
                     }
                     def @ Node::BlockDef(_, _, _, _) => {
                         blocks.push(def);
@@ -105,12 +111,12 @@ impl<'a> Context<'a> {
             })
             .collect();
 
-        Context {
+        Ok(Context {
             nodes,
             extends,
             blocks,
             macros,
             imports,
-        }
+        })
     }
 }

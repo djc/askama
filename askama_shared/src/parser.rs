@@ -8,7 +8,7 @@ use nom::sequence::{delimited, pair, tuple};
 use nom::{self, error_position, Compare, IResult, InputTake};
 use std::str;
 
-use crate::Syntax;
+use crate::{CompileError, Syntax};
 
 #[derive(Debug, PartialEq)]
 pub enum Node<'a> {
@@ -186,7 +186,7 @@ fn take_content<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> ParserError<'a, Node<'a>>
                     Any
                 }
             }
-            End(_) => panic!("cannot happen"),
+            End(_) => unreachable!(),
         };
         if let End(_) = state {
             break;
@@ -1056,19 +1056,23 @@ fn tag_expr_end<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], &'a [u8
     tag(s.expr_end)(i)
 }
 
-pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Vec<Node<'a>> {
+pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Result<Vec<Node<'a>>, CompileError> {
     match parse_template(src.as_bytes(), syntax) {
         Ok((left, res)) => {
             if !left.is_empty() {
                 let s = str::from_utf8(left).unwrap();
-                panic!("unable to parse template:\n\n{:?}", s);
+                Err(format!("unable to parse template:\n\n{:?}", s).into())
             } else {
-                res
+                Ok(res)
             }
         }
-        Err(nom::Err::Error(err)) => panic!("problems parsing template source: {:?}", err),
-        Err(nom::Err::Failure(err)) => panic!("problems parsing template source: {:?}", err),
-        Err(nom::Err::Incomplete(_)) => panic!("parsing incomplete"),
+        Err(nom::Err::Error(err)) => {
+            Err(format!("problems parsing template source: {:?}", err).into())
+        }
+        Err(nom::Err::Failure(err)) => {
+            Err(format!("problems parsing template source: {:?}", err).into())
+        }
+        Err(nom::Err::Incomplete(_)) => Err("parsing incomplete".into()),
     }
 }
 
@@ -1102,18 +1106,18 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_invalid_block() {
-        super::parse("{% extend \"blah\" %}", &Syntax::default());
+        super::parse("{% extend \"blah\" %}", &Syntax::default()).unwrap();
     }
 
     #[test]
     fn test_parse_filter() {
-        super::parse("{{ strvar|e }}", &Syntax::default());
+        super::parse("{{ strvar|e }}", &Syntax::default()).unwrap();
     }
 
     #[test]
     fn test_parse_var_call() {
         assert_eq!(
-            super::parse("{{ function(\"123\", 3) }}", &Syntax::default()),
+            super::parse("{{ function(\"123\", 3) }}", &Syntax::default()).unwrap(),
             vec![super::Node::Expr(
                 super::WS(false, false),
                 super::Expr::VarCall(
@@ -1127,7 +1131,7 @@ mod tests {
     #[test]
     fn test_parse_path_call() {
         assert_eq!(
-            super::parse("{{ self::function(\"123\", 3) }}", &Syntax::default()),
+            super::parse("{{ self::function(\"123\", 3) }}", &Syntax::default()).unwrap(),
             vec![super::Node::Expr(
                 super::WS(false, false),
                 super::Expr::PathCall(
@@ -1146,7 +1150,7 @@ mod tests {
             ..Syntax::default()
         };
 
-        super::parse("{~ strvar|e ~}", &syntax);
+        super::parse("{~ strvar|e ~}", &syntax).unwrap();
     }
 }
 
