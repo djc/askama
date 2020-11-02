@@ -3,7 +3,7 @@ use nom::bytes::complete::{escaped, is_not, tag, take_until};
 use nom::character::complete::{anychar, char, digit1};
 use nom::combinator::{complete, map, opt};
 use nom::error::ParseError;
-use nom::multi::{many0, many1, separated_list, separated_nonempty_list};
+use nom::multi::{many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, tuple};
 use nom::{self, error_position, Compare, IResult, InputTake};
 use std::str;
@@ -106,14 +106,14 @@ pub struct WS(pub bool, pub bool);
 
 pub type Cond<'a> = (WS, Option<Expr<'a>>, Vec<Node<'a>>);
 
-fn ws<F, I, O, E>(inner: F) -> impl Fn(I) -> IResult<I, O, E>
+fn ws<F, I, O, E>(mut inner: F) -> impl FnMut(I) -> IResult<I, O, E>
 where
-    F: Fn(I) -> IResult<I, O, E>,
+    F: FnMut(I) -> IResult<I, O, E>,
     I: InputTake + Clone + PartialEq + for<'a> Compare<&'a [u8; 1]>,
     E: ParseError<I>,
 {
     move |i: I| {
-        let ws = many0(alt::<_, _, (), _>((
+        let mut ws = many0(alt::<_, _, (), _>((
             tag(b" "),
             tag(b"\t"),
             tag(b"\r"),
@@ -205,9 +205,9 @@ fn take_content<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> ParserError<'a, Node<'a>>
 
 fn identifier(input: &[u8]) -> ParserError<&str> {
     if !nom::character::is_alphabetic(input[0]) && input[0] != b'_' && !non_ascii(input[0]) {
-        return Err(nom::Err::Error(error_position!(
+        return Err(nom::Err::Error(nom::error::Error::new(
             input,
-            nom::error::ErrorKind::AlphaNumeric
+            nom::error::ErrorKind::AlphaNumeric,
         )));
     }
     for (i, ch) in input.iter().enumerate() {
@@ -241,7 +241,7 @@ fn expr_num_lit(i: &[u8]) -> IResult<&[u8], Expr> {
 fn expr_array_lit(i: &[u8]) -> IResult<&[u8], Expr> {
     delimited(
         ws(tag("[")),
-        map(separated_nonempty_list(ws(tag(",")), expr_any), |arr| {
+        map(separated_list1(ws(tag(",")), expr_any), |arr| {
             Expr::Array(arr)
         }),
         ws(tag("]")),
@@ -312,7 +312,7 @@ fn expr_var_call(i: &[u8]) -> IResult<&[u8], Expr> {
 }
 
 fn path(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
-    let tail = separated_nonempty_list(ws(tag("::")), identifier);
+    let tail = separated_list1(ws(tag("::")), identifier);
     let (i, (start, _, rest)) = tuple((identifier, ws(tag("::")), tail))(i)?;
 
     let mut path = vec![start];
@@ -331,7 +331,7 @@ fn expr_path_call(i: &[u8]) -> IResult<&[u8], Expr> {
 }
 
 fn variant_path(i: &[u8]) -> IResult<&[u8], MatchVariant> {
-    map(separated_nonempty_list(ws(tag("::")), identifier), |path| {
+    map(separated_list1(ws(tag("::")), identifier), |path| {
         MatchVariant::Path(path)
     })(i)
 }
@@ -341,9 +341,9 @@ fn target_single(i: &[u8]) -> IResult<&[u8], Target> {
 }
 
 fn target_tuple(i: &[u8]) -> IResult<&[u8], Target> {
-    let parts = separated_list(tag(","), ws(identifier));
+    let parts = separated_list0(tag(","), ws(identifier));
     let trailing = opt(ws(tag(",")));
-    let full = delimited(tag("("), tuple((parts, trailing)), tag(")"));
+    let mut full = delimited(tag("("), tuple((parts, trailing)), tag(")"));
 
     let (i, (elems, _)) = full(i)?;
     Ok((i, Target::Tuple(elems)))
@@ -360,7 +360,7 @@ fn param_name(i: &[u8]) -> IResult<&[u8], MatchParameter> {
 fn arguments(i: &[u8]) -> IResult<&[u8], Vec<Expr>> {
     delimited(
         ws(tag("(")),
-        separated_list(tag(","), ws(expr_any)),
+        separated_list0(tag(","), ws(expr_any)),
         ws(tag(")")),
     )(i)
 }
@@ -420,7 +420,7 @@ fn nested_parenthesis(i: &[u8]) -> ParserError<&str> {
 fn parameters(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
     delimited(
         ws(tag("(")),
-        separated_list(tag(","), ws(identifier)),
+        separated_list0(tag(","), ws(identifier)),
         ws(tag(")")),
     )(i)
 }
@@ -436,7 +436,7 @@ fn with_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters> {
 fn match_simple_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters> {
     delimited(
         ws(tag("(")),
-        map(separated_list(tag(","), ws(match_parameter)), |mps| {
+        map(separated_list0(tag(","), ws(match_parameter)), |mps| {
             MatchParameters::Simple(mps)
         }),
         tag(")"),
@@ -446,9 +446,10 @@ fn match_simple_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters> {
 fn match_named_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters> {
     delimited(
         ws(tag("{")),
-        map(separated_list(tag(","), ws(match_named_parameter)), |mps| {
-            MatchParameters::Named(mps)
-        }),
+        map(
+            separated_list0(tag(","), ws(match_named_parameter)),
+            |mps| MatchParameters::Named(mps),
+        ),
         tag("}"),
     )(i)
 }
@@ -633,12 +634,12 @@ fn expr_any(i: &[u8]) -> IResult<&[u8], Expr> {
         Expr::Range(op, _, right) => Expr::Range(op, Some(Box::new(left)), right),
         _ => unreachable!(),
     });
-    let p = alt((range_right, compound, expr_or));
+    let mut p = alt((range_right, compound, expr_or));
     Ok(p(i)?)
 }
 
 fn expr_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
-    let p = tuple((
+    let mut p = tuple((
         |i| tag_expr_start(i, s),
         opt(tag("-")),
         ws(expr_any),
@@ -650,7 +651,7 @@ fn expr_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> 
 }
 
 fn block_call(i: &[u8]) -> IResult<&[u8], Node> {
-    let p = tuple((
+    let mut p = tuple((
         opt(tag("-")),
         ws(tag("call")),
         opt(tuple((ws(identifier), ws(tag("::"))))),
@@ -672,7 +673,7 @@ fn cond_if(i: &[u8]) -> IResult<&[u8], Expr> {
 }
 
 fn cond_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Cond<'a>> {
-    let p = tuple((
+    let mut p = tuple((
         |i| tag_block_start(i, s),
         opt(tag("-")),
         ws(tag("else")),
@@ -686,7 +687,7 @@ fn cond_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Cond<'a>>
 }
 
 fn block_if<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
-    let p = tuple((
+    let mut p = tuple((
         opt(tag("-")),
         cond_if,
         opt(tag("-")),
@@ -707,7 +708,7 @@ fn block_if<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
 }
 
 fn match_else_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], When<'a>> {
-    let p = tuple((
+    let mut p = tuple((
         |i| tag_block_start(i, s),
         opt(tag("-")),
         ws(tag("else")),
@@ -728,7 +729,7 @@ fn match_else_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Whe
 }
 
 fn when_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], When<'a>> {
-    let p = tuple((
+    let mut p = tuple((
         |i| tag_block_start(i, s),
         opt(tag("-")),
         ws(tag("when")),
@@ -751,7 +752,7 @@ fn when_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], When<'a>>
 }
 
 fn block_match<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
-    let p = tuple((
+    let mut p = tuple((
         opt(tag("-")),
         ws(tag("match")),
         ws(expr_any),
@@ -803,7 +804,7 @@ fn block_match<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>
 }
 
 fn block_let(i: &[u8]) -> IResult<&[u8], Node> {
-    let p = tuple((
+    let mut p = tuple((
         opt(tag("-")),
         ws(tag("let")),
         ws(alt((target_single, target_tuple))),
@@ -823,7 +824,7 @@ fn block_let(i: &[u8]) -> IResult<&[u8], Node> {
 }
 
 fn block_for<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
-    let p = tuple((
+    let mut p = tuple((
         opt(tag("-")),
         ws(tag("for")),
         ws(alt((target_single, target_tuple))),
@@ -856,7 +857,7 @@ fn block_extends(i: &[u8]) -> IResult<&[u8], Node> {
 }
 
 fn block_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
-    let start = tuple((
+    let mut start = tuple((
         opt(tag("-")),
         ws(tag("block")),
         ws(identifier),
@@ -866,7 +867,7 @@ fn block_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>
     ));
     let (i, (pws1, _, name, nws1, _, contents)) = start(i)?;
 
-    let end = tuple((
+    let mut end = tuple((
         |i| tag_block_start(i, s),
         opt(tag("-")),
         ws(tag("endblock")),
@@ -887,7 +888,7 @@ fn block_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>
 }
 
 fn block_include(i: &[u8]) -> IResult<&[u8], Node> {
-    let p = tuple((
+    let mut p = tuple((
         opt(tag("-")),
         ws(tag("include")),
         ws(expr_str_lit),
@@ -907,7 +908,7 @@ fn block_include(i: &[u8]) -> IResult<&[u8], Node> {
 }
 
 fn block_import(i: &[u8]) -> IResult<&[u8], Node> {
-    let p = tuple((
+    let mut p = tuple((
         opt(tag("-")),
         ws(tag("import")),
         ws(expr_str_lit),
@@ -930,7 +931,7 @@ fn block_import(i: &[u8]) -> IResult<&[u8], Node> {
 }
 
 fn block_macro<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
-    let p = tuple((
+    let mut p = tuple((
         opt(tag("-")),
         ws(tag("macro")),
         ws(identifier),
@@ -964,7 +965,7 @@ fn block_macro<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>
 }
 
 fn block_raw<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
-    let p = tuple((
+    let mut p = tuple((
         opt(tag("-")),
         ws(tag("raw")),
         opt(tag("-")),
@@ -989,7 +990,7 @@ fn block_raw<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> 
 }
 
 fn block_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
-    let p = tuple((
+    let mut p = tuple((
         |i| tag_block_start(i, s),
         alt((
             block_call,
@@ -1011,7 +1012,7 @@ fn block_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>>
 }
 
 fn block_comment<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
-    let p = tuple((
+    let mut p = tuple((
         |i| tag_comment_start(i, s),
         opt(tag("-")),
         take_until(s.comment_end),
@@ -1149,4 +1150,4 @@ mod tests {
     }
 }
 
-type ParserError<'a, T> = Result<(&'a [u8], T), nom::Err<(&'a [u8], nom::error::ErrorKind)>>;
+type ParserError<'a, T> = Result<(&'a [u8], T), nom::Err<nom::error::Error<&'a [u8]>>>;
