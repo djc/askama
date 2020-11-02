@@ -221,7 +221,7 @@ fn identifier(input: &[u8]) -> ParserError<&str> {
 
 #[inline]
 fn non_ascii(chr: u8) -> bool {
-    chr >= 0x80 && chr <= 0xFD
+    (0x80..=0xFD).contains(&chr)
 }
 
 fn expr_bool_lit(i: &[u8]) -> IResult<&[u8], Expr> {
@@ -448,7 +448,7 @@ fn match_named_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters> {
         ws(tag("{")),
         map(
             separated_list0(tag(","), ws(match_named_parameter)),
-            |mps| MatchParameters::Named(mps),
+            MatchParameters::Named,
         ),
         tag("}"),
     )(i)
