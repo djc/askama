@@ -7,6 +7,7 @@ use askama_shared::{
     generator, get_template_source, read_config_file, CompileError, Config, Integrations,
 };
 use proc_macro::TokenStream;
+use proc_macro2::Span;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -15,11 +16,11 @@ use std::path::PathBuf;
 pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
     match build_template(&ast) {
-        Ok(source) => source,
-        Err(e) => format!("compile_error!({:?})", e),
+        Ok(source) => source.parse().unwrap(),
+        Err(e) => syn::Error::new(Span::call_site(), e)
+            .to_compile_error()
+            .into(),
     }
-    .parse()
-    .unwrap()
 }
 
 /// Takes a `syn::DeriveInput` and generates source code for it
