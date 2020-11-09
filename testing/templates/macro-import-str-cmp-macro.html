@@ -1,0 +1,7 @@
+{% macro strcmp0(s, other) %}
+{% if s == "foo" %}IT'S FOO{% else if s == other %}it's {{other}}{% else %}it's not foo and not {{other}}{% endif %}
+{% endmacro %}
+
+{% macro strcmp(s) %}
+{% call strcmp0(s, "bar") %}
+{% endmacro %}
