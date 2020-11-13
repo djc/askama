@@ -47,7 +47,7 @@ const URLENCODE_PATH_SET: &AsciiSet = &URLENCODE_SET.remove(b'/');
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 25] = [
+pub const BUILT_IN_FILTERS: [&str; 26] = [
     "abs",
     "capitalize",
     "center",
@@ -70,6 +70,7 @@ pub const BUILT_IN_FILTERS: [&str; 25] = [
     "upper",
     "uppercase",
     "urlencode",
+    "urlencode_path",
     "wordcount",
     "json", // Optional feature; reserve the name anyway
     "yaml", // Optional feature; reserve the name anyway
