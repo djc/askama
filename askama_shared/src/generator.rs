@@ -708,14 +708,23 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("{")?;
         self.prepare_ws(def.ws1);
 
+        let mut names = Buffer::new(0);
+        let mut values = Buffer::new(0);
         for (i, arg) in def.args.iter().enumerate() {
-            let expr_code = self.visit_expr_root(args.get(i).ok_or_else(|| {
+            if i > 0 {
+                names.write(", ");
+                values.write(", ");
+            }
+            names.write(arg);
+
+            values.write("&");
+            values.write(&self.visit_expr_root(args.get(i).ok_or_else(|| {
                 CompileError::String(format!("macro '{}' takes more than {} arguments", name, i))
-            })?)?;
-            buf.writeln(&format!("let {} = &{};", arg, expr_code))?;
+            })?)?);
             self.locals.insert(arg);
         }
 
+        buf.writeln(&format!("let ({}) = ({});", names.buf, values.buf))?;
         let mut size_hint = self.handle(own_ctx, &def.nodes, buf, AstLevel::Nested)?;
 
         self.flush_ws(def.ws2);
