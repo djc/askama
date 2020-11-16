@@ -30,35 +30,24 @@ use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use super::Result;
 
 #[cfg(feature = "percent-encoding")]
-// urlencode char encoding set, escape all characters except the following:
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURI#Description
-const ENCODE_SET: &AsciiSet = &NON_ALPHANUMERIC
-    .remove(b';')
-    .remove(b',')
-    .remove(b'/')
-    .remove(b'?')
-    .remove(b':')
-    .remove(b'@')
-    .remove(b'&')
-    .remove(b'=')
-    .remove(b'+')
-    .remove(b'$')
-    .remove(b'-')
+// Urlencode char encoding set. Only the characters in the unreserved set don't
+// have any special purpose in any part of a URI and can be safely left
+// unencoded as specified in https://tools.ietf.org/html/rfc3986.html#section-2.3
+const URLENCODE_STRICT_SET: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'_')
     .remove(b'.')
-    .remove(b'!')
-    .remove(b'~')
-    .remove(b'*')
-    .remove(b'\'')
-    .remove(b'(')
-    .remove(b')')
-    .remove(b'#');
+    .remove(b'-')
+    .remove(b'~');
+
+#[cfg(feature = "percent-encoding")]
+// Same as URLENCODE_STRICT_SET, but preserves forward slashes for encoding paths
+const URLENCODE_SET: &AsciiSet = &URLENCODE_STRICT_SET.remove(b'/');
 
 // This is used by the code generator to decide whether a named filter is part of
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 25] = [
+pub const BUILT_IN_FILTERS: [&str; 26] = [
     "abs",
     "capitalize",
     "center",
@@ -81,6 +70,7 @@ pub const BUILT_IN_FILTERS: [&str; 25] = [
     "upper",
     "uppercase",
     "urlencode",
+    "urlencode_strict",
     "wordcount",
     "json", // Optional feature; reserve the name anyway
     "yaml", // Optional feature; reserve the name anyway
@@ -132,10 +122,48 @@ pub fn filesizeformat<B: FileSize>(b: &B) -> Result<String> {
 }
 
 #[cfg(feature = "percent-encoding")]
-/// Returns the the UTF-8 encoded String of the given input.
+/// Percent-encodes the argument for safe use in URI; does not encode `/`
+///
+/// This should be safe for all parts of URI (paths segments, query keys, query
+/// values). In the rare case that the server can't deal with forward slashes in
+/// the query string, use [`urlencode_strict`], which encodes them as well.
+///
+/// Encodes all characters except ASCII letters, digits, and `_.-~/`. In other
+/// words, encodes all characters which are not in the unreserved set,
+/// as specified by [RFC3986](https://tools.ietf.org/html/rfc3986#section-2.3),
+/// with the exception of `/`.
+///
+/// ```none,ignore
+/// <a href="/metro{{ "/stations/Château d'Eau" | urlencode }}">Station</a>
+/// <a href="/page?text={{ "look, unicode/emojis ✨" | urlencode }}">Page</a>
+/// ```
+///
+/// To encode `/` as well, see [`urlencode_strict`](./fn.urlencode_strict.html).
+///
+/// [`urlencode_strict`]: ./fn.urlencode_strict.html
 pub fn urlencode(s: &dyn fmt::Display) -> Result<String> {
     let s = s.to_string();
-    Ok(utf8_percent_encode(&s, ENCODE_SET).to_string())
+    Ok(utf8_percent_encode(&s, URLENCODE_SET).to_string())
+}
+
+#[cfg(feature = "percent-encoding")]
+/// Percent-encodes the argument for safe use in URI; encodes `/`
+///
+/// Use this filter for encoding query keys and values in the rare case that
+/// the server can't process them unencoded.
+///
+/// Encodes all characters except ASCII letters, digits, and `_.-~`. In other
+/// words, encodes all characters which are not in the unreserved set,
+/// as specified by [RFC3986](https://tools.ietf.org/html/rfc3986#section-2.3).
+///
+/// ```none,ignore
+/// <a href="/page?text={{ "look, unicode/emojis ✨" | urlencode_strict }}">Page</a>
+/// ```
+///
+/// If you want to preserve `/`, see [`urlencode`](./fn.urlencode.html).
+pub fn urlencode_strict(s: &dyn fmt::Display) -> Result<String> {
+    let s = s.to_string();
+    Ok(utf8_percent_encode(&s, URLENCODE_STRICT_SET).to_string())
 }
 
 /// Formats arguments according to the specified format
@@ -368,14 +396,44 @@ mod tests {
     #[cfg(feature = "percent-encoding")]
     #[test]
     fn test_urlencoding() {
-        let set1 = ";,/?:@&=+$#";
-        let set2 = "-_.!~*'()";
-        let set3 = "ABC abc 123";
-        assert_eq!(urlencode(&set1).unwrap(), ";,/?:@&=+$#");
+        // Unreserved (https://tools.ietf.org/html/rfc3986.html#section-2.3)
+        // alpha / digit
+        assert_eq!(urlencode(&"AZaz09").unwrap(), "AZaz09");
+        assert_eq!(urlencode_strict(&"AZaz09").unwrap(), "AZaz09");
+        // other
+        assert_eq!(urlencode(&"_.-~").unwrap(), "_.-~");
+        assert_eq!(urlencode_strict(&"_.-~").unwrap(), "_.-~");
 
-        assert_eq!(urlencode(&set2).unwrap(), "-_.!~*'()");
+        // Reserved (https://tools.ietf.org/html/rfc3986.html#section-2.2)
+        // gen-delims
+        assert_eq!(urlencode(&":/?#[]@").unwrap(), "%3A/%3F%23%5B%5D%40");
+        assert_eq!(
+            urlencode_strict(&":/?#[]@").unwrap(),
+            "%3A%2F%3F%23%5B%5D%40"
+        );
+        // sub-delims
+        assert_eq!(
+            urlencode(&"!$&'()*+,;=").unwrap(),
+            "%21%24%26%27%28%29%2A%2B%2C%3B%3D"
+        );
+        assert_eq!(
+            urlencode_strict(&"!$&'()*+,;=").unwrap(),
+            "%21%24%26%27%28%29%2A%2B%2C%3B%3D"
+        );
 
-        assert_eq!(urlencode(&set3).unwrap(), "ABC%20abc%20123");
+        // Other
+        assert_eq!(
+            urlencode(&"žŠďŤňĚáÉóŮ").unwrap(),
+            "%C5%BE%C5%A0%C4%8F%C5%A4%C5%88%C4%9A%C3%A1%C3%89%C3%B3%C5%AE"
+        );
+        assert_eq!(
+            urlencode_strict(&"žŠďŤňĚáÉóŮ").unwrap(),
+            "%C5%BE%C5%A0%C4%8F%C5%A4%C5%88%C4%9A%C3%A1%C3%89%C3%B3%C5%AE"
+        );
+
+        // Ferris
+        assert_eq!(urlencode(&"🦀").unwrap(), "%F0%9F%A6%80");
+        assert_eq!(urlencode_strict(&"🦀").unwrap(), "%F0%9F%A6%80");
     }
 
     #[test]
