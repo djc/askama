@@ -33,15 +33,15 @@ use super::Result;
 // Urlencode char encoding set. Only the characters in the unreserved set don't
 // have any special purpose in any part of a URI and can be safely left
 // unencoded as specified in https://tools.ietf.org/html/rfc3986.html#section-2.3
-const URLENCODE_SET: &AsciiSet = &NON_ALPHANUMERIC
+const URLENCODE_STRICT_SET: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'_')
     .remove(b'.')
     .remove(b'-')
     .remove(b'~');
 
 #[cfg(feature = "percent-encoding")]
-// Same as URLENCODE_SET, but preserves forward slashes for encoding paths
-const URLENCODE_PATH_SET: &AsciiSet = &URLENCODE_SET.remove(b'/');
+// Same as URLENCODE_STRICT_SET, but preserves forward slashes for encoding paths
+const URLENCODE_SET: &AsciiSet = &URLENCODE_STRICT_SET.remove(b'/');
 
 // This is used by the code generator to decide whether a named filter is part of
 // Askama or should refer to a local `filters` module. It should contain all the
@@ -70,7 +70,7 @@ pub const BUILT_IN_FILTERS: [&str; 26] = [
     "upper",
     "uppercase",
     "urlencode",
-    "urlencode_path",
+    "urlencode_strict",
     "wordcount",
     "json", // Optional feature; reserve the name anyway
     "yaml", // Optional feature; reserve the name anyway
@@ -122,38 +122,42 @@ pub fn filesizeformat<B: FileSize>(b: &B) -> Result<String> {
 }
 
 #[cfg(feature = "percent-encoding")]
-/// Encodes the argument for use in URL query string
+/// Percent-encodes the argument for safe use in URL; does not encode `/`
 ///
-/// Use this filter to encode URL query keys and query values before
-/// assembling the final URL.
-///
-/// Percent-encodes all characters except ASCII letters, digits, and `_.-~`.
+/// Encodes all characters except ASCII letters, digits, and `_.-~/`. In other
+/// words, encodes all characters which are not in the unreserved set,
+/// as specified by [RFC3986](https://tools.ietf.org/html/rfc3986#section-2.3),
+/// with the exception of `/`.
 ///
 /// ```none,ignore
-/// <a href="/page?text={{ "look, emojis ✨" | urlencode }}">Page</a>
+/// <a href="/metro{{ "/stations/Château d'Eau" | urlencode }}">Station</a>
 /// ```
 ///
-/// To preserve `/`, use [`urlencode_path`](./fn.urlencode_path.html).
+/// To encode `/` as well, see [`urlencode_strict`](./fn.urlencode_strict.html).
 pub fn urlencode(s: &dyn fmt::Display) -> Result<String> {
     let s = s.to_string();
     Ok(utf8_percent_encode(&s, URLENCODE_SET).to_string())
 }
 
 #[cfg(feature = "percent-encoding")]
-/// Encodes the argument for use in URL path (preserves `/`)
+/// Percent-encodes the argument for safe use in URL,
+/// typically used for query keys or values; encodes `/`
 ///
-/// Same as [`urlencode`], but preserves forward slashes.
+/// Use this filter to encode URL query keys or values before
+/// assembling the final URL.
+///
+/// Encodes all characters except ASCII letters, digits, and `_.-~`. In other
+/// words, encodes all characters which are not in the unreserved set,
+/// as specified by [RFC3986](https://tools.ietf.org/html/rfc3986#section-2.3).
 ///
 /// ```none,ignore
-/// <a href="/metro{{ "/stations/Château d'Eau" | urlencode_path }}">Station</a>
+/// <a href="/page?text={{ "look, unicode/emojis ✨" | urlencode_strict }}">Page</a>
 /// ```
 ///
-/// For encoding query strings, use [`urlencode`].
-///
-/// [`urlencode`]: ./fn.urlencode.html
-pub fn urlencode_path(s: &dyn fmt::Display) -> Result<String> {
+/// If you need to preserve `/`, see [`urlencode`](./fn.urlencode.html).
+pub fn urlencode_strict(s: &dyn fmt::Display) -> Result<String> {
     let s = s.to_string();
-    Ok(utf8_percent_encode(&s, URLENCODE_PATH_SET).to_string())
+    Ok(utf8_percent_encode(&s, URLENCODE_STRICT_SET).to_string())
 }
 
 /// Formats arguments according to the specified format
@@ -389,22 +393,25 @@ mod tests {
         // Unreserved (https://tools.ietf.org/html/rfc3986.html#section-2.3)
         // alpha / digit
         assert_eq!(urlencode(&"AZaz09").unwrap(), "AZaz09");
-        assert_eq!(urlencode_path(&"AZaz09").unwrap(), "AZaz09");
+        assert_eq!(urlencode_strict(&"AZaz09").unwrap(), "AZaz09");
         // other
         assert_eq!(urlencode(&"_.-~").unwrap(), "_.-~");
-        assert_eq!(urlencode_path(&"_.-~").unwrap(), "_.-~");
+        assert_eq!(urlencode_strict(&"_.-~").unwrap(), "_.-~");
 
         // Reserved (https://tools.ietf.org/html/rfc3986.html#section-2.2)
         // gen-delims
-        assert_eq!(urlencode(&":/?#[]@").unwrap(), "%3A%2F%3F%23%5B%5D%40");
-        assert_eq!(urlencode_path(&":/?#[]@").unwrap(), "%3A/%3F%23%5B%5D%40");
+        assert_eq!(urlencode(&":/?#[]@").unwrap(), "%3A/%3F%23%5B%5D%40");
+        assert_eq!(
+            urlencode_strict(&":/?#[]@").unwrap(),
+            "%3A%2F%3F%23%5B%5D%40"
+        );
         // sub-delims
         assert_eq!(
             urlencode(&"!$&'()*+,;=").unwrap(),
             "%21%24%26%27%28%29%2A%2B%2C%3B%3D"
         );
         assert_eq!(
-            urlencode_path(&"!$&'()*+,;=").unwrap(),
+            urlencode_strict(&"!$&'()*+,;=").unwrap(),
             "%21%24%26%27%28%29%2A%2B%2C%3B%3D"
         );
 
@@ -414,13 +421,13 @@ mod tests {
             "%C5%BE%C5%A0%C4%8F%C5%A4%C5%88%C4%9A%C3%A1%C3%89%C3%B3%C5%AE"
         );
         assert_eq!(
-            urlencode_path(&"žŠďŤňĚáÉóŮ").unwrap(),
+            urlencode_strict(&"žŠďŤňĚáÉóŮ").unwrap(),
             "%C5%BE%C5%A0%C4%8F%C5%A4%C5%88%C4%9A%C3%A1%C3%89%C3%B3%C5%AE"
         );
 
         // Ferris
         assert_eq!(urlencode(&"🦀").unwrap(), "%F0%9F%A6%80");
-        assert_eq!(urlencode_path(&"🦀").unwrap(), "%F0%9F%A6%80");
+        assert_eq!(urlencode_strict(&"🦀").unwrap(), "%F0%9F%A6%80");
     }
 
     #[test]
