@@ -122,7 +122,11 @@ pub fn filesizeformat<B: FileSize>(b: &B) -> Result<String> {
 }
 
 #[cfg(feature = "percent-encoding")]
-/// Percent-encodes the argument for safe use in URL; does not encode `/`
+/// Percent-encodes the argument for safe use in URI; does not encode `/`
+///
+/// This should be safe for all parts of URI (paths segments, query keys, query
+/// values). In the rare case that the server can't deal with forward slashes in
+/// the query string, use [`urlencode_strict`], which encodes them as well.
 ///
 /// Encodes all characters except ASCII letters, digits, and `_.-~/`. In other
 /// words, encodes all characters which are not in the unreserved set,
@@ -131,20 +135,22 @@ pub fn filesizeformat<B: FileSize>(b: &B) -> Result<String> {
 ///
 /// ```none,ignore
 /// <a href="/metro{{ "/stations/Château d'Eau" | urlencode }}">Station</a>
+/// <a href="/page?text={{ "look, unicode/emojis ✨" | urlencode }}">Page</a>
 /// ```
 ///
 /// To encode `/` as well, see [`urlencode_strict`](./fn.urlencode_strict.html).
+///
+/// [`urlencode_strict`]: ./fn.urlencode_strict.html
 pub fn urlencode(s: &dyn fmt::Display) -> Result<String> {
     let s = s.to_string();
     Ok(utf8_percent_encode(&s, URLENCODE_SET).to_string())
 }
 
 #[cfg(feature = "percent-encoding")]
-/// Percent-encodes the argument for safe use in URL,
-/// typically used for query keys or values; encodes `/`
+/// Percent-encodes the argument for safe use in URI; encodes `/`
 ///
-/// Use this filter to encode URL query keys or values before
-/// assembling the final URL.
+/// Use this filter for encoding query keys and values in the rare case that
+/// the server can't process them unencoded.
 ///
 /// Encodes all characters except ASCII letters, digits, and `_.-~`. In other
 /// words, encodes all characters which are not in the unreserved set,
@@ -154,7 +160,7 @@ pub fn urlencode(s: &dyn fmt::Display) -> Result<String> {
 /// <a href="/page?text={{ "look, unicode/emojis ✨" | urlencode_strict }}">Page</a>
 /// ```
 ///
-/// If you need to preserve `/`, see [`urlencode`](./fn.urlencode.html).
+/// If you want to preserve `/`, see [`urlencode`](./fn.urlencode.html).
 pub fn urlencode_strict(s: &dyn fmt::Display) -> Result<String> {
     let s = s.to_string();
     Ok(utf8_percent_encode(&s, URLENCODE_STRICT_SET).to_string())
