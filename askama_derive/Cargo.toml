@@ -1,6 +1,6 @@
 [package]
 name = "askama_derive"
-version = "0.10.3"
+version = "0.10.4"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Procedural macro package for Askama"
 homepage = "https://github.com/djc/askama"
@@ -23,6 +23,6 @@ tide = []
 warp = []
 
 [dependencies]
-askama_shared = { version = "0.10.4", path = "../askama_shared", default-features = false }
+askama_shared = { version = "0.10.5", path = "../askama_shared", default-features = false }
 proc-macro2 = "1"
 syn = "1"
