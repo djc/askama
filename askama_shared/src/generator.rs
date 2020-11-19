@@ -308,12 +308,12 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         )?;
 
         buf.writeln(
-            "fn into_response(self, app: &A) \
+            "fn into_response(self, app: &A, req: &::mendes::http::request::Parts) \
              -> ::mendes::http::Response<A::ResponseBody> {",
         )?;
 
         buf.writeln(&format!(
-            "::mendes::askama::into_response(app, &self, {:?})",
+            "::mendes::askama::into_response(app, req, &self, {:?})",
             self.input.path.extension()
         ))?;
         buf.writeln("}")?;
