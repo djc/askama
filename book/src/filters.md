@@ -258,7 +258,7 @@ fn main() {
 
 ## The `json` filter
 
-Enabling the `serde-json` filter will enable the use of the `json` filter.
+Enabling the `serde-json` feature will enable the use of the `json` filter.
 This will output formatted JSON for any value that implements the required
 `Serialize` trait.
 
@@ -271,7 +271,7 @@ This will output formatted JSON for any value that implements the required
 
 ## The `yaml` filter
 
-Enabling the `serde-yaml` filter will enable the use of the `yaml` filter.
+Enabling the `serde-yaml` feature will enable the use of the `yaml` filter.
 This will output formatted JSON for any value that implements the required
 `Serialize` trait.
 
