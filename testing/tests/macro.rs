@@ -43,3 +43,16 @@ fn test_deep_import() {
     let t = DeepImportTemplate;
     assert_eq!(t.render().unwrap(), "foo");
 }
+
+#[derive(Template)]
+#[template(path = "macro-import-str-cmp.html")]
+struct StrCmpTemplate;
+
+#[test]
+fn str_cmp() {
+    let t = StrCmpTemplate;
+    assert_eq!(
+        t.render().unwrap(),
+        "TOP\n\nIT'S FOO\n\nCENTER\n\nIT'S bar\n\nBOTTOM\n\nit's not foo and not bar"
+    );
+}
