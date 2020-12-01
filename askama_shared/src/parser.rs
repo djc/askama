@@ -1160,7 +1160,6 @@ mod tests {
                     BinOp("+", Var("a").into(), Var("b").into()).into(),
                     Var("c").into(),
                 )
-                .into()
             )],
         );
         assert_eq!(
@@ -1177,7 +1176,6 @@ mod tests {
                     .into(),
                     BinOp("/", Var("d").into(), Var("e").into()).into(),
                 )
-                .into()
             )],
         );
         assert_eq!(
@@ -1194,7 +1192,6 @@ mod tests {
                     .into(),
                     Unary("-", Var("d").into()).into()
                 )
-                .into()
             )],
         );
         assert_eq!(
@@ -1211,7 +1208,6 @@ mod tests {
                     .into(),
                     BinOp("&&", Var("d").into(), Var("e").into()).into(),
                 )
-                .into()
             )],
         );
     }
@@ -1229,7 +1225,6 @@ mod tests {
                     BinOp("+", Var("a").into(), Var("b").into()).into(),
                     Var("c").into()
                 )
-                .into()
             )],
         );
         assert_eq!(
@@ -1241,7 +1236,6 @@ mod tests {
                     BinOp("*", Var("a").into(), Var("b").into()).into(),
                     Var("c").into()
                 )
-                .into()
             )],
         );
         assert_eq!(
@@ -1253,7 +1247,6 @@ mod tests {
                     BinOp("&&", Var("a").into(), Var("b").into()).into(),
                     Var("c").into()
                 )
-                .into()
             )],
         );
         assert_eq!(
@@ -1270,7 +1263,6 @@ mod tests {
                     .into(),
                     Var("d").into()
                 )
-                .into()
             )],
         );
         assert_eq!(
@@ -1297,7 +1289,6 @@ mod tests {
                     .into(),
                     Var("f").into()
                 )
-                .into()
             )],
         );
     }
