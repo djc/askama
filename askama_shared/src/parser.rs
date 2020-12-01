@@ -1080,7 +1080,7 @@ mod tests {
     fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
         let node = super::split_ws_parts(s.as_bytes());
         match node {
-            super::Node::Lit(lws, s, rws) => {
+            Node::Lit(lws, s, rws) => {
                 assert_eq!(lws, res.0);
                 assert_eq!(s, res.1);
                 assert_eq!(rws, res.2);
@@ -1115,12 +1115,9 @@ mod tests {
     fn test_parse_var_call() {
         assert_eq!(
             super::parse("{{ function(\"123\", 3) }}", &Syntax::default()).unwrap(),
-            vec![super::Node::Expr(
-                super::WS(false, false),
-                super::Expr::VarCall(
-                    "function",
-                    vec![super::Expr::StrLit("123"), super::Expr::NumLit("3")]
-                ),
+            vec![Node::Expr(
+                WS(false, false),
+                Expr::VarCall("function", vec![Expr::StrLit("123"), Expr::NumLit("3")]),
             )],
         );
     }
@@ -1129,11 +1126,11 @@ mod tests {
     fn test_parse_path_call() {
         assert_eq!(
             super::parse("{{ self::function(\"123\", 3) }}", &Syntax::default()).unwrap(),
-            vec![super::Node::Expr(
-                super::WS(false, false),
-                super::Expr::PathCall(
+            vec![Node::Expr(
+                WS(false, false),
+                Expr::PathCall(
                     vec!["self", "function"],
-                    vec![super::Expr::StrLit("123"), super::Expr::NumLit("3")],
+                    vec![Expr::StrLit("123"), Expr::NumLit("3")],
                 ),
             )],
         );
