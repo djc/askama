@@ -573,36 +573,32 @@ fn expr_rust_macro(i: &[u8]) -> IResult<&[u8], Expr> {
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $op:expr ) => {
         fn $name(i: &[u8]) -> IResult<&[u8], Expr> {
-            let (i, (left, op_and_right)) = tuple((
+            let (i, left) = $inner(i)?;
+            let (i, right) = many0(pair(
+                ws(tag($op)),
                 $inner,
-                opt(pair(
-                    ws(tag($op)),
-                    expr_any,
-                ))
             ))(i)?;
-            Ok((i, match op_and_right {
-                Some((op, right)) => Expr::BinOp(
-                    str::from_utf8(op).unwrap(), Box::new(left), Box::new(right)
-                ),
-                None => left,
-            }))
+            Ok((
+                i,
+                right.into_iter().fold(left, |left, (op, right)| {
+                    Expr::BinOp(str::from_utf8(op).unwrap(), Box::new(left), Box::new(right))
+                }),
+            ))
         }
     };
     ( $name:ident, $inner:ident, $( $op:expr ),+ ) => {
         fn $name(i: &[u8]) -> IResult<&[u8], Expr> {
-            let (i, (left, op_and_right)) = tuple((
+            let (i, left) = $inner(i)?;
+            let (i, right) = many0(pair(
+                ws(alt(($( tag($op) ),*,))),
                 $inner,
-                opt(pair(
-                    ws(alt(($( tag($op) ),*,))),
-                    expr_any
-                ))
             ))(i)?;
-            Ok((i, match op_and_right {
-                Some((op, right)) => Expr::BinOp(
-                    str::from_utf8(op).unwrap(), Box::new(left), Box::new(right)
-                ),
-                None => left,
-            }))
+            Ok((
+                i,
+                right.into_iter().fold(left, |left, (op, right)| {
+                    Expr::BinOp(str::from_utf8(op).unwrap(), Box::new(left), Box::new(right))
+                }),
+            ))
         }
     }
 }
