@@ -43,3 +43,13 @@ fn test_deep_import() {
     let t = DeepImportTemplate;
     assert_eq!(t.render().unwrap(), "foo");
 }
+
+#[derive(Template)]
+#[template(path = "macro-short-circuit.html")]
+struct ShortCircuitTemplate {}
+
+#[test]
+fn test_short_circuit() {
+    let t = ShortCircuitTemplate {};
+    assert_eq!(t.render().unwrap(), "truetruetruefalsetruetrue");
+}

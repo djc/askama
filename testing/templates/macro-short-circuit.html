@@ -1,0 +1,9 @@
+{% macro foo(b) -%}
+    {{ b }}
+{%- endmacro -%}
+{% call foo(true) -%}
+{% call foo(true && true) -%}
+{% call foo(true && true && true) -%}
+{% call foo(false) -%}
+{% call foo(false || true) -%}
+{% call foo(false || false || true) -%}

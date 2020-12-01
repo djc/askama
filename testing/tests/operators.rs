@@ -53,3 +53,13 @@ fn test_ranges() {
     };
     assert_eq!(t.render().unwrap(), "abcd\nbcd\n\na\nab");
 }
+
+#[derive(Template)]
+#[template(source = "{{ true && true }}{{ false || true }}", ext = "txt")]
+struct ShortCircuitTemplate {}
+
+#[test]
+fn test_short_circuit() {
+    let t = ShortCircuitTemplate {};
+    assert_eq!(t.render().unwrap(), "truetrue");
+}
