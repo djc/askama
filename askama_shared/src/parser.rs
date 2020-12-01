@@ -1074,6 +1074,7 @@ pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Result<Vec<Node<'a>>, 
 
 #[cfg(test)]
 mod tests {
+    use super::{Expr, Node, WS};
     use crate::Syntax;
 
     fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
@@ -1147,6 +1148,92 @@ mod tests {
         };
 
         super::parse("{~ strvar|e ~}", &syntax).unwrap();
+    }
+
+    #[test]
+    fn test_associativity() {
+        use Expr::*;
+        let syntax = Syntax::default();
+        assert_eq!(
+            super::parse("{{ a + b + c }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                BinOp(
+                    "+",
+                    BinOp("+", Var("a").into(), Var("b").into()).into(),
+                    Var("c").into()
+                )
+                .into()
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ a * b * c }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                BinOp(
+                    "*",
+                    BinOp("*", Var("a").into(), Var("b").into()).into(),
+                    Var("c").into()
+                )
+                .into()
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ a && b && c }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                BinOp(
+                    "&&",
+                    BinOp("&&", Var("a").into(), Var("b").into()).into(),
+                    Var("c").into()
+                )
+                .into()
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ a + b - c + d }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                BinOp(
+                    "+",
+                    BinOp(
+                        "-",
+                        BinOp("+", Var("a").into(), Var("b").into()).into(),
+                        Var("c").into()
+                    )
+                    .into(),
+                    Var("d").into()
+                )
+                .into()
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ a == b != c > d > e == f }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                BinOp(
+                    "==",
+                    BinOp(
+                        ">",
+                        BinOp(
+                            ">",
+                            BinOp(
+                                "!=",
+                                BinOp("==", Var("a").into(), Var("b").into()).into(),
+                                Var("c").into()
+                            )
+                            .into(),
+                            Var("d").into()
+                        )
+                        .into(),
+                        Var("e").into()
+                    )
+                    .into(),
+                    Var("f").into()
+                )
+                .into()
+            )],
+        );
     }
 }
 
