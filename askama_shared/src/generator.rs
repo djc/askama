@@ -945,7 +945,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     let expression = match wrapped {
                         Wrapped => expr_buf.buf,
                         Unwrapped => format!(
-                            "::askama::MarkupDisplay::new_unsafe(&{}, {})",
+                            "::askama::MarkupDisplay::new_unsafe(&({}), {})",
                             expr_buf.buf, self.input.escaper
                         ),
                     };
