@@ -717,10 +717,11 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
             names.write(arg);
 
-            values.write("&");
+            values.write("&(");
             values.write(&self.visit_expr_root(args.get(i).ok_or_else(|| {
                 CompileError::String(format!("macro '{}' takes more than {} arguments", name, i))
             })?)?);
+            values.write(")");
             self.locals.insert(arg);
         }
 
