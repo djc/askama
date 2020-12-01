@@ -1151,6 +1151,75 @@ mod tests {
     }
 
     #[test]
+    fn test_precedence() {
+        use Expr::*;
+        let syntax = Syntax::default();
+        assert_eq!(
+            super::parse("{{ a + b == c }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                BinOp(
+                    "==",
+                    BinOp("+", Var("a").into(), Var("b").into()).into(),
+                    Var("c").into(),
+                )
+                .into()
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ a + b * c - d / e }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                BinOp(
+                    "-",
+                    BinOp(
+                        "+",
+                        Var("a").into(),
+                        BinOp("*", Var("b").into(), Var("c").into()).into(),
+                    )
+                    .into(),
+                    BinOp("/", Var("d").into(), Var("e").into()).into(),
+                )
+                .into()
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ a * (b + c) / -d }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                BinOp(
+                    "/",
+                    BinOp(
+                        "*",
+                        Var("a").into(),
+                        Group(BinOp("+", Var("b").into(), Var("c").into()).into()).into()
+                    )
+                    .into(),
+                    Unary("-", Var("d").into()).into()
+                )
+                .into()
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ a || b && c || d && e }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                BinOp(
+                    "||",
+                    BinOp(
+                        "||",
+                        Var("a").into(),
+                        BinOp("&&", Var("b").into(), Var("c").into()).into(),
+                    )
+                    .into(),
+                    BinOp("&&", Var("d").into(), Var("e").into()).into(),
+                )
+                .into()
+            )],
+        );
+    }
+
+    #[test]
     fn test_associativity() {
         use Expr::*;
         let syntax = Syntax::default();
