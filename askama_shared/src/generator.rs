@@ -518,8 +518,15 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                         buf.dedent()?;
                         buf.write("} else if ");
                     }
+                    // The following syntax `*(&(...) as &bool)` is used to
+                    // trigger Rust's automatic dereferencing, to coerce
+                    // e.g. `&&&&&bool` to `bool`. First `&(...) as &bool`
+                    // coerces e.g. `&&&bool` to `&bool`. Then `*(&bool)`
+                    // finally dereferences it to `bool`.
+                    buf.write("*(&(");
                     let expr_code = self.visit_expr_root(expr)?;
                     buf.write(&expr_code);
+                    buf.write(") as &bool)");
                 }
                 None => {
                     buf.dedent()?;
