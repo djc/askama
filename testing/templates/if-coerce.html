@@ -26,6 +26,26 @@
 {%- call qux(self.f) -%}
 {%- call qux(self.f || self.t) -%}
 
-{%- if true %}t{% else %}f{% endif -%}
-{%- if true && false %}t{% else %}f{% endif -%}
-{%- if false || true %}t{% else %}f{% endif -%}
+{%- if false -%}
+if
+{%- else if false || true -%}
+elseif
+{%- else -%}
+else
+{%- endif -%}
+
+{%- if true && false -%}
+if
+{%- else if false -%}
+elseif
+{%- else -%}
+else
+{%- endif -%}
+
+{%- if false || true -%}
+if
+{%- else if (true && false) -%}
+elseif
+{%- else -%}
+else
+{%- endif -%}

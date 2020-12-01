@@ -10,5 +10,5 @@ struct IfCoerceTemplate {
 #[test]
 fn test_coerce() {
     let t = IfCoerceTemplate { t: true, f: false };
-    assert_eq!(t.render().unwrap(), "ftftfttfttft");
+    assert_eq!(t.render().unwrap(), "ftftfttftelseifelseif");
 }
