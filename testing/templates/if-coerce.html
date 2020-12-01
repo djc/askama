@@ -1,0 +1,51 @@
+{% macro foo(b) -%}
+    {% if b %}t{% else %}f{% endif -%}
+{% endmacro -%}
+
+{% macro bar(b) -%}
+    {%- call foo(b) -%}
+{% endmacro -%}
+
+{% macro baz(b) -%}
+    {%- call bar(b) -%}
+{% endmacro -%}
+
+{% macro qux(b) -%}
+    {%- call baz(b) -%}
+{% endmacro -%}
+
+{%- call foo(false) -%}
+{%- call bar(true) -%}
+{%- call baz(false) -%}
+{%- call qux(true) -%}
+
+{%- call qux(true && false) -%}
+{%- call qux(false || true) -%}
+
+{%- call qux(self.t) -%}
+{%- call qux(self.f) -%}
+{%- call qux(self.f || self.t) -%}
+
+{%- if false -%}
+if
+{%- else if false || true -%}
+elseif
+{%- else -%}
+else
+{%- endif -%}
+
+{%- if true && false -%}
+if
+{%- else if false -%}
+elseif
+{%- else -%}
+else
+{%- endif -%}
+
+{%- if false || true -%}
+if
+{%- else if (true && false) -%}
+elseif
+{%- else -%}
+else
+{%- endif -%}
