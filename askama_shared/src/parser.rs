@@ -1139,6 +1139,25 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_root_path() {
+        let syntax = Syntax::default();
+        assert_eq!(
+            super::parse("{{ std::string::String::new() }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                Expr::PathCall(vec!["std", "string", "String", "new"], vec![]),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ ::std::string::String::new() }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                Expr::PathCall(vec!["::", "std", "string", "String", "new"], vec![]),
+            )],
+        );
+    }
+
+    #[test]
     fn change_delimiters_parse_filter() {
         let syntax = Syntax {
             expr_start: "{~",
