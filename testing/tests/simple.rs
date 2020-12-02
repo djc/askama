@@ -291,6 +291,15 @@ fn test_path_func_call() {
 }
 
 #[derive(Template)]
+#[template(source = "{{ ::std::string::ToString::to_string(123) }}", ext = "txt")]
+struct RootPathFunctionTemplate;
+
+#[test]
+fn test_root_path_func_call() {
+    assert_eq!(RootPathFunctionTemplate.render().unwrap(), "123");
+}
+
+#[derive(Template)]
 #[template(source = "Hello, {{ Self::world3(self, \"123\", 4) }}!", ext = "txt")]
 struct FunctionTemplate;
 
