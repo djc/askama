@@ -1,7 +1,7 @@
 use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_until};
 use nom::character::complete::{anychar, char, digit1};
-use nom::combinator::{complete, map, opt};
+use nom::combinator::{complete, map, opt, value};
 use nom::error::ParseError;
 use nom::multi::{many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, tuple};
@@ -312,10 +312,12 @@ fn expr_var_call(i: &[u8]) -> IResult<&[u8], Expr> {
 }
 
 fn path(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
+    let root = opt(value("::", ws(tag("::"))));
     let tail = separated_list1(ws(tag("::")), identifier);
-    let (i, (start, _, rest)) = tuple((identifier, ws(tag("::")), tail))(i)?;
-
-    let mut path = vec![start];
+    let (i, (root, start, _, rest)) = tuple((root, identifier, ws(tag("::")), tail))(i)?;
+    let mut path = Vec::new();
+    path.extend(root);
+    path.push(start);
     path.extend(rest);
     Ok((i, path))
 }

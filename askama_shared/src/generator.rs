@@ -1342,10 +1342,15 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     fn visit_path(&mut self, buf: &mut Buffer, path: &[&str]) -> DisplayWrap {
-        for (i, part) in path.iter().enumerate() {
-            if i > 0 {
-                buf.write("::");
+        let mut it = path.iter();
+        match it.next() {
+            Some(&part) if part != "::" => {
+                buf.write(part);
             }
+            _ => {}
+        }
+        for part in it {
+            buf.write("::");
             buf.write(part);
         }
         DisplayWrap::Unwrapped
@@ -1357,10 +1362,15 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         path: &[&str],
         args: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
-        for (i, part) in path.iter().enumerate() {
-            if i > 0 {
-                buf.write("::");
+        let mut it = path.iter();
+        match it.next() {
+            Some(&part) if part != "::" => {
+                buf.write(part);
             }
+            _ => {}
+        }
+        for part in it {
+            buf.write("::");
             buf.write(part);
         }
         buf.write("(");
