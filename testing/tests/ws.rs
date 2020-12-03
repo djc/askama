@@ -8,7 +8,7 @@ macro_rules! test_template {
         #[template(source = $source, ext = "txt")]
         struct CondWS;
 
-        assert_ne!(CondWS.render().unwrap(), $rendered);
+        assert_eq!(CondWS.render().unwrap(), $rendered);
     }};
 }
 
