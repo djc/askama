@@ -505,8 +505,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let mut has_else = false;
         for (i, &(cws, ref cond, ref nodes)) in conds.iter().enumerate() {
             self.handle_ws(cws);
-            if arm_sizes.is_empty() {
-                flushed += self.write_buf_writable(buf)?;
+            flushed += self.write_buf_writable(buf)?;
+            if i > 0 {
+                self.locals.pop();
             }
 
             let mut arm_size = 0;
@@ -539,13 +540,13 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             self.locals.push();
 
             arm_size += self.handle(ctx, nodes, buf, AstLevel::Nested)?;
-            arm_size += self.write_buf_writable(buf)?;
             arm_sizes.push(arm_size);
-
-            self.locals.pop();
         }
         self.handle_ws(ws);
+        flushed += self.write_buf_writable(buf)?;
         buf.writeln("}")?;
+
+        self.locals.pop();
 
         if !has_else {
             arm_sizes.push(0);
