@@ -576,8 +576,19 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         let expr_code = self.visit_expr_root(expr)?;
         buf.writeln(&format!("match &{} {{", expr_code))?;
-        for arm in arms {
+
+        let mut arm_size = 0;
+        for (i, arm) in arms.iter().enumerate() {
             let &(ws, ref variant, ref params, ref body) = arm;
+            self.handle_ws(ws);
+
+            if i > 0 {
+                arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
+
+                buf.writeln("}")?;
+                self.locals.pop();
+            }
+
             self.locals.push();
             match *variant {
                 Some(ref param) => {
@@ -624,15 +635,17 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 }
             }
             buf.writeln(" => {")?;
-            self.handle_ws(ws);
-            let arm_size = self.handle(ctx, body, buf, AstLevel::Nested)?;
-            arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
-            buf.writeln("}")?;
-            self.locals.pop();
+
+            arm_size = self.handle(ctx, body, buf, AstLevel::Nested)?;
         }
 
-        buf.writeln("}")?;
         self.handle_ws(ws2);
+        arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
+        buf.writeln("}")?;
+        self.locals.pop();
+
+        buf.writeln("}")?;
+
         Ok(flushed + median(&mut arm_sizes))
     }
 
