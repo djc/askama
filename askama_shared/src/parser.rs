@@ -19,7 +19,7 @@ pub enum Node<'a> {
     LetDecl(WS, Target<'a>),
     Let(WS, Target<'a>, Expr<'a>),
     Cond(Vec<(WS, Option<Expr<'a>>, Vec<Node<'a>>)>, WS),
-    Match(WS, Expr<'a>, Option<&'a str>, Vec<When<'a>>, WS),
+    Match(WS, Expr<'a>, Vec<When<'a>>, WS),
     Loop(WS, Target<'a>, Expr<'a>, Vec<Node<'a>>, WS),
     Extends(Expr<'a>),
     BlockDef(WS, &'a str, Vec<Node<'a>>, WS),
@@ -771,8 +771,8 @@ fn block_match<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>
         arms.push(arm);
     }
 
-    let inter = match inter {
-        Some(Node::Lit(lws, val, rws)) => {
+    match inter {
+        Some(Node::Lit(_, val, rws)) => {
             assert!(
                 val.is_empty(),
                 "only whitespace allowed between match and first when, found {}",
@@ -783,18 +783,16 @@ fn block_match<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>
                 "only whitespace allowed between match and first when, found {}",
                 rws
             );
-            Some(lws)
         }
-        None => None,
+        None => {}
         _ => panic!("only literals allowed between match and first when"),
-    };
+    }
 
     Ok((
         i,
         Node::Match(
             WS(pws1.is_some(), nws1.is_some()),
             expr,
-            inter,
             arms,
             WS(pws2.is_some(), nws2.is_some()),
         ),
