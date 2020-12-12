@@ -162,6 +162,7 @@ fn test_cond_ws() {
     test_template!("\n1\r\n{%- if false -%}\n\n2\r\n\r\n{%- else -%}\n\n\n3\r\n\r\n\r\n{%- endif -%}\n\n\n\n4\r\n\r\n\r\n\r\n", "\n134");
 }
 
+#[rustfmt::skip]
 macro_rules! test_match {
     ($source:literal, $some_rendered:expr, $none_rendered:expr) => {{
         #[derive(Template)]

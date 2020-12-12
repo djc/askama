@@ -143,6 +143,7 @@ fn test_cond_ws() {
 
 def write_match_tests(f):
     f.write("""
+#[rustfmt::skip]
 macro_rules! test_match {
     ($source:literal, $some_rendered:expr, $none_rendered:expr) => {{
         #[derive(Template)]
