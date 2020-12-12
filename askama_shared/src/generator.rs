@@ -444,8 +444,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 Node::Cond(ref conds, ws) => {
                     self.write_cond(ctx, buf, conds, ws)?;
                 }
-                Node::Match(ws1, ref expr, inter, ref arms, ws2) => {
-                    self.write_match(ctx, buf, ws1, expr, inter, arms, ws2)?;
+                Node::Match(ws1, ref expr, ref arms, ws2) => {
+                    self.write_match(ctx, buf, ws1, expr, arms, ws2)?;
                 }
                 Node::Loop(ws1, ref var, ref iter, ref body, ws2) => {
                     self.write_loop(ctx, buf, ws1, var, iter, body, ws2)?;
@@ -561,23 +561,28 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         ws1: WS,
         expr: &Expr,
-        inter: Option<&'a str>,
         arms: &'a [When],
         ws2: WS,
     ) -> Result<usize, CompileError> {
         self.flush_ws(ws1);
         let flushed = self.write_buf_writable(buf)?;
         let mut arm_sizes = Vec::new();
-        if let Some(inter) = inter {
-            if !inter.is_empty() {
-                self.next_ws = Some(inter);
-            }
-        }
 
         let expr_code = self.visit_expr_root(expr)?;
         buf.writeln(&format!("match &{} {{", expr_code))?;
-        for arm in arms {
+
+        let mut arm_size = 0;
+        for (i, arm) in arms.iter().enumerate() {
             let &(ws, ref variant, ref params, ref body) = arm;
+            self.handle_ws(ws);
+
+            if i > 0 {
+                arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
+
+                buf.writeln("}")?;
+                self.locals.pop();
+            }
+
             self.locals.push();
             match *variant {
                 Some(ref param) => {
@@ -624,15 +629,17 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 }
             }
             buf.writeln(" => {")?;
-            self.handle_ws(ws);
-            let arm_size = self.handle(ctx, body, buf, AstLevel::Nested)?;
-            arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
-            buf.writeln("}")?;
-            self.locals.pop();
+
+            arm_size = self.handle(ctx, body, buf, AstLevel::Nested)?;
         }
 
-        buf.writeln("}")?;
         self.handle_ws(ws2);
+        arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
+        buf.writeln("}")?;
+        self.locals.pop();
+
+        buf.writeln("}")?;
+
         Ok(flushed + median(&mut arm_sizes))
     }
 

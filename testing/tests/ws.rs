@@ -161,3 +161,54 @@ fn test_cond_ws() {
     test_template!("\n1\r\n{%- if true -%}\n\n2\r\n\r\n{%- else -%}\n\n\n3\r\n\r\n\r\n{%- endif -%}\n\n\n\n4\r\n\r\n\r\n\r\n", "\n124");
     test_template!("\n1\r\n{%- if false -%}\n\n2\r\n\r\n{%- else -%}\n\n\n3\r\n\r\n\r\n{%- endif -%}\n\n\n\n4\r\n\r\n\r\n\r\n", "\n134");
 }
+
+#[rustfmt::skip]
+macro_rules! test_match {
+    ($source:literal, $some_rendered:expr, $none_rendered:expr) => {{
+        #[derive(Template)]
+        #[template(source = $source, ext = "txt")]
+        struct MatchWS {
+            item: Option<&'static str>,
+        }
+
+        assert_eq!(MatchWS { item: Some("foo") }.render().unwrap(), $some_rendered);
+        assert_eq!(MatchWS { item: None }.render().unwrap(), $none_rendered);
+    }};
+}
+
+#[rustfmt::skip]
+#[test]
+fn test_match_ws() {
+    test_match!("before {%  match item  %}{%  when Some with (item)  %}  foo   {%  when None  %}    bar     {%  endmatch  %}      after", "before   foo         after", "before     bar           after");
+    test_match!("before {%  match item  %}{%  when Some with (item)  %}  foo   {%  when None  %}    bar     {%- endmatch  %}      after", "before   foo         after", "before     bar      after");
+    test_match!("before {%  match item  %}{%  when Some with (item)  %}  foo   {%  when None -%}    bar     {%  endmatch  %}      after", "before   foo         after", "before bar           after");
+    test_match!("before {%  match item  %}{%  when Some with (item)  %}  foo   {%  when None -%}    bar     {%- endmatch  %}      after", "before   foo         after", "before bar      after");
+    test_match!("before {%  match item  %}{%  when Some with (item)  %}  foo   {%- when None  %}    bar     {%  endmatch  %}      after", "before   foo      after", "before     bar           after");
+    test_match!("before {%  match item  %}{%  when Some with (item)  %}  foo   {%- when None  %}    bar     {%- endmatch  %}      after", "before   foo      after", "before     bar      after");
+    test_match!("before {%  match item  %}{%  when Some with (item)  %}  foo   {%- when None -%}    bar     {%  endmatch  %}      after", "before   foo      after", "before bar           after");
+    test_match!("before {%  match item  %}{%  when Some with (item)  %}  foo   {%- when None -%}    bar     {%- endmatch  %}      after", "before   foo      after", "before bar      after");
+    test_match!("before {%  match item  %}{%  when Some with (item) -%}  foo   {%  when None  %}    bar     {%  endmatch  %}      after", "before foo         after", "before     bar           after");
+    test_match!("before {%  match item  %}{%  when Some with (item) -%}  foo   {%  when None  %}    bar     {%- endmatch  %}      after", "before foo         after", "before     bar      after");
+    test_match!("before {%  match item  %}{%  when Some with (item) -%}  foo   {%  when None -%}    bar     {%  endmatch  %}      after", "before foo         after", "before bar           after");
+    test_match!("before {%  match item  %}{%  when Some with (item) -%}  foo   {%  when None -%}    bar     {%- endmatch  %}      after", "before foo         after", "before bar      after");
+    test_match!("before {%  match item  %}{%  when Some with (item) -%}  foo   {%- when None  %}    bar     {%  endmatch  %}      after", "before foo      after", "before     bar           after");
+    test_match!("before {%  match item  %}{%  when Some with (item) -%}  foo   {%- when None  %}    bar     {%- endmatch  %}      after", "before foo      after", "before     bar      after");
+    test_match!("before {%  match item  %}{%  when Some with (item) -%}  foo   {%- when None -%}    bar     {%  endmatch  %}      after", "before foo      after", "before bar           after");
+    test_match!("before {%  match item  %}{%  when Some with (item) -%}  foo   {%- when None -%}    bar     {%- endmatch  %}      after", "before foo      after", "before bar      after");
+    test_match!("before {%  match item  %}{%- when Some with (item)  %}  foo   {%  when None  %}    bar     {%  endmatch  %}      after", "before   foo         after", "before     bar           after");
+    test_match!("before {%  match item  %}{%- when Some with (item)  %}  foo   {%  when None  %}    bar     {%- endmatch  %}      after", "before   foo         after", "before     bar      after");
+    test_match!("before {%  match item  %}{%- when Some with (item)  %}  foo   {%  when None -%}    bar     {%  endmatch  %}      after", "before   foo         after", "before bar           after");
+    test_match!("before {%  match item  %}{%- when Some with (item)  %}  foo   {%  when None -%}    bar     {%- endmatch  %}      after", "before   foo         after", "before bar      after");
+    test_match!("before {%  match item  %}{%- when Some with (item)  %}  foo   {%- when None  %}    bar     {%  endmatch  %}      after", "before   foo      after", "before     bar           after");
+    test_match!("before {%  match item  %}{%- when Some with (item)  %}  foo   {%- when None  %}    bar     {%- endmatch  %}      after", "before   foo      after", "before     bar      after");
+    test_match!("before {%  match item  %}{%- when Some with (item)  %}  foo   {%- when None -%}    bar     {%  endmatch  %}      after", "before   foo      after", "before bar           after");
+    test_match!("before {%  match item  %}{%- when Some with (item)  %}  foo   {%- when None -%}    bar     {%- endmatch  %}      after", "before   foo      after", "before bar      after");
+    test_match!("before {%  match item  %}{%- when Some with (item) -%}  foo   {%  when None  %}    bar     {%  endmatch  %}      after", "before foo         after", "before     bar           after");
+    test_match!("before {%  match item  %}{%- when Some with (item) -%}  foo   {%  when None  %}    bar     {%- endmatch  %}      after", "before foo         after", "before     bar      after");
+    test_match!("before {%  match item  %}{%- when Some with (item) -%}  foo   {%  when None -%}    bar     {%  endmatch  %}      after", "before foo         after", "before bar           after");
+    test_match!("before {%  match item  %}{%- when Some with (item) -%}  foo   {%  when None -%}    bar     {%- endmatch  %}      after", "before foo         after", "before bar      after");
+    test_match!("before {%  match item  %}{%- when Some with (item) -%}  foo   {%- when None  %}    bar     {%  endmatch  %}      after", "before foo      after", "before     bar           after");
+    test_match!("before {%  match item  %}{%- when Some with (item) -%}  foo   {%- when None  %}    bar     {%- endmatch  %}      after", "before foo      after", "before     bar      after");
+    test_match!("before {%  match item  %}{%- when Some with (item) -%}  foo   {%- when None -%}    bar     {%  endmatch  %}      after", "before foo      after", "before bar           after");
+    test_match!("before {%  match item  %}{%- when Some with (item) -%}  foo   {%- when None -%}    bar     {%- endmatch  %}      after", "before foo      after", "before bar      after");
+}

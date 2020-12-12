@@ -17,19 +17,19 @@ struct MatchOptRefTemplate<'a> {
 #[test]
 fn test_match_option() {
     let s = MatchOptTemplate { item: Some("foo") };
-    assert_eq!(s.render().unwrap(), "\n\nFound literal foo\n");
+    assert_eq!(s.render().unwrap(), "\nFound literal foo\n");
 
     let s = MatchOptTemplate { item: Some("bar") };
-    assert_eq!(s.render().unwrap(), "\n\nFound bar\n");
+    assert_eq!(s.render().unwrap(), "\nFound bar\n");
 
     let s = MatchOptTemplate { item: None };
-    assert_eq!(s.render().unwrap(), "\n\nNot Found\n");
+    assert_eq!(s.render().unwrap(), "\nNot Found\n");
 }
 
 #[test]
 fn test_match_ref_deref() {
     let s = MatchOptRefTemplate { item: &Some("foo") };
-    assert_eq!(s.render().unwrap(), "\n\nFound literal foo\n");
+    assert_eq!(s.render().unwrap(), "\nFound literal foo\n");
 }
 
 #[derive(Template)]
@@ -41,10 +41,10 @@ struct MatchLitTemplate<'a> {
 #[test]
 fn test_match_literal() {
     let s = MatchLitTemplate { item: "bar" };
-    assert_eq!(s.render().unwrap(), "\n\nFound literal bar\n");
+    assert_eq!(s.render().unwrap(), "\nFound literal bar\n");
 
     let s = MatchLitTemplate { item: "qux" };
-    assert_eq!(s.render().unwrap(), "\n\nElse found qux\n");
+    assert_eq!(s.render().unwrap(), "\nElse found qux\n");
 }
 
 #[derive(Template)]
@@ -56,10 +56,10 @@ struct MatchLitCharTemplate {
 #[test]
 fn test_match_literal_char() {
     let s = MatchLitCharTemplate { item: 'b' };
-    assert_eq!(s.render().unwrap(), "\n\nFound literal b\n");
+    assert_eq!(s.render().unwrap(), "\nFound literal b\n");
 
     let s = MatchLitCharTemplate { item: 'c' };
-    assert_eq!(s.render().unwrap(), "\n\nElse found c\n");
+    assert_eq!(s.render().unwrap(), "\nElse found c\n");
 }
 
 #[derive(Template)]
@@ -71,10 +71,10 @@ struct MatchLitNumTemplate {
 #[test]
 fn test_match_literal_num() {
     let s = MatchLitNumTemplate { item: 42 };
-    assert_eq!(s.render().unwrap(), "\n\nFound answer to everything\n");
+    assert_eq!(s.render().unwrap(), "\nFound answer to everything\n");
 
     let s = MatchLitNumTemplate { item: 23 };
-    assert_eq!(s.render().unwrap(), "\n\nElse found 23\n");
+    assert_eq!(s.render().unwrap(), "\nElse found 23\n");
 }
 
 #[allow(dead_code)]
@@ -99,7 +99,7 @@ fn test_match_custom_enum() {
             b: 255,
         },
     };
-    assert_eq!(s.render().unwrap(), "\n\nColorful: #A000FF\n");
+    assert_eq!(s.render().unwrap(), "\nColorful: #A000FF\n");
 }
 
 #[derive(Template)]
