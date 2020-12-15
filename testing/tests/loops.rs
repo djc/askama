@@ -67,3 +67,39 @@ fn test_for_range() {
         "foo (first)\nfoo (last)\nbar\nbar\nfoo\nbar\nbar\n"
     );
 }
+
+#[derive(Template)]
+#[template(source = "{% for i in [1, 2, 3] %}{{ i }}{% endfor %}", ext = "txt")]
+struct ForArrayTemplate {}
+
+#[test]
+fn test_for_array() {
+    let t = ForArrayTemplate {};
+    assert_eq!(t.render().unwrap(), "123");
+}
+
+#[derive(Template)]
+#[template(
+    source = "{% for i in [1, 2, 3].iter() %}{{ i }}{% endfor %}",
+    ext = "txt"
+)]
+struct ForMethodCallTemplate {}
+
+#[test]
+fn test_for_method_call() {
+    let t = ForMethodCallTemplate {};
+    assert_eq!(t.render().unwrap(), "123");
+}
+
+#[derive(Template)]
+#[template(
+    source = "{% for i in [1, 2, 3, 4, 5][3..] %}{{ i }}{% endfor %}",
+    ext = "txt"
+)]
+struct ForIndexTemplate {}
+
+#[test]
+fn test_for_index() {
+    let t = ForIndexTemplate {};
+    assert_eq!(t.render().unwrap(), "45");
+}
