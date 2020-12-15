@@ -16,7 +16,7 @@ Inside code blocks, you can also declare variables or assign values
 to variables.
 Assignments can't be imported by other templates.
 
-Assignments use the let tag:
+Assignments use the `let` tag:
 
 ```text
 {% let name = user.name %}
@@ -30,6 +30,8 @@ Assignments use the let tag:
 {% endif -%}
 {{ val }}
 ```
+
+For compatibility with Jinja, `set` can be used in place of `let`.
 
 ## Filters
 
