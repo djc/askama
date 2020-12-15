@@ -667,8 +667,26 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 ", _loop_item) in ::askama::helpers::TemplateLoop::new({}) {{",
                 expr_code
             )),
+            Expr::Array(..) => buf.writeln(&format!(
+                ", _loop_item) in ::askama::helpers::TemplateLoop::new({}.iter()) {{",
+                expr_code
+            )),
+            // If `iter` is a call then we assume it's something that returns
+            // an iterator. If not then the user can explicitly add the needed
+            // call without issues.
+            Expr::MethodCall(..) | Expr::PathCall(..) | Expr::Index(..) => buf.writeln(&format!(
+                ", _loop_item) in ::askama::helpers::TemplateLoop::new(({}).into_iter()) {{",
+                expr_code
+            )),
+            // If accessing `self` then it most likely needs to be
+            // borrowed, to prevent an attempt of moving.
+            _ if expr_code.starts_with("self.") => buf.writeln(&format!(
+                ", _loop_item) in ::askama::helpers::TemplateLoop::new(((&{}).into_iter())) {{",
+                expr_code
+            )),
+            // Otherwise, we borrow `iter` assuming that it implements `IntoIterator`.
             _ => buf.writeln(&format!(
-                ", _loop_item) in ::askama::helpers::TemplateLoop::new((&{}).into_iter()) {{",
+                ", _loop_item) in ::askama::helpers::TemplateLoop::new(({}).into_iter()) {{",
                 expr_code
             )),
         }?;
