@@ -802,7 +802,7 @@ fn block_match<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>
 fn block_let(i: &[u8]) -> IResult<&[u8], Node> {
     let mut p = tuple((
         opt(tag("-")),
-        ws(tag("let")),
+        ws(alt((tag("let"), tag("set")))),
         ws(alt((target_single, target_tuple))),
         opt(tuple((ws(tag("=")), ws(expr_any)))),
         opt(tag("-")),
