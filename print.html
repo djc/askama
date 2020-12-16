@@ -468,7 +468,7 @@ field from the template context.</p>
 <p>Inside code blocks, you can also declare variables or assign values
 to variables.
 Assignments can't be imported by other templates.</p>
-<p>Assignments use the let tag:</p>
+<p>Assignments use the <code>let</code> tag:</p>
 <pre><code class="language-text">{% let name = user.name %}
 {% let len = name.len() %}
 
@@ -480,6 +480,7 @@ Assignments can't be imported by other templates.</p>
 {% endif -%}
 {{ val }}
 </code></pre>
+<p>For compatibility with Jinja, <code>set</code> can be used in place of <code>let</code>.</p>
 <h2><a class="header" href="#filters" id="filters">Filters</a></h2>
 <p>Values such as those obtained from variables can be post-processed
 using <strong>filters</strong>.
