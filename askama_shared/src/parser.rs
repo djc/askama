@@ -2,7 +2,7 @@ use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_until};
 use nom::character::complete::{anychar, char, digit1};
 use nom::combinator::{complete, map, opt, value};
-use nom::error::ParseError;
+use nom::error::{Error, ParseError};
 use nom::multi::{many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, tuple};
 use nom::{self, error_position, Compare, IResult, InputTake};
@@ -1007,19 +1007,37 @@ fn block_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>>
     Ok((i, contents))
 }
 
+fn block_comment_body<'a>(mut i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], &'a [u8]> {
+    let mut level = 0;
+    loop {
+        let (end, tail) = take_until(s.comment_end)(i)?;
+        match take_until::<_, _, Error<_>>(s.comment_start)(i) {
+            Ok((start, _)) if start.as_ptr() < end.as_ptr() => {
+                level += 1;
+                i = &start[2..];
+            }
+            _ if level > 0 => {
+                level -= 1;
+                i = &end[2..];
+            }
+            _ => return Ok((end, tail)),
+        }
+    }
+}
+
 fn block_comment<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
     let mut p = tuple((
         |i| tag_comment_start(i, s),
         opt(tag("-")),
-        take_until(s.comment_end),
+        |i| block_comment_body(i, s),
         |i| tag_comment_end(i, s),
     ));
-    let (i, (_, pws, inner, _)) = p(i)?;
+    let (i, (_, pws, tail, _)) = p(i)?;
     Ok((
         i,
         Node::Comment(WS(
             pws.is_some(),
-            inner.len() > 1 && inner[inner.len() - 1] == b'-',
+            tail.len() > 1 && tail[tail.len() - 1] == b'-',
         )),
     ))
 }
