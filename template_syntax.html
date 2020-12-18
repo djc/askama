@@ -423,7 +423,13 @@ assert_eq!(t.render().unwrap(), &quot;Section 1: A=a\nB=b&quot;)
 using a vector of templates in a for block.</p>
 <h2><a class="header" href="#comments" id="comments">Comments</a></h2>
 <p>Askama supports block comments delimited by <code>{#</code> and <code>#}</code>.</p>
-<pre><code>{# A Comment #}
+<pre><code class="language-jinja">{# A Comment #}
+</code></pre>
+<p>Like Rust, Askama also supports nested block comments.</p>
+<pre><code class="language-jinja">{#
+A Comment
+{# A nested comment #}
+#}
 </code></pre>
 <h2><a class="header" href="#recursive-structures" id="recursive-structures">Recursive Structures</a></h2>
 <p>Recursive implementations should preferably use a custom iterator and
