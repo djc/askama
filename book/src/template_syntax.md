@@ -330,8 +330,17 @@ using a vector of templates in a for block.
 
 Askama supports block comments delimited by `{#` and `#}`.
 
-```
+```jinja
 {# A Comment #}
+```
+
+Like Rust, Askama also supports nested block comments.
+
+```jinja
+{#
+A Comment
+{# A nested comment #}
+#}
 ```
 
 ## Recursive Structures
