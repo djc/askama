@@ -10,15 +10,11 @@ It generates Rust code from your templates at compile time
 based on a user-defined `struct` to hold the template's context.
 See below for an example, or read [the book][docs].
 
-**"I use Askama for actix's TechEmpower benchmarks."** --
-[Nikolay Kim][fafhrd91], creator of actix-web
-
 **"Pretty exciting. I would love to use this already."** --
 [Armin Ronacher][mitsuhiko], creator of Jinja
 
 All feedback welcome. Feel free to file bugs, requests for documentation and
 any other feedback to the [issue tracker][issues] or [tweet me][twitter].
-Many thanks to [David Tolnay][dtolnay] for his support in improving Askama.
 
 Askama was created by and is maintained by Dirkjan Ochtman. If you are in a
 position to support ongoing maintenance and further development or use it
@@ -28,8 +24,8 @@ in a for-profit context, please consider supporting my open source work on
 ### Feature highlights
 
 * Construct templates using a familiar, easy-to-use syntax
-* Template code is compiled into your crate for [optimal performance][benchmarks]
 * Benefit from the safety provided by Rust's type system
+* Template code is compiled into your crate for [optimal performance][benchmarks]
 * Optional built-in support for Actix, Gotham, Iron, Rocket, tide, and warp web frameworks
 * Debugging features to assist you in template development
 * Templates must be valid UTF-8 and produce UTF-8 when rendered
