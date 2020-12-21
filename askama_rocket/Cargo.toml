@@ -14,5 +14,5 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-askama = { version = "0.10", path = "../askama", features = ["with-rocket", "mime", "mime_guess"] }
+askama = { version = "0.10", path = "../askama", default-features = false, features = ["with-rocket", "mime", "mime_guess"] }
 rocket = { version = "0.4", default-features = false }
