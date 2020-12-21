@@ -206,7 +206,7 @@ impl<'d> RawConfig<'d> {
     }
 
     #[cfg(not(feature = "config"))]
-    fn from_toml_str<'n>(_: &'n str) -> std::result::Result<RawConfig<'_>, CompileError> {
+    fn from_toml_str(_: &str) -> std::result::Result<RawConfig<'_>, CompileError> {
         Err("TOML support not available".into())
     }
 }
