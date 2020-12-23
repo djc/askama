@@ -47,6 +47,27 @@ fn test_let_decl() {
 }
 
 #[derive(Template)]
+#[template(path = "let-shadow.html")]
+struct LetShadowTemplate {
+    cond: bool,
+}
+
+impl LetShadowTemplate {
+    fn tuple() -> (i32, i32) {
+        (4, 5)
+    }
+}
+
+#[test]
+fn test_let_shadow() {
+    let t = LetShadowTemplate { cond: true };
+    assert_eq!(t.render().unwrap(), "22-1-33-11-22");
+
+    let t = LetShadowTemplate { cond: false };
+    assert_eq!(t.render().unwrap(), "222-1-333-4-5-11-222");
+}
+
+#[derive(Template)]
 #[template(source = "{% for v in self.0 %}{{ v }}{% endfor %}", ext = "txt")]
 struct SelfIterTemplate(Vec<usize>);
 
