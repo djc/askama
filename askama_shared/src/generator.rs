@@ -876,16 +876,34 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         match *var {
             Target::Name(name) => {
-                if !self.locals.contains(&name) {
+                let meta = self.locals.get(&name).cloned();
+
+                let shadowed = matches!(&meta, Some(meta) if meta.initialized);
+                if shadowed {
+                    // Need to flush the buffer if the variable is being shadowed,
+                    // to ensure the old variable is used.
+                    self.write_buf_writable(buf)?;
+                }
+                if shadowed || meta.is_none() {
                     buf.write("let ");
-                    self.locals.insert_with_default(name);
                 }
                 buf.write(name);
+
+                self.locals.insert(name, LocalMeta::initialized());
             }
             Target::Tuple(ref targets) => {
+                let shadowed = targets
+                    .iter()
+                    .any(|name| matches!(self.locals.get(&name), Some(meta) if meta.initialized));
+                if shadowed {
+                    // Need to flush the buffer if the variable is being shadowed,
+                    // to ensure the old variable is used.
+                    self.write_buf_writable(buf)?;
+                }
+
                 buf.write("let (");
                 for name in targets {
-                    self.locals.insert_with_default(name);
+                    self.locals.insert(name, LocalMeta::initialized());
                     buf.write(name);
                     buf.write(",");
                 }
@@ -1576,14 +1594,25 @@ impl Buffer {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct LocalMeta {
     refs: Option<String>,
+    initialized: bool,
 }
 
 impl LocalMeta {
+    fn initialized() -> Self {
+        Self {
+            refs: None,
+            initialized: true,
+        }
+    }
+
     fn with_ref(refs: String) -> Self {
-        Self { refs: Some(refs) }
+        Self {
+            refs: Some(refs),
+            initialized: true,
+        }
     }
 }
 
