@@ -18,7 +18,7 @@ Assignments can't be imported by other templates.
 
 Assignments use the `let` tag:
 
-```text
+```jinja
 {% let name = user.name %}
 {% let len = name.len() %}
 
@@ -29,6 +29,16 @@ Assignments use the `let` tag:
   {% let val = name -%}
 {% endif -%}
 {{ val }}
+```
+
+Like Rust, Askama also supports shadowing variables.
+
+```jinja
+{% let foo = "bar" %}
+{{ foo }}
+
+{% let foo = "baz" %}
+{{ foo }}
 ```
 
 For compatibility with Jinja, `set` can be used in place of `let`.
