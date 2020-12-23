@@ -323,16 +323,22 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
     // Implement Rocket's `Responder`.
     fn impl_rocket_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let lifetime = syn::Lifetime::new("'askama", Span::call_site());
-        let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
+        let req_lifetime = syn::Lifetime::new("'askama", Span::call_site());
+        let param0 = syn::GenericParam::Lifetime(syn::LifetimeDef::new(req_lifetime.clone()));
+
+        let out_lifetime = syn::Lifetime::new("'out", Span::call_site());
+        let mut out_def = syn::LifetimeDef::new(out_lifetime);
+        out_def.bounds.push(req_lifetime);
+        let param1 = syn::GenericParam::Lifetime(out_def);
+        
         self.write_header(
             buf,
-            "::askama_rocket::Responder<'askama>",
-            Some(vec![param]),
+            "::askama_rocket::Responder<'askama, 'out>",
+            Some(vec![param0, param1]),
         )?;
         buf.writeln(
             "fn respond_to(self, _: &::askama_rocket::Request) \
-             -> ::askama_rocket::Result<'askama> {",
+             -> ::askama_rocket::Result<'out> {",
         )?;
 
         let ext = match self.input.path.extension() {
