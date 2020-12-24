@@ -18,5 +18,5 @@ askama = { version = "0.10", path = "../askama", default-features = false, featu
 warp = { version = "0.2", default-features = false }
 
 [dev-dependencies]
-tokio-test = "0.2"
+tokio-test = "0.4"
 tokio = { version = "0.2", features = ["macros"] }
