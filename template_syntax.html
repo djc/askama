@@ -177,7 +177,7 @@ field from the template context.</p>
 to variables.
 Assignments can't be imported by other templates.</p>
 <p>Assignments use the <code>let</code> tag:</p>
-<pre><code class="language-text">{% let name = user.name %}
+<pre><code class="language-jinja">{% let name = user.name %}
 {% let len = name.len() %}
 
 {% let val -%}
@@ -187,6 +187,13 @@ Assignments can't be imported by other templates.</p>
   {% let val = name -%}
 {% endif -%}
 {{ val }}
+</code></pre>
+<p>Like Rust, Askama also supports shadowing variables.</p>
+<pre><code class="language-jinja">{% let foo = &quot;bar&quot; %}
+{{ foo }}
+
+{% let foo = &quot;baz&quot; %}
+{{ foo }}
 </code></pre>
 <p>For compatibility with Jinja, <code>set</code> can be used in place of <code>let</code>.</p>
 <h2><a class="header" href="#filters" id="filters">Filters</a></h2>
