@@ -47,7 +47,6 @@ in a for-profit context, please consider supporting my open source work on
 [mitsuhiko]: http://lucumr.pocoo.org/
 [issues]: https://github.com/djc/askama/issues
 [twitter]: https://twitter.com/djco/
-[dtolnay]: https://github.com/dtolnay
 [patreon]: https://www.patreon.com/dochtman
 [benchmarks]: https://github.com/djc/template-benchmarks-rs
 
