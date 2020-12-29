@@ -1184,6 +1184,15 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             return Ok(DisplayWrap::Unwrapped);
         }
 
+        #[cfg(not(feature = "json"))]
+        if name == "json" {
+            return Err("the `json` filter requires the `serde-json` feature to be enabled".into());
+        }
+        #[cfg(not(feature = "yaml"))]
+        if name == "yaml" {
+            return Err("the `yaml` filter requires the `serde-yaml` feature to be enabled".into());
+        }
+
         if name == "escape" || name == "safe" || name == "e" || name == "json" {
             buf.write(&format!(
                 "::askama::filters::{}({}, ",
