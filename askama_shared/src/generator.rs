@@ -1170,7 +1170,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn visit_filter(
         &mut self,
         buf: &mut Buffer,
-        name: &str,
+        mut name: &str,
         args: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
         if name == "format" {
@@ -1182,6 +1182,10 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         } else if name == "join" {
             self._visit_join_filter(buf, args)?;
             return Ok(DisplayWrap::Unwrapped);
+        }
+
+        if name == "tojson" {
+            name = "json";
         }
 
         #[cfg(not(feature = "json"))]
