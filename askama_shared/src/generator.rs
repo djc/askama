@@ -1193,7 +1193,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             return Err("the `yaml` filter requires the `serde-yaml` feature to be enabled".into());
         }
 
-        if name == "escape" || name == "safe" || name == "e" || name == "json" {
+        const FILTERS: [&str; 4] = ["safe", "escape", "e", "json"];
+        if FILTERS.contains(&name) {
             buf.write(&format!(
                 "::askama::filters::{}({}, ",
                 name, self.input.escaper
@@ -1206,13 +1207,10 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         self._visit_args(buf, args)?;
         buf.write(")?");
-        Ok(
-            if name == "safe" || name == "escape" || name == "e" || name == "json" {
-                DisplayWrap::Wrapped
-            } else {
-                DisplayWrap::Unwrapped
-            },
-        )
+        Ok(match FILTERS.contains(&name) {
+            true => DisplayWrap::Wrapped,
+            false => DisplayWrap::Unwrapped,
+        })
     }
 
     fn _visit_format_filter(
