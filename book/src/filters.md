@@ -262,12 +262,14 @@ Enabling the `serde-json` feature will enable the use of the `json` filter.
 This will output formatted JSON for any value that implements the required
 `Serialize` trait.
 
-```
+```jinja
 {
   "foo": "{{ foo }}",
   "bar": {{ bar|json }}
 }
 ```
+
+For compatibility with Jinja, `tojson` can be used in place of `json`.
 
 ## The `yaml` filter
 
