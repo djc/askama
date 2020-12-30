@@ -309,11 +309,12 @@ fn main() {
 <p>Enabling the <code>serde-json</code> feature will enable the use of the <code>json</code> filter.
 This will output formatted JSON for any value that implements the required
 <code>Serialize</code> trait.</p>
-<pre><code>{
+<pre><code class="language-jinja">{
   &quot;foo&quot;: &quot;{{ foo }}&quot;,
   &quot;bar&quot;: {{ bar|json }}
 }
 </code></pre>
+<p>For compatibility with Jinja, <code>tojson</code> can be used in place of <code>json</code>.</p>
 <h2><a class="header" href="#the-yaml-filter" id="the-yaml-filter">The <code>yaml</code> filter</a></h2>
 <p>Enabling the <code>serde-yaml</code> feature will enable the use of the <code>yaml</code> filter.
 This will output formatted JSON for any value that implements the required
