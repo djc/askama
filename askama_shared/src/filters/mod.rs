@@ -518,9 +518,9 @@ mod tests {
     #[test]
     #[allow(clippy::float_cmp)]
     fn test_into_f64() {
-        assert_eq!(into_f64(&1).unwrap(), 1.0 as f64);
-        assert_eq!(into_f64(&1.9).unwrap(), 1.9 as f64);
-        assert_eq!(into_f64(&-1.9).unwrap(), -1.9 as f64);
+        assert_eq!(into_f64(&1).unwrap(), 1.0_f64);
+        assert_eq!(into_f64(&1.9).unwrap(), 1.9_f64);
+        assert_eq!(into_f64(&-1.9).unwrap(), -1.9_f64);
         assert_eq!(into_f64(&(INFINITY as f32)).unwrap(), INFINITY);
         assert_eq!(into_f64(&(-INFINITY as f32)).unwrap(), -INFINITY);
     }
@@ -528,11 +528,11 @@ mod tests {
     #[cfg(feature = "num-traits")]
     #[test]
     fn test_into_isize() {
-        assert_eq!(into_isize(&1).unwrap(), 1 as isize);
-        assert_eq!(into_isize(&1.9).unwrap(), 1 as isize);
-        assert_eq!(into_isize(&-1.9).unwrap(), -1 as isize);
-        assert_eq!(into_isize(&(1.5 as f64)).unwrap(), 1 as isize);
-        assert_eq!(into_isize(&(-1.5 as f64)).unwrap(), -1 as isize);
+        assert_eq!(into_isize(&1).unwrap(), 1_isize);
+        assert_eq!(into_isize(&1.9).unwrap(), 1_isize);
+        assert_eq!(into_isize(&-1.9).unwrap(), -1_isize);
+        assert_eq!(into_isize(&(1.5_f64)).unwrap(), 1_isize);
+        assert_eq!(into_isize(&(-1.5_f64)).unwrap(), -1_isize);
         match into_isize(&INFINITY) {
             Err(Fmt(fmt::Error)) => {}
             _ => panic!("Should return error of type Err(Fmt(fmt::Error))"),
@@ -580,8 +580,8 @@ mod tests {
         assert_eq!(abs(-1).unwrap(), 1);
         assert_eq!(abs(1.0).unwrap(), 1.0);
         assert_eq!(abs(-1.0).unwrap(), 1.0);
-        assert_eq!(abs(1.0 as f64).unwrap(), 1.0 as f64);
-        assert_eq!(abs(-1.0 as f64).unwrap(), 1.0 as f64);
+        assert_eq!(abs(1.0_f64).unwrap(), 1.0_f64);
+        assert_eq!(abs(-1.0_f64).unwrap(), 1.0_f64);
     }
 
     #[test]
