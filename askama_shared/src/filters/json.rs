@@ -8,8 +8,8 @@ use serde::Serialize;
 ///
 /// This will panic if `S`'s implementation of `Serialize` decides to fail,
 /// or if `T` contains a map with non-string keys.
-pub fn json<E: Escaper, S: Serialize>(e: E, s: &S) -> Result<MarkupDisplay<E, String>> {
-    match serde_json::to_string_pretty(s) {
+pub fn json<E: Escaper, S: Serialize>(e: E, s: S) -> Result<MarkupDisplay<E, String>> {
+    match serde_json::to_string_pretty(&s) {
         Ok(s) => Ok(MarkupDisplay::new_safe(s, e)),
         Err(e) => Err(Error::from(e)),
     }
@@ -22,6 +22,8 @@ mod tests {
 
     #[test]
     fn test_json() {
+        assert_eq!(json(Html, true).unwrap().to_string(), "true");
+        assert_eq!(json(Html, "foo").unwrap().to_string(), r#""foo""#);
         assert_eq!(json(Html, &true).unwrap().to_string(), "true");
         assert_eq!(json(Html, &"foo").unwrap().to_string(), r#""foo""#);
         assert_eq!(

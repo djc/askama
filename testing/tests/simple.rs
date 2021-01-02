@@ -265,7 +265,7 @@ fn test_slice_literal() {
 #[derive(Template)]
 #[template(source = "Hello, {{ world(\"123\", 4) }}!", ext = "txt")]
 struct FunctionRefTemplate {
-    world: fn(s: &str, v: &u8) -> String,
+    world: fn(s: &str, v: u8) -> String,
 }
 
 #[test]
@@ -277,7 +277,7 @@ fn test_func_ref_call() {
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)]
-fn world2(s: &str, v: &u8) -> String {
+fn world2(s: &str, v: u8) -> String {
     format!("world{}{}", v, s)
 }
 
@@ -291,7 +291,7 @@ fn test_path_func_call() {
 }
 
 #[derive(Template)]
-#[template(source = "{{ ::std::string::ToString::to_string(123) }}", ext = "txt")]
+#[template(source = "{{ ::std::string::String::from(\"123\") }}", ext = "txt")]
 struct RootPathFunctionTemplate;
 
 #[test]
@@ -305,7 +305,7 @@ struct FunctionTemplate;
 
 impl FunctionTemplate {
     #[allow(clippy::trivially_copy_pass_by_ref)]
-    fn world3(&self, s: &str, v: &u8) -> String {
+    fn world3(&self, s: &str, v: u8) -> String {
         format!("world{}{}", s, v)
     }
 }
