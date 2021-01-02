@@ -1275,9 +1275,12 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         for (i, arg) in args.iter().enumerate() {
             if i > 0 {
-                buf.write(", &");
-            } else {
-                buf.write("&");
+                buf.write(", ");
+            }
+
+            let borrow = !arg.is_copyable();
+            if borrow {
+                buf.write("&(");
             }
 
             let scoped = matches!(arg,
@@ -1292,6 +1295,10 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 buf.writeln("}")?;
             } else {
                 self.visit_expr(buf, arg)?;
+            }
+
+            if borrow {
+                buf.write(")");
             }
         }
         Ok(())
