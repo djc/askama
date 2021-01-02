@@ -93,6 +93,18 @@ fn test_for_method_call() {
 
 #[derive(Template)]
 #[template(
+    source = "{% for i in ::std::iter::repeat(\"a\").take(5) %}{{ i }}{% endfor %}",
+    ext = "txt"
+)]
+struct ForPathCallTemplate;
+
+#[test]
+fn test_for_path_call() {
+    assert_eq!(ForPathCallTemplate.render().unwrap(), "aaaaa");
+}
+
+#[derive(Template)]
+#[template(
     source = "{% for i in [1, 2, 3, 4, 5][3..] %}{{ i }}{% endfor %}",
     ext = "txt"
 )]
