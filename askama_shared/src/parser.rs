@@ -539,7 +539,7 @@ fn filter(i: &[u8]) -> IResult<&[u8], (&str, Option<Vec<Expr>>)> {
 }
 
 fn expr_filtered(i: &[u8]) -> IResult<&[u8], Expr> {
-    let (i, (obj, filters)) = tuple((expr_index, many0(filter)))(i)?;
+    let (i, (obj, filters)) = tuple((expr_unary, many0(filter)))(i)?;
 
     let mut res = obj;
     for (fname, args) in filters {
@@ -557,7 +557,7 @@ fn expr_filtered(i: &[u8]) -> IResult<&[u8], Expr> {
 }
 
 fn expr_unary(i: &[u8]) -> IResult<&[u8], Expr> {
-    let (i, (op, expr)) = tuple((opt(alt((ws(tag("!")), ws(tag("-"))))), expr_filtered))(i)?;
+    let (i, (op, expr)) = tuple((opt(alt((ws(tag("!")), ws(tag("-"))))), expr_index))(i)?;
     Ok((
         i,
         match op {
@@ -605,7 +605,7 @@ macro_rules! expr_prec_layer {
     }
 }
 
-expr_prec_layer!(expr_muldivmod, expr_unary, "*", "/", "%");
+expr_prec_layer!(expr_muldivmod, expr_filtered, "*", "/", "%");
 expr_prec_layer!(expr_addsub, expr_muldivmod, "+", "-");
 expr_prec_layer!(expr_shifts, expr_addsub, ">>", "<<");
 expr_prec_layer!(expr_band, expr_shifts, "&");
