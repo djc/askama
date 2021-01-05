@@ -1126,7 +1126,41 @@ mod tests {
 
     #[test]
     fn test_parse_filter() {
-        super::parse("{{ strvar|e }}", &Syntax::default()).unwrap();
+        use Expr::*;
+        let syntax = Syntax::default();
+        assert_eq!(
+            super::parse("{{ strvar|e }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                Filter("e", vec![Var("strvar")]),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ 2|abs }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                Filter("abs", vec![NumLit("2")]),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ -2|abs }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                Filter("abs", vec![Unary("-", NumLit("2").into())]),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ (1 - 2)|abs }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                Filter(
+                    "abs",
+                    vec![Group(
+                        BinOp("-", NumLit("1").into(), NumLit("2").into()).into()
+                    )]
+                ),
+            )],
+        );
     }
 
     #[test]
