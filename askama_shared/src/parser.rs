@@ -1166,6 +1166,19 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_numbers() {
+        let syntax = Syntax::default();
+        assert_eq!(
+            super::parse("{{ 2 }}", &syntax).unwrap(),
+            vec![Node::Expr(WS(false, false), Expr::NumLit("2"),)],
+        );
+        assert_eq!(
+            super::parse("{{ 2.5 }}", &syntax).unwrap(),
+            vec![Node::Expr(WS(false, false), Expr::NumLit("2.5"),)],
+        );
+    }
+
+    #[test]
     fn test_parse_var_call() {
         assert_eq!(
             super::parse("{{ function(\"123\", 3) }}", &Syntax::default()).unwrap(),
