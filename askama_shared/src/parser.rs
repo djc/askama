@@ -1,7 +1,7 @@
 use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_until};
 use nom::character::complete::{anychar, char, digit1};
-use nom::combinator::{complete, map, opt, value};
+use nom::combinator::{complete, map, opt, recognize, value};
 use nom::error::{Error, ParseError};
 use nom::multi::{many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, tuple};
@@ -231,7 +231,9 @@ fn expr_bool_lit(i: &[u8]) -> IResult<&[u8], Expr> {
 }
 
 fn num_lit(i: &[u8]) -> IResult<&[u8], &str> {
-    map(digit1, |s| str::from_utf8(s).unwrap())(i)
+    map(recognize(pair(digit1, opt(pair(tag("."), digit1)))), |s| {
+        str::from_utf8(s).unwrap()
+    })(i)
 }
 
 fn expr_num_lit(i: &[u8]) -> IResult<&[u8], Expr> {
