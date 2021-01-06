@@ -61,7 +61,7 @@ Output:
 
 ### escape | e
 
-Escapes html characters in strings:
+Escapes HTML characters in strings:
 
 ```
 {{ "Escape <>&"|e }}
@@ -88,11 +88,11 @@ Output:
 
 ### format
 
-Formats arguments according to the specified format
+Formats arguments according to the specified format.
 
 The first argument to this filter must be a string literal (as in normal Rust).
 
-All arguments are passed through to the format!() macro by the Askama code generator.
+All arguments are passed through to the `format!()` macro by the Askama code generator.
 
 ```
 {{ "{:?}"|format(var) }}
@@ -100,7 +100,7 @@ All arguments are passed through to the format!() macro by the Askama code gener
 
 ### indent
 
-Indent newlines with width spaces
+Indent newlines with width spaces.
 
 ```
 {{ "hello\nfoo\nbar"|indent(4) }}
@@ -116,7 +116,7 @@ hello
 
 ### join
 
-Joins iterable into a string separated by provided argument
+Joins iterable into a string separated by provided argument.
 
 ```
 array = &["foo", "bar", "bazz"]
@@ -134,9 +134,9 @@ foo, bar, bazz
 
 ### linebreaks
 
-Replaces line breaks in plain text with appropriate HTML
+Replaces line breaks in plain text with appropriate HTML.
 
-A single newline becomes an HTML line break <br> and a new line followed by a blank line becomes a paragraph break <p>.
+A single newline becomes an HTML line break `<br>` and a new line followed by a blank line becomes a paragraph break `<p>`.
 
 ```
 {{ "hello\nworld\n\nfrom\naskama"|linebreaks }}
@@ -150,7 +150,7 @@ Output:
 
 ### linebreaksbr
 
-Converts all newlines in a piece of plain text to HTML line breaks
+Converts all newlines in a piece of plain text to HTML line breaks.
 
 ```
 {{ "hello\nworld\n\nfrom\naskama"|linebreaks }}
@@ -164,7 +164,7 @@ hello<br />world<br /><br />from<br />askama
 
 ### lower | lowercase
 
-Converts to lowercase
+Converts to lowercase.
 
 ```
 {{ "HELLO"|lower }}
@@ -178,7 +178,7 @@ hello
 
 ### safe
 
-Marks a string (or other Display type) as safe.  By default all strings are escaped according to the format
+Marks a string (or other Display type) as safe. By default all strings are escaped according to the format.
 
 ```
 {{ "<p>I'm Safe</p>"|safe }}
@@ -192,7 +192,7 @@ Output:
 
 ### trim
 
-Strip leading and trailing whitespace
+Strip leading and trailing whitespace.
 
 ```
 {{ " hello "|trim }}
@@ -206,7 +206,7 @@ hello
 
 ### truncate
 
-Limit string length, appends '...' if truncated
+Limit string length, appends '...' if truncated.
 
 
 ```
@@ -221,7 +221,7 @@ he...
 
 ### upper | uppercase
 
-Converts to uppercase
+Converts to uppercase.
 
 ```
 {{ "hello"|upper }}
@@ -235,11 +235,13 @@ HELLO
 
 ### wordcount
 
-Count the words in that string
+Count the words in that string.
 
 ```
 {{ "askama is sort of cool"|wordcount }}
 ```
+
+Output:
 
 ```
 5
