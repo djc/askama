@@ -774,6 +774,13 @@ is passed to the next.</p>
 <p>Askama has a collection of built-in filters, documented below, but can also include custom filters. Additionally, the <code>json</code> and <code>yaml</code> filters are included in the built-in filters,
 but are disabled by default. Enable them with Cargo features (see below for more information).</p>
 <h2><a class="header" href="#built-in-filters" id="built-in-filters">Built-In Filters</a></h2>
+<h3><a class="header" href="#abs" id="abs">abs</a></h3>
+<p>Returns the absolute value.</p>
+<pre><code>{{ -2|abs }}
+</code></pre>
+<p>Output:</p>
+<pre><code>2
+</code></pre>
 <h3><a class="header" href="#capitalize" id="capitalize">capitalize</a></h3>
 <p>Capitalize a value. The first character will be uppercase, all others lowercase:</p>
 <pre><code>{{ &quot;hello&quot;|capitalize }}
@@ -789,7 +796,7 @@ but are disabled by default. Enable them with Cargo features (see below for more
 <pre><code>-  a  -
 </code></pre>
 <h3><a class="header" href="#escape--e" id="escape--e">escape | e</a></h3>
-<p>Escapes html characters in strings:</p>
+<p>Escapes HTML characters in strings:</p>
 <pre><code>{{ &quot;Escape &lt;&gt;&amp;&quot;|e }}
 </code></pre>
 <p>Output:</p>
@@ -803,13 +810,13 @@ but are disabled by default. Enable them with Cargo features (see below for more
 <pre><code>1 KB
 </code></pre>
 <h3><a class="header" href="#format" id="format">format</a></h3>
-<p>Formats arguments according to the specified format</p>
+<p>Formats arguments according to the specified format.</p>
 <p>The first argument to this filter must be a string literal (as in normal Rust).</p>
-<p>All arguments are passed through to the format!() macro by the Askama code generator.</p>
+<p>All arguments are passed through to the <code>format!()</code> macro by the Askama code generator.</p>
 <pre><code>{{ &quot;{:?}&quot;|format(var) }}
 </code></pre>
 <h3><a class="header" href="#indent" id="indent">indent</a></h3>
-<p>Indent newlines with width spaces</p>
+<p>Indent newlines with width spaces.</p>
 <pre><code>{{ &quot;hello\nfoo\nbar&quot;|indent(4) }}
 </code></pre>
 <p>Output:</p>
@@ -818,7 +825,7 @@ but are disabled by default. Enable them with Cargo features (see below for more
     bar
 </code></pre>
 <h3><a class="header" href="#join" id="join">join</a></h3>
-<p>Joins iterable into a string separated by provided argument</p>
+<p>Joins iterable into a string separated by provided argument.</p>
 <pre><code>array = &amp;[&quot;foo&quot;, &quot;bar&quot;, &quot;bazz&quot;]
 </code></pre>
 <pre><code>{{ array|join(&quot;, &quot;) }}
@@ -827,59 +834,60 @@ but are disabled by default. Enable them with Cargo features (see below for more
 <pre><code>foo, bar, bazz
 </code></pre>
 <h3><a class="header" href="#linebreaks" id="linebreaks">linebreaks</a></h3>
-<p>Replaces line breaks in plain text with appropriate HTML</p>
-<p>A single newline becomes an HTML line break <br> and a new line followed by a blank line becomes a paragraph break <p>.</p>
+<p>Replaces line breaks in plain text with appropriate HTML.</p>
+<p>A single newline becomes an HTML line break <code>&lt;br&gt;</code> and a new line followed by a blank line becomes a paragraph break <code>&lt;p&gt;</code>.</p>
 <pre><code>{{ &quot;hello\nworld\n\nfrom\naskama&quot;|linebreaks }}
 </code></pre>
 <p>Output:</p>
 <pre><code>&lt;p&gt;hello&lt;br /&gt;world&lt;/p&gt;&lt;p&gt;from&lt;br /&gt;askama&lt;/p&gt;
 </code></pre>
 <h3><a class="header" href="#linebreaksbr" id="linebreaksbr">linebreaksbr</a></h3>
-<p>Converts all newlines in a piece of plain text to HTML line breaks</p>
+<p>Converts all newlines in a piece of plain text to HTML line breaks.</p>
 <pre><code>{{ &quot;hello\nworld\n\nfrom\naskama&quot;|linebreaks }}
 </code></pre>
 <p>Output:</p>
 <pre><code>hello&lt;br /&gt;world&lt;br /&gt;&lt;br /&gt;from&lt;br /&gt;askama
 </code></pre>
 <h3><a class="header" href="#lower--lowercase" id="lower--lowercase">lower | lowercase</a></h3>
-<p>Converts to lowercase</p>
+<p>Converts to lowercase.</p>
 <pre><code>{{ &quot;HELLO&quot;|lower }}
 </code></pre>
 <p>Output:</p>
 <pre><code>hello
 </code></pre>
 <h3><a class="header" href="#safe" id="safe">safe</a></h3>
-<p>Marks a string (or other Display type) as safe.  By default all strings are escaped according to the format</p>
+<p>Marks a string (or other Display type) as safe. By default all strings are escaped according to the format.</p>
 <pre><code>{{ &quot;&lt;p&gt;I'm Safe&lt;/p&gt;&quot;|safe }}
 </code></pre>
 <p>Output:</p>
 <pre><code>&lt;p&gt;I'm Safe&lt;/p&gt;
 </code></pre>
 <h3><a class="header" href="#trim" id="trim">trim</a></h3>
-<p>Strip leading and trailing whitespace</p>
+<p>Strip leading and trailing whitespace.</p>
 <pre><code>{{ &quot; hello &quot;|trim }}
 </code></pre>
 <p>Output:</p>
 <pre><code>hello
 </code></pre>
 <h3><a class="header" href="#truncate" id="truncate">truncate</a></h3>
-<p>Limit string length, appends '...' if truncated</p>
+<p>Limit string length, appends '...' if truncated.</p>
 <pre><code>{{ &quot;hello&quot;|truncate(2) }}
 </code></pre>
 <p>Output:</p>
 <pre><code>he...
 </code></pre>
 <h3><a class="header" href="#upper--uppercase" id="upper--uppercase">upper | uppercase</a></h3>
-<p>Converts to uppercase</p>
+<p>Converts to uppercase.</p>
 <pre><code>{{ &quot;hello&quot;|upper }}
 </code></pre>
 <p>Output:</p>
 <pre><code>HELLO
 </code></pre>
 <h3><a class="header" href="#wordcount" id="wordcount">wordcount</a></h3>
-<p>Count the words in that string</p>
+<p>Count the words in that string.</p>
 <pre><code>{{ &quot;askama is sort of cool&quot;|wordcount }}
 </code></pre>
+<p>Output:</p>
 <pre><code>5
 </code></pre>
 <h2><a class="header" href="#custom-filters" id="custom-filters">Custom Filters</a></h2>
