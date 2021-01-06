@@ -1074,13 +1074,7 @@ fn block_comment<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'
         |i| tag_comment_end(i, s),
     ));
     let (i, (_, pws, tail, _)) = p(i)?;
-    Ok((
-        i,
-        Node::Comment(WS(
-            pws.is_some(),
-            tail.len() > 1 && tail[tail.len() - 1] == b'-',
-        )),
-    ))
+    Ok((i, Node::Comment(WS(pws.is_some(), tail.ends_with(b"-")))))
 }
 
 fn parse_template<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Vec<Node<'a>>> {
