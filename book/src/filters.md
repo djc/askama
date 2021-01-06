@@ -18,6 +18,20 @@ but are disabled by default. Enable them with Cargo features (see below for more
 
 ## Built-In Filters
 
+### abs
+
+Returns the absolute value.
+
+```
+{{ -2|abs }}
+```
+
+Output:
+
+```
+2
+```
+
 ### capitalize
 
 Capitalize a value. The first character will be uppercase, all others lowercase:
