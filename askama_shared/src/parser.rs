@@ -1415,6 +1415,24 @@ mod tests {
     #[test]
     fn test_parse_comments() {
         let s = &Syntax::default();
+
+        assert_eq!(
+            super::parse("{##}", s).unwrap(),
+            vec![Node::Comment(WS(false, false))],
+        );
+        assert_eq!(
+            super::parse("{#- #}", s).unwrap(),
+            vec![Node::Comment(WS(true, false))],
+        );
+        assert_eq!(
+            super::parse("{# -#}", s).unwrap(),
+            vec![Node::Comment(WS(false, true))],
+        );
+        assert_eq!(
+            super::parse("{#--#}", s).unwrap(),
+            vec![Node::Comment(WS(true, true))],
+        );
+
         assert_eq!(
             super::parse("{#- foo\n bar -#}", s).unwrap(),
             vec![Node::Comment(WS(true, true))],
