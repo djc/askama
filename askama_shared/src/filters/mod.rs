@@ -122,7 +122,7 @@ pub fn filesizeformat<B: FileSize>(b: &B) -> Result<String> {
 }
 
 #[cfg(feature = "percent-encoding")]
-/// Percent-encodes the argument for safe use in URI; does not encode `/`
+/// Percent-encodes the argument for safe use in URI; does not encode `/`.
 ///
 /// This should be safe for all parts of URI (paths segments, query keys, query
 /// values). In the rare case that the server can't deal with forward slashes in
@@ -134,8 +134,8 @@ pub fn filesizeformat<B: FileSize>(b: &B) -> Result<String> {
 /// with the exception of `/`.
 ///
 /// ```none,ignore
-/// <a href="/metro{{ "/stations/Château d'Eau" | urlencode }}">Station</a>
-/// <a href="/page?text={{ "look, unicode/emojis ✨" | urlencode }}">Page</a>
+/// <a href="/metro{{ "/stations/Château d'Eau"|urlencode }}">Station</a>
+/// <a href="/page?text={{ "look, unicode/emojis ✨"|urlencode }}">Page</a>
 /// ```
 ///
 /// To encode `/` as well, see [`urlencode_strict`](./fn.urlencode_strict.html).
@@ -147,7 +147,7 @@ pub fn urlencode<T: fmt::Display>(s: T) -> Result<String> {
 }
 
 #[cfg(feature = "percent-encoding")]
-/// Percent-encodes the argument for safe use in URI; encodes `/`
+/// Percent-encodes the argument for safe use in URI; encodes `/`.
 ///
 /// Use this filter for encoding query keys and values in the rare case that
 /// the server can't process them unencoded.
@@ -157,7 +157,7 @@ pub fn urlencode<T: fmt::Display>(s: T) -> Result<String> {
 /// as specified by [RFC3986](https://tools.ietf.org/html/rfc3986#section-2.3).
 ///
 /// ```none,ignore
-/// <a href="/page?text={{ "look, unicode/emojis ✨" | urlencode_strict }}">Page</a>
+/// <a href="/page?text={{ "look, unicode/emojis ✨"|urlencode_strict }}">Page</a>
 /// ```
 ///
 /// If you want to preserve `/`, see [`urlencode`](./fn.urlencode.html).
