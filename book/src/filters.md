@@ -233,6 +233,34 @@ Output:
 HELLO
 ```
 
+### urlencode
+
+Percent-encodes the value for safe use in URI; does not encode `/`.
+
+```jinja
+<a href="/page?text={{ "look, unicode/emojis ✨"|urlencode }}">Page</a>
+```
+
+Output:
+
+```text
+<a href="/page?text=look%2C%20unicode&#x2f;emojis%20%E2%9C%A8">Page</a>
+```
+
+### urlencode_strict
+
+Percent-encodes the value for safe use in URI; encodes `/`.
+
+```jinja
+<a href="/page?text={{ "look, unicode/emojis ✨"|urlencode_strict }}">Page</a>
+```
+
+Output:
+
+```text
+<a href="/page?text=look%2C%20unicode%2Femojis%20%E2%9C%A8">Page</a>
+```
+
 ### wordcount
 
 Count the words in that string.
