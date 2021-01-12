@@ -49,6 +49,7 @@ pub enum Expr<'a> {
     Group(Box<Expr<'a>>),
     MethodCall(Box<Expr<'a>>, &'a str, Vec<Expr<'a>>),
     RustMacro(&'a str, &'a str),
+    Localize(&'a str, Option<&'a str>, Vec<(&'a str, Expr<'a>)>),
 }
 
 impl Expr<'_> {
@@ -613,6 +614,29 @@ fn expr_rust_macro(i: &[u8]) -> IResult<&[u8], Expr> {
     Ok((i, Expr::RustMacro(mname, args)))
 }
 
+fn localize(i: &[u8]) -> IResult<&[u8], Expr> {
+    let (i, (_, _, message, attribute, args, _)) = tuple((
+        tag("localize"),
+        ws(tag("(")),
+        identifier,
+        opt(tuple((ws(tag(".")), identifier))),
+        opt(tuple((
+            ws(tag(",")),
+            separated_list0(ws(tag(",")), tuple((identifier, ws(tag(":")), expr_any))),
+        ))),
+        ws(tag(")")),
+    ))(i)?;
+    Ok((
+        i,
+        Expr::Localize(
+            message,
+            attribute.map(|(_, a)| a),
+            args.map(|(_, args)| args.into_iter().map(|(k, _, v)| (k, v)).collect())
+                .unwrap_or_default(),
+        ),
+    ))
+}
+
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $op:expr ) => {
         fn $name(i: &[u8]) -> IResult<&[u8], Expr> {
@@ -673,7 +697,7 @@ fn expr_any(i: &[u8]) -> IResult<&[u8], Expr> {
         Expr::Range(op, _, right) => Expr::Range(op, Some(Box::new(left)), right),
         _ => unreachable!(),
     });
-    let mut p = alt((range_right, compound, expr_or));
+    let mut p = alt((range_right, localize, compound, expr_or));
     Ok(p(i)?)
 }
 
@@ -1252,6 +1276,24 @@ mod tests {
                 WS(false, false),
                 Expr::PathCall(vec!["", "std", "string", "String", "new"], vec![]),
             )],
+        );
+    }
+
+    #[test]
+    fn test_parse_localize() {
+        assert_eq!(
+            super::parse("{{ localize(a, v: 32 + 7) }}", &Syntax::default()).unwrap(),
+            vec![Node::Expr(
+                WS(false, false),
+                Expr::Localize(
+                    "a",
+                    None,
+                    vec![(
+                        "v",
+                        Expr::BinOp("+", Expr::NumLit("32").into(), Expr::NumLit("7").into())
+                    )]
+                )
+            )]
         );
     }
 
