@@ -135,3 +135,61 @@ pub mod mime {
     note = "file-level dependency tracking is handled automatically without build script"
 )]
 pub fn rerun_if_templates_changed() {}
+
+pub trait Localizer {
+    fn get_fallback_language(&self) -> unic_langid::LanguageIdentifier;
+    fn get_language(&self) -> unic_langid::LanguageIdentifier;
+    fn get_loader(&self) -> &'static fluent_templates::StaticLoader;
+}
+
+#[macro_export]
+macro_rules! init_translation {
+    (
+        $v: vis $n: ident {
+            static_loader_name: $static_loader_name: ident,
+            locales: $locales: expr,
+            fallback_language: $fallback_language: expr,
+            customise: $customise: expr
+        }
+    ) => {
+        fluent_templates::static_loader! {
+            // Declare our `StaticLoader` named `LOCALES`.
+            static $static_loader_name = {
+                // The directory of localisations and fluent resources.
+                locales: $locales,
+                // The language to falback on if something is not present.
+                fallback_language: $fallback_language,
+                // Optional: A fluent resource that is shared with every locale.
+                //core_locales: "/core.ftl",
+                // Removes unicode isolating marks around arguments, you typically
+                // should only set to false when testing.
+                customise: $customise,
+            };
+        }
+        $v struct $n {
+            language: unic_langid::LanguageIdentifier,
+            loader: &'static fluent_templates::StaticLoader
+        }
+        impl $n {
+            pub fn new(language: unic_langid::LanguageIdentifier, loader: &'static fluent_templates::StaticLoader) -> $n {
+                $n {
+                    language,
+                    loader
+                }
+            }
+        }
+        impl askama::Localizer for $n {
+            fn get_fallback_language(&self) -> unic_langid::LanguageIdentifier {
+                unic_langid::langid!($fallback_language)
+            }
+
+            fn get_language(&self) -> unic_langid::LanguageIdentifier {
+                self.language.clone()
+            }
+
+            fn get_loader(&self) -> &'static fluent_templates::StaticLoader {
+                self.loader
+            }
+        }
+    }
+}

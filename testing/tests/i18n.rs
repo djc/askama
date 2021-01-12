@@ -4,31 +4,23 @@
 #![allow(unused)]
 */
 
+use askama::init_translation;
 use askama::Template;
 
-fluent_templates::static_loader! {
-    // Declare our `StaticLoader` named `LOCALES`.
-    static LOCALES = {
-        // The directory of localisations and fluent resources.
+init_translation! {
+    pub MyLocalizer {
+        static_loader_name: LOCALES,
         locales: "i18n-basic",
-        // The language to falback on if something is not present.
         fallback_language: "en-US",
-        // Optional: A fluent resource that is shared with every locale.
-        //core_locales: "/core.ftl",
-        // Removes unicode isolating marks around arguments, you typically
-        // should only set to false when testing.
-        customise: |bundle| bundle.set_use_isolating(false),
-    };
+        customise: |bundle| bundle.set_use_isolating(false)
+    }
 }
 
 #[derive(Template)]
 #[template(path = "i18n.html")]
 struct UsesI18n<'a> {
     #[localizer]
-    loc: (
-        &'a fluent_templates::StaticLoader,
-        &'a unic_langid::LanguageIdentifier,
-    ),
+    loc: MyLocalizer,
     name: &'a str,
     hours: f64,
 }
@@ -36,7 +28,7 @@ struct UsesI18n<'a> {
 #[test]
 fn existing_language() {
     let template = UsesI18n {
-        loc: (&LOCALES, &unic_langid::langid!("es-MX")),
+        loc: MyLocalizer::new(unic_langid::langid!("es-MX"), &LOCALES),
         name: "Hilda",
         hours: 300072.3,
     };
@@ -50,7 +42,7 @@ fn existing_language() {
 #[test]
 fn unknown_language() {
     let template = UsesI18n {
-        loc: (&LOCALES, &unic_langid::langid!("nl-BE")),
+        loc: MyLocalizer::new(unic_langid::langid!("nl-BE"), &LOCALES),
         name: "Hilda",
         hours: 300072.3,
     };

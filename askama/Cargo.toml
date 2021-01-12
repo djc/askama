@@ -38,6 +38,8 @@ askama_escape = { version = "0.10", path = "../askama_escape" }
 askama_shared = { version = "0.11", path = "../askama_shared", default-features = false }
 mime = { version = "0.3", optional = true }
 mime_guess = { version = "2.0.0-alpha", optional = true }
+unic-langid = "0.9.0"
+fluent-templates = "0.5.16"
 
 [package.metadata.docs.rs]
 features = ["config", "humansize", "num-traits", "serde-json", "serde-yaml"]

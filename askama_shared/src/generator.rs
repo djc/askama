@@ -1407,16 +1407,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         self.localized_messages.insert(message.clone());
 
-        /*
         buf.write(&format!(
-            "::askama::Localize::localize(&self.{}, \"{}\", &[",
-            localizer.0, message
-        ));
-        */
-        // TODO
-
-        buf.write(&format!(
-            "::fluent_templates::Loader::lookup_with_args(&self.{}.0, &self.{}.1, \"{}\", &std::iter::FromIterator::from_iter(vec![",
+            "::fluent_templates::Loader::lookup_with_args(::askama::Localizer::get_loader(&self.{}), &::askama::Localizer::get_language(&self.{}), \"{}\", &std::iter::FromIterator::from_iter(vec![",
             localizer.0, localizer.0, message
         ));
 
