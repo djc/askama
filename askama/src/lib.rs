@@ -136,12 +136,6 @@ pub mod mime {
 )]
 pub fn rerun_if_templates_changed() {}
 
-pub trait Localizer {
-    fn get_fallback_language(&self) -> unic_langid::LanguageIdentifier;
-    fn get_language(&self) -> unic_langid::LanguageIdentifier;
-    fn get_loader(&self) -> &'static fluent_templates::StaticLoader;
-}
-
 #[macro_export]
 macro_rules! init_translation {
     (
@@ -152,6 +146,7 @@ macro_rules! init_translation {
             customise: $customise: expr
         }
     ) => {
+        use fluent_templates::Loader;
         fluent_templates::static_loader! {
             // Declare our `StaticLoader` named `LOCALES`.
             static $static_loader_name = {
@@ -168,17 +163,23 @@ macro_rules! init_translation {
         }
         $v struct $n {
             language: unic_langid::LanguageIdentifier,
-            loader: &'static fluent_templates::StaticLoader
+            loader: &'static fluent_templates::once_cell::sync::Lazy<fluent_templates::StaticLoader>
         }
         impl $n {
-            pub fn new(language: unic_langid::LanguageIdentifier, loader: &'static fluent_templates::StaticLoader) -> $n {
+            pub fn new(language: unic_langid::LanguageIdentifier) -> $n {
                 $n {
                     language,
-                    loader
+                    loader: & $static_loader_name
+                }
+            }
+            pub fn default() -> $n {
+                $n {
+                    language: unic_langid::langid!($fallback_language),
+                    loader: & $static_loader_name
                 }
             }
         }
-        impl askama::Localizer for $n {
+        impl $n {
             fn get_fallback_language(&self) -> unic_langid::LanguageIdentifier {
                 unic_langid::langid!($fallback_language)
             }
@@ -187,9 +188,33 @@ macro_rules! init_translation {
                 self.language.clone()
             }
 
-            fn get_loader(&self) -> &'static fluent_templates::StaticLoader {
-                self.loader
+            fn translate(
+                &self,
+                text_id: &str,
+                args:
+                    &std::collections::HashMap<String, fluent_templates::fluent_bundle::FluentValue<'_>>,
+            ) -> String {
+                self.loader.lookup_with_args(&self.language, text_id, args)
+            }
+
+            fn has_default_translation(&self, m: &str) -> bool {
+                // lookup_single_language panic's when invalid args are given
+                std::panic::set_hook(Box::new(|_info| {
+                    // do nothing
+                }));
+
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    self.loader.lookup_single_language(&self.get_fallback_language(), m, None)
+                }));
+
+                let _ = std::panic::take_hook();
+
+                match result {
+                    Ok(None) => false,
+                    _ => true
+                }
             }
         }
+
     }
 }

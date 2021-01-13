@@ -97,6 +97,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         self.impl_template(ctx, &mut buf)?;
         self.impl_display(&mut buf)?;
+        self.impl_tests(&mut buf)?;
 
         if self.integrations.actix {
             self.impl_actix_web_responder(&mut buf)?;
@@ -213,6 +214,53 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("}")?;
         buf.writeln("}")
     }
+
+    // Implement Tests
+    fn impl_tests(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+        buf.writeln(&format!(
+            "#[cfg(test)] mod __{}_tests_generated {{",
+            self.input.ast.ident.to_string().to_lowercase()
+        ))?;
+        // TODO
+        //if cfg!(feature = "with-i18n") {
+        self.impl_i18n_tests(buf)?;
+        //}
+
+        buf.writeln("}")
+    }
+
+    fn impl_i18n_tests(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+        let messages = &self.localized_messages;
+        if messages.len() > 0 {
+            let loc_ty = self.input.localizer.as_ref().unwrap().1;
+            let ast = (quote! {
+
+
+                #[test]
+                fn test_i18n_default_coverage() {
+                    let messages = &[
+                        #(#messages),*
+                    ][..];
+    
+                    // create default localizer
+                    let localizer = super::#loc_ty::default();
+
+                    let bad = messages.iter().filter(|m| !localizer.has_default_translation(m)).collect::<Vec<_>>();
+
+                    if bad.len() > 0 {
+                        panic!("Missing translations in default locale ({}) for messages: {:?} ",
+                            localizer.get_language().to_string(), bad);
+                    }
+                }
+            })
+            .to_string();
+
+            buf.writeln(&ast)
+        } else {
+            Ok(())
+        }
+    }
+
 
     // Implement Actix-web's `Responder`.
     fn impl_actix_web_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
@@ -1408,8 +1456,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         self.localized_messages.insert(message.clone());
 
         buf.write(&format!(
-            "::fluent_templates::Loader::lookup_with_args(::askama::Localizer::get_loader(&self.{}), &::askama::Localizer::get_language(&self.{}), \"{}\", &std::iter::FromIterator::from_iter(vec![",
-            localizer.0, localizer.0, message
+            "self.{}.translate(\"{}\", &std::iter::FromIterator::from_iter(vec![",
+            localizer.0, message
         ));
 
         for (i, (name, value)) in args.iter().enumerate() {

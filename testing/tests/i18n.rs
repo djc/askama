@@ -17,6 +17,14 @@ init_translation! {
 }
 
 #[derive(Template)]
+#[template(path = "i18n_invalid.html")]
+struct UsesI18nInvalid<'a> {
+    #[localizer]
+    loc: MyLocalizer,
+    name: &'a str,
+}
+
+#[derive(Template)]
 #[template(path = "i18n.html")]
 struct UsesI18n<'a> {
     #[localizer]
@@ -28,7 +36,7 @@ struct UsesI18n<'a> {
 #[test]
 fn existing_language() {
     let template = UsesI18n {
-        loc: MyLocalizer::new(unic_langid::langid!("es-MX"), &LOCALES),
+        loc: MyLocalizer::new(unic_langid::langid!("es-MX")),
         name: "Hilda",
         hours: 300072.3,
     };
@@ -42,7 +50,7 @@ fn existing_language() {
 #[test]
 fn unknown_language() {
     let template = UsesI18n {
-        loc: MyLocalizer::new(unic_langid::langid!("nl-BE"), &LOCALES),
+        loc: MyLocalizer::new(unic_langid::langid!("nl-BE")),
         name: "Hilda",
         hours: 300072.3,
     };
