@@ -1,5 +1,10 @@
-use std::fmt::{self, Display, Formatter, Write};
-use std::str;
+#![no_std]
+
+#[cfg(test)]
+extern crate std;
+
+use core::fmt::{self, Display, Formatter, Write};
+use core::str;
 
 pub struct MarkupDisplay<E, T>
 where
@@ -88,7 +93,7 @@ where
     escaper: E,
 }
 
-impl<'a, E> ::std::fmt::Display for Escaped<'a, E>
+impl<'a, E> Display for Escaped<'a, E>
 where
     E: Escaper,
 {
@@ -168,6 +173,8 @@ const FLAG: u8 = b'>' - b'"';
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::string::ToString;
+
     #[test]
     fn test_escape() {
         assert_eq!(escape("", Html).to_string(), "");
