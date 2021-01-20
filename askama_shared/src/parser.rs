@@ -673,8 +673,7 @@ fn expr_any(i: &[u8]) -> IResult<&[u8], Expr> {
         Expr::Range(op, _, right) => Expr::Range(op, Some(Box::new(left)), right),
         _ => unreachable!(),
     });
-    let mut p = alt((range_right, compound, expr_or));
-    Ok(p(i)?)
+    alt((range_right, compound, expr_or))(i)
 }
 
 fn expr_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
@@ -740,8 +739,7 @@ fn block_if<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
     ));
     let (i, (pws1, cond, nws1, _, block, elifs, _, pws2, _, nws2)) = p(i)?;
 
-    let mut res = Vec::new();
-    res.push((WS(pws1.is_some(), nws1.is_some()), Some(cond), block));
+    let mut res = vec![(WS(pws1.is_some(), nws1.is_some()), Some(cond), block)];
     res.extend(elifs);
     Ok((i, Node::Cond(res, WS(pws2.is_some(), nws2.is_some()))))
 }
