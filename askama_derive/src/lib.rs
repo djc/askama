@@ -12,7 +12,7 @@ use proc_macro2::Span;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-#[proc_macro_derive(Template, attributes(template))]
+#[proc_macro_derive(Template, attributes(template, localizer))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
     match build_template(&ast) {

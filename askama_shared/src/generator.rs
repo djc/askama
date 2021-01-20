@@ -10,7 +10,7 @@ use proc_macro2::Span;
 
 use quote::{quote, ToTokens};
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
 use std::{cmp, hash, mem, str};
 
@@ -48,6 +48,8 @@ struct Generator<'a, S: std::hash::BuildHasher> {
     buf_writable: Vec<Writable<'a>>,
     // Counter for write! hash named arguments
     named: usize,
+    // Messages used with localize()
+    localized_messages: BTreeSet<String>,
 }
 
 impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
@@ -69,6 +71,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             super_block: None,
             buf_writable: vec![],
             named: 0,
+            localized_messages: BTreeSet::new(),
         }
     }
 
@@ -94,6 +97,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         self.impl_template(ctx, &mut buf)?;
         self.impl_display(&mut buf)?;
+        self.impl_tests(&mut buf)?;
 
         if self.integrations.actix {
             self.impl_actix_web_responder(&mut buf)?;
@@ -210,6 +214,53 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("}")?;
         buf.writeln("}")
     }
+
+    // Implement Tests
+    fn impl_tests(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+        buf.writeln(&format!(
+            "#[cfg(test)] mod __{}_tests_generated {{",
+            self.input.ast.ident.to_string().to_lowercase()
+        ))?;
+        // TODO
+        //if cfg!(feature = "with-i18n") {
+        self.impl_i18n_tests(buf)?;
+        //}
+
+        buf.writeln("}")
+    }
+
+    fn impl_i18n_tests(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+        let messages = &self.localized_messages;
+        if messages.len() > 0 {
+            let loc_ty = self.input.localizer.as_ref().unwrap().1;
+            let ast = (quote! {
+
+
+                #[test]
+                fn test_i18n_default_coverage() {
+                    let messages = &[
+                        #(#messages),*
+                    ][..];
+    
+                    // create default localizer
+                    let localizer = super::#loc_ty::default();
+
+                    let bad = messages.iter().filter(|m| !localizer.has_default_translation(m)).collect::<Vec<_>>();
+
+                    if bad.len() > 0 {
+                        panic!("Missing translations in default locale ({}) for messages: {:?} ",
+                            localizer.get_language().to_string(), bad);
+                    }
+                }
+            })
+            .to_string();
+
+            buf.writeln(&ast)
+        } else {
+            Ok(())
+        }
+    }
+
 
     // Implement Actix-web's `Responder`.
     fn impl_actix_web_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
@@ -1118,6 +1169,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 self.visit_method_call(buf, obj, method, args)?
             }
             Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
+            Expr::Localize(message, attribute, ref args) => {
+                self.visit_localize(buf, message, attribute, args)?
+            }
         })
     }
 
@@ -1364,6 +1418,60 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.write(&format!(".{}(", method));
         self._visit_args(buf, args)?;
         buf.write(")");
+        Ok(DisplayWrap::Unwrapped)
+    }
+
+    fn visit_localize(
+        &mut self,
+        buf: &mut Buffer,
+        message: &str,
+        attribute: Option<&str>,
+        args: &[(&str, Expr)],
+    ) -> Result<DisplayWrap, CompileError> {
+        /* TODO
+        if !cfg!(feature = "with-i18n") {
+            panic!(
+                "The askama feature 'with-i18n' must be activated to enable calling `localize`."
+            );
+        }
+        */
+
+        // TODO
+        let localizer = self.input.localizer.as_ref().expect(
+            "A template struct must have a member with the `#[localizer]` \
+             attribute that implements `askama::Localize` to enable calling the localize() filter",
+        );
+
+        let mut message = message.to_string();
+        if let Some(attribute) = attribute {
+            message.push_str(".");
+            message.push_str(attribute);
+        }
+
+        assert!(
+            message.chars().find(|c| *c == '"').is_none(),
+            "message ids with quotes in them break the generator, please remove"
+        );
+
+        self.localized_messages.insert(message.clone());
+
+        buf.write(&format!(
+            "self.{}.translate(\"{}\", &std::iter::FromIterator::from_iter(vec![",
+            localizer.0, message
+        ));
+
+        for (i, (name, value)) in args.iter().enumerate() {
+            if i > 0 {
+                buf.write(", ");
+            }
+            buf.write(&format!(
+                "(\"{}\".to_string(), ({}).into())",
+                name,
+                self.visit_expr_root(value)?
+            ));
+        }
+        buf.write("]))");
+
         Ok(DisplayWrap::Unwrapped)
     }
 

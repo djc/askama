@@ -135,3 +135,86 @@ pub mod mime {
     note = "file-level dependency tracking is handled automatically without build script"
 )]
 pub fn rerun_if_templates_changed() {}
+
+#[macro_export]
+macro_rules! init_translation {
+    (
+        $v: vis $n: ident {
+            static_loader_name: $static_loader_name: ident,
+            locales: $locales: expr,
+            fallback_language: $fallback_language: expr,
+            customise: $customise: expr
+        }
+    ) => {
+        use fluent_templates::Loader;
+        fluent_templates::static_loader! {
+            // Declare our `StaticLoader` named `LOCALES`.
+            static $static_loader_name = {
+                // The directory of localisations and fluent resources.
+                locales: $locales,
+                // The language to falback on if something is not present.
+                fallback_language: $fallback_language,
+                // Optional: A fluent resource that is shared with every locale.
+                //core_locales: "/core.ftl",
+                // Removes unicode isolating marks around arguments, you typically
+                // should only set to false when testing.
+                customise: $customise,
+            };
+        }
+        $v struct $n {
+            language: unic_langid::LanguageIdentifier,
+            loader: &'static fluent_templates::once_cell::sync::Lazy<fluent_templates::StaticLoader>
+        }
+        impl $n {
+            pub fn new(language: unic_langid::LanguageIdentifier) -> $n {
+                $n {
+                    language,
+                    loader: & $static_loader_name
+                }
+            }
+            pub fn default() -> $n {
+                $n {
+                    language: unic_langid::langid!($fallback_language),
+                    loader: & $static_loader_name
+                }
+            }
+        }
+        impl $n {
+            fn get_fallback_language(&self) -> unic_langid::LanguageIdentifier {
+                unic_langid::langid!($fallback_language)
+            }
+
+            fn get_language(&self) -> unic_langid::LanguageIdentifier {
+                self.language.clone()
+            }
+
+            fn translate(
+                &self,
+                text_id: &str,
+                args:
+                    &std::collections::HashMap<String, fluent_templates::fluent_bundle::FluentValue<'_>>,
+            ) -> String {
+                self.loader.lookup_with_args(&self.language, text_id, args)
+            }
+
+            fn has_default_translation(&self, m: &str) -> bool {
+                // lookup_single_language panic's when invalid args are given
+                std::panic::set_hook(Box::new(|_info| {
+                    // do nothing
+                }));
+
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    self.loader.lookup_single_language(&self.get_fallback_language(), m, None)
+                }));
+
+                let _ = std::panic::take_hook();
+
+                match result {
+                    Ok(None) => false,
+                    _ => true
+                }
+            }
+        }
+
+    }
+}

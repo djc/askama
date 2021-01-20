@@ -15,6 +15,7 @@ pub struct TemplateInput<'a> {
     pub ext: Option<String>,
     pub parent: Option<&'a syn::Type>,
     pub path: PathBuf,
+    pub localizer: Option<(syn::Ident, &'a syn::Type)>,
 }
 
 impl<'a> TemplateInput<'a> {
@@ -136,16 +137,37 @@ impl<'a> TemplateInput<'a> {
 
         // Check to see if a `_parent` field was defined on the context
         // struct, and store the type for it for use in the code generator.
-        let parent = match ast.data {
+        let (parent, localizer) = match ast.data {
             syn::Data::Struct(syn::DataStruct {
                 fields: syn::Fields::Named(ref fields),
                 ..
-            }) => fields
-                .named
-                .iter()
-                .find(|f| f.ident.as_ref().filter(|name| *name == "_parent").is_some())
-                .map(|f| &f.ty),
-            _ => None,
+            }) => {
+                let named = &fields.named;
+                (
+                    named
+                        .iter()
+                        .find(|f| f.ident.as_ref().filter(|name| *name == "_parent").is_some())
+                        .map(|f| &f.ty),
+                    {
+                        let localizers: Vec<_> = named
+                            .iter()
+                            .filter(|f| f.ident.is_some())
+                            .flat_map(|f| {
+                                f.attrs
+                                    .iter()
+                                    .filter(|a| a.path.is_ident("localizer"))
+                                    .map(move |_| (f.ident.to_owned().unwrap(), &f.ty))
+                            })
+                            .collect();
+                        if localizers.len() > 1 {
+                            panic!("Can't have multiple localizers for a single template!");
+                        } else {
+                            localizers.get(0).map(|l| l.to_owned())
+                        }
+                    },
+                )
+            }
+            _ => (None, None),
         };
 
         if parent.is_some() {
@@ -196,6 +218,7 @@ impl<'a> TemplateInput<'a> {
             parent,
             path,
             syntax,
+            localizer,
         })
     }
 }
