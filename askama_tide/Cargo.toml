@@ -14,7 +14,7 @@ readme = "README.md"
 
 [dependencies]
 askama = { version = "0.10.2", path = "../askama", default-features = false, features = ["with-tide"] }
-tide = { version = "0.15", default-features = false }
+tide = { version = "0.16", default-features = false }
 
 [dev-dependencies]
 async-std = { version = "1.6.5", features = ["attributes"] }
