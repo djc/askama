@@ -20,4 +20,4 @@ bytes = { version = "0.5" }
 futures-util = { version = "0.3" }
 
 [dev-dependencies]
-actix-rt = { version = "1", default-features = false }
+actix-rt = { version = "2", default-features = false }
