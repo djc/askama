@@ -1283,11 +1283,13 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 buf.write("&(");
             }
 
-            let scoped = matches!(arg,
+            let scoped = matches!(
+                arg,
                 Expr::Filter(_, _)
-                | Expr::MethodCall(_, _, _)
-                | Expr::VarCall(_, _)
-                | Expr::PathCall(_, _));
+                    | Expr::MethodCall(_, _, _)
+                    | Expr::VarCall(_, _)
+                    | Expr::PathCall(_, _)
+            );
 
             if scoped {
                 buf.writeln("{")?;
