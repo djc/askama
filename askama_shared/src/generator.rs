@@ -221,8 +221,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
              -> Self::Future {",
         )?;
 
-        buf.writeln("use ::askama_actix::TemplateIntoResponse;")?;
-        buf.writeln("::askama_actix::futures::ready(self.into_response())")?;
+        buf.writeln("use ::askama_actix::TemplateToResponse;")?;
+        buf.writeln("::askama_actix::futures::ready(self.to_response())")?;
 
         buf.writeln("}")?;
         buf.writeln("}")

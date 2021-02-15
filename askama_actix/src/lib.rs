@@ -3,12 +3,12 @@ use bytes::BytesMut;
 
 use actix_web::{error::ErrorInternalServerError, Error, HttpResponse};
 
-pub trait TemplateIntoResponse {
-    fn into_response(&self) -> ::std::result::Result<HttpResponse, Error>;
+pub trait TemplateToResponse {
+    fn to_response(&self) -> ::std::result::Result<HttpResponse, Error>;
 }
 
-impl<T: askama::Template> TemplateIntoResponse for T {
-    fn into_response(&self) -> ::std::result::Result<HttpResponse, Error> {
+impl<T: askama::Template> TemplateToResponse for T {
+    fn to_response(&self) -> ::std::result::Result<HttpResponse, Error> {
         let mut buffer = BytesMut::with_capacity(self.size_hint());
         self.render_into(&mut buffer)
             .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
