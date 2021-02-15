@@ -1,7 +1,7 @@
 use actix_web::http::header::CONTENT_TYPE;
 use actix_web::test;
 use actix_web::web;
-use askama_actix::{Template, TemplateIntoResponse};
+use askama_actix::{Template, TemplateToResponse};
 use bytes::Bytes;
 
 #[derive(Template)]
@@ -34,7 +34,7 @@ async fn test_actix_web_responder() {
     let srv = test::start(|| {
         actix_web::App::new().service(web::resource("/").to(|| async {
             let name = "world".to_owned();
-            HelloTemplate { name: &name }.into_response()
+            HelloTemplate { name: &name }.to_response()
         }))
     });
 
