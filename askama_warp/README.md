@@ -1,4 +1,4 @@
-# askama_actix: Askama integration with warp
+# askama_warp: Askama integration with warp
 
 [![Documentation](https://docs.rs/askama_warp/badge.svg)](https://docs.rs/askama_warp/)
 [![Latest version](https://img.shields.io/crates/v/askama_warp.svg)](https://crates.io/crates/askama_warp)
