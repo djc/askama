@@ -232,6 +232,22 @@ fn test_option() {
 }
 
 #[derive(Template)]
+#[template(source = "{{ Self::foo(None) }} {{ Self::foo(Some(1)) }}", ext = "txt")]
+struct OptionNoneSomeTemplate;
+
+impl OptionNoneSomeTemplate {
+    fn foo(x: Option<i32>) -> i32 {
+        x.unwrap_or_default()
+    }
+}
+
+#[test]
+fn test_option_none_some() {
+    let t = OptionNoneSomeTemplate;
+    assert_eq!(t.render().unwrap(), "0 1");
+}
+
+#[derive(Template)]
 #[template(path = "generics.html")]
 struct GenericsTemplate<T, U = u8>
 where
