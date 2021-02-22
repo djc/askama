@@ -1226,6 +1226,60 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_var() {
+        let s = Syntax::default();
+
+        assert_eq!(
+            super::parse("{{ foo }}", &s).unwrap(),
+            vec![Node::Expr(Ws(false, false), Expr::Var("foo"))],
+        );
+        assert_eq!(
+            super::parse("{{ FOO }}", &s).unwrap(),
+            vec![Node::Expr(Ws(false, false), Expr::Var("FOO"))],
+        );
+
+        assert_eq!(
+            super::parse("{{ none }}", &s).unwrap(),
+            vec![Node::Expr(Ws(false, false), Expr::Var("none"))],
+        );
+        assert_eq!(
+            super::parse("{{ NONE }}", &s).unwrap(),
+            vec![Node::Expr(Ws(false, false), Expr::Var("NONE"))],
+        );
+    }
+
+    #[test]
+    fn test_parse_path() {
+        let s = Syntax::default();
+
+        assert_eq!(
+            super::parse("{{ None }}", &s).unwrap(),
+            vec![Node::Expr(Ws(false, false), Expr::Path(vec!["None"]))],
+        );
+        assert_eq!(
+            super::parse("{{ Some(123) }}", &s).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Expr::PathCall(vec!["Some"], vec![Expr::NumLit("123")],),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ Ok(123) }}", &s).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Expr::PathCall(vec!["Ok"], vec![Expr::NumLit("123")],),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ Err(123) }}", &s).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Expr::PathCall(vec!["Err"], vec![Expr::NumLit("123")],),
+            )],
+        );
+    }
+
+    #[test]
     fn test_parse_var_call() {
         assert_eq!(
             super::parse("{{ function(\"123\", 3) }}", &Syntax::default()).unwrap(),
@@ -1238,8 +1292,25 @@ mod tests {
 
     #[test]
     fn test_parse_path_call() {
+        let s = Syntax::default();
+
         assert_eq!(
-            super::parse("{{ self::function(\"123\", 3) }}", &Syntax::default()).unwrap(),
+            super::parse("{{ Option::None }}", &s).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Expr::Path(vec!["Option", "None"])
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ Option::Some(123) }}", &s).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Expr::PathCall(vec!["Option", "Some"], vec![Expr::NumLit("123")],),
+            )],
+        );
+
+        assert_eq!(
+            super::parse("{{ self::function(\"123\", 3) }}", &s).unwrap(),
             vec![Node::Expr(
                 Ws(false, false),
                 Expr::PathCall(
