@@ -66,6 +66,7 @@ impl Expr<'_> {
             BinOp(_, lhs, rhs) => {
                 lhs.is_copyable_within_op(true) && rhs.is_copyable_within_op(true)
             }
+            Range(..) => true,
             // The result of a call likely doesn't need to be borrowed,
             // as in that case the call is more likely to return a
             // reference in the first place then.
