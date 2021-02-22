@@ -70,11 +70,11 @@ fn test_for_range() {
 
 #[derive(Template)]
 #[template(source = "{% for i in [1, 2, 3] %}{{ i }}{% endfor %}", ext = "txt")]
-struct ForArrayTemplate {}
+struct ForArrayTemplate;
 
 #[test]
 fn test_for_array() {
-    let t = ForArrayTemplate {};
+    let t = ForArrayTemplate;
     assert_eq!(t.render().unwrap(), "123");
 }
 
@@ -83,11 +83,11 @@ fn test_for_array() {
     source = "{% for i in [1, 2, 3].iter() %}{{ i }}{% endfor %}",
     ext = "txt"
 )]
-struct ForMethodCallTemplate {}
+struct ForMethodCallTemplate;
 
 #[test]
 fn test_for_method_call() {
-    let t = ForMethodCallTemplate {};
+    let t = ForMethodCallTemplate;
     assert_eq!(t.render().unwrap(), "123");
 }
 
@@ -108,10 +108,26 @@ fn test_for_path_call() {
     source = "{% for i in [1, 2, 3, 4, 5][3..] %}{{ i }}{% endfor %}",
     ext = "txt"
 )]
-struct ForIndexTemplate {}
+struct ForIndexTemplate;
 
 #[test]
 fn test_for_index() {
-    let t = ForIndexTemplate {};
+    let t = ForIndexTemplate;
     assert_eq!(t.render().unwrap(), "45");
+}
+
+#[derive(Template)]
+#[template(
+    source = "{% for (i, j) in (0..10).zip(10..20).zip(30..40) %}{{ i.0 }} {{ i.1 }} {{ j }} {% endfor %}",
+    ext = "txt"
+)]
+struct ForZipRangesTemplate;
+
+#[test]
+fn test_for_zip_ranges() {
+    let t = ForZipRangesTemplate;
+    assert_eq!(
+        t.render().unwrap(),
+        "0 10 30 1 11 31 2 12 32 3 13 33 4 14 34 5 15 35 6 16 36 7 17 37 8 18 38 9 19 39 "
+    );
 }
