@@ -69,7 +69,7 @@ impl Expr<'_> {
             // The result of a call likely doesn't need to be borrowed,
             // as in that case the call is more likely to return a
             // reference in the first place then.
-            VarCall(..) | PathCall(..) | MethodCall(..) => true,
+            VarCall(..) | Path(..) | PathCall(..) | MethodCall(..) => true,
             // If the `expr` is within a `Unary` or `BinOp` then
             // an assumption can be made that the operand is copy.
             // If not, then the value is moved and adding `.clone()`
@@ -355,12 +355,28 @@ fn expr_var_call(i: &[u8]) -> IResult<&[u8], Expr> {
 fn path(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
     let root = opt(value("", ws(tag("::"))));
     let tail = separated_list1(ws(tag("::")), identifier);
-    let (i, (root, start, _, rest)) = tuple((root, identifier, ws(tag("::")), tail))(i)?;
-    let mut path = Vec::new();
-    path.extend(root);
-    path.push(start);
-    path.extend(rest);
-    Ok((i, path))
+
+    match tuple((root, identifier, ws(tag("::")), tail))(i) {
+        Ok((i, (root, start, _, rest))) => {
+            let mut path = Vec::new();
+            path.extend(root);
+            path.push(start);
+            path.extend(rest);
+            Ok((i, path))
+        }
+        Err(err) => {
+            if let Ok((i, name)) = identifier(i) {
+                // If the returned identifier contains both a lowercase and uppercase
+                // character, then we assume it's a type name, e.g. `Some`.
+                if name.contains(char::is_uppercase) && name.contains(char::is_lowercase) {
+                    return Ok((i, vec![name]));
+                }
+            }
+
+            // If `identifier()` fails then just return the original error
+            Err(err)
+        }
+    }
 }
 
 fn expr_path(i: &[u8]) -> IResult<&[u8], Expr> {
