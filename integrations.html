@@ -163,8 +163,8 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#integrations" id="integrations">Integrations</a></h1>
-<h2><a class="header" href="#rocket-integration" id="rocket-integration">Rocket integration</a></h2>
+                        <h1 id="integrations"><a class="header" href="#integrations">Integrations</a></h1>
+<h2 id="rocket-integration"><a class="header" href="#rocket-integration">Rocket integration</a></h2>
 <p>Enabling the <code>with-rocket</code> feature appends an implementation of Rocket's
 <code>Responder</code> trait for each template type. This makes it easy to trivially
 return a value of that type in a Rocket handler. See
@@ -172,7 +172,7 @@ return a value of that type in a Rocket handler. See
 from the Askama test suite for more on how to integrate.</p>
 <p>In case a run-time error occurs during templating, a <code>500 Internal Server Error</code> <code>Status</code> value will be returned, so that this can be further
 handled by your error catcher.</p>
-<h2><a class="header" href="#iron-integration" id="iron-integration">Iron integration</a></h2>
+<h2 id="iron-integration"><a class="header" href="#iron-integration">Iron integration</a></h2>
 <p>Enabling the <code>with-iron</code> feature appends an implementation of Iron's
 <code>Modifier&lt;Response&gt;</code> trait for each template type. This makes it easy to
 trivially return a value of that type in an Iron handler. See
@@ -181,13 +181,13 @@ from the Askama test suite for more on how to integrate.</p>
 <p>Note that Askama's generated <code>Modifier&lt;Response&gt;</code> implementation currently
 unwraps any run-time errors from the template. If you have a better
 suggestion, please <a href="https://github.com/djc/askama/issues/new">file an issue</a>.</p>
-<h2><a class="header" href="#actix-web-integration" id="actix-web-integration">Actix-web integration</a></h2>
+<h2 id="actix-web-integration"><a class="header" href="#actix-web-integration">Actix-web integration</a></h2>
 <p>Enabling the <code>with-actix-web</code> feature appends an implementation of Actix-web's
 <code>Responder</code> trait for each template type. This makes it easy to trivially return
 a value of that type in an Actix-web handler. See
 <a href="https://github.com/djc/askama/blob/main/askama_actix/tests/basic.rs">the example</a>
 from the Askama test suite for more on how to integrate.</p>
-<h2><a class="header" href="#gotham-integration" id="gotham-integration">Gotham integration</a></h2>
+<h2 id="gotham-integration"><a class="header" href="#gotham-integration">Gotham integration</a></h2>
 <p>Enabling the <code>with-gotham</code> feature appends an implementation of Gotham's
 <code>IntoResponse</code> trait for each template type. This makes it easy to trivially
 return a value of that type in a Gotham handler. See
@@ -196,12 +196,12 @@ from the Askama test suite for more on how to integrate.</p>
 <p>In case of a run-time error occurring during templating, the response will be of the same
 signature, with a status code of <code>500 Internal Server Error</code>, mime <code>*/*</code>, and an empty <code>Body</code>.
 This preserves the response chain if any custom error handling needs to occur.</p>
-<h2><a class="header" href="#warp-integration" id="warp-integration">Warp integration</a></h2>
+<h2 id="warp-integration"><a class="header" href="#warp-integration">Warp integration</a></h2>
 <p>Enabling the <code>with-warp</code> feature appends an implementation of Warp's <code>Reply</code>
 trait for each template type. This makes it simple to return a template from
 a Warp filter. See <a href="https://github.com/djc/askama/blob/main/askama_warp/tests/warp.rs">the example</a>
 from the Askama test suite for more on how to integrate.</p>
-<h2><a class="header" href="#tide-integration" id="tide-integration">Tide integration</a></h2>
+<h2 id="tide-integration"><a class="header" href="#tide-integration">Tide integration</a></h2>
 <p>Enabling the <code>with-tide</code> feature appends <code>Into&lt;tide::Response&gt;</code> and
 <code>TryInto&lt;tide::Body&gt;</code> implementations for each template type. This
 provides the ability for tide apps to build a response directly from

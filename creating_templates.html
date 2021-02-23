@@ -163,7 +163,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#creating-templates" id="creating-templates">Creating Templates</a></h1>
+                        <h1 id="creating-templates"><a class="header" href="#creating-templates">Creating Templates</a></h1>
 <p>An Askama template is a <code>struct</code> definition which provides the template
 context combined with a UTF-8 encoded text file (or inline source, see
 below). Askama can be used to generate any kind of text-based format.
@@ -186,7 +186,7 @@ struct HelloTemplate&lt;'a&gt; { // the name of the struct can be anything
 }
 <span class="boring">}
 </span></code></pre></pre>
-<h2><a class="header" href="#the-template-attribute" id="the-template-attribute">The <code>template()</code> attribute</a></h2>
+<h2 id="the-template-attribute"><a class="header" href="#the-template-attribute">The <code>template()</code> attribute</a></h2>
 <p>Askama works by generating one or more trait implementations for any
 <code>struct</code> type decorated with the <code>#[derive(Template)]</code> attribute. The
 code generation process takes some options that can be specified through

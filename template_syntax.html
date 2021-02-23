@@ -163,8 +163,8 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#template-syntax" id="template-syntax">Template Syntax</a></h1>
-<h2><a class="header" href="#variables" id="variables">Variables</a></h2>
+                        <h1 id="template-syntax"><a class="header" href="#template-syntax">Template Syntax</a></h1>
+<h2 id="variables"><a class="header" href="#variables">Variables</a></h2>
 <p>Top-level template variables are defined by the template's context type.
 You can use a dot (<code>.</code>) to access variable's attributes or methods.
 Reading from variables is subject to the usual borrowing policies.
@@ -172,7 +172,7 @@ For example, <code>{{ name }}</code> will get the <code>name</code> field from t
 context,
 while <code>{{ user.name }}</code> will get the <code>name</code> field of the <code>user</code>
 field from the template context.</p>
-<h2><a class="header" href="#assignments" id="assignments">Assignments</a></h2>
+<h2 id="assignments"><a class="header" href="#assignments">Assignments</a></h2>
 <p>Inside code blocks, you can also declare variables or assign values
 to variables.
 Assignments can't be imported by other templates.</p>
@@ -196,7 +196,7 @@ Assignments can't be imported by other templates.</p>
 {{ foo }}
 </code></pre>
 <p>For compatibility with Jinja, <code>set</code> can be used in place of <code>let</code>.</p>
-<h2><a class="header" href="#filters" id="filters">Filters</a></h2>
+<h2 id="filters"><a class="header" href="#filters">Filters</a></h2>
 <p>Values such as those obtained from variables can be post-processed
 using <strong>filters</strong>.
 Filters are applied to values using the pipe symbol (<code>|</code>) and may
@@ -211,7 +211,7 @@ and print the resulting string as a Rust literal.</p>
 <p>To define your own filters, simply have a module named <code>filters</code> in
 scope of the context deriving a <code>Template</code> <code>impl</code>. Note that in case of
 name collision, the built in filters take precedence.</p>
-<h2><a class="header" href="#whitespace-control" id="whitespace-control">Whitespace control</a></h2>
+<h2 id="whitespace-control"><a class="header" href="#whitespace-control">Whitespace control</a></h2>
 <p>Askama considers all tabs, spaces, newlines and carriage returns to be
 whitespace. By default, it preserves all whitespace in template code,
 except that a single trailing newline character is suppressed.
@@ -229,11 +229,11 @@ start delimiter or leading into an end delimiter.</p>
 (any part of the template not surrounded by <code>{% %}</code> or <code>{{ }}</code>)
 includes only whitespace, whitespace suppression on either side will
 completely suppress that literal content.</p>
-<h2><a class="header" href="#template-inheritance" id="template-inheritance">Template inheritance</a></h2>
+<h2 id="template-inheritance"><a class="header" href="#template-inheritance">Template inheritance</a></h2>
 <p>Template inheritance allows you to build a base template with common
 elements that can be shared by all inheriting templates.
 A base template defines <strong>blocks</strong> that child templates can override.</p>
-<h3><a class="header" href="#base-template" id="base-template">Base template</a></h3>
+<h3 id="base-template"><a class="header" href="#base-template">Base template</a></h3>
 <pre><code class="language-html">&lt;!DOCTYPE html&gt;
 &lt;html lang=&quot;en&quot;&gt;
   &lt;head&gt;
@@ -253,7 +253,7 @@ A base template must define one or more blocks in order to enable
 inheritance. Blocks can only be specified at the top level of a template
 or inside other blocks, not inside <code>if</code>/<code>else</code> branches or in <code>for</code>-loop
 bodies.</p>
-<h3><a class="header" href="#child-template" id="child-template">Child template</a></h3>
+<h3 id="child-template"><a class="header" href="#child-template">Child template</a></h3>
 <p>Here's an example child template:</p>
 <pre><code class="language-html">{% extends &quot;base.html&quot; %}
 
@@ -276,7 +276,7 @@ render the top-level content from the base template, and substitute
 blocks from the base template with those from the child template. Inside
 a block in a child template, the <code>super()</code> macro can be called to render
 the parent block's contents.</p>
-<h2><a class="header" href="#html-escaping" id="html-escaping">HTML escaping</a></h2>
+<h2 id="html-escaping"><a class="header" href="#html-escaping">HTML escaping</a></h2>
 <p>Askama by default escapes variables if it thinks it is rendering HTML
 content. It infers the escaping context from the extension of template
 filenames, escaping by default if the extension is one of <code>html</code>, <code>htm</code>,
@@ -305,8 +305,8 @@ fn main() {
     );
 }
 </code></pre></pre>
-<h2><a class="header" href="#control-structures" id="control-structures">Control structures</a></h2>
-<h3><a class="header" href="#for" id="for">For</a></h3>
+<h2 id="control-structures"><a class="header" href="#control-structures">Control structures</a></h2>
+<h3 id="for"><a class="header" href="#for">For</a></h3>
 <p>Loop over each item in an iterator. For example:</p>
 <pre><code class="language-html">&lt;h1&gt;Users&lt;/h1&gt;
 &lt;ul&gt;
@@ -333,7 +333,7 @@ fn main() {
 {% endfor %}
 &lt;/ul&gt;
 </code></pre>
-<h3><a class="header" href="#if" id="if">If</a></h3>
+<h3 id="if"><a class="header" href="#if">If</a></h3>
 <p>The <em>if</em> statement is used as you might expect:</p>
 <pre><code class="language-text">{% if users.len() == 0 %}
   No users
@@ -343,7 +343,7 @@ fn main() {
   {{ users.len() }} users
 {% endif %}
 </code></pre>
-<h3><a class="header" href="#match" id="match">Match</a></h3>
+<h3 id="match"><a class="header" href="#match">Match</a></h3>
 <p>In order to deal with Rust <code>enum</code>s in a type-safe way, templates support
 match blocks from version 0.6. Here is a simple example showing how to
 expand an <code>Option</code>:</p>
@@ -364,7 +364,7 @@ matches (<code>(val)</code>), optionally introduced with a variant name. The
 of matches surrounded by curly braces instead (<code>{ field }</code>).  New names
 for the fields can be specified after a colon in the list of matches
 (<code>{ field: val }</code>).</p>
-<h3><a class="header" href="#include" id="include">Include</a></h3>
+<h3 id="include"><a class="header" href="#include">Include</a></h3>
 <p>The <em>include</em> statement lets you split large or repetitive blocks into
 separate template files. Included templates get full access to the context
 in which they're used, including local variables like those from loops:</p>
@@ -379,7 +379,7 @@ compile time. Askama will try to find the specified template relative
 to the including template's path before falling back to the absolute
 template path. Use <code>include</code> within the branches of an <code>if</code>/<code>else</code>
 block to use includes more dynamically.</p>
-<h2><a class="header" href="#expressions" id="expressions">Expressions</a></h2>
+<h2 id="expressions"><a class="header" href="#expressions">Expressions</a></h2>
 <p>Askama supports string literals (<code>&quot;foo&quot;</code>) and integer literals (<code>1</code>).
 It supports almost all binary operators that Rust supports,
 including arithmetic, comparison and logic operators.
@@ -400,7 +400,7 @@ Methods can be called on variables that are in scope, including <code>self</code
 equivalent to <code>self</code>, this can result in a stack overflow from infinite
 recursion. This is because the <code>Display</code> implementation for that expression
 will in turn evaluate the expression and yield <code>self</code> again.</p>
-<h2><a class="header" href="#templates-in-templates" id="templates-in-templates">Templates in templates</a></h2>
+<h2 id="templates-in-templates"><a class="header" href="#templates-in-templates">Templates in templates</a></h2>
 <p>Using expressions, it is possible to delegate rendering part of a template to another template.
 This makes it possible to inject modular template sections into other templates and facilitates
 testing and reuse.</p>
@@ -428,7 +428,7 @@ assert_eq!(t.render().unwrap(), &quot;Section 1: A=a\nB=b&quot;)
 <p>See the example
 <a href="https://github.com/djc/askama/blob/main/testing/tests/render_in_place.rs">render in place</a>
 using a vector of templates in a for block.</p>
-<h2><a class="header" href="#comments" id="comments">Comments</a></h2>
+<h2 id="comments"><a class="header" href="#comments">Comments</a></h2>
 <p>Askama supports block comments delimited by <code>{#</code> and <code>#}</code>.</p>
 <pre><code class="language-jinja">{# A Comment #}
 </code></pre>
@@ -438,7 +438,7 @@ A Comment
 {# A nested comment #}
 #}
 </code></pre>
-<h2><a class="header" href="#recursive-structures" id="recursive-structures">Recursive Structures</a></h2>
+<h2 id="recursive-structures"><a class="header" href="#recursive-structures">Recursive Structures</a></h2>
 <p>Recursive implementations should preferably use a custom iterator and
 use a plain loop. If that is not doable, call <code>.render()</code>
 directly by using an expression as shown below.
@@ -460,7 +460,7 @@ struct Item&lt;'a&gt; {
 }
 <span class="boring">}
 </span></code></pre></pre>
-<h2><a class="header" href="#macros" id="macros">Macros</a></h2>
+<h2 id="macros"><a class="header" href="#macros">Macros</a></h2>
 <p>You can define macros within your template by using <code>{% macro name(args) %}</code>, ending with <code>{% endmacro %}</code></p>
 <p>You can then call it later with <code>{% call name(args) %}</code></p>
 <pre><code>{% macro heading(arg) %}
