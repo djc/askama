@@ -367,9 +367,11 @@ fn path(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
         }
         Err(err) => {
             if let Ok((i, name)) = identifier(i) {
-                // If the returned identifier contains both a lowercase and uppercase
-                // character, then we assume it's a type name, e.g. `Some`.
-                if name.contains(char::is_uppercase) && name.contains(char::is_lowercase) {
+                // The returned identifier can be assumed to be path if:
+                // - Contains both a lowercase and uppercase character, i.e. a type name like `None`
+                // - Doesn't contain any lowercase characters, i.e. it's a constant
+                // In short, if it contains any uppercase characters it's a path.
+                if name.contains(char::is_uppercase) {
                     return Ok((i, vec![name]));
                 }
             }
@@ -1235,17 +1237,32 @@ mod tests {
             vec![Node::Expr(Ws(false, false), Expr::Var("foo"))],
         );
         assert_eq!(
-            super::parse("{{ FOO }}", &s).unwrap(),
-            vec![Node::Expr(Ws(false, false), Expr::Var("FOO"))],
+            super::parse("{{ foo_bar }}", &s).unwrap(),
+            vec![Node::Expr(Ws(false, false), Expr::Var("foo_bar"))],
         );
 
         assert_eq!(
             super::parse("{{ none }}", &s).unwrap(),
             vec![Node::Expr(Ws(false, false), Expr::Var("none"))],
         );
+    }
+
+    #[test]
+    fn test_parse_const() {
+        let s = Syntax::default();
+
+        assert_eq!(
+            super::parse("{{ FOO }}", &s).unwrap(),
+            vec![Node::Expr(Ws(false, false), Expr::Path(vec!["FOO"]))],
+        );
+        assert_eq!(
+            super::parse("{{ FOO_BAR }}", &s).unwrap(),
+            vec![Node::Expr(Ws(false, false), Expr::Path(vec!["FOO_BAR"]))],
+        );
+
         assert_eq!(
             super::parse("{{ NONE }}", &s).unwrap(),
-            vec![Node::Expr(Ws(false, false), Expr::Var("NONE"))],
+            vec![Node::Expr(Ws(false, false), Expr::Path(vec!["NONE"]))],
         );
     }
 
@@ -1264,6 +1281,7 @@ mod tests {
                 Expr::PathCall(vec!["Some"], vec![Expr::NumLit("123")],),
             )],
         );
+
         assert_eq!(
             super::parse("{{ Ok(123) }}", &s).unwrap(),
             vec![Node::Expr(
