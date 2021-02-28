@@ -189,13 +189,13 @@ impl<'a> TemplateInput<'a> {
         Ok(TemplateInput {
             ast,
             config,
+            syntax,
             source,
             print,
             escaper,
             ext,
             parent,
             path,
-            syntax,
         })
     }
 }
