@@ -124,11 +124,8 @@ impl<'a> TemplateInput<'a> {
         // of `ext` is merged into a synthetic `path` value here.
         let source = source.expect("template path or source not found in attributes");
         let path = match (&source, &ext) {
-            (&Source::Path(ref path), None) => config.find_template(path, None)?,
+            (&Source::Path(ref path), _) => config.find_template(path, None)?,
             (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
-            (&Source::Path(_), Some(_)) => {
-                return Err("'ext' attribute cannot be used with 'path' attribute".into())
-            }
             (&Source::Source(_), None) => {
                 return Err("must include 'ext' attribute when using 'source' attribute".into())
             }
@@ -200,7 +197,7 @@ impl<'a> TemplateInput<'a> {
     }
 
     pub fn extension(&self) -> Option<&str> {
-        extension(&self.path)
+        self.ext.as_deref().or_else(|| extension(&self.path))
     }
 }
 
