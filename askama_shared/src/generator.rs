@@ -156,10 +156,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("}")?;
 
         buf.writeln("fn extension(&self) -> Option<&'static str> {")?;
-        buf.writeln(&format!(
-            "{:?}",
-            self.input.path.extension().map(|s| s.to_str().unwrap())
-        ))?;
+        buf.writeln(&format!("{:?}", self.input.extension()))?;
         buf.writeln("}")?;
 
         buf.writeln("fn size_hint(&self) -> usize {")?;
@@ -175,10 +172,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("}")?;
 
         buf.writeln("fn extension() -> Option<&'static str> {")?;
-        buf.writeln(&format!(
-            "{:?}",
-            self.input.path.extension().map(|s| s.to_str().unwrap())
-        ))?;
+        buf.writeln(&format!("{:?}", self.input.extension()))?;
         buf.writeln("}")?;
 
         buf.writeln("}")?;
@@ -235,10 +229,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             "fn into_response(self, _state: &::askama_gotham::State)\
              -> ::askama_gotham::Response<::askama_gotham::Body> {",
         )?;
-        let ext = match self.input.path.extension() {
-            Some(s) => s.to_str().unwrap(),
-            None => "txt",
-        };
+        let ext = self.input.extension().unwrap_or("txt");
         buf.writeln(&format!("::askama_gotham::respond(&self, {:?})", ext))?;
         buf.writeln("}")?;
         buf.writeln("}")
@@ -256,12 +247,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             "res.body = Some(Box::new(::askama_iron::Template::render(&self).unwrap().into_bytes()));",
         )?;
 
-        let ext = self
-            .input
-            .path
-            .extension()
-            .map_or("", |s| s.to_str().unwrap_or(""));
-        match ext {
+        match self.input.extension().unwrap_or("") {
             "html" | "htm" => {
                 buf.writeln("::askama_iron::ContentType::html().0.modify(res);")?;
             }
@@ -314,7 +300,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         buf.writeln(&format!(
             "::mendes::askama::into_response(app, req, &self, {:?})",
-            self.input.path.extension()
+            self.input.extension()
         ))?;
         buf.writeln("}")?;
         buf.writeln("}")?;
@@ -335,10 +321,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
              -> ::askama_rocket::Result<'askama> {",
         )?;
 
-        let ext = match self.input.path.extension() {
-            Some(s) => s.to_str().unwrap(),
-            None => "txt",
-        };
+        let ext = self.input.extension().unwrap_or("txt");
         buf.writeln(&format!("::askama_rocket::respond(&self, {:?})", ext))?;
 
         buf.writeln("}")?;
@@ -347,12 +330,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     fn impl_tide_integrations(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let ext = self
-            .input
-            .path
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("txt");
+        let ext = self.input.extension().unwrap_or("txt");
 
         self.write_header(
             buf,
@@ -375,12 +353,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn impl_warp_reply(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama_warp::warp::reply::Reply", None)?;
         buf.writeln("fn into_response(self) -> ::askama_warp::warp::reply::Response {")?;
-        let ext = self
-            .input
-            .path
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("txt");
+        let ext = self.input.extension().unwrap_or("txt");
         buf.writeln(&format!("::askama_warp::reply(&self, {:?})", ext))?;
         buf.writeln("}")?;
         buf.writeln("}")

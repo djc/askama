@@ -1,6 +1,6 @@
 use crate::{CompileError, Config, Syntax};
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use quote::ToTokens;
@@ -198,6 +198,14 @@ impl<'a> TemplateInput<'a> {
             path,
         })
     }
+
+    pub fn extension(&self) -> Option<&str> {
+        extension(&self.path)
+    }
+}
+
+fn extension(path: &Path) -> Option<&str> {
+    path.extension().map(|s| s.to_str().unwrap())
 }
 
 pub enum Source {
