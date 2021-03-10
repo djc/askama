@@ -245,3 +245,51 @@ impl FromStr for Print {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ext() {
+        assert_eq!(extension(Path::new("foo-bar.txt")), Some("txt"));
+        assert_eq!(extension(Path::new("foo-bar.html")), Some("html"));
+        assert_eq!(extension(Path::new("foo-bar.unknown")), Some("unknown"));
+
+        assert_eq!(extension(Path::new("foo/bar/baz.txt")), Some("txt"));
+        assert_eq!(extension(Path::new("foo/bar/baz.html")), Some("html"));
+        assert_eq!(extension(Path::new("foo/bar/baz.unknown")), Some("unknown"));
+    }
+
+    #[test]
+    fn test_double_ext() {
+        assert_eq!(extension(Path::new("foo-bar.html.txt")), Some("txt"));
+        assert_eq!(extension(Path::new("foo-bar.txt.html")), Some("html"));
+        assert_eq!(extension(Path::new("foo-bar.txt.unknown")), Some("unknown"));
+
+        assert_eq!(extension(Path::new("foo/bar/baz.html.txt")), Some("txt"));
+        assert_eq!(extension(Path::new("foo/bar/baz.txt.html")), Some("html"));
+        assert_eq!(
+            extension(Path::new("foo/bar/baz.txt.unknown")),
+            Some("unknown")
+        );
+    }
+
+    #[test]
+    fn test_skip_jinja_ext() {
+        assert_eq!(extension(Path::new("foo-bar.html.j2")), Some("html"));
+        assert_eq!(extension(Path::new("foo-bar.html.jinja")), Some("html"));
+        assert_eq!(extension(Path::new("foo-bar.html.jinja2")), Some("html"));
+
+        assert_eq!(extension(Path::new("foo/bar/baz.txt.j2")), Some("txt"));
+        assert_eq!(extension(Path::new("foo/bar/baz.txt.jinja")), Some("txt"));
+        assert_eq!(extension(Path::new("foo/bar/baz.txt.jinja2")), Some("txt"));
+    }
+
+    #[test]
+    fn test_only_jinja_ext() {
+        assert_eq!(extension(Path::new("foo-bar.j2")), Some("j2"));
+        assert_eq!(extension(Path::new("foo-bar.jinja")), Some("jinja"));
+        assert_eq!(extension(Path::new("foo-bar.jinja2")), Some("jinja2"));
+    }
+}
