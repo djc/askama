@@ -205,7 +205,17 @@ impl<'a> TemplateInput<'a> {
 }
 
 fn extension(path: &Path) -> Option<&str> {
-    path.extension().map(|s| s.to_str().unwrap())
+    let ext = path.extension().map(|s| s.to_str().unwrap())?;
+
+    const JINJA_EXTENSIONS: [&str; 3] = ["j2", "jinja", "jinja2"];
+    if JINJA_EXTENSIONS.contains(&ext) {
+        Path::new(path.file_stem().unwrap())
+            .extension()
+            .map(|s| s.to_str().unwrap())
+            .or(Some(ext))
+    } else {
+        Some(ext)
+    }
 }
 
 pub enum Source {
