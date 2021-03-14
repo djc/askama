@@ -2,7 +2,7 @@ use crate::error::{Error, Result};
 use askama_escape::{Escaper, MarkupDisplay};
 use serde::Serialize;
 
-/// Serialize to JSON (requires `serde_json` feature)
+/// Serialize to YAML (requires `serde_yaml` feature)
 ///
 /// ## Errors
 ///
