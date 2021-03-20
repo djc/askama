@@ -58,7 +58,7 @@ First, add the following to your crate's `Cargo.toml`:
 
 ```toml
 # in section [dependencies]
-askama = "0.8"
+askama = "0.10"
 
 ```
 
