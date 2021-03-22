@@ -47,7 +47,7 @@ const URLENCODE_SET: &AsciiSet = &URLENCODE_STRICT_SET.remove(b'/');
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 26] = [
+pub const BUILT_IN_FILTERS: [&str; 27] = [
     "abs",
     "capitalize",
     "center",
@@ -62,6 +62,7 @@ pub const BUILT_IN_FILTERS: [&str; 26] = [
     "join",
     "linebreaks",
     "linebreaksbr",
+    "paragraphbreaks",
     "lower",
     "lowercase",
     "safe",
@@ -210,6 +211,18 @@ pub fn linebreaks<T: fmt::Display>(s: T) -> Result<String> {
 pub fn linebreaksbr<T: fmt::Display>(s: T) -> Result<String> {
     let s = s.to_string();
     Ok(s.replace("\n", "<br/>"))
+}
+
+/// Replaces only paragraph breaks in plain text with appropriate HTML
+///
+/// A new line followed by a blank line becomes a paragraph break `<p>`.
+/// Paragraph tags only wrap content; empty paragraphs are removed.
+/// No `<br/>` tags are added.
+pub fn paragraphbreaks<T: fmt::Display>(s: T) -> Result<String> {
+    let s = s.to_string();
+    let linebroken = s.replace("\n\n", "</p><p>").replace("<p></p>", "");
+
+    Ok(format!("<p>{}</p>", linebroken))
 }
 
 /// Converts to lowercase
@@ -454,6 +467,22 @@ mod tests {
         assert_eq!(
             linebreaksbr(&"Foo\nBar\n\nBaz").unwrap(),
             "Foo<br/>Bar<br/><br/>Baz"
+        );
+    }
+
+    #[test]
+    fn test_paragraphbreaks() {
+        assert_eq!(
+            paragraphbreaks(&"Foo\nBar Baz").unwrap(),
+            "<p>Foo\nBar Baz</p>"
+        );
+        assert_eq!(
+            paragraphbreaks(&"Foo\nBar\n\nBaz").unwrap(),
+            "<p>Foo\nBar</p><p>Baz</p>"
+        );
+        assert_eq!(
+            paragraphbreaks(&"Foo\n\n\n\n\nBar\n\nBaz").unwrap(),
+            "<p>Foo</p><p>\nBar</p><p>Baz</p>"
         );
     }
 
