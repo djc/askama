@@ -848,6 +848,15 @@ but are disabled by default. Enable them with Cargo features (see below for more
 <p>Output:</p>
 <pre><code>hello&lt;br /&gt;world&lt;br /&gt;&lt;br /&gt;from&lt;br /&gt;askama
 </code></pre>
+<h3 id="paragraphbreaks"><a class="header" href="#paragraphbreaks">paragraphbreaks</a></h3>
+<p>A new line followed by a blank line becomes <code>&lt;p&gt;</code>, but, unlike <code>linebreaks</code>, single new lines are ignored and no <code>&lt;br/&gt;</code> tags are generated.</p>
+<p>Consecutive double line breaks will be reduced down to a single paragraph break.</p>
+<p>This is useful in contexts where changing single line breaks to line break tags would interfere with other HTML elements, such as lists and nested <code>&lt;div&gt;</code> tags.</p>
+<pre><code>{{ &quot;hello\nworld\n\nfrom\n\n\n\naskama&quot;|paragraphbreaks }}
+</code></pre>
+<p>Output:</p>
+<pre><code>&lt;p&gt;hello\nworld&lt;/p&gt;&lt;p&gt;from&lt;/p&gt;&lt;p&gt;askama&lt;/p&gt;
+</code></pre>
 <h3 id="lower--lowercase"><a class="header" href="#lower--lowercase">lower | lowercase</a></h3>
 <p>Converts to lowercase.</p>
 <pre><code>{{ &quot;HELLO&quot;|lower }}
