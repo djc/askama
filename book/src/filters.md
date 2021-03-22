@@ -162,6 +162,24 @@ Output:
 hello<br />world<br /><br />from<br />askama
 ```
 
+### paragraphbreaks
+
+A new line followed by a blank line becomes `<p>`, but, unlike `linebreaks`, single new lines are ignored and no `<br/>` tags are generated.
+
+Consecutive double line breaks will be reduced down to a single paragraph break.
+
+This is useful in contexts where changing single line breaks to line break tags would interfere with other HTML elements, such as lists and nested `<div>` tags.
+
+```
+{{ "hello\nworld\n\nfrom\n\n\n\naskama"|paragraphbreaks }}
+```
+
+Output:
+
+```
+<p>hello\nworld</p><p>from</p><p>askama</p>
+```
+
 ### lower | lowercase
 
 Converts to lowercase.
