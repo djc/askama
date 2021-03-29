@@ -971,7 +971,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             .all(|w| matches!(w, Writable::Lit(_)))
         {
             let mut buf_lit = Buffer::new(0);
-            for s in mem::replace(&mut self.buf_writable, vec![]) {
+            for s in mem::take(&mut self.buf_writable) {
                 if let Writable::Lit(s) = s {
                     buf_lit.write(s);
                 };
@@ -984,7 +984,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let mut buf_format = Buffer::new(0);
         let mut buf_expr = Buffer::new(buf.indent + 1);
         let mut expr_cache = HashMap::with_capacity(self.buf_writable.len());
-        for s in mem::replace(&mut self.buf_writable, vec![]) {
+        for s in mem::take(&mut self.buf_writable) {
             match s {
                 Writable::Lit(s) => {
                     buf_format.write(&s.replace("{", "{{").replace("}", "}}"));
