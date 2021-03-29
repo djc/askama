@@ -344,6 +344,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln(&format!("::askama_tide::try_into_body(&self, {:?})", &ext))?;
         buf.writeln("}")?;
         buf.writeln("}")?;
+
+        buf.writeln("#[allow(clippy::from_over_into)]")?;
         self.write_header(buf, "Into<::askama_tide::tide::Response>", None)?;
         buf.writeln("fn into(self) -> ::askama_tide::tide::Response {")?;
         buf.writeln(&format!("::askama_tide::into_response(&self, {:?})", ext))?;
