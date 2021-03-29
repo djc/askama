@@ -115,9 +115,9 @@ macro_rules! test_template {
     ($source:literal, $rendered:expr) => {{
         #[derive(Template)]
         #[template(source = $source, ext = "txt")]
-        struct CondWS;
+        struct CondWs;
 
-        assert_eq!(CondWS.render().unwrap(), $rendered);
+        assert_eq!(CondWs.render().unwrap(), $rendered);
     }};
 }
 
@@ -148,12 +148,12 @@ macro_rules! test_match {
     ($source:literal, $some_rendered:expr, $none_rendered:expr) => {{
         #[derive(Template)]
         #[template(source = $source, ext = "txt")]
-        struct MatchWS {
+        struct MatchWs {
             item: Option<&'static str>,
         }
 
-        assert_eq!(MatchWS { item: Some("foo") }.render().unwrap(), $some_rendered);
-        assert_eq!(MatchWS { item: None }.render().unwrap(), $none_rendered);
+        assert_eq!(MatchWs { item: Some("foo") }.render().unwrap(), $some_rendered);
+        assert_eq!(MatchWs { item: None }.render().unwrap(), $none_rendered);
     }};
 }
 
