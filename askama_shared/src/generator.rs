@@ -1453,12 +1453,10 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         args: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("(");
-        if self.locals.contains(&s) || s == "self" {
-            buf.write(s);
-        } else {
+        if !self.locals.contains(&s) && s != "self" {
             buf.write("self.");
-            buf.write(s);
         }
+        buf.write(s);
         buf.write(")(");
         self._visit_args(buf, args)?;
         buf.write(")");

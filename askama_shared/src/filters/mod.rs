@@ -256,17 +256,15 @@ pub fn trim<T: fmt::Display>(s: T) -> Result<String> {
 /// Limit string length, appends '...' if truncated
 pub fn truncate<T: fmt::Display>(s: T, len: usize) -> Result<String> {
     let mut s = s.to_string();
-    if s.len() <= len {
-        Ok(s)
-    } else {
+    if s.len() > len {
         let mut real_len = len;
         while !s.is_char_boundary(real_len) {
             real_len += 1;
         }
         s.truncate(real_len);
         s.push_str("...");
-        Ok(s)
     }
+    Ok(s)
 }
 
 /// Indent lines with `width` spaces
