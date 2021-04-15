@@ -26,6 +26,7 @@ pub mod parser;
 #[derive(Debug)]
 pub struct Config<'a> {
     pub dirs: Vec<PathBuf>,
+    pub generated: bool,
     pub syntaxes: BTreeMap<String, Syntax<'a>>,
     pub default_syntax: &'a str,
     pub escapers: Vec<(HashSet<String>, String)>,
@@ -33,9 +34,6 @@ pub struct Config<'a> {
 
 impl<'a> Config<'a> {
     pub fn new(s: &str) -> std::result::Result<Config<'_>, CompileError> {
-        let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-        let default_dirs = vec![root.join("templates")];
-
         let mut syntaxes = BTreeMap::new();
         syntaxes.insert(DEFAULT_SYNTAX_NAME.to_string(), Syntax::default());
 
@@ -45,17 +43,17 @@ impl<'a> Config<'a> {
             RawConfig::from_toml_str(s)?
         };
 
-        let (dirs, default_syntax) = match raw.general {
+        let (dirs, default_syntax, generated) = match &raw.general {
             Some(General {
                 dirs,
                 default_syntax,
+                generated,
             }) => (
-                dirs.map_or(default_dirs, |v| {
-                    v.into_iter().map(|dir| root.join(dir)).collect()
-                }),
+                dirs.as_deref().unwrap_or(DEFAULT_DIRS),
                 default_syntax.unwrap_or(DEFAULT_SYNTAX_NAME),
+                *generated,
             ),
-            None => (default_dirs, DEFAULT_SYNTAX_NAME),
+            None => (DEFAULT_DIRS, DEFAULT_SYNTAX_NAME, false),
         };
 
         if let Some(raw_syntaxes) = raw.syntax {
@@ -92,8 +90,17 @@ impl<'a> Config<'a> {
             escapers.push((str_set(extensions), (*path).to_string()));
         }
 
+        let base = PathBuf::from(
+            env::var(match generated {
+                false => "CARGO_MANIFEST_DIR",
+                true => "OUT_DIR",
+            })
+            .unwrap(),
+        );
+
         Ok(Config {
-            dirs,
+            dirs: dirs.iter().map(|dir| base.join(dir)).collect(),
+            generated,
             syntaxes,
             default_syntax,
             escapers,
@@ -216,6 +223,8 @@ struct General<'a> {
     #[cfg_attr(feature = "serde", serde(borrow))]
     dirs: Option<Vec<&'a str>>,
     default_syntax: Option<&'a str>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    generated: bool,
 }
 
 #[cfg_attr(feature = "serde", derive(Deserialize))]
@@ -282,6 +291,7 @@ pub struct Integrations {
 }
 
 static CONFIG_FILE_NAME: &str = "askama.toml";
+const DEFAULT_DIRS: &[&str] = &["templates"];
 static DEFAULT_SYNTAX_NAME: &str = "default";
 static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
     (&["html", "htm", "xml"], "::askama::Html"),
