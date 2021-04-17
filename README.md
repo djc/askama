@@ -4,6 +4,7 @@
 [![Latest version](https://img.shields.io/crates/v/askama.svg)](https://crates.io/crates/askama)
 [![Build Status](https://github.com/djc/askama/workflows/CI/badge.svg)](https://github.com/djc/askama/actions?query=workflow%3ACI)
 [![Chat](https://badges.gitter.im/gitterHQ/gitter.svg)](https://gitter.im/djc/askama)
+[![Jetbrains Plugin](https://img.shields.io/jetbrains/plugin/v/16591)](https://plugins.jetbrains.com/plugin/16591-askama-template-support)
 
 Askama implements a template rendering engine based on Jinja.
 It generates Rust code from your templates at compile time
@@ -41,6 +42,9 @@ in a for-profit context, please consider supporting my open source work on
 * Whitespace suppressing with '-' markers
 * Opt-out HTML escaping
 * Syntax customization
+
+### IDE Support
+- [intellij-askama-template-plugin](https://github.com/SamJakob/intellij-askama-template-plugin): for IntelliJ platform IDEs (e.g. IntelliJ Community, IntelliJ Ultimate, CLion, etc.)
 
 [docs]: https://djc.github.io/askama/
 [fafhrd91]: https://github.com/fafhrd91
