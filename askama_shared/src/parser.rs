@@ -17,10 +17,10 @@ use crate::{CompileError, Syntax};
 // syntax but have a high probability of causing problems in the
 // generated code.
 #[rustfmt::skip]
-static USE_RAW: [&str; 51] = [
+static USE_RAW: [&str; 49] = [
     "as", "break", "const", "continue", "crate", "else", "enum", "extern", "false", "fn", "for",
     "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return",
-    "self", "Self", "static", "struct", "super", "trait", "true", "type", "unsafe", "use", "where",
+    "Self", "static", "struct", "trait", "true", "type", "unsafe", "use", "where",
     "while", "async", "await", "dyn", "abstract", "become", "box", "do", "final", "macro",
     "override", "priv", "typeof", "unsized", "virtual", "yield", "try",
 ];
@@ -34,10 +34,10 @@ static USE_RAW: [&str; 51] = [
 // or lazy_static. We need the AS_RAW strings to be static so we can
 // substitute them for the parsed identifiers.
 #[rustfmt::skip]
-static AS_RAW: [&str; 51] = [
+static AS_RAW: [&str; 49] = [
     "r#as", "r#break", "r#const", "r#continue", "r#crate", "r#else", "r#enum", "r#extern", "r#false", "r#fn", "r#for",
     "r#if", "r#impl", "r#in", "r#let", "r#loop", "r#match", "r#mod", "r#move", "r#mut", "r#pub", "r#ref", "r#return",
-    "r#self", "r#Self", "r#static", "r#struct", "r#super", "r#trait", "r#true", "r#type", "r#unsafe", "r#use", "r#where",
+    "r#Self", "r#static", "r#struct", "r#trait", "r#true", "r#type", "r#unsafe", "r#use", "r#where",
     "r#while", "r#async", "r#await", "r#dyn", "r#abstract", "r#become", "r#box", "r#do", "r#final", "r#macro",
     "r#override", "r#priv", "r#typeof", "r#unsized", "r#virtual", "r#yield", "r#try",
 ];
