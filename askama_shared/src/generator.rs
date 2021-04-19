@@ -14,6 +14,51 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::{cmp, hash, mem, str};
 
+// Identifiers to be replaced with raw identifiers, so as to avoid
+// collisions between template syntax and Rust's syntax. In particular
+// [Rust keywords](https://doc.rust-lang.org/reference/keywords.html)
+// should be replaced, since they're not reserved words in Askama
+// syntax but have a high probability of causing problems in the
+// generated code.
+//
+// This list excludes the Rust keywords *self*, *Self*, and *super*
+// because they are not allowed to be raw identifiers, and *loop*
+// because it's used something like a keyword in the template
+// language.
+#[rustfmt::skip]
+static USE_RAW: [&str; 47] = [
+    "as", "break", "const", "continue", "crate", "else", "enum", "extern", "false", "fn", "for",
+    "if", "impl", "in", "let", "match", "mod", "move", "mut", "pub", "ref", "return",
+    "static", "struct", "trait", "true", "type", "unsafe", "use", "where",
+    "while", "async", "await", "dyn", "abstract", "become", "box", "do", "final", "macro",
+    "override", "priv", "typeof", "unsized", "virtual", "yield", "try",
+];
+
+// The raw identifier versions of the USE_RAW identifiers. The indices
+// of the identifier and raw identifier must be the same, so any
+// modification made to one of the arrays must be mirrored in the
+// other array. We're doing it that way, rather than using a more
+// advanced data structure, because statically initializing more
+// advanced data structures requires extra dependencies like once_cell
+// or lazy_static. We need the AS_RAW strings to be static so we can
+// substitute them for the parsed identifiers.
+#[rustfmt::skip]
+static AS_RAW: [&str; 47] = [
+    "r#as", "r#break", "r#const", "r#continue", "r#crate", "r#else", "r#enum", "r#extern", "r#false", "r#fn", "r#for",
+    "r#if", "r#impl", "r#in", "r#let", "r#match", "r#mod", "r#move", "r#mut", "r#pub", "r#ref", "r#return",
+    "r#static", "r#struct", "r#trait", "r#true", "r#type", "r#unsafe", "r#use", "r#where",
+    "r#while", "r#async", "r#await", "r#dyn", "r#abstract", "r#become", "r#box", "r#do", "r#final", "r#macro",
+    "r#override", "r#priv", "r#typeof", "r#unsized", "r#virtual", "r#yield", "r#try",
+];
+
+fn normalize_identifier(ident: &str) -> &str {
+    if let Some(index) = USE_RAW.iter().position(|x| *x == ident) {
+        AS_RAW[index]
+    } else {
+        ident
+    }
+}
+
 pub fn generate<S: std::hash::BuildHasher>(
     input: &TemplateInput,
     contexts: &HashMap<&PathBuf, Context, S>,
@@ -586,6 +631,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     buf.write("{");
                     for (i, param) in params.iter().enumerate() {
                         if let Some(MatchParameter::Name(p)) = param.1 {
+                            let p = normalize_identifier(p);
                             self.locals.insert_with_default(p);
                         } else {
                             self.locals.insert_with_default(param.0);
@@ -822,12 +868,14 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.write("let ");
         match *var {
             Target::Name(name) => {
+                let name = normalize_identifier(name);
                 self.locals.insert_with_default(name);
                 buf.write(name);
             }
             Target::Tuple(ref targets) => {
                 buf.write("(");
                 for name in targets {
+                    let name = normalize_identifier(name);
                     self.locals.insert_with_default(name);
                     buf.write(name);
                     buf.write(",");
@@ -851,6 +899,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         match *var {
             Target::Name(name) => {
+                let name = normalize_identifier(name);
                 let meta = self.locals.get(&name).cloned();
 
                 let shadowed = matches!(&meta, Some(meta) if meta.initialized);
@@ -867,9 +916,10 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 self.locals.insert(name, LocalMeta::initialized());
             }
             Target::Tuple(ref targets) => {
-                let shadowed = targets
-                    .iter()
-                    .any(|name| matches!(self.locals.get(&name), Some(meta) if meta.initialized));
+                let shadowed = targets.iter().any(|name| {
+                    let name = normalize_identifier(name);
+                    matches!(self.locals.get(&name), Some(meta) if meta.initialized)
+                });
                 if shadowed {
                     // Need to flush the buffer if the variable is being shadowed,
                     // to ensure the old variable is used.
@@ -878,6 +928,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
                 buf.write("let (");
                 for name in targets {
+                    let name = normalize_identifier(name);
                     self.locals.insert(name, LocalMeta::initialized());
                     buf.write(name);
                     buf.write(",");
@@ -1442,7 +1493,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             return DisplayWrap::Unwrapped;
         }
 
-        buf.write(&self.locals.resolve_or_self(&s));
+        buf.write(normalize_identifier(&self.locals.resolve_or_self(&s)));
         DisplayWrap::Unwrapped
     }
 
@@ -1453,6 +1504,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         args: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("(");
+        let s = normalize_identifier(s);
         if !self.locals.contains(&s) && s != "self" {
             buf.write("self.");
         }
@@ -1486,12 +1538,14 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn visit_target(&mut self, buf: &mut Buffer, target: &'a Target) {
         match *target {
             Target::Name(name) => {
+                let name = normalize_identifier(name);
                 self.locals.insert_with_default(name);
                 buf.write(name);
             }
             Target::Tuple(ref targets) => {
                 buf.write("(");
                 for name in targets {
+                    let name = normalize_identifier(name);
                     self.locals.insert_with_default(name);
                     buf.write(name);
                     buf.write(",");
@@ -1689,6 +1743,7 @@ where
 
 impl MapChain<'_, &str, LocalMeta> {
     fn resolve(&self, name: &str) -> Option<String> {
+        let name = normalize_identifier(name);
         self.get(&name).map(|meta| match &meta.refs {
             Some(expr) => expr.clone(),
             None => name.to_string(),
@@ -1696,6 +1751,7 @@ impl MapChain<'_, &str, LocalMeta> {
     }
 
     fn resolve_or_self(&self, name: &str) -> String {
+        let name = normalize_identifier(name);
         self.resolve(name)
             .unwrap_or_else(|| format!("self.{}", name))
     }
