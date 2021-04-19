@@ -16,10 +16,15 @@ use crate::{CompileError, Syntax};
 // should be replaced, since they're not reserved words in Askama
 // syntax but have a high probability of causing problems in the
 // generated code.
+//
+// This list excludes the Rust keywords *self*, *Self*, and *super*
+// because they are not allowed to be raw identifiers, and *loop*
+// because it's used something like a keyword in the template
+// language.
 #[rustfmt::skip]
-static USE_RAW: [&str; 48] = [
+static USE_RAW: [&str; 47] = [
     "as", "break", "const", "continue", "crate", "else", "enum", "extern", "false", "fn", "for",
-    "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return",
+    "if", "impl", "in", "let", "match", "mod", "move", "mut", "pub", "ref", "return",
     "static", "struct", "trait", "true", "type", "unsafe", "use", "where",
     "while", "async", "await", "dyn", "abstract", "become", "box", "do", "final", "macro",
     "override", "priv", "typeof", "unsized", "virtual", "yield", "try",
@@ -34,9 +39,9 @@ static USE_RAW: [&str; 48] = [
 // or lazy_static. We need the AS_RAW strings to be static so we can
 // substitute them for the parsed identifiers.
 #[rustfmt::skip]
-static AS_RAW: [&str; 48] = [
+static AS_RAW: [&str; 47] = [
     "r#as", "r#break", "r#const", "r#continue", "r#crate", "r#else", "r#enum", "r#extern", "r#false", "r#fn", "r#for",
-    "r#if", "r#impl", "r#in", "r#let", "r#loop", "r#match", "r#mod", "r#move", "r#mut", "r#pub", "r#ref", "r#return",
+    "r#if", "r#impl", "r#in", "r#let", "r#match", "r#mod", "r#move", "r#mut", "r#pub", "r#ref", "r#return",
     "r#static", "r#struct", "r#trait", "r#true", "r#type", "r#unsafe", "r#use", "r#where",
     "r#while", "r#async", "r#await", "r#dyn", "r#abstract", "r#become", "r#box", "r#do", "r#final", "r#macro",
     "r#override", "r#priv", "r#typeof", "r#unsized", "r#virtual", "r#yield", "r#try",
