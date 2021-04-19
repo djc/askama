@@ -6,7 +6,7 @@ use nom::error::{Error, ParseError};
 use nom::multi::{many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, tuple};
 use nom::{self, error_position, Compare, IResult, InputTake};
-use std::{ops::Index, str};
+use std::str;
 
 use crate::{CompileError, Syntax};
 
@@ -17,7 +17,7 @@ use crate::{CompileError, Syntax};
 // syntax but have a high probability of causing problems in the
 // generated code.
 #[rustfmt::skip]
-static USE_RAW: [&'static str; 51] = [
+static USE_RAW: [&str; 51] = [
     "as", "break", "const", "continue", "crate", "else", "enum", "extern", "false", "fn", "for",
     "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return",
     "self", "Self", "static", "struct", "super", "trait", "true", "type", "unsafe", "use", "where",
@@ -34,7 +34,7 @@ static USE_RAW: [&'static str; 51] = [
 // or lazy_static. We need the AS_RAW strings to be static so we can
 // substitute them for the parsed identifiers.
 #[rustfmt::skip]
-static AS_RAW: [&'static str; 51] = [
+static AS_RAW: [&str; 51] = [
     "r#as", "r#break", "r#const", "r#continue", "r#crate", "r#else", "r#enum", "r#extern", "r#false", "r#fn", "r#for",
     "r#if", "r#impl", "r#in", "r#let", "r#loop", "r#match", "r#mod", "r#move", "r#mut", "r#pub", "r#ref", "r#return",
     "r#self", "r#Self", "r#static", "r#struct", "r#super", "r#trait", "r#true", "r#type", "r#unsafe", "r#use", "r#where",
