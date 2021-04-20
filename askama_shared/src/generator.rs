@@ -1755,35 +1755,59 @@ enum Writable<'a> {
 // because they are not allowed to be raw identifiers, and *loop*
 // because it's used something like a keyword in the template
 // language.
-#[rustfmt::skip]
-static USE_RAW: [&str; 47] = [
-    "as", "break", "const", "continue", "crate", "else", "enum", "extern", "false", "fn", "for",
-    "if", "impl", "in", "let", "match", "mod", "move", "mut", "pub", "ref", "return",
-    "static", "struct", "trait", "true", "type", "unsafe", "use", "where",
-    "while", "async", "await", "dyn", "abstract", "become", "box", "do", "final", "macro",
-    "override", "priv", "typeof", "unsized", "virtual", "yield", "try",
-];
-
-// The raw identifier versions of the USE_RAW identifiers. The indices
-// of the identifier and raw identifier must be the same, so any
-// modification made to one of the arrays must be mirrored in the
-// other array. We're doing it that way, rather than using a more
-// advanced data structure, because statically initializing more
-// advanced data structures requires extra dependencies like once_cell
-// or lazy_static. We need the AS_RAW strings to be static so we can
-// substitute them for the parsed identifiers.
-#[rustfmt::skip]
-static AS_RAW: [&str; 47] = [
-    "r#as", "r#break", "r#const", "r#continue", "r#crate", "r#else", "r#enum", "r#extern", "r#false", "r#fn", "r#for",
-    "r#if", "r#impl", "r#in", "r#let", "r#match", "r#mod", "r#move", "r#mut", "r#pub", "r#ref", "r#return",
-    "r#static", "r#struct", "r#trait", "r#true", "r#type", "r#unsafe", "r#use", "r#where",
-    "r#while", "r#async", "r#await", "r#dyn", "r#abstract", "r#become", "r#box", "r#do", "r#final", "r#macro",
-    "r#override", "r#priv", "r#typeof", "r#unsized", "r#virtual", "r#yield", "r#try",
+static USE_RAW: [(&str, &str); 47] = [
+    ("as", "r#as"),
+    ("break", "r#break"),
+    ("const", "r#const"),
+    ("continue", "r#continue"),
+    ("crate", "r#crate"),
+    ("else", "r#else"),
+    ("enum", "r#enum"),
+    ("extern", "r#extern"),
+    ("false", "r#false"),
+    ("fn", "r#fn"),
+    ("for", "r#for"),
+    ("if", "r#if"),
+    ("impl", "r#impl"),
+    ("in", "r#in"),
+    ("let", "r#let"),
+    ("match", "r#match"),
+    ("mod", "r#mod"),
+    ("move", "r#move"),
+    ("mut", "r#mut"),
+    ("pub", "r#pub"),
+    ("ref", "r#ref"),
+    ("return", "r#return"),
+    ("static", "r#static"),
+    ("struct", "r#struct"),
+    ("trait", "r#trait"),
+    ("true", "r#true"),
+    ("type", "r#type"),
+    ("unsafe", "r#unsafe"),
+    ("use", "r#use"),
+    ("where", "r#where"),
+    ("while", "r#while"),
+    ("async", "r#async"),
+    ("await", "r#await"),
+    ("dyn", "r#dyn"),
+    ("abstract", "r#abstract"),
+    ("become", "r#become"),
+    ("box", "r#box"),
+    ("do", "r#do"),
+    ("final", "r#final"),
+    ("macro", "r#macro"),
+    ("override", "r#override"),
+    ("priv", "r#priv"),
+    ("typeof", "r#typeof"),
+    ("unsized", "r#unsized"),
+    ("virtual", "r#virtual"),
+    ("yield", "r#yield"),
+    ("try", "r#try"),
 ];
 
 fn normalize_identifier(ident: &str) -> &str {
-    if let Some(index) = USE_RAW.iter().position(|x| *x == ident) {
-        AS_RAW[index]
+    if let Some(word) = USE_RAW.iter().find(|x| x.0 == ident) {
+        word.1
     } else {
         ident
     }
