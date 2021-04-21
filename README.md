@@ -30,6 +30,7 @@ in a for-profit context, please consider supporting my open source work on
 * Debugging features to assist you in template development
 * Templates must be valid UTF-8 and produce UTF-8 when rendered
 * Works on stable Rust
+* IDE support available in [JetBrains products](https://plugins.jetbrains.com/plugin/16591-askama-template-support)
 
 ### Supported in templates
 
@@ -41,9 +42,6 @@ in a for-profit context, please consider supporting my open source work on
 * Whitespace suppressing with '-' markers
 * Opt-out HTML escaping
 * Syntax customization
-
-### IDE Support
-- [intellij-askama-template-plugin](https://github.com/SamJakob/intellij-askama-template-plugin): for IntelliJ platform IDEs (e.g. IntelliJ Community, IntelliJ Ultimate, CLion, etc.)
 
 [docs]: https://djc.github.io/askama/
 [fafhrd91]: https://github.com/fafhrd91
