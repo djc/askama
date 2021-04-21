@@ -29,8 +29,8 @@ in a for-profit context, please consider supporting my open source work on
 * Optional built-in support for Actix, Gotham, Iron, Rocket, tide, and warp web frameworks
 * Debugging features to assist you in template development
 * Templates must be valid UTF-8 and produce UTF-8 when rendered
-* Works on stable Rust
 * IDE support available in [JetBrains products](https://plugins.jetbrains.com/plugin/16591-askama-template-support)
+* Works on stable Rust
 
 ### Supported in templates
 
