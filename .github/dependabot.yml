@@ -8,17 +8,9 @@ updates:
   open-pull-requests-limit: 10
   ignore:
   - dependency-name: actix-rt
-    versions:
-    - "> 1"
   - dependency-name: bytes
-    versions:
-    - ">= 0.6.a, < 0.7"
   - dependency-name: funty
-    versions:
-    - "> 1.1.0"
   - dependency-name: gotham
     versions:
-    - 0.6.0
+    - 0.6.x
   - dependency-name: hyper
-    versions:
-    - 0.14.1
