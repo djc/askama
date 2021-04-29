@@ -698,7 +698,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             })?;
             (
                 mctx.macros.get(name).ok_or_else(|| {
-                    CompileError::String(format!("macro '{}' not found in scope '{}'", s, name))
+                    CompileError::String(format!("macro '{}' not found in scope '{}'", name, s))
                 })?,
                 mctx,
             )
