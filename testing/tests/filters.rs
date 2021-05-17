@@ -21,7 +21,7 @@ fn filter_escape() {
     };
     assert_eq!(
         s.render().unwrap(),
-        "&#x2f;&#x2f; my &lt;html&gt; is &quot;unsafe&quot; &amp; \
+        "// my &lt;html&gt; is &quot;unsafe&quot; &amp; \
          should be &#x27;escaped&#x27;"
     );
 }

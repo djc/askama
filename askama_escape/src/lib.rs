@@ -129,7 +129,6 @@ impl Escaper for Html {
                     b'&' => escaping_body!(start, i, fmt, bytes, "&amp;"),
                     b'"' => escaping_body!(start, i, fmt, bytes, "&quot;"),
                     b'\'' => escaping_body!(start, i, fmt, bytes, "&#x27;"),
-                    b'/' => escaping_body!(start, i, fmt, bytes, "&#x2f;"),
                     _ => (),
                 }
             }
