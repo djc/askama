@@ -138,13 +138,15 @@
                         </a>
                         
                         
+                        
+
                     </div>
                 </div>
 
                 
                 <div id="search-wrapper" class="hidden">
                     <form id="searchbar-outer" class="searchbar-outer">
-                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
                     </form>
                     <div id="searchresults-outer" class="searchresults-outer hidden">
                         <div id="searchresults-header" class="searchresults-header"></div>
@@ -203,7 +205,7 @@ in a for-profit context, please consider supporting my open source work on
 <li>Opt-out HTML escaping</li>
 <li>Syntax customization</li>
 </ul>
-<h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
+<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
 <p>First, add the following to your crate's <code>Cargo.toml</code>:</p>
 <pre><code class="language-toml"># in section [dependencies]
 askama = &quot;0.8&quot;
@@ -230,7 +232,7 @@ fn main() {
 }
 </code></pre></pre>
 <p>You should now be able to compile and run this code.</p>
-<h1 id="creating-templates"><a class="header" href="#creating-templates">Creating Templates</a></h1>
+<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="creating-templates"><a class="header" href="#creating-templates">Creating Templates</a></h1>
 <p>An Askama template is a <code>struct</code> definition which provides the template
 context combined with a UTF-8 encoded text file (or inline source, see
 below). Askama can be used to generate any kind of text-based format.
@@ -351,7 +353,7 @@ struct HelloTemplate&lt;'a&gt; { ... }
 </span></code></pre></pre>
 </li>
 </ul>
-<h1 id="debugging-and-troubleshooting"><a class="header" href="#debugging-and-troubleshooting">Debugging and Troubleshooting</a></h1>
+<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="debugging-and-troubleshooting"><a class="header" href="#debugging-and-troubleshooting">Debugging and Troubleshooting</a></h1>
 <p>You can view the parse tree for a template as well as the generated code by
 changing the <code>template</code> attribute item list for the template struct:</p>
 <pre><pre class="playground"><code class="language-rust">
@@ -398,7 +400,7 @@ impl &lt; 'a &gt; ::std::fmt::Display for HelloTemplate&lt; 'a &gt; {
 }
 <span class="boring">}
 </span></code></pre></pre>
-<h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
+<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
 <p>At compile time, Askama will read optional configuration values from
 <code>askama.toml</code> in the crate root (the directory where <code>Cargo.toml</code> can
 be found). Currently, this covers the directories to search for templates,
@@ -452,7 +454,7 @@ first escaper configured and ending with the default escapers for HTML
 (no escaping; <code>md</code>, <code>yml</code>, <code>none</code>, <code>txt</code>, and the empty string). Note that
 this means you can also define other escapers that match different extensions
 to the same escaper.</p>
-<h1 id="template-syntax"><a class="header" href="#template-syntax">Template Syntax</a></h1>
+<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="template-syntax"><a class="header" href="#template-syntax">Template Syntax</a></h1>
 <h2 id="variables"><a class="header" href="#variables">Variables</a></h2>
 <p>Top-level template variables are defined by the template's context type.
 You can use a dot (<code>.</code>) to access variable's attributes or methods.
@@ -760,7 +762,7 @@ struct Item&lt;'a&gt; {
 
 {% call heading(s) %}
 </code></pre>
-<h1 id="filters-1"><a class="header" href="#filters-1">Filters</a></h1>
+<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="filters-1"><a class="header" href="#filters-1">Filters</a></h1>
 <p>Values such as those obtained from variables can be post-processed
 using <strong>filters</strong>.
 Filters are applied to values using the pipe symbol (<code>|</code>) and may
@@ -935,7 +937,7 @@ This will output formatted JSON for any value that implements the required
 <code>Serialize</code> trait.</p>
 <pre><code>{{ foo|yaml }}
 </code></pre>
-<h1 id="integrations"><a class="header" href="#integrations">Integrations</a></h1>
+<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="integrations"><a class="header" href="#integrations">Integrations</a></h1>
 <h2 id="rocket-integration"><a class="header" href="#rocket-integration">Rocket integration</a></h2>
 <p>Enabling the <code>with-rocket</code> feature appends an implementation of Rocket's
 <code>Responder</code> trait for each template type. This makes it easy to trivially
