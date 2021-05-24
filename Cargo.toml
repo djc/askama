@@ -10,6 +10,7 @@ members = [
     "askama_shared",
     "askama_tide",
     "askama_warp",
+    "askama_routerify",
     "testing",
 ]
 

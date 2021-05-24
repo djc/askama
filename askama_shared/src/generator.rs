@@ -116,6 +116,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         if self.integrations.warp {
             self.impl_warp_reply(&mut buf)?;
         }
+        if self.integrations.routerify {
+            self.impl_routerify_impl(&mut buf)?;
+        }
         Ok(buf.buf)
     }
 
@@ -361,6 +364,15 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("}")
     }
 
+    fn impl_routerify_impl(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+        self.write_header(buf, "Into<::hyper::Response<::hyper::Body>>", None)?;
+        buf.writeln("fn into(self) -> hyper::Response<hyper::Body> {")?;
+
+        let ext = self.input.extension().unwrap_or("txt");
+        buf.writeln(&format!("::askama_routerify::respond(&self, {:?})", ext))?;
+        buf.writeln("}")?;
+        buf.writeln("}")
+    }
     // Writes header for the `impl` for `TraitFromPathName` or `Template`
     // for the given context struct.
     fn write_header(
