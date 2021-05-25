@@ -1,5 +1,4 @@
 pub use askama::*;
-use bytes::BytesMut;
 
 use actix_web::{error::ErrorInternalServerError, Error, HttpResponse};
 
@@ -9,7 +8,8 @@ pub trait TemplateToResponse {
 
 impl<T: askama::Template> TemplateToResponse for T {
     fn to_response(&self) -> ::std::result::Result<HttpResponse, Error> {
-        let mut buffer = BytesMut::with_capacity(self.size_hint());
+
+        let mut buffer = String::with_capacity(self.size_hint());
         self.render_into(&mut buffer)
             .map_err(|_| ErrorInternalServerError("Template parsing error"))?;
 
@@ -17,13 +17,6 @@ impl<T: askama::Template> TemplateToResponse for T {
             askama::mime::extension_to_mime_type(self.extension().unwrap_or("txt")).to_string();
         Ok(HttpResponse::Ok()
             .content_type(ctype.as_str())
-            .body(buffer.freeze()))
+            .body(buffer))
     }
-}
-
-// Re-exported for use by generated code
-#[doc(hidden)]
-pub mod futures {
-    pub use futures_util::future::ready;
-    pub use futures_util::future::Ready;
 }
