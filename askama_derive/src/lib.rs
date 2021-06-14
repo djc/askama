@@ -49,7 +49,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
 
     let mut contexts = HashMap::new();
     for (path, nodes) in &parsed {
-        contexts.insert(*path, Context::new(&input.config, path, nodes)?);
+        contexts.insert(*path, Context::new(input.config, path, nodes)?);
     }
 
     let ctx = &contexts[&input.path];

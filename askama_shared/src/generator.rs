@@ -148,7 +148,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let size_hint = if let Some(heritage) = self.heritage {
             self.handle(heritage.root, heritage.root.nodes, buf, AstLevel::Top)
         } else {
-            self.handle(ctx, &ctx.nodes, buf, AstLevel::Top)
+            self.handle(ctx, ctx.nodes, buf, AstLevel::Top)
         }?;
 
         self.flush_ws(Ws(false, false));
@@ -598,7 +598,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                         buf.write(param.0);
                         if let Some(param) = &param.1 {
                             buf.write(":");
-                            self.visit_match_param(buf, &param);
+                            self.visit_match_param(buf, param);
                         }
                     }
                     buf.write("}");
@@ -1448,7 +1448,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             return DisplayWrap::Unwrapped;
         }
 
-        buf.write(normalize_identifier(&self.locals.resolve_or_self(&s)));
+        buf.write(normalize_identifier(&self.locals.resolve_or_self(s)));
         DisplayWrap::Unwrapped
     }
 
@@ -1648,7 +1648,7 @@ where
     }
 
     fn contains(&self, key: &K) -> bool {
-        self.scopes.iter().rev().any(|set| set.contains_key(&key))
+        self.scopes.iter().rev().any(|set| set.contains_key(key))
             || match self.parent {
                 Some(set) => set.contains(key),
                 None => false,
@@ -1660,7 +1660,7 @@ where
     fn get(&self, key: &K) -> Option<&V> {
         let scopes = self.scopes.iter().rev();
         scopes
-            .filter_map(|set| set.get(&key))
+            .filter_map(|set| set.get(key))
             .next()
             .or_else(|| self.parent.and_then(|set| set.get(key)))
     }
