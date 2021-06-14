@@ -19,9 +19,9 @@ fn hello() -> HelloTemplate<'static> {
 
 #[test]
 fn test_rocket() {
-    let rocket = rocket::ignite().mount("/", routes![hello]);
+    let rocket = rocket::build().mount("/", routes![hello]);
     let client = Client::tracked(rocket).unwrap();
-    let mut rsp = client.get("/").dispatch();
+    let rsp = client.get("/").dispatch();
     assert_eq!(rsp.status(), Status::Ok);
     assert_eq!(rsp.content_type(), Some(ContentType::HTML));
     assert_eq!(rsp.into_string().unwrap(), "Hello, world!");
