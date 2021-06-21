@@ -717,6 +717,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         let mut names = Buffer::new(0);
         let mut values = Buffer::new(0);
+        let mut is_first_variable = true;
         for (i, arg) in def.args.iter().enumerate() {
             let expr = args.get(i).ok_or_else(|| {
                 CompileError::String(format!("macro '{}' takes more than {} arguments", name, i))
@@ -742,7 +743,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 // multiple times, e.g. in the case of macro
                 // parameters being used multiple times.
                 _ => {
-                    if i > 0 {
+                    if is_first_variable {
+                        is_first_variable = false
+                    } else {
                         names.write(", ");
                         values.write(", ");
                     }

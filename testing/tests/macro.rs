@@ -53,3 +53,13 @@ fn test_short_circuit() {
     let t = ShortCircuitTemplate {};
     assert_eq!(t.render().unwrap(), "truetruetruefalsetruetrue");
 }
+
+#[derive(Template)]
+#[template(path = "nested-macro-args.html")]
+struct NestedMacroArgsTemplate {}
+
+#[test]
+fn test_nested_macro_with_args() {
+    let t = NestedMacroArgsTemplate {};
+    assert_eq!(t.render().unwrap(), "first second");
+}
