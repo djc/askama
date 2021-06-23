@@ -658,6 +658,12 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 ", _loop_item) in ::askama::helpers::TemplateLoop::new(((&{}).into_iter())) {{",
                 expr_code
             )),
+            // If accessing a field then it most likely needs to be
+            // borrowed, to prevent an attempt of moving.
+            Expr::Attr(..) => buf.writeln(&format!(
+                ", _loop_item) in ::askama::helpers::TemplateLoop::new(((&{}).into_iter())) {{",
+                expr_code
+            )),
             // Otherwise, we borrow `iter` assuming that it implements `IntoIterator`.
             _ => buf.writeln(&format!(
                 ", _loop_item) in ::askama::helpers::TemplateLoop::new(({}).into_iter()) {{",
