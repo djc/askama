@@ -1,0 +1,7 @@
+{%- if !cond -%}
+    !cond
+{%- else if let Ok(ok) = value -%}
+    {{ ok }}
+{%- else if let Err(err) = value -%}
+    {{ err }}
+{%- endif -%}
