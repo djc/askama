@@ -564,44 +564,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 None => buf.write("_"),
             };
 
-            match params {
-                MatchParameters::Simple(params) => {
-                    if !params.is_empty() {
-                        buf.write("(");
-                        for (i, param) in params.iter().enumerate() {
-                            if let MatchParameter::Name(p) = *param {
-                                self.locals.insert_with_default(p);
-                            }
-                            if i > 0 {
-                                buf.write(", ");
-                            }
-                            self.visit_match_param(buf, param);
-                        }
-                        buf.write(")");
-                    }
-                }
-                MatchParameters::Named(params) => {
-                    buf.write("{");
-                    for (i, param) in params.iter().enumerate() {
-                        if let Some(MatchParameter::Name(p)) = param.1 {
-                            let p = normalize_identifier(p);
-                            self.locals.insert_with_default(p);
-                        } else {
-                            self.locals.insert_with_default(param.0);
-                        }
-
-                        if i > 0 {
-                            buf.write(", ");
-                        }
-                        buf.write(param.0);
-                        if let Some(param) = &param.1 {
-                            buf.write(":");
-                            self.visit_match_param(buf, param);
-                        }
-                    }
-                    buf.write("}");
-                }
-            }
+            self.visit_match_params(buf, params);
             buf.writeln(" => {")?;
 
             arm_size = self.handle(ctx, body, buf, AstLevel::Nested)?;
@@ -1153,6 +1116,47 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         };
         buf.write(&expr_buf.buf);
         wrapped
+    }
+
+    fn visit_match_params(&mut self, buf: &mut Buffer, params: &MatchParameters<'a>) {
+        match params {
+            MatchParameters::Simple(params) => {
+                if !params.is_empty() {
+                    buf.write("(");
+                    for (i, param) in params.iter().enumerate() {
+                        if let MatchParameter::Name(p) = *param {
+                            self.locals.insert_with_default(p);
+                        }
+                        if i > 0 {
+                            buf.write(", ");
+                        }
+                        self.visit_match_param(buf, param);
+                    }
+                    buf.write(")");
+                }
+            }
+            MatchParameters::Named(params) => {
+                buf.write("{");
+                for (i, param) in params.iter().enumerate() {
+                    if let Some(MatchParameter::Name(p)) = param.1 {
+                        let p = normalize_identifier(p);
+                        self.locals.insert_with_default(p);
+                    } else {
+                        self.locals.insert_with_default(param.0);
+                    }
+
+                    if i > 0 {
+                        buf.write(", ");
+                    }
+                    buf.write(param.0);
+                    if let Some(param) = &param.1 {
+                        buf.write(":");
+                        self.visit_match_param(buf, param);
+                    }
+                }
+                buf.write("}");
+            }
+        }
     }
 
     fn visit_filter(
