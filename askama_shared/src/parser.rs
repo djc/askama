@@ -18,7 +18,7 @@ pub enum Node<'a> {
     Call(Ws, Option<&'a str>, &'a str, Vec<Expr<'a>>),
     LetDecl(Ws, Target<'a>),
     Let(Ws, Target<'a>, Expr<'a>),
-    Cond(Vec<(Ws, Option<Expr<'a>>, Vec<Node<'a>>)>, Ws),
+    Cond(Vec<Cond<'a>>, Ws),
     Match(Ws, Expr<'a>, Vec<When<'a>>, Ws),
     Loop(Ws, Target<'a>, Expr<'a>, Vec<Node<'a>>, Ws),
     Extends(Expr<'a>),
@@ -144,7 +144,13 @@ pub enum Target<'a> {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Ws(pub bool, pub bool);
 
-pub type Cond<'a> = (Ws, Option<Expr<'a>>, Vec<Node<'a>>);
+pub type Cond<'a> = (Ws, Option<CondTest<'a>>, Vec<Node<'a>>);
+
+#[derive(Debug, PartialEq)]
+pub struct CondTest<'a> {
+    pub target: Option<(MatchVariant<'a>, Option<MatchParameters<'a>>)>,
+    pub expr: Expr<'a>,
+}
 
 fn ws<F, I, O, E>(mut inner: F) -> impl FnMut(I) -> IResult<I, O, E>
 where
@@ -724,9 +730,25 @@ fn block_call(i: &[u8]) -> IResult<&[u8], Node> {
     ))
 }
 
-fn cond_if(i: &[u8]) -> IResult<&[u8], Expr> {
-    let (i, (_, cond)) = tuple((ws(tag("if")), ws(expr_any)))(i)?;
-    Ok((i, cond))
+fn cond_if(i: &[u8]) -> IResult<&[u8], CondTest> {
+    let mut p = tuple((
+        ws(tag("if")),
+        opt(tuple((
+            ws(alt((tag("let"), tag("set")))),
+            ws(match_variant),
+            opt(alt((match_simple_parameters, match_named_parameters))),
+            ws(tag("=")),
+        ))),
+        ws(expr_any),
+    ));
+    let (i, (_, dest, expr)) = p(i)?;
+    Ok((
+        i,
+        CondTest {
+            target: dest.map(|(_, variant, params, _)| (variant, params)),
+            expr,
+        },
+    ))
 }
 
 fn cond_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Cond<'a>> {

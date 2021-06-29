@@ -3,7 +3,8 @@ use crate::filters;
 use crate::heritage::{Context, Heritage};
 use crate::input::{Source, TemplateInput};
 use crate::parser::{
-    parse, Cond, Expr, MatchParameter, MatchParameters, MatchVariant, Node, Target, When, Ws,
+    parse, Cond, CondTest, Expr, MatchParameter, MatchParameters, MatchVariant, Node, Target, When,
+    Ws,
 };
 
 use proc_macro2::Span;
@@ -483,23 +484,38 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 self.locals.pop();
             }
 
+            self.locals.push();
             let mut arm_size = 0;
-            if let Some(expr) = cond {
+            if let Some(CondTest { target, expr }) = cond {
                 if i == 0 {
                     buf.write("if ");
                 } else {
                     buf.dedent()?;
                     buf.write("} else if ");
                 }
-                // The following syntax `*(&(...) as &bool)` is used to
-                // trigger Rust's automatic dereferencing, to coerce
-                // e.g. `&&&&&bool` to `bool`. First `&(...) as &bool`
-                // coerces e.g. `&&&bool` to `&bool`. Then `*(&bool)`
-                // finally dereferences it to `bool`.
-                buf.write("*(&(");
-                let expr_code = self.visit_expr_root(expr)?;
-                buf.write(&expr_code);
-                buf.write(") as &bool)");
+
+                if let Some((variant, params)) = target {
+                    let mut expr_buf = Buffer::new(0);
+                    self.visit_expr(&mut expr_buf, expr)?;
+                    buf.write("let ");
+                    self.visit_match_variant(buf, variant);
+                    if let Some(params) = params {
+                        self.visit_match_params(buf, params);
+                    }
+                    buf.write(" = &(");
+                    buf.write(&expr_buf.buf);
+                    buf.write(")");
+                } else {
+                    // The following syntax `*(&(...) as &bool)` is used to
+                    // trigger Rust's automatic dereferencing, to coerce
+                    // e.g. `&&&&&bool` to `bool`. First `&(...) as &bool`
+                    // coerces e.g. `&&&bool` to `&bool`. Then `*(&bool)`
+                    // finally dereferences it to `bool`.
+                    buf.write("*(&(");
+                    let expr_code = self.visit_expr_root(expr)?;
+                    buf.write(&expr_code);
+                    buf.write(") as &bool)");
+                }
             } else {
                 buf.dedent()?;
                 buf.write("} else");
@@ -507,7 +523,6 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
 
             buf.writeln(" {")?;
-            self.locals.push();
 
             arm_size += self.handle(ctx, nodes, buf, AstLevel::Nested)?;
             arm_sizes.push(arm_size);
