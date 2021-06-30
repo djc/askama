@@ -484,29 +484,26 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
 
             let mut arm_size = 0;
-            match *cond {
-                Some(ref expr) => {
-                    if i == 0 {
-                        buf.write("if ");
-                    } else {
-                        buf.dedent()?;
-                        buf.write("} else if ");
-                    }
-                    // The following syntax `*(&(...) as &bool)` is used to
-                    // trigger Rust's automatic dereferencing, to coerce
-                    // e.g. `&&&&&bool` to `bool`. First `&(...) as &bool`
-                    // coerces e.g. `&&&bool` to `&bool`. Then `*(&bool)`
-                    // finally dereferences it to `bool`.
-                    buf.write("*(&(");
-                    let expr_code = self.visit_expr_root(expr)?;
-                    buf.write(&expr_code);
-                    buf.write(") as &bool)");
-                }
-                None => {
+            if let Some(expr) = cond {
+                if i == 0 {
+                    buf.write("if ");
+                } else {
                     buf.dedent()?;
-                    buf.write("} else");
-                    has_else = true;
+                    buf.write("} else if ");
                 }
+                // The following syntax `*(&(...) as &bool)` is used to
+                // trigger Rust's automatic dereferencing, to coerce
+                // e.g. `&&&&&bool` to `bool`. First `&(...) as &bool`
+                // coerces e.g. `&&&bool` to `&bool`. Then `*(&bool)`
+                // finally dereferences it to `bool`.
+                buf.write("*(&(");
+                let expr_code = self.visit_expr_root(expr)?;
+                buf.write(&expr_code);
+                buf.write(") as &bool)");
+            } else {
+                buf.dedent()?;
+                buf.write("} else");
+                has_else = true;
             }
 
             buf.writeln(" {")?;
