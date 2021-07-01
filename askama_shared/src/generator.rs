@@ -811,6 +811,25 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln(";")
     }
 
+    fn is_shadowing_variable(&self, var: &Target<'a>) -> bool {
+        match var {
+            Target::Name(name) => {
+                let name = normalize_identifier(name);
+                match self.locals.get(&name) {
+                    // declares a new variable
+                    None => false,
+                    // an initialized variable gets shadowed
+                    Some(meta) if meta.initialized => true,
+                    // initializes a variable that was introduced in a LetDecl before
+                    _ => false,
+                }
+            }
+            Target::Tuple(targets) => targets
+                .iter()
+                .any(|name| self.is_shadowing_variable(&Target::Name(name))),
+        }
+    }
+
     fn write_let(
         &mut self,
         buf: &mut Buffer,
@@ -822,36 +841,27 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let mut expr_buf = Buffer::new(0);
         self.visit_expr(&mut expr_buf, val)?;
 
+        let shadowed = self.is_shadowing_variable(var);
+        if shadowed {
+            // Need to flush the buffer if the variable is being shadowed,
+            // to ensure the old variable is used.
+            self.write_buf_writable(buf)?;
+        }
+        if shadowed
+            || !matches!(var, &Target::Name(_))
+            || matches!(var, Target::Name(name) if self.locals.get(name).is_none())
+        {
+            buf.write("let ");
+        }
+
         match var {
             Target::Name(name) => {
                 let name = normalize_identifier(name);
-                let meta = self.locals.get(&name).cloned();
-
-                let shadowed = matches!(&meta, Some(meta) if meta.initialized);
-                if shadowed {
-                    // Need to flush the buffer if the variable is being shadowed,
-                    // to ensure the old variable is used.
-                    self.write_buf_writable(buf)?;
-                }
-                if shadowed || meta.is_none() {
-                    buf.write("let ");
-                }
                 buf.write(name);
-
                 self.locals.insert(name, LocalMeta::initialized());
             }
             Target::Tuple(targets) => {
-                let shadowed = targets.iter().any(|name| {
-                    let name = normalize_identifier(name);
-                    matches!(self.locals.get(&name), Some(meta) if meta.initialized)
-                });
-                if shadowed {
-                    // Need to flush the buffer if the variable is being shadowed,
-                    // to ensure the old variable is used.
-                    self.write_buf_writable(buf)?;
-                }
-
-                buf.write("let (");
+                buf.write("(");
                 for name in targets {
                     let name = normalize_identifier(name);
                     self.locals.insert(name, LocalMeta::initialized());
