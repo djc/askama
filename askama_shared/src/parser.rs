@@ -172,7 +172,7 @@ where
     }
 }
 
-fn split_ws_parts(s: &[u8]) -> Node {
+fn split_ws_parts(s: &[u8]) -> Node<'_> {
     if s.is_empty() {
         let rs = str::from_utf8(s).unwrap();
         return Node::Lit(rs, rs, rs);
@@ -249,7 +249,7 @@ fn take_content<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> ParserError<'a, Node<'a>>
     }
 }
 
-fn identifier(input: &[u8]) -> ParserError<&str> {
+fn identifier(input: &[u8]) -> ParserError<'_, &str> {
     if !nom::character::is_alphabetic(input[0]) && input[0] != b'_' && !non_ascii(input[0]) {
         return Err(nom::Err::Error(nom::error::Error::new(
             input,
@@ -270,7 +270,7 @@ fn non_ascii(chr: u8) -> bool {
     (0x80..=0xFD).contains(&chr)
 }
 
-fn expr_bool_lit(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_bool_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     map(alt((tag("false"), tag("true"))), |s| {
         Expr::BoolLit(str::from_utf8(s).unwrap())
     })(i)
@@ -282,11 +282,11 @@ fn num_lit(i: &[u8]) -> IResult<&[u8], &str> {
     })(i)
 }
 
-fn expr_num_lit(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_num_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     map(num_lit, |s| Expr::NumLit(s))(i)
 }
 
-fn expr_array_lit(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_array_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     delimited(
         ws(tag("[")),
         map(separated_list1(ws(tag(",")), expr_any), |arr| {
@@ -296,11 +296,11 @@ fn expr_array_lit(i: &[u8]) -> IResult<&[u8], Expr> {
     )(i)
 }
 
-fn variant_num_lit(i: &[u8]) -> IResult<&[u8], MatchVariant> {
+fn variant_num_lit(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
     map(num_lit, |s| MatchVariant::NumLit(s))(i)
 }
 
-fn param_num_lit(i: &[u8]) -> IResult<&[u8], MatchParameter> {
+fn param_num_lit(i: &[u8]) -> IResult<&[u8], MatchParameter<'_>> {
     map(num_lit, |s| MatchParameter::NumLit(s))(i)
 }
 
@@ -315,15 +315,15 @@ fn str_lit(i: &[u8]) -> IResult<&[u8], &str> {
     )(i)
 }
 
-fn expr_str_lit(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_str_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     map(str_lit, |s| Expr::StrLit(s))(i)
 }
 
-fn variant_str_lit(i: &[u8]) -> IResult<&[u8], MatchVariant> {
+fn variant_str_lit(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
     map(str_lit, |s| MatchVariant::StrLit(s))(i)
 }
 
-fn param_str_lit(i: &[u8]) -> IResult<&[u8], MatchParameter> {
+fn param_str_lit(i: &[u8]) -> IResult<&[u8], MatchParameter<'_>> {
     map(str_lit, |s| MatchParameter::StrLit(s))(i)
 }
 
@@ -338,23 +338,23 @@ fn char_lit(i: &[u8]) -> IResult<&[u8], &str> {
     )(i)
 }
 
-fn expr_char_lit(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_char_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     map(char_lit, |s| Expr::CharLit(s))(i)
 }
 
-fn variant_char_lit(i: &[u8]) -> IResult<&[u8], MatchVariant> {
+fn variant_char_lit(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
     map(char_lit, |s| MatchVariant::CharLit(s))(i)
 }
 
-fn param_char_lit(i: &[u8]) -> IResult<&[u8], MatchParameter> {
+fn param_char_lit(i: &[u8]) -> IResult<&[u8], MatchParameter<'_>> {
     map(char_lit, |s| MatchParameter::CharLit(s))(i)
 }
 
-fn expr_var(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_var(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     map(identifier, |s| Expr::Var(s))(i)
 }
 
-fn expr_var_call(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_var_call(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     let (i, (s, args)) = tuple((ws(identifier), arguments))(i)?;
     Ok((i, Expr::VarCall(s, args)))
 }
@@ -388,27 +388,27 @@ fn path(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
     }
 }
 
-fn expr_path(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_path(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     let (i, path) = path(i)?;
     Ok((i, Expr::Path(path)))
 }
 
-fn expr_path_call(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_path_call(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     let (i, (path, args)) = tuple((ws(path), arguments))(i)?;
     Ok((i, Expr::PathCall(path, args)))
 }
 
-fn variant_path(i: &[u8]) -> IResult<&[u8], MatchVariant> {
+fn variant_path(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
     map(separated_list1(ws(tag("::")), identifier), |path| {
         MatchVariant::Path(path)
     })(i)
 }
 
-fn target_single(i: &[u8]) -> IResult<&[u8], Target> {
+fn target_single(i: &[u8]) -> IResult<&[u8], Target<'_>> {
     map(identifier, |s| Target::Name(s))(i)
 }
 
-fn target_tuple(i: &[u8]) -> IResult<&[u8], Target> {
+fn target_tuple(i: &[u8]) -> IResult<&[u8], Target<'_>> {
     let parts = separated_list0(tag(","), ws(identifier));
     let trailing = opt(ws(tag(",")));
     let mut full = delimited(tag("("), tuple((parts, trailing)), tag(")"));
@@ -417,15 +417,15 @@ fn target_tuple(i: &[u8]) -> IResult<&[u8], Target> {
     Ok((i, Target::Tuple(elems)))
 }
 
-fn variant_name(i: &[u8]) -> IResult<&[u8], MatchVariant> {
+fn variant_name(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
     map(identifier, |s| MatchVariant::Name(s))(i)
 }
 
-fn param_name(i: &[u8]) -> IResult<&[u8], MatchParameter> {
+fn param_name(i: &[u8]) -> IResult<&[u8], MatchParameter<'_>> {
     map(identifier, |s| MatchParameter::Name(s))(i)
 }
 
-fn arguments(i: &[u8]) -> IResult<&[u8], Vec<Expr>> {
+fn arguments(i: &[u8]) -> IResult<&[u8], Vec<Expr<'_>>> {
     delimited(
         ws(tag("(")),
         separated_list0(tag(","), ws(expr_any)),
@@ -437,7 +437,7 @@ fn macro_arguments(i: &[u8]) -> IResult<&[u8], &str> {
     delimited(char('('), nested_parenthesis, char(')'))(i)
 }
 
-fn nested_parenthesis(i: &[u8]) -> ParserError<&str> {
+fn nested_parenthesis(i: &[u8]) -> ParserError<'_, &str> {
     let mut nested = 0;
     let mut last = 0;
     let mut in_str = false;
@@ -493,7 +493,7 @@ fn parameters(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
     )(i)
 }
 
-fn with_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters> {
+fn with_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters<'_>> {
     let (i, (_, value)) = tuple((
         tag("with"),
         alt((match_simple_parameters, match_named_parameters)),
@@ -501,7 +501,7 @@ fn with_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters> {
     Ok((i, value))
 }
 
-fn match_simple_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters> {
+fn match_simple_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters<'_>> {
     delimited(
         ws(tag("(")),
         map(separated_list0(tag(","), ws(match_parameter)), |mps| {
@@ -511,7 +511,7 @@ fn match_simple_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters> {
     )(i)
 }
 
-fn match_named_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters> {
+fn match_named_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters<'_>> {
     delimited(
         ws(tag("{")),
         map(
@@ -522,13 +522,13 @@ fn match_named_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters> {
     )(i)
 }
 
-fn expr_group(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_group(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     map(delimited(ws(char('(')), expr_any, ws(char(')'))), |s| {
         Expr::Group(Box::new(s))
     })(i)
 }
 
-fn expr_single(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_single(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     alt((
         expr_bool_lit,
         expr_num_lit,
@@ -544,7 +544,7 @@ fn expr_single(i: &[u8]) -> IResult<&[u8], Expr> {
     ))(i)
 }
 
-fn match_variant(i: &[u8]) -> IResult<&[u8], MatchVariant> {
+fn match_variant(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
     alt((
         variant_path,
         variant_name,
@@ -554,23 +554,23 @@ fn match_variant(i: &[u8]) -> IResult<&[u8], MatchVariant> {
     ))(i)
 }
 
-fn match_parameter(i: &[u8]) -> IResult<&[u8], MatchParameter> {
+fn match_parameter(i: &[u8]) -> IResult<&[u8], MatchParameter<'_>> {
     alt((param_name, param_num_lit, param_str_lit, param_char_lit))(i)
 }
 
-fn match_named_parameter(i: &[u8]) -> IResult<&[u8], (&str, Option<MatchParameter>)> {
+fn match_named_parameter(i: &[u8]) -> IResult<&[u8], (&str, Option<MatchParameter<'_>>)> {
     let param = tuple((ws(tag(":")), match_parameter));
     let (i, (name, param)) = tuple((identifier, opt(param)))(i)?;
     Ok((i, (name, param.map(|s| s.1))))
 }
 
-fn attr(i: &[u8]) -> IResult<&[u8], (&str, Option<Vec<Expr>>)> {
+fn attr(i: &[u8]) -> IResult<&[u8], (&str, Option<Vec<Expr<'_>>>)> {
     let (i, (_, attr, args)) =
         tuple((ws(tag(".")), alt((num_lit, identifier)), ws(opt(arguments))))(i)?;
     Ok((i, (attr, args)))
 }
 
-fn expr_attr(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_attr(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     let (i, (obj, attrs)) = tuple((expr_single, many0(attr)))(i)?;
 
     let mut res = obj;
@@ -585,7 +585,7 @@ fn expr_attr(i: &[u8]) -> IResult<&[u8], Expr> {
     Ok((i, res))
 }
 
-fn expr_index(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_index(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     let key = opt(tuple((ws(tag("[")), expr_any, ws(tag("]")))));
     let (i, (obj, key)) = tuple((expr_attr, key))(i)?;
     let key = key.map(|(_, key, _)| key);
@@ -599,12 +599,12 @@ fn expr_index(i: &[u8]) -> IResult<&[u8], Expr> {
     ))
 }
 
-fn filter(i: &[u8]) -> IResult<&[u8], (&str, Option<Vec<Expr>>)> {
+fn filter(i: &[u8]) -> IResult<&[u8], (&str, Option<Vec<Expr<'_>>>)> {
     let (i, (_, fname, args)) = tuple((tag("|"), ws(identifier), opt(arguments)))(i)?;
     Ok((i, (fname, args)))
 }
 
-fn expr_filtered(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_filtered(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     let (i, (obj, filters)) = tuple((expr_unary, many0(filter)))(i)?;
 
     let mut res = obj;
@@ -622,7 +622,7 @@ fn expr_filtered(i: &[u8]) -> IResult<&[u8], Expr> {
     Ok((i, res))
 }
 
-fn expr_unary(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_unary(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     let (i, (op, expr)) = tuple((opt(alt((ws(tag("!")), ws(tag("-"))))), expr_index))(i)?;
     Ok((
         i,
@@ -633,14 +633,14 @@ fn expr_unary(i: &[u8]) -> IResult<&[u8], Expr> {
     ))
 }
 
-fn expr_rust_macro(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_rust_macro(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     let (i, (mname, _, args)) = tuple((identifier, tag("!"), macro_arguments))(i)?;
     Ok((i, Expr::RustMacro(mname, args)))
 }
 
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $op:expr ) => {
-        fn $name(i: &[u8]) -> IResult<&[u8], Expr> {
+        fn $name(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
             let (i, left) = $inner(i)?;
             let (i, right) = many0(pair(
                 ws(tag($op)),
@@ -655,7 +655,7 @@ macro_rules! expr_prec_layer {
         }
     };
     ( $name:ident, $inner:ident, $( $op:expr ),+ ) => {
-        fn $name(i: &[u8]) -> IResult<&[u8], Expr> {
+        fn $name(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
             let (i, left) = $inner(i)?;
             let (i, right) = many0(pair(
                 ws(alt(($( tag($op) ),*,))),
@@ -681,7 +681,7 @@ expr_prec_layer!(expr_compare, expr_bor, "==", "!=", ">=", ">", "<=", "<");
 expr_prec_layer!(expr_and, expr_compare, "&&");
 expr_prec_layer!(expr_or, expr_and, "||");
 
-fn range_right(i: &[u8]) -> IResult<&[u8], Expr> {
+fn range_right(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     let (i, (_, incl, right)) = tuple((ws(tag("..")), opt(ws(tag("="))), opt(expr_or)))(i)?;
     Ok((
         i,
@@ -693,7 +693,7 @@ fn range_right(i: &[u8]) -> IResult<&[u8], Expr> {
     ))
 }
 
-fn expr_any(i: &[u8]) -> IResult<&[u8], Expr> {
+fn expr_any(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     let compound = map(tuple((expr_or, range_right)), |(left, rest)| match rest {
         Expr::Range(op, _, right) => Expr::Range(op, Some(Box::new(left)), right),
         _ => unreachable!(),
@@ -713,7 +713,7 @@ fn expr_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> 
     Ok((i, Node::Expr(Ws(pws.is_some(), nws.is_some()), expr)))
 }
 
-fn block_call(i: &[u8]) -> IResult<&[u8], Node> {
+fn block_call(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     let mut p = tuple((
         opt(tag("-")),
         ws(tag("call")),
@@ -730,7 +730,7 @@ fn block_call(i: &[u8]) -> IResult<&[u8], Node> {
     ))
 }
 
-fn cond_if(i: &[u8]) -> IResult<&[u8], CondTest> {
+fn cond_if(i: &[u8]) -> IResult<&[u8], CondTest<'_>> {
     let mut p = tuple((
         ws(tag("if")),
         opt(tuple((
@@ -879,7 +879,7 @@ fn block_match<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>
     ))
 }
 
-fn block_let(i: &[u8]) -> IResult<&[u8], Node> {
+fn block_let(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     let mut p = tuple((
         opt(tag("-")),
         ws(alt((tag("let"), tag("set")))),
@@ -927,7 +927,7 @@ fn block_for<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> 
     ))
 }
 
-fn block_extends(i: &[u8]) -> IResult<&[u8], Node> {
+fn block_extends(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     let (i, (_, name)) = tuple((ws(tag("extends")), ws(expr_str_lit)))(i)?;
     Ok((i, Node::Extends(name)))
 }
@@ -963,7 +963,7 @@ fn block_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>
     ))
 }
 
-fn block_include(i: &[u8]) -> IResult<&[u8], Node> {
+fn block_include(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     let mut p = tuple((
         opt(tag("-")),
         ws(tag("include")),
@@ -983,7 +983,7 @@ fn block_include(i: &[u8]) -> IResult<&[u8], Node> {
     ))
 }
 
-fn block_import(i: &[u8]) -> IResult<&[u8], Node> {
+fn block_import(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     let mut p = tuple((
         opt(tag("-")),
         ws(tag("import")),
@@ -1170,8 +1170,7 @@ mod tests {
     use crate::Syntax;
 
     fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
-        let node = super::split_ws_parts(s.as_bytes());
-        match node {
+        match super::split_ws_parts(s.as_bytes()) {
             Node::Lit(lws, s, rws) => {
                 assert_eq!(lws, res.0);
                 assert_eq!(s, res.1);

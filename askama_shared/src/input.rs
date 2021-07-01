@@ -24,7 +24,7 @@ impl<'a> TemplateInput<'a> {
     /// field, if any.
     pub fn new<'n>(
         ast: &'n syn::DeriveInput,
-        config: &'n Config,
+        config: &'n Config<'_>,
     ) -> Result<TemplateInput<'n>, CompileError> {
         // Check that an attribute called `template()` exists and that it is
         // the proper type (list).

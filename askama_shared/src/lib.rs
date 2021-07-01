@@ -1,4 +1,5 @@
 #![cfg_attr(feature = "cargo-clippy", allow(unused_parens))]
+#![deny(elided_lifetimes_in_paths)]
 
 use std::collections::{BTreeMap, HashSet};
 use std::convert::TryFrom;
