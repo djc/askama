@@ -614,7 +614,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         let flushed = self.write_buf_writable(buf)?;
         buf.write("for (");
-        self.visit_target(buf, var);
+        self.visit_target(buf, true, var);
         match iter {
             Expr::Range(_, _, _) => buf.writeln(&format!(
                 ", _loop_item) in ::askama::helpers::TemplateLoop::new({}) {{",
@@ -807,7 +807,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         self.handle_ws(ws);
         self.write_buf_writable(buf)?;
         buf.write("let ");
-        self.visit_target(buf, var);
+        self.visit_target(buf, false, var);
         buf.writeln(";")
     }
 
@@ -854,23 +854,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             buf.write("let ");
         }
 
-        match var {
-            Target::Name(name) => {
-                let name = normalize_identifier(name);
-                buf.write(name);
-                self.locals.insert(name, LocalMeta::initialized());
-            }
-            Target::Tuple(targets) => {
-                buf.write("(");
-                for name in targets {
-                    let name = normalize_identifier(name);
-                    self.locals.insert(name, LocalMeta::initialized());
-                    buf.write(name);
-                    buf.write(",");
-                }
-                buf.write(")");
-            }
-        }
+        self.visit_target(buf, true, var);
         buf.writeln(&format!(" = {};", &expr_buf.buf))
     }
 
@@ -1527,17 +1511,20 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         DisplayWrap::Unwrapped
     }
 
-    fn visit_target(&mut self, buf: &mut Buffer, target: &Target<'a>) {
+    fn visit_target(&mut self, buf: &mut Buffer, initialized: bool, target: &Target<'a>) {
         match target {
             Target::Name(name) => {
                 let name = normalize_identifier(name);
-                self.locals.insert_with_default(name);
+                match initialized {
+                    true => self.locals.insert(name, LocalMeta::initialized()),
+                    false => self.locals.insert_with_default(name),
+                }
                 buf.write(name);
             }
             Target::Tuple(targets) => {
                 buf.write("(");
                 for name in targets {
-                    self.visit_target(buf, &Target::Name(name));
+                    self.visit_target(buf, initialized, &Target::Name(name));
                     buf.write(",");
                 }
                 buf.write(")");
