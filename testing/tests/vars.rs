@@ -91,3 +91,17 @@ fn test_if_let() {
     let t = IfLet { a: Some("foo") };
     assert_eq!(t.render().unwrap(), "foo");
 }
+
+#[derive(Template)]
+#[template(path = "let-destruct-tuple.html")]
+struct LetDestructTupleTemplate {
+    abcd: (char, ((char, char), char)),
+}
+
+#[test]
+fn test_destruct_tuple() {
+    let t = LetDestructTupleTemplate {
+        abcd: ('w', (('x', 'y'), 'z')),
+    };
+    assert_eq!(t.render().unwrap(), "wxyz\nwz\nw");
+}
