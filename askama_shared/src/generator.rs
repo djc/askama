@@ -1533,7 +1533,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         DisplayWrap::Unwrapped
     }
 
-    fn visit_target(&mut self, buf: &mut Buffer, target: &'a Target<'_>) {
+    fn visit_target(&mut self, buf: &mut Buffer, target: &Target<'a>) {
         match *target {
             Target::Name(name) => {
                 let name = normalize_identifier(name);
@@ -1543,9 +1543,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             Target::Tuple(ref targets) => {
                 buf.write("(");
                 for name in targets {
-                    let name = normalize_identifier(name);
-                    self.locals.insert_with_default(name);
-                    buf.write(name);
+                    self.visit_target(buf, &Target::Name(name));
                     buf.write(",");
                 }
                 buf.write(")");
