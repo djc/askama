@@ -807,23 +807,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         self.handle_ws(ws);
         self.write_buf_writable(buf)?;
         buf.write("let ");
-        match *var {
-            Target::Name(name) => {
-                let name = normalize_identifier(name);
-                self.locals.insert_with_default(name);
-                buf.write(name);
-            }
-            Target::Tuple(ref targets) => {
-                buf.write("(");
-                for name in targets {
-                    let name = normalize_identifier(name);
-                    self.locals.insert_with_default(name);
-                    buf.write(name);
-                    buf.write(",");
-                }
-                buf.write(")");
-            }
-        }
+        self.visit_target(buf, var);
         buf.writeln(";")
     }
 
