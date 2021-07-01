@@ -4,7 +4,7 @@ use nom::character::complete::{anychar, char, digit1};
 use nom::combinator::{complete, map, opt, recognize, value};
 use nom::error::{Error, ParseError};
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
-use nom::sequence::{delimited, pair, preceded, tuple};
+use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{self, error_position, Compare, IResult, InputTake};
 use std::str;
 
@@ -138,7 +138,8 @@ pub struct Macro<'a> {
 #[derive(Debug, PartialEq)]
 pub enum Target<'a> {
     Name(&'a str),
-    Tuple(Vec<Target<'a>>),
+    Tuple(Vec<&'a str>, Vec<Target<'a>>),
+    Struct(Vec<&'a str>, Vec<(&'a str, Target<'a>)>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -404,15 +405,21 @@ fn variant_path(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
     })(i)
 }
 
+fn named_target(i: &[u8]) -> IResult<&[u8], (&str, Target<'_>)> {
+    let (i, (src, target)) = pair(identifier, opt(preceded(ws(tag(":")), target)))(i)?;
+    Ok((i, (src, target.unwrap_or(Target::Name(src)))))
+}
+
 fn target(i: &[u8]) -> IResult<&[u8], Target<'_>> {
     let mut opt_opening_paren = map(opt(ws(tag("("))), |o| o.is_some());
     let mut opt_closing_paren = map(opt(ws(tag(")"))), |o| o.is_some());
 
+    // match tuples and unused parentheses
     let (i, target_is_tuple) = opt_opening_paren(i)?;
     if target_is_tuple {
         let (i, is_empty_tuple) = opt_closing_paren(i)?;
         if is_empty_tuple {
-            return Ok((i, Target::Tuple(vec![])));
+            return Ok((i, Target::Tuple(Vec::new(), Vec::new())));
         }
 
         let (i, first_target) = target(i)?;
@@ -429,10 +436,39 @@ fn target(i: &[u8]) -> IResult<&[u8], Target<'_>> {
             opt(ws(tag(","))),
             ws(tag(")")),
         ))(i)?;
-        Ok((i, Target::Tuple(targets)))
-    } else {
-        map(identifier, Target::Name)(i)
+        return Ok((i, Target::Tuple(Vec::new(), targets)));
     }
+
+    // match structs
+    let (i, path) = opt(path)(i)?;
+    if let Some(path) = path {
+        let (i, is_unnamed_struct) = opt_opening_paren(i)?;
+        if is_unnamed_struct {
+            let (i, targets) = alt((
+                map(tag(")"), |_| Vec::new()),
+                terminated(
+                    separated_list1(ws(tag(",")), target),
+                    pair(opt(ws(tag(","))), ws(tag(")"))),
+                ),
+            ))(i)?;
+            return Ok((i, Target::Tuple(path, targets)));
+        } else {
+            let (i, targets) = preceded(
+                ws(tag("{")),
+                alt((
+                    map(tag("}"), |_| Vec::new()),
+                    terminated(
+                        separated_list1(ws(tag(",")), named_target),
+                        pair(opt(ws(tag(","))), ws(tag("}"))),
+                    ),
+                )),
+            )(i)?;
+            return Ok((i, Target::Struct(path, targets)));
+        }
+    }
+
+    // neither nor struct
+    map(identifier, Target::Name)(i)
 }
 
 fn variant_name(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
