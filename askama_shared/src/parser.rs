@@ -3,8 +3,8 @@ use nom::bytes::complete::{escaped, is_not, tag, take_until};
 use nom::character::complete::{anychar, char, digit1};
 use nom::combinator::{complete, map, opt, recognize, value};
 use nom::error::{Error, ParseError};
-use nom::multi::{many0, many1, separated_list0, separated_list1};
-use nom::sequence::{delimited, pair, tuple};
+use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
+use nom::sequence::{delimited, pair, preceded, tuple};
 use nom::{self, error_position, Compare, IResult, InputTake};
 use std::str;
 
@@ -138,7 +138,7 @@ pub struct Macro<'a> {
 #[derive(Debug, PartialEq)]
 pub enum Target<'a> {
     Name(&'a str),
-    Tuple(Vec<&'a str>),
+    Tuple(Vec<Target<'a>>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -404,17 +404,35 @@ fn variant_path(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
     })(i)
 }
 
-fn target_single(i: &[u8]) -> IResult<&[u8], Target<'_>> {
-    map(identifier, |s| Target::Name(s))(i)
-}
+fn target(i: &[u8]) -> IResult<&[u8], Target<'_>> {
+    let mut opt_opening_paren = map(opt(ws(tag("("))), |o| o.is_some());
+    let mut opt_closing_paren = map(opt(ws(tag(")"))), |o| o.is_some());
 
-fn target_tuple(i: &[u8]) -> IResult<&[u8], Target<'_>> {
-    let parts = separated_list0(tag(","), ws(identifier));
-    let trailing = opt(ws(tag(",")));
-    let mut full = delimited(tag("("), tuple((parts, trailing)), tag(")"));
+    let (i, target_is_tuple) = opt_opening_paren(i)?;
+    if target_is_tuple {
+        let (i, is_empty_tuple) = opt_closing_paren(i)?;
+        if is_empty_tuple {
+            return Ok((i, Target::Tuple(vec![])));
+        }
 
-    let (i, (elems, _)) = full(i)?;
-    Ok((i, Target::Tuple(elems)))
+        let (i, first_target) = target(i)?;
+        let (i, is_unused_paren) = opt_closing_paren(i)?;
+        if is_unused_paren {
+            return Ok((i, first_target));
+        }
+
+        let mut targets = vec![first_target];
+        let (i, _) = tuple((
+            fold_many0(preceded(ws(tag(",")), target), (), |_, target| {
+                targets.push(target);
+            }),
+            opt(ws(tag(","))),
+            ws(tag(")")),
+        ))(i)?;
+        Ok((i, Target::Tuple(targets)))
+    } else {
+        map(identifier, Target::Name)(i)
+    }
 }
 
 fn variant_name(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
@@ -883,7 +901,7 @@ fn block_let(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     let mut p = tuple((
         opt(tag("-")),
         ws(alt((tag("let"), tag("set")))),
-        ws(alt((target_single, target_tuple))),
+        ws(target),
         opt(tuple((ws(tag("=")), ws(expr_any)))),
         opt(tag("-")),
     ));
@@ -903,7 +921,7 @@ fn block_for<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> 
     let mut p = tuple((
         opt(tag("-")),
         ws(tag("for")),
-        ws(alt((target_single, target_tuple))),
+        ws(target),
         ws(tag("in")),
         ws(expr_any),
         opt(tag("-")),

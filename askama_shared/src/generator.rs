@@ -826,7 +826,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
             Target::Tuple(targets) => targets
                 .iter()
-                .any(|name| self.is_shadowing_variable(&Target::Name(name))),
+                .any(|target| self.is_shadowing_variable(target)),
         }
     }
 
@@ -1523,8 +1523,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
             Target::Tuple(targets) => {
                 buf.write("(");
-                for name in targets {
-                    self.visit_target(buf, initialized, &Target::Name(name));
+                for target in targets {
+                    self.visit_target(buf, initialized, target);
                     buf.write(",");
                 }
                 buf.write(")");
