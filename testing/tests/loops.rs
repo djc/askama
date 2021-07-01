@@ -1,3 +1,6 @@
+#![allow(clippy::type_complexity)]
+
+use std::fmt;
 use std::ops::Range;
 
 use askama::Template;
@@ -234,4 +237,70 @@ fn test_for_vec_attr_slice_shadowing() {
         ],
     };
     assert_eq!(t.render().unwrap(), "1 2 3 4 5 6 ");
+}
+
+struct NotClonable<T: fmt::Display>(T);
+
+impl<T: fmt::Display> fmt::Display for NotClonable<T> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+#[derive(Template)]
+#[template(
+    source = "{% for (((a,), b), c) in v %}{{a}}{{b}}{{c}}-{% endfor %}",
+    ext = "txt"
+)]
+struct ForDestructoringRefTupleTemplate<'a> {
+    v: &'a [(((char,), NotClonable<char>), &'a char)],
+}
+
+#[test]
+fn test_for_destructoring_ref_tuple() {
+    let v = [
+        ((('a',), NotClonable('b')), &'c'),
+        ((('d',), NotClonable('e')), &'f'),
+        ((('g',), NotClonable('h')), &'i'),
+    ];
+    let t = ForDestructoringRefTupleTemplate { v: &v };
+    assert_eq!(t.render().unwrap(), "abc-def-ghi-");
+}
+
+#[derive(Template)]
+#[template(
+    source = "{% for (((a,), b), c) in v %}{{a}}{{b}}{{c}}-{% endfor %}",
+    ext = "txt"
+)]
+struct ForDestructoringTupleTemplate<'a, const N: usize> {
+    v: [(((char,), NotClonable<char>), &'a char); N],
+}
+
+#[test]
+fn test_for_destructoring_tuple() {
+    let t = ForDestructoringTupleTemplate {
+        v: [
+            ((('a',), NotClonable('b')), &'c'),
+            ((('d',), NotClonable('e')), &'f'),
+            ((('g',), NotClonable('h')), &'i'),
+        ],
+    };
+    assert_eq!(t.render().unwrap(), "abc-def-ghi-");
+}
+
+#[derive(Template)]
+#[template(
+    source = "{% for (i, msg) in messages.iter().enumerate() %}{{i}}={{msg}}-{% endfor %}",
+    ext = "txt"
+)]
+struct ForEnumerateTemplate<'a> {
+    messages: &'a [&'a str],
+}
+
+#[test]
+fn test_for_enumerate() {
+    let t = ForEnumerateTemplate {
+        messages: &["hello", "world", "!"],
+    };
+    assert_eq!(t.render().unwrap(), "0=hello-1=world-2=!-");
 }
