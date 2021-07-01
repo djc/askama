@@ -214,3 +214,24 @@ fn test_for_vec_attr_range() {
     };
     assert_eq!(t.render().unwrap(), "1 2 3 4 5 6 ");
 }
+
+#[derive(Template)]
+#[template(
+    source = "{% for v in v %}{% let v = v %}{% for v in v.iterable %}{% let v = v %}{{ v }} {% endfor %}{% endfor %}",
+    ext = "txt"
+)]
+struct ForVecAttrSliceShadowingTemplate {
+    v: Vec<ForVecAttrSlice>,
+}
+
+#[test]
+fn test_for_vec_attr_slice_shadowing() {
+    let t = ForVecAttrSliceShadowingTemplate {
+        v: vec![
+            ForVecAttrSlice { iterable: &[1, 2] },
+            ForVecAttrSlice { iterable: &[3, 4] },
+            ForVecAttrSlice { iterable: &[5, 6] },
+        ],
+    };
+    assert_eq!(t.render().unwrap(), "1 2 3 4 5 6 ");
+}
