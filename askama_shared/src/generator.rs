@@ -822,7 +822,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let mut expr_buf = Buffer::new(0);
         self.visit_expr(&mut expr_buf, val)?;
 
-        match *var {
+        match var {
             Target::Name(name) => {
                 let name = normalize_identifier(name);
                 let meta = self.locals.get(&name).cloned();
@@ -840,7 +840,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
                 self.locals.insert(name, LocalMeta::initialized());
             }
-            Target::Tuple(ref targets) => {
+            Target::Tuple(targets) => {
                 let shadowed = targets.iter().any(|name| {
                     let name = normalize_identifier(name);
                     matches!(self.locals.get(&name), Some(meta) if meta.initialized)
@@ -1518,13 +1518,13 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     fn visit_target(&mut self, buf: &mut Buffer, target: &Target<'a>) {
-        match *target {
+        match target {
             Target::Name(name) => {
                 let name = normalize_identifier(name);
                 self.locals.insert_with_default(name);
                 buf.write(name);
             }
-            Target::Tuple(ref targets) => {
+            Target::Tuple(targets) => {
                 buf.write("(");
                 for name in targets {
                     self.visit_target(buf, &Target::Name(name));
