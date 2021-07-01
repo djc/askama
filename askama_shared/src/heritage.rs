@@ -43,7 +43,7 @@ pub struct Context<'a> {
 
 impl<'a> Context<'a> {
     pub fn new<'n>(
-        config: &Config,
+        config: &Config<'_>,
         path: &Path,
         nodes: &'n [Node<'n>],
     ) -> Result<Context<'n>, CompileError> {

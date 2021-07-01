@@ -11,7 +11,7 @@ fn functions(c: &mut Criterion) {
     c.bench_function("Escaping", escaping);
 }
 
-fn escaping(b: &mut criterion::Bencher) {
+fn escaping(b: &mut criterion::Bencher<'_>) {
     let string_long = r#"
     Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris consequat tellus sit
     amet ornare fermentum. Etiam nec erat ante. In at metus a orci mollis scelerisque.

@@ -1,4 +1,4 @@
-extern crate proc_macro;
+#![deny(elided_lifetimes_in_paths)]
 
 use askama_shared::heritage::{Context, Heritage};
 use askama_shared::input::{Print, Source, TemplateInput};
@@ -71,7 +71,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
 }
 
 fn find_used_templates(
-    input: &TemplateInput,
+    input: &TemplateInput<'_>,
     map: &mut HashMap<PathBuf, String>,
     source: String,
 ) -> Result<(), CompileError> {

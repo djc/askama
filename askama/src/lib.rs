@@ -60,6 +60,8 @@
 //!   provided by Askama.
 
 #![allow(unused_imports)]
+#![deny(elided_lifetimes_in_paths)]
+
 #[macro_use]
 extern crate askama_derive;
 pub use askama_shared as shared;
