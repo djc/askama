@@ -17,25 +17,29 @@ fn main() {
 }
 
 macro_rules! call_a_or_b_on_tail {
-    ((a: $a:expr, b: $b:expr), call a: $($tail:tt)*) => {
-        $a(stringify!($($tail)*))
+    ((a: $a:expr, b: $b:expr, c: $c:expr), call a: $($tail:expr),*) => {
+        ($a)($($tail),*)
     };
 
-    ((a: $a:expr, b: $b:expr), call b: $($tail:tt)*) => {
-        $b(stringify!($($tail)*))
+    ((a: $a:expr, b: $b:expr, c: $c:expr), call b: $($tail:expr),*) => {
+        ($b)($($tail),*)
     };
 
-    ($ab:tt, $_skip:tt $($tail:tt)*) => {
-        call_a_or_b_on_tail!($ab, $($tail)*)
+    ((a: $a:expr, b: $b:expr, c: $c:expr), call c: $($tail:expr),*) => {
+        ($c)($($tail),*)
     };
 }
 
-fn compute_len(s: &str) -> usize {
-    s.len()
+fn year(y: u16, _: &str, _: u8) -> u16 {
+    y
 }
 
-fn zero(_s: &str) -> usize {
-    0
+fn month(_: u16, m: &str, _: u8) -> &str {
+    m
+}
+
+fn day(_: u16, _: &str, d: u8) -> u8 {
+    d
 }
 
 #[derive(Template)]
@@ -45,5 +49,5 @@ struct RustMacrosArgTemplate {}
 #[test]
 fn args() {
     let template = RustMacrosArgTemplate {};
-    assert_eq!("0\n17\n25", template.render().unwrap());
+    assert_eq!("2021\nJuly\n2", template.render().unwrap());
 }
