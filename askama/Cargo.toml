@@ -31,6 +31,7 @@ with-mendes = ["askama_derive/mendes"]
 with-rocket = ["askama_derive/rocket"]
 with-tide = ["askama_derive/tide"]
 with-warp = ["askama_derive/warp"]
+with-routerify = ["askama_derive/routerify"]
 
 [dependencies]
 askama_derive = { version = "0.10.5", path = "../askama_derive" }

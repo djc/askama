@@ -280,6 +280,7 @@ pub struct Integrations {
     pub rocket: bool,
     pub tide: bool,
     pub warp: bool,
+    pub routerify: bool,
 }
 
 static CONFIG_FILE_NAME: &str = "askama.toml";

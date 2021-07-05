@@ -1,0 +1,22 @@
+[package]
+name = "askama_routerify"
+version = "0.10.5"
+authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
+description = "Routerify integration for Askama templates"
+homepage = "https://github.com/djc/askama"
+repository = "https://github.com/djc/askama"
+license = "MIT/Apache-2.0"
+workspace = ".."
+readme = "README.md"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+askama = { version = "0.10.6", path = "../askama", default-features = false, features = ["with-routerify", "mime", "mime_guess"] }
+hyper = "0.14"
+routerify = "2.1"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tokio = { version = "1", features = ["macros"] }

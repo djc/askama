@@ -105,4 +105,5 @@ const INTEGRATIONS: Integrations = Integrations {
     rocket: cfg!(feature = "rocket"),
     tide: cfg!(feature = "tide"),
     warp: cfg!(feature = "warp"),
+    routerify: cfg!(feature = "routerify"),
 };
