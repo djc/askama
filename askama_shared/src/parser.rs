@@ -1,12 +1,14 @@
+use std::cmp;
+use std::str;
+
 use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_until};
 use nom::character::complete::{anychar, char, digit1};
-use nom::combinator::{complete, map, opt, recognize, value};
+use nom::combinator::{complete, cut, map, opt, recognize, value};
 use nom::error::{Error, ParseError};
 use nom::multi::{many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, tuple};
 use nom::{self, error_position, Compare, IResult, InputTake};
-use std::str;
 
 use crate::{CompileError, Syntax};
 
@@ -704,12 +706,14 @@ fn expr_any(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
 fn expr_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
     let mut p = tuple((
         |i| tag_expr_start(i, s),
-        opt(tag("-")),
-        ws(expr_any),
-        opt(tag("-")),
-        |i| tag_expr_end(i, s),
+        cut(tuple((
+            opt(tag("-")),
+            ws(expr_any),
+            opt(tag("-")),
+            |i| tag_expr_end(i, s),
+        ))),
     ));
-    let (i, (_, pws, expr, nws, _)) = p(i)?;
+    let (i, (_, (pws, expr, nws, _))) = p(i)?;
     Ok((i, Node::Expr(Ws(pws.is_some(), nws.is_some()), expr)))
 }
 
@@ -717,12 +721,14 @@ fn block_call(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     let mut p = tuple((
         opt(tag("-")),
         ws(tag("call")),
-        opt(tuple((ws(identifier), ws(tag("::"))))),
-        ws(identifier),
-        ws(arguments),
-        opt(tag("-")),
+        cut(tuple((
+            opt(tuple((ws(identifier), ws(tag("::"))))),
+            ws(identifier),
+            ws(arguments),
+            opt(tag("-")),
+        ))),
     ));
-    let (i, (pws, _, scope, name, args, nws)) = p(i)?;
+    let (i, (pws, _, (scope, name, args, nws))) = p(i)?;
     let scope = scope.map(|(scope, _)| scope);
     Ok((
         i,
@@ -733,15 +739,17 @@ fn block_call(i: &[u8]) -> IResult<&[u8], Node<'_>> {
 fn cond_if(i: &[u8]) -> IResult<&[u8], CondTest<'_>> {
     let mut p = tuple((
         ws(tag("if")),
-        opt(tuple((
-            ws(alt((tag("let"), tag("set")))),
-            ws(match_variant),
-            opt(alt((match_simple_parameters, match_named_parameters))),
-            ws(tag("=")),
+        cut(tuple((
+            opt(tuple((
+                ws(alt((tag("let"), tag("set")))),
+                ws(match_variant),
+                opt(alt((match_simple_parameters, match_named_parameters))),
+                ws(tag("=")),
+            ))),
+            ws(expr_any),
         ))),
-        ws(expr_any),
     ));
-    let (i, (_, dest, expr)) = p(i)?;
+    let (i, (_, (dest, expr))) = p(i)?;
     Ok((
         i,
         CondTest {
@@ -756,12 +764,14 @@ fn cond_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Cond<'a>>
         |i| tag_block_start(i, s),
         opt(tag("-")),
         ws(tag("else")),
-        opt(cond_if),
-        opt(tag("-")),
-        |i| tag_block_end(i, s),
-        |i| parse_template(i, s),
+        cut(tuple((
+            opt(cond_if),
+            opt(tag("-")),
+            |i| tag_block_end(i, s),
+            cut(|i| parse_template(i, s)),
+        ))),
     ));
-    let (i, (_, pws, _, cond, nws, _, block)) = p(i)?;
+    let (i, (_, pws, _, (cond, nws, _, block))) = p(i)?;
     Ok((i, (Ws(pws.is_some(), nws.is_some()), cond, block)))
 }
 
@@ -769,16 +779,22 @@ fn block_if<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
     let mut p = tuple((
         opt(tag("-")),
         cond_if,
-        opt(tag("-")),
-        |i| tag_block_end(i, s),
-        |i| parse_template(i, s),
-        many0(|i| cond_block(i, s)),
-        |i| tag_block_start(i, s),
-        opt(tag("-")),
-        ws(tag("endif")),
-        opt(tag("-")),
+        cut(tuple((
+            opt(tag("-")),
+            |i| tag_block_end(i, s),
+            cut(tuple((
+                |i| parse_template(i, s),
+                many0(|i| cond_block(i, s)),
+                cut(tuple((
+                    |i| tag_block_start(i, s),
+                    opt(tag("-")),
+                    ws(tag("endif")),
+                    opt(tag("-")),
+                ))),
+            ))),
+        ))),
     ));
-    let (i, (pws1, cond, nws1, _, block, elifs, _, pws2, _, nws2)) = p(i)?;
+    let (i, (pws1, cond, (nws1, _, (block, elifs, (_, pws2, _, nws2))))) = p(i)?;
 
     let mut res = vec![(Ws(pws1.is_some(), nws1.is_some()), Some(cond), block)];
     res.extend(elifs);
@@ -790,11 +806,13 @@ fn match_else_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Whe
         |i| tag_block_start(i, s),
         opt(tag("-")),
         ws(tag("else")),
-        opt(tag("-")),
-        |i| tag_block_end(i, s),
-        |i| parse_template(i, s),
+        cut(tuple((
+            opt(tag("-")),
+            |i| tag_block_end(i, s),
+            cut(|i| parse_template(i, s)),
+        ))),
     ));
-    let (i, (_, pws, _, nws, _, block)) = p(i)?;
+    let (i, (_, pws, _, (nws, _, block))) = p(i)?;
     Ok((
         i,
         (
@@ -811,13 +829,15 @@ fn when_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], When<'a>>
         |i| tag_block_start(i, s),
         opt(tag("-")),
         ws(tag("when")),
-        ws(match_variant),
-        opt(ws(with_parameters)),
-        opt(tag("-")),
-        |i| tag_block_end(i, s),
-        |i| parse_template(i, s),
+        cut(tuple((
+            ws(match_variant),
+            opt(ws(with_parameters)),
+            opt(tag("-")),
+            |i| tag_block_end(i, s),
+            cut(|i| parse_template(i, s)),
+        ))),
     ));
-    let (i, (_, pws, _, variant, params, nws, _, block)) = p(i)?;
+    let (i, (_, pws, _, (variant, params, nws, _, block))) = p(i)?;
     Ok((
         i,
         (
@@ -833,18 +853,26 @@ fn block_match<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>
     let mut p = tuple((
         opt(tag("-")),
         ws(tag("match")),
-        ws(expr_any),
-        opt(tag("-")),
-        |i| tag_block_end(i, s),
-        opt(|i| take_content(i, s)),
-        many1(|i| when_block(i, s)),
-        opt(|i| match_else_block(i, s)),
-        ws(|i| tag_block_start(i, s)),
-        opt(tag("-")),
-        ws(tag("endmatch")),
-        opt(tag("-")),
+        cut(tuple((
+            ws(expr_any),
+            opt(tag("-")),
+            |i| tag_block_end(i, s),
+            cut(tuple((
+                opt(|i| take_content(i, s)),
+                many1(|i| when_block(i, s)),
+                cut(tuple((
+                    opt(|i| match_else_block(i, s)),
+                    cut(tuple((
+                        ws(|i| tag_block_start(i, s)),
+                        opt(tag("-")),
+                        ws(tag("endmatch")),
+                        opt(tag("-")),
+                    ))),
+                ))),
+            ))),
+        ))),
     ));
-    let (i, (pws1, _, expr, nws1, _, inter, arms, else_arm, _, pws2, _, nws2)) = p(i)?;
+    let (i, (pws1, _, (expr, nws1, _, (inter, arms, (else_arm, (_, pws2, _, nws2)))))) = p(i)?;
 
     let mut arms = arms;
     if let Some(arm) = else_arm {
@@ -883,11 +911,13 @@ fn block_let(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     let mut p = tuple((
         opt(tag("-")),
         ws(alt((tag("let"), tag("set")))),
-        ws(alt((target_single, target_tuple))),
-        opt(tuple((ws(tag("=")), ws(expr_any)))),
-        opt(tag("-")),
+        cut(tuple((
+            ws(alt((target_single, target_tuple))),
+            opt(tuple((ws(tag("=")), ws(expr_any)))),
+            opt(tag("-")),
+        ))),
     ));
-    let (i, (pws, _, var, val, nws)) = p(i)?;
+    let (i, (pws, _, (var, val, nws))) = p(i)?;
 
     Ok((
         i,
@@ -903,18 +933,26 @@ fn block_for<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> 
     let mut p = tuple((
         opt(tag("-")),
         ws(tag("for")),
-        ws(alt((target_single, target_tuple))),
-        ws(tag("in")),
-        ws(expr_any),
-        opt(tag("-")),
-        |i| tag_block_end(i, s),
-        |i| parse_template(i, s),
-        |i| tag_block_start(i, s),
-        opt(tag("-")),
-        ws(tag("endfor")),
-        opt(tag("-")),
+        cut(tuple((
+            ws(alt((target_single, target_tuple))),
+            ws(tag("in")),
+            cut(tuple((
+                ws(expr_any),
+                opt(tag("-")),
+                |i| tag_block_end(i, s),
+                cut(tuple((
+                    |i| parse_template(i, s),
+                    cut(tuple((
+                        |i| tag_block_start(i, s),
+                        opt(tag("-")),
+                        ws(tag("endfor")),
+                        opt(tag("-")),
+                    ))),
+                ))),
+            ))),
+        ))),
     ));
-    let (i, (pws1, _, var, _, iter, nws1, _, block, _, pws2, _, nws2)) = p(i)?;
+    let (i, (pws1, _, (var, _, (iter, nws1, _, (block, (_, pws2, _, nws2)))))) = p(i)?;
     Ok((
         i,
         Node::Loop(
@@ -936,21 +974,27 @@ fn block_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>
     let mut start = tuple((
         opt(tag("-")),
         ws(tag("block")),
-        ws(identifier),
-        opt(tag("-")),
-        |i| tag_block_end(i, s),
-        |i| parse_template(i, s),
+        cut(tuple((
+            ws(identifier),
+            opt(tag("-")),
+            |i| tag_block_end(i, s),
+        ))),
     ));
-    let (i, (pws1, _, name, nws1, _, contents)) = start(i)?;
+    let (i, (pws1, _, (name, nws1, _))) = start(i)?;
 
-    let mut end = tuple((
-        |i| tag_block_start(i, s),
-        opt(tag("-")),
-        ws(tag("endblock")),
-        opt(ws(tag(name))),
-        opt(tag("-")),
-    ));
-    let (i, (_, pws2, _, _, nws2)) = end(i)?;
+    let mut end =  cut(tuple((
+        |i| parse_template(i, s),
+        cut(tuple((
+            |i| tag_block_start(i, s),
+            opt(tag("-")),
+            ws(tag("endblock")),
+            cut(tuple((
+                opt(ws(tag(name))),
+                opt(tag("-")),
+            ))),
+        ))),
+    )));
+    let (i, (contents, (_, pws2, _, (_, nws2)))) = end(i)?;
 
     Ok((
         i,
@@ -967,10 +1011,12 @@ fn block_include(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     let mut p = tuple((
         opt(tag("-")),
         ws(tag("include")),
-        ws(expr_str_lit),
-        opt(tag("-")),
+        cut(tuple((
+            ws(expr_str_lit),
+            opt(tag("-")),
+        ))),
     ));
-    let (i, (pws, _, name, nws)) = p(i)?;
+    let (i, (pws, _, (name, nws))) = p(i)?;
     Ok((
         i,
         Node::Include(
@@ -987,12 +1033,16 @@ fn block_import(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     let mut p = tuple((
         opt(tag("-")),
         ws(tag("import")),
-        ws(expr_str_lit),
-        ws(tag("as")),
-        ws(identifier),
-        opt(tag("-")),
+        cut(tuple((
+            ws(expr_str_lit),
+            ws(tag("as")),
+            cut(tuple((
+                ws(identifier),
+                opt(tag("-")),
+            ))),
+        ))),
     ));
-    let (i, (pws, _, name, _, scope, nws)) = p(i)?;
+    let (i, (pws, _, (name, _, (scope, nws)))) = p(i)?;
     Ok((
         i,
         Node::Import(
@@ -1010,18 +1060,24 @@ fn block_macro<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>
     let mut p = tuple((
         opt(tag("-")),
         ws(tag("macro")),
-        ws(identifier),
-        ws(parameters),
-        opt(tag("-")),
-        |i| tag_block_end(i, s),
-        |i| parse_template(i, s),
-        |i| tag_block_start(i, s),
-        opt(tag("-")),
-        ws(tag("endmacro")),
-        opt(tag("-")),
+        cut(tuple((
+            ws(identifier),
+            ws(parameters),
+            opt(tag("-")),
+            |i| tag_block_end(i, s),
+            cut(tuple((
+                |i| parse_template(i, s),
+                cut(tuple((
+                    |i| tag_block_start(i, s),
+                    opt(tag("-")),
+                    ws(tag("endmacro")),
+                    opt(tag("-")),
+                ))),
+            ))),
+        ))),
     ));
 
-    let (i, (pws1, _, name, params, nws1, _, contents, _, pws2, _, nws2)) = p(i)?;
+    let (i, (pws1, _, (name, params, nws1, _, (contents, (_, pws2, _, nws2))))) = p(i)?;
     if name == "super" {
         panic!("invalid macro name 'super'");
     }
@@ -1044,16 +1100,18 @@ fn block_raw<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> 
     let mut p = tuple((
         opt(tag("-")),
         ws(tag("raw")),
-        opt(tag("-")),
-        |i| tag_block_end(i, s),
-        take_until("{% endraw %}"),
-        |i| tag_block_start(i, s),
-        opt(tag("-")),
-        ws(tag("endraw")),
-        opt(tag("-")),
+        cut(tuple((
+            opt(tag("-")),
+            |i| tag_block_end(i, s),
+            take_until("{% endraw %}"),
+            |i| tag_block_start(i, s),
+            opt(tag("-")),
+            ws(tag("endraw")),
+            opt(tag("-")),
+        ))),
     ));
 
-    let (i, (pws1, _, nws1, _, contents, _, pws2, _, nws2)) = p(i)?;
+    let (i, (pws1, _, (nws1, _, contents, _, pws2, _, nws2))) = p(i)?;
     let str_contents = str::from_utf8(contents).unwrap();
     Ok((
         i,
@@ -1081,7 +1139,7 @@ fn block_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>>
             |i| block_macro(i, s),
             |i| block_raw(i, s),
         )),
-        |i| tag_block_end(i, s),
+        cut(|i| tag_block_end(i, s)),
     ));
     let (i, (_, contents, _)) = p(i)?;
     Ok((i, contents))
@@ -1108,11 +1166,13 @@ fn block_comment_body<'a>(mut i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8
 fn block_comment<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
     let mut p = tuple((
         |i| tag_comment_start(i, s),
-        opt(tag("-")),
-        |i| block_comment_body(i, s),
-        |i| tag_comment_end(i, s),
+        cut(tuple((
+            opt(tag("-")),
+            |i| block_comment_body(i, s),
+            |i| tag_comment_end(i, s),
+        ))),
     ));
-    let (i, (_, pws, tail, _)) = p(i)?;
+    let (i, (_, (pws, tail, _))) = p(i)?;
     Ok((i, Node::Comment(Ws(pws.is_some(), tail.ends_with(b"-")))))
 }
 
@@ -1154,12 +1214,23 @@ pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Result<Vec<Node<'a>>, 
                 Ok(res)
             }
         }
-        Err(nom::Err::Error(err)) => {
-            Err(format!("problems parsing template source: {:?}", err).into())
+
+        Err(nom::Err::Error(err)) | Err(nom::Err::Failure(err)) => {
+            let nom::error::Error { input, .. } = err;
+            let offset = (input.as_ptr() as usize) - (src.as_ptr() as usize);
+
+            let source_before = &src[..offset];
+            let (row, last_line) = source_before.lines().enumerate().last().unwrap();
+            let column = last_line.chars().count();
+
+            let source_after = String::from_utf8_lossy(&input[..cmp::min(input.len(), 30)]);
+
+            Err(format!(
+                "problems parsing template source at row {}, column {} near:\n{:?}",
+                row + 1, column, source_after,
+            ).into())
         }
-        Err(nom::Err::Failure(err)) => {
-            Err(format!("problems parsing template source: {:?}", err).into())
-        }
+
         Err(nom::Err::Incomplete(_)) => Err("parsing incomplete".into()),
     }
 }
