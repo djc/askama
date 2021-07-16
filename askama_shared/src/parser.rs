@@ -550,7 +550,7 @@ fn parameters(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
 
 fn with_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters<'_>> {
     let (i, (_, value)) = tuple((
-        tag("with"),
+        opt(tag("with")),
         alt((match_simple_parameters, match_named_parameters)),
     ))(i)?;
     Ok((i, value))

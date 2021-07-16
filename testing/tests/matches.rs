@@ -113,3 +113,20 @@ fn test_match_no_whitespace() {
     let s = MatchNoWhitespace { foo: Some(1) };
     assert_eq!(s.render().unwrap(), "1");
 }
+
+#[derive(Template)]
+#[template(
+    source = "{% match foo %}{% when Some(bar) %}{{ bar }}{% when None %}{% endmatch %}",
+    ext = "txt"
+)]
+struct MatchWithoutWithKeyword {
+    foo: Option<usize>,
+}
+
+#[test]
+fn test_match_without_with_keyword() {
+    let s = MatchWithoutWithKeyword { foo: Some(1) };
+    assert_eq!(s.render().unwrap(), "1");
+    let s = MatchWithoutWithKeyword { foo: None };
+    assert_eq!(s.render().unwrap(), "");
+}
