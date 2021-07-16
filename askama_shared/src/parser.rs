@@ -442,6 +442,7 @@ fn target(i: &[u8]) -> IResult<&[u8], Target<'_>> {
     // match structs
     let (i, path) = opt(path)(i)?;
     if let Some(path) = path {
+        let (i, _) = opt(ws(tag("with")))(i)?;
         let (i, is_unnamed_struct) = opt_opening_paren(i)?;
         if is_unnamed_struct {
             let (i, targets) = alt((

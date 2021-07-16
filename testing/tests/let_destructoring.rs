@@ -105,3 +105,17 @@ fn test_let_destruct_with_path() {
     };
     assert_eq!(t.render().unwrap(), "hello");
 }
+
+#[derive(Template)]
+#[template(source = "{% let some::path::Struct with (v) = v %}{{v}}", ext = "txt")]
+struct LetDestructoringWithPathAndWithKeyword<'a> {
+    v: some::path::Struct<'a>,
+}
+
+#[test]
+fn test_let_destruct_with_path_and_with_keyword() {
+    let t = LetDestructoringWithPathAndWithKeyword {
+        v: some::path::Struct("hello"),
+    };
+    assert_eq!(t.render().unwrap(), "hello");
+}
