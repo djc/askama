@@ -1,0 +1,10 @@
+{%- match foo -%}
+    {%- when None -%}
+        nothing
+    {%- when Some(Err(err)) -%}
+        err={{err}}
+    {%- when Some(Ok(None)) -%}
+        num=absent
+    {%- when Some(Ok(Some(num))) -%}
+        num={{num}}
+{%- endmatch -%}

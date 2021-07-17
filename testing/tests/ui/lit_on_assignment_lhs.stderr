@@ -1,0 +1,7 @@
+error: proc-macro derive panicked
+ --> $DIR/lit_on_assignment_lhs.rs:3:10
+  |
+3 | #[derive(Template)]
+  |          ^^^^^^^^
+  |
+  = help: message: Cannot have literals on the left-hand-side of an assignment.

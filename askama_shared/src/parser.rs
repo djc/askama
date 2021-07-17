@@ -91,41 +91,7 @@ impl Expr<'_> {
     }
 }
 
-pub type When<'a> = (
-    Ws,
-    Option<MatchVariant<'a>>,
-    MatchParameters<'a>,
-    Vec<Node<'a>>,
-);
-
-#[derive(Debug, PartialEq)]
-pub enum MatchParameters<'a> {
-    Simple(Vec<MatchParameter<'a>>),
-    Named(Vec<(&'a str, Option<MatchParameter<'a>>)>),
-}
-
-impl<'a> Default for MatchParameters<'a> {
-    fn default() -> Self {
-        MatchParameters::Simple(vec![])
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum MatchParameter<'a> {
-    Name(&'a str),
-    NumLit(&'a str),
-    StrLit(&'a str),
-    CharLit(&'a str),
-}
-
-#[derive(Debug, PartialEq)]
-pub enum MatchVariant<'a> {
-    Path(Vec<&'a str>),
-    Name(&'a str),
-    NumLit(&'a str),
-    StrLit(&'a str),
-    CharLit(&'a str),
-}
+pub type When<'a> = (Ws, Target<'a>, Vec<Node<'a>>);
 
 #[derive(Debug, PartialEq)]
 pub struct Macro<'a> {
@@ -140,6 +106,10 @@ pub enum Target<'a> {
     Name(&'a str),
     Tuple(Vec<&'a str>, Vec<Target<'a>>),
     Struct(Vec<&'a str>, Vec<(&'a str, Target<'a>)>),
+    NumLit(&'a str),
+    StrLit(&'a str),
+    CharLit(&'a str),
+    Path(Vec<&'a str>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -149,7 +119,7 @@ pub type Cond<'a> = (Ws, Option<CondTest<'a>>, Vec<Node<'a>>);
 
 #[derive(Debug, PartialEq)]
 pub struct CondTest<'a> {
-    pub target: Option<(MatchVariant<'a>, Option<MatchParameters<'a>>)>,
+    pub target: Option<Target<'a>>,
     pub expr: Expr<'a>,
 }
 
@@ -297,12 +267,8 @@ fn expr_array_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     )(i)
 }
 
-fn variant_num_lit(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
-    map(num_lit, |s| MatchVariant::NumLit(s))(i)
-}
-
-fn param_num_lit(i: &[u8]) -> IResult<&[u8], MatchParameter<'_>> {
-    map(num_lit, |s| MatchParameter::NumLit(s))(i)
+fn variant_num_lit(i: &[u8]) -> IResult<&[u8], Target<'_>> {
+    map(num_lit, |s| Target::NumLit(s))(i)
 }
 
 fn str_lit(i: &[u8]) -> IResult<&[u8], &str> {
@@ -320,12 +286,8 @@ fn expr_str_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     map(str_lit, |s| Expr::StrLit(s))(i)
 }
 
-fn variant_str_lit(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
-    map(str_lit, |s| MatchVariant::StrLit(s))(i)
-}
-
-fn param_str_lit(i: &[u8]) -> IResult<&[u8], MatchParameter<'_>> {
-    map(str_lit, |s| MatchParameter::StrLit(s))(i)
+fn variant_str_lit(i: &[u8]) -> IResult<&[u8], Target<'_>> {
+    map(str_lit, |s| Target::StrLit(s))(i)
 }
 
 fn char_lit(i: &[u8]) -> IResult<&[u8], &str> {
@@ -343,12 +305,8 @@ fn expr_char_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     map(char_lit, |s| Expr::CharLit(s))(i)
 }
 
-fn variant_char_lit(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
-    map(char_lit, |s| MatchVariant::CharLit(s))(i)
-}
-
-fn param_char_lit(i: &[u8]) -> IResult<&[u8], MatchParameter<'_>> {
-    map(char_lit, |s| MatchParameter::CharLit(s))(i)
+fn variant_char_lit(i: &[u8]) -> IResult<&[u8], Target<'_>> {
+    map(char_lit, |s| Target::CharLit(s))(i)
 }
 
 fn expr_var(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
@@ -399,12 +357,6 @@ fn expr_path_call(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     Ok((i, Expr::PathCall(path, args)))
 }
 
-fn variant_path(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
-    map(separated_list1(ws(tag("::")), identifier), |path| {
-        MatchVariant::Path(path)
-    })(i)
-}
-
 fn named_target(i: &[u8]) -> IResult<&[u8], (&str, Target<'_>)> {
     let (i, (src, target)) = pair(identifier, opt(preceded(ws(tag(":")), target)))(i)?;
     Ok((i, (src, target.unwrap_or(Target::Name(src)))))
@@ -413,6 +365,12 @@ fn named_target(i: &[u8]) -> IResult<&[u8], (&str, Target<'_>)> {
 fn target(i: &[u8]) -> IResult<&[u8], Target<'_>> {
     let mut opt_opening_paren = map(opt(ws(tag("("))), |o| o.is_some());
     let mut opt_closing_paren = map(opt(ws(tag(")"))), |o| o.is_some());
+    let mut opt_opening_brace = map(opt(ws(tag("{"))), |o| o.is_some());
+
+    let (i, lit) = opt(alt((variant_str_lit, variant_char_lit, variant_num_lit)))(i)?;
+    if let Some(lit) = lit {
+        return Ok((i, lit));
+    }
 
     // match tuples and unused parentheses
     let (i, target_is_tuple) = opt_opening_paren(i)?;
@@ -442,7 +400,9 @@ fn target(i: &[u8]) -> IResult<&[u8], Target<'_>> {
     // match structs
     let (i, path) = opt(path)(i)?;
     if let Some(path) = path {
+        let i_before_matching_with = i;
         let (i, _) = opt(ws(tag("with")))(i)?;
+
         let (i, is_unnamed_struct) = opt_opening_paren(i)?;
         if is_unnamed_struct {
             let (i, targets) = alt((
@@ -453,31 +413,25 @@ fn target(i: &[u8]) -> IResult<&[u8], Target<'_>> {
                 ),
             ))(i)?;
             return Ok((i, Target::Tuple(path, targets)));
-        } else {
-            let (i, targets) = preceded(
-                ws(tag("{")),
-                alt((
-                    map(tag("}"), |_| Vec::new()),
-                    terminated(
-                        separated_list1(ws(tag(",")), named_target),
-                        pair(opt(ws(tag(","))), ws(tag("}"))),
-                    ),
-                )),
-            )(i)?;
+        }
+
+        let (i, is_named_struct) = opt_opening_brace(i)?;
+        if is_named_struct {
+            let (i, targets) = alt((
+                map(tag("}"), |_| Vec::new()),
+                terminated(
+                    separated_list1(ws(tag(",")), named_target),
+                    pair(opt(ws(tag(","))), ws(tag("}"))),
+                ),
+            ))(i)?;
             return Ok((i, Target::Struct(path, targets)));
         }
+
+        return Ok((i_before_matching_with, Target::Path(path)));
     }
 
-    // neither nor struct
+    // neither literal nor struct nor path
     map(identifier, Target::Name)(i)
-}
-
-fn variant_name(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
-    map(identifier, |s| MatchVariant::Name(s))(i)
-}
-
-fn param_name(i: &[u8]) -> IResult<&[u8], MatchParameter<'_>> {
-    map(identifier, |s| MatchParameter::Name(s))(i)
 }
 
 fn arguments(i: &[u8]) -> IResult<&[u8], Vec<Expr<'_>>> {
@@ -548,35 +502,6 @@ fn parameters(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
     )(i)
 }
 
-fn with_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters<'_>> {
-    let (i, (_, value)) = tuple((
-        opt(tag("with")),
-        alt((match_simple_parameters, match_named_parameters)),
-    ))(i)?;
-    Ok((i, value))
-}
-
-fn match_simple_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters<'_>> {
-    delimited(
-        ws(tag("(")),
-        map(separated_list0(tag(","), ws(match_parameter)), |mps| {
-            MatchParameters::Simple(mps)
-        }),
-        tag(")"),
-    )(i)
-}
-
-fn match_named_parameters(i: &[u8]) -> IResult<&[u8], MatchParameters<'_>> {
-    delimited(
-        ws(tag("{")),
-        map(
-            separated_list0(tag(","), ws(match_named_parameter)),
-            MatchParameters::Named,
-        ),
-        tag("}"),
-    )(i)
-}
-
 fn expr_group(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     map(delimited(ws(char('(')), expr_any, ws(char(')'))), |s| {
         Expr::Group(Box::new(s))
@@ -597,26 +522,6 @@ fn expr_single(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
         expr_var,
         expr_group,
     ))(i)
-}
-
-fn match_variant(i: &[u8]) -> IResult<&[u8], MatchVariant<'_>> {
-    alt((
-        variant_path,
-        variant_name,
-        variant_num_lit,
-        variant_str_lit,
-        variant_char_lit,
-    ))(i)
-}
-
-fn match_parameter(i: &[u8]) -> IResult<&[u8], MatchParameter<'_>> {
-    alt((param_name, param_num_lit, param_str_lit, param_char_lit))(i)
-}
-
-fn match_named_parameter(i: &[u8]) -> IResult<&[u8], (&str, Option<MatchParameter<'_>>)> {
-    let param = tuple((ws(tag(":")), match_parameter));
-    let (i, (name, param)) = tuple((identifier, opt(param)))(i)?;
-    Ok((i, (name, param.map(|s| s.1))))
 }
 
 fn attr(i: &[u8]) -> IResult<&[u8], (&str, Option<Vec<Expr<'_>>>)> {
@@ -790,8 +695,7 @@ fn cond_if(i: &[u8]) -> IResult<&[u8], CondTest<'_>> {
         ws(tag("if")),
         opt(tuple((
             ws(alt((tag("let"), tag("set")))),
-            ws(match_variant),
-            opt(alt((match_simple_parameters, match_named_parameters))),
+            ws(target),
             ws(tag("=")),
         ))),
         ws(expr_any),
@@ -800,7 +704,7 @@ fn cond_if(i: &[u8]) -> IResult<&[u8], CondTest<'_>> {
     Ok((
         i,
         CondTest {
-            target: dest.map(|(_, variant, params, _)| (variant, params)),
+            target: dest.map(|(_, target, _)| target),
             expr,
         },
     ))
@@ -852,12 +756,7 @@ fn match_else_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Whe
     let (i, (_, pws, _, nws, _, block)) = p(i)?;
     Ok((
         i,
-        (
-            Ws(pws.is_some(), nws.is_some()),
-            None,
-            MatchParameters::Simple(vec![]),
-            block,
-        ),
+        (Ws(pws.is_some(), nws.is_some()), Target::Name("_"), block),
     ))
 }
 
@@ -866,22 +765,13 @@ fn when_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], When<'a>>
         |i| tag_block_start(i, s),
         opt(tag("-")),
         ws(tag("when")),
-        ws(match_variant),
-        opt(ws(with_parameters)),
+        ws(target),
         opt(tag("-")),
         |i| tag_block_end(i, s),
         |i| parse_template(i, s),
     ));
-    let (i, (_, pws, _, variant, params, nws, _, block)) = p(i)?;
-    Ok((
-        i,
-        (
-            Ws(pws.is_some(), nws.is_some()),
-            Some(variant),
-            params.unwrap_or_default(),
-            block,
-        ),
-    ))
+    let (i, (_, pws, _, target, nws, _, block)) = p(i)?;
+    Ok((i, (Ws(pws.is_some(), nws.is_some()), target, block)))
 }
 
 fn block_match<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
