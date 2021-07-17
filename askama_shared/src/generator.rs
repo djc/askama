@@ -2,10 +2,7 @@ use super::{get_template_source, CompileError, Integrations};
 use crate::filters;
 use crate::heritage::{Context, Heritage};
 use crate::input::{Source, TemplateInput};
-use crate::parser::{
-    parse, Cond, CondTest, Expr, MatchParameter, MatchParameters, MatchVariant, Node, Target, When,
-    Ws,
-};
+use crate::parser::{parse, Cond, CondTest, Expr, Node, Target, When, Ws};
 
 use proc_macro2::Span;
 
@@ -498,14 +495,11 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     buf.write("} else if ");
                 }
 
-                if let Some((variant, params)) = target {
+                if let Some(target) = target {
                     let mut expr_buf = Buffer::new(0);
                     self.visit_expr(&mut expr_buf, expr)?;
                     buf.write("let ");
-                    self.visit_match_variant(buf, variant);
-                    if let Some(params) = params {
-                        self.visit_match_params(buf, params);
-                    }
+                    self.visit_target(buf, true, true, target);
                     buf.write(" = &(");
                     buf.write(&expr_buf.buf);
                     buf.write(")");
@@ -562,7 +556,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         let mut arm_size = 0;
         for (i, arm) in arms.iter().enumerate() {
-            let &(ws, ref variant, ref params, ref body) = arm;
+            let &(ws, ref target, ref body) = arm;
             self.handle_ws(ws);
 
             if i > 0 {
@@ -573,14 +567,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
 
             self.locals.push();
-            match *variant {
-                Some(ref param) => {
-                    self.visit_match_variant(buf, param);
-                }
-                None => buf.write("_"),
-            };
-
-            self.visit_match_params(buf, params);
+            self.visit_target(buf, true, true, target);
             buf.writeln(" => {")?;
 
             arm_size = self.handle(ctx, body, buf, AstLevel::Nested)?;
@@ -614,7 +601,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         let flushed = self.write_buf_writable(buf)?;
         buf.write("for (");
-        self.visit_target(buf, true, var);
+        self.visit_target(buf, true, true, var);
         match iter {
             Expr::Range(_, _, _) => buf.writeln(&format!(
                 ", _loop_item) in ::askama::helpers::TemplateLoop::new({}) {{",
@@ -807,7 +794,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         self.handle_ws(ws);
         self.write_buf_writable(buf)?;
         buf.write("let ");
-        self.visit_target(buf, false, var);
+        self.visit_target(buf, false, true, var);
         buf.writeln(";")
     }
 
@@ -830,6 +817,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             Target::Struct(_, named_targets) => named_targets
                 .iter()
                 .any(|(_, target)| self.is_shadowing_variable(target)),
+            _ => panic!("Cannot have literals on the left-hand-side of an assignment."),
         }
     }
 
@@ -857,7 +845,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             buf.write("let ");
         }
 
-        self.visit_target(buf, true, var);
+        self.visit_target(buf, true, true, var);
         buf.writeln(&format!(" = {};", &expr_buf.buf))
     }
 
@@ -1080,84 +1068,6 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.write(")");
 
         DisplayWrap::Unwrapped
-    }
-
-    fn visit_match_variant(&mut self, buf: &mut Buffer, param: &MatchVariant<'_>) -> DisplayWrap {
-        let mut expr_buf = Buffer::new(0);
-        let wrapped = match *param {
-            MatchVariant::StrLit(s) => {
-                expr_buf.write("&");
-                self.visit_str_lit(&mut expr_buf, s)
-            }
-            MatchVariant::CharLit(s) => self.visit_char_lit(&mut expr_buf, s),
-            MatchVariant::NumLit(s) => self.visit_num_lit(&mut expr_buf, s),
-            MatchVariant::Name(s) => {
-                expr_buf.write(s);
-                DisplayWrap::Unwrapped
-            }
-            MatchVariant::Path(ref s) => {
-                expr_buf.write(&s.join("::"));
-                DisplayWrap::Unwrapped
-            }
-        };
-        buf.write(&expr_buf.buf);
-        wrapped
-    }
-
-    fn visit_match_param(&mut self, buf: &mut Buffer, param: &MatchParameter<'_>) -> DisplayWrap {
-        let mut expr_buf = Buffer::new(0);
-        let wrapped = match *param {
-            MatchParameter::NumLit(s) => self.visit_num_lit(&mut expr_buf, s),
-            MatchParameter::StrLit(s) => self.visit_str_lit(&mut expr_buf, s),
-            MatchParameter::CharLit(s) => self.visit_char_lit(&mut expr_buf, s),
-            MatchParameter::Name(s) => {
-                expr_buf.write(s);
-                DisplayWrap::Unwrapped
-            }
-        };
-        buf.write(&expr_buf.buf);
-        wrapped
-    }
-
-    fn visit_match_params(&mut self, buf: &mut Buffer, params: &MatchParameters<'a>) {
-        match params {
-            MatchParameters::Simple(params) => {
-                if !params.is_empty() {
-                    buf.write("(");
-                    for (i, param) in params.iter().enumerate() {
-                        if let MatchParameter::Name(p) = *param {
-                            self.locals.insert_with_default(p);
-                        }
-                        if i > 0 {
-                            buf.write(", ");
-                        }
-                        self.visit_match_param(buf, param);
-                    }
-                    buf.write(")");
-                }
-            }
-            MatchParameters::Named(params) => {
-                buf.write("{");
-                for (i, param) in params.iter().enumerate() {
-                    if let Some(MatchParameter::Name(p)) = param.1 {
-                        let p = normalize_identifier(p);
-                        self.locals.insert_with_default(p);
-                    } else {
-                        self.locals.insert_with_default(param.0);
-                    }
-
-                    if i > 0 {
-                        buf.write(", ");
-                    }
-                    buf.write(param.0);
-                    if let Some(param) = &param.1 {
-                        buf.write(":");
-                        self.visit_match_param(buf, param);
-                    }
-                }
-                buf.write("}");
-            }
-        }
     }
 
     fn visit_filter(
@@ -1514,8 +1424,17 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         DisplayWrap::Unwrapped
     }
 
-    fn visit_target(&mut self, buf: &mut Buffer, initialized: bool, target: &Target<'a>) {
+    fn visit_target(
+        &mut self,
+        buf: &mut Buffer,
+        initialized: bool,
+        first_level: bool,
+        target: &Target<'a>,
+    ) {
         match target {
+            Target::Name("_") => {
+                buf.write("_");
+            }
             Target::Name(name) => {
                 let name = normalize_identifier(name);
                 match initialized {
@@ -1528,7 +1447,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 buf.write(&path.join("::"));
                 buf.write("(");
                 for target in targets {
-                    self.visit_target(buf, initialized, target);
+                    self.visit_target(buf, initialized, false, target);
                     buf.write(",");
                 }
                 buf.write(")");
@@ -1539,10 +1458,31 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 for (name, target) in targets {
                     buf.write(normalize_identifier(name));
                     buf.write(": ");
-                    self.visit_target(buf, initialized, target);
+                    self.visit_target(buf, initialized, false, target);
                     buf.write(",");
                 }
                 buf.write(" }");
+            }
+            Target::Path(path) => {
+                self.visit_path(buf, path);
+            }
+            Target::StrLit(s) => {
+                if first_level {
+                    buf.write("&");
+                }
+                self.visit_str_lit(buf, s);
+            }
+            Target::NumLit(s) => {
+                if first_level {
+                    buf.write("&");
+                }
+                self.visit_num_lit(buf, s);
+            }
+            Target::CharLit(s) => {
+                if first_level {
+                    buf.write("&");
+                }
+                self.visit_char_lit(buf, s);
             }
         }
     }

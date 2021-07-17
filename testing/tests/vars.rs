@@ -105,3 +105,29 @@ fn test_destruct_tuple() {
     };
     assert_eq!(t.render().unwrap(), "wxyz\nwz\nw");
 }
+
+#[derive(Template)]
+#[template(
+    source = "{% let x = 1 %}{% for x in x..=x %}{{ x }}{% endfor %}",
+    ext = "txt"
+)]
+struct DeclRange;
+
+#[test]
+fn test_decl_range() {
+    let t = DeclRange;
+    assert_eq!(t.render().unwrap(), "1");
+}
+
+#[derive(Template)]
+#[template(
+    source = "{% let x %}{% let x = 1 %}{% for x in x..=x %}{{ x }}{% endfor %}",
+    ext = "txt"
+)]
+struct DeclAssignRange;
+
+#[test]
+fn test_decl_assign_range() {
+    let t = DeclAssignRange;
+    assert_eq!(t.render().unwrap(), "1");
+}

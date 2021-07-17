@@ -130,3 +130,27 @@ fn test_match_without_with_keyword() {
     let s = MatchWithoutWithKeyword { foo: None };
     assert_eq!(s.render().unwrap(), "");
 }
+
+#[derive(Template)]
+#[template(path = "match-option-result-option.html")]
+struct MatchOptionResultOption {
+    foo: Option<Result<Option<usize>, &'static str>>,
+}
+
+#[test]
+fn test_match_option_result_option() {
+    let s = MatchOptionResultOption { foo: None };
+    assert_eq!(s.render().unwrap(), "nothing");
+    let s = MatchOptionResultOption {
+        foo: Some(Err("fail")),
+    };
+    assert_eq!(s.render().unwrap(), "err=fail");
+    let s = MatchOptionResultOption {
+        foo: Some(Ok(None)),
+    };
+    assert_eq!(s.render().unwrap(), "num=absent");
+    let s = MatchOptionResultOption {
+        foo: Some(Ok(Some(4711))),
+    };
+    assert_eq!(s.render().unwrap(), "num=4711");
+}

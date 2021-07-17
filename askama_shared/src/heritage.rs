@@ -90,7 +90,7 @@ impl<'a> Context<'a> {
                         nested.push(nodes);
                     }
                     Node::Match(_, _, arms, _) => {
-                        for (_, _, _, arm) in arms {
+                        for (_, _, arm) in arms {
                             nested.push(arm);
                         }
                     }
