@@ -1278,15 +1278,38 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         method: &str,
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
-        if let Expr::Var("self") = obj {
-            buf.write("self");
+        if matches!(obj, Expr::Var("loop")) {
+            match method {
+                "cycle" => match args {
+                    [arg] => {
+                        if matches!(arg, Expr::Array(arr) if arr.is_empty()) {
+                            panic!("loop.cycle(…) cannot use an empty array.");
+                        }
+                        buf.write("({");
+                        buf.write("let _cycle = &(");
+                        self.visit_expr(buf, arg)?;
+                        buf.writeln(");")?;
+                        buf.writeln("let _len = _cycle.len();")?;
+                        buf.writeln("if _len == 0 {")?;
+                        buf.writeln("return ::core::result::Result::Err(::askama::Error::Fmt(::core::fmt::Error));")?;
+                        buf.writeln("}")?;
+                        buf.writeln("_cycle[_loop_item.index % _len]")?;
+                        buf.writeln("})")?;
+                    }
+                    _ => return Err("loop.cycle(…) expects exactly one argument".into()),
+                },
+                s => return Err(format!("unknown loop method: {:?}", s).into()),
+            }
         } else {
-            self.visit_expr(buf, obj)?;
+            if let Expr::Var("self") = obj {
+                buf.write("self");
+            } else {
+                self.visit_expr(buf, obj)?;
+            }
+            buf.write(&format!(".{}(", normalize_identifier(method)));
+            self._visit_args(buf, args)?;
+            buf.write(")");
         }
-
-        buf.write(&format!(".{}(", normalize_identifier(method)));
-        self._visit_args(buf, args)?;
-        buf.write(")");
         Ok(DisplayWrap::Unwrapped)
     }
 

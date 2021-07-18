@@ -372,3 +372,48 @@ fn test_loop_break_continue() {
     };
     assert_eq!(t.render().unwrap(), "x1yx2yx3yx11x4yx5y");
 }
+
+#[derive(Template)]
+#[template(
+    source = r#"{% for v in values %}{{loop.cycle(["r", "g", "b"])}}{{v}},{% endfor %}"#,
+    ext = "txt"
+)]
+struct ForCycle<'a> {
+    values: &'a [u8],
+}
+
+#[test]
+fn test_for_cycle() {
+    let t = ForCycle {
+        values: &[1, 2, 3, 4, 5, 6, 7, 8, 9],
+    };
+    assert_eq!(t.render().unwrap(), "r1,g2,b3,r4,g5,b6,r7,g8,b9,");
+}
+
+#[derive(Template)]
+#[template(
+    source = r#"{% for v in values %}{{loop.cycle(cycle)}}{{v}},{% endfor %}"#,
+    ext = "txt"
+)]
+struct ForCycleDynamic<'a> {
+    values: &'a [u8],
+    cycle: &'a [char],
+}
+
+#[test]
+fn test_for_cycle_dynamic() {
+    let t = ForCycleDynamic {
+        values: &[1, 2, 3, 4, 5, 6, 7, 8, 9],
+        cycle: &['a', 'b', 'c', 'd'],
+    };
+    assert_eq!(t.render().unwrap(), "a1,b2,c3,d4,a5,b6,c7,d8,a9,");
+}
+
+#[test]
+fn test_for_cycle_empty() {
+    let t = ForCycleDynamic {
+        values: &[1, 2, 3, 4, 5, 6, 7, 8, 9],
+        cycle: &[],
+    };
+    assert!(t.render().is_err())
+}
