@@ -22,7 +22,7 @@ pub enum Node<'a> {
     Let(Ws, Target<'a>, Expr<'a>),
     Cond(Vec<Cond<'a>>, Ws),
     Match(Ws, Expr<'a>, Vec<When<'a>>, Ws),
-    Loop(Ws, Target<'a>, Expr<'a>, Vec<Node<'a>>, Ws),
+    Loop(Loop<'a>),
     Extends(Expr<'a>),
     BlockDef(Ws, &'a str, Vec<Node<'a>>, Ws),
     Include(Ws, &'a str),
@@ -31,6 +31,17 @@ pub enum Node<'a> {
     Raw(Ws, &'a str, Ws),
     Break(Ws),
     Continue(Ws),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Loop<'a> {
+    pub ws1: Ws,
+    pub var: Target<'a>,
+    pub iter: Expr<'a>,
+    pub body: Vec<Node<'a>>,
+    pub ws2: Ws,
+    pub else_block: Vec<Node<'a>>,
+    pub ws3: Ws,
 }
 
 #[derive(Debug, PartialEq)]
@@ -897,12 +908,28 @@ fn block_let(i: &[u8]) -> IResult<&[u8], Node<'_>> {
 
 fn parse_loop_content<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Vec<Node<'a>>> {
     s.loop_depth.set(s.loop_depth.get() + 1);
-    let (i, node) = parse_template(i, s)?;
+    let result = parse_template(i, s);
     s.loop_depth.set(s.loop_depth.get() - 1);
-    Ok((i, node))
+    result
 }
 
 fn block_for<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
+    let else_block = |i| {
+        let mut p = preceded(
+            ws(tag("else")),
+            cut(tuple((
+                opt(tag("-")),
+                delimited(
+                    |i| tag_block_end(i, s),
+                    |i| parse_template(i, s),
+                    |i| tag_block_start(i, s),
+                ),
+                opt(tag("-")),
+            ))),
+        );
+        let (i, (pws, nodes, nws)) = p(i)?;
+        Ok((i, (pws.is_some(), nodes, nws.is_some())))
+    };
     let mut p = tuple((
         opt(char('-')),
         ws(tag("for")),
@@ -918,6 +945,7 @@ fn block_for<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
                     cut(tuple((
                         |i| tag_block_start(i, s),
                         opt(char('-')),
+                        opt(else_block),
                         ws(tag("endfor")),
                         opt(char('-')),
                     ))),
@@ -925,16 +953,19 @@ fn block_for<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
             ))),
         ))),
     ));
-    let (i, (pws1, _, (var, _, (iter, nws1, _, (block, (_, pws2, _, nws2)))))) = p(i)?;
+    let (i, (pws1, _, (var, _, (iter, nws1, _, (body, (_, pws2, else_block, _, nws2)))))) = p(i)?;
+    let (nws3, else_block, pws3) = else_block.unwrap_or_default();
     Ok((
         i,
-        Node::Loop(
-            Ws(pws1.is_some(), nws1.is_some()),
+        Node::Loop(Loop {
+            ws1: Ws(pws1.is_some(), nws1.is_some()),
             var,
             iter,
-            block,
-            Ws(pws2.is_some(), nws2.is_some()),
-        ),
+            body,
+            ws2: Ws(pws2.is_some(), nws3),
+            else_block,
+            ws3: Ws(pws3, nws2.is_some()),
+        }),
     ))
 }
 
