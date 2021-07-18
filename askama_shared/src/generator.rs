@@ -2,7 +2,7 @@ use super::{get_template_source, CompileError, Integrations};
 use crate::filters;
 use crate::heritage::{Context, Heritage};
 use crate::input::{Source, TemplateInput};
-use crate::parser::{parse, Cond, CondTest, Expr, Node, Target, When, Ws};
+use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Ws};
 
 use proc_macro2::Span;
 
@@ -420,8 +420,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 Node::Match(ws1, ref expr, ref arms, ws2) => {
                     self.write_match(ctx, buf, ws1, expr, arms, ws2)?;
                 }
-                Node::Loop(ws1, ref var, ref iter, ref body, ws2) => {
-                    self.write_loop(ctx, buf, ws1, var, iter, body, ws2)?;
+                Node::Loop(ref loop_block) => {
+                    self.write_loop(ctx, buf, loop_block)?;
                 }
                 Node::BlockDef(ws1, name, _, ws2) => {
                     self.write_block(buf, Some(name), Ws(ws1.0, ws2.1))?;
@@ -596,21 +596,19 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        ws1: Ws,
-        var: &'a Target<'_>,
-        iter: &Expr<'_>,
-        body: &'a [Node<'_>],
-        ws2: Ws,
+        loop_block: &'a Loop<'_>,
     ) -> Result<usize, CompileError> {
-        self.handle_ws(ws1);
+        self.handle_ws(loop_block.ws1);
         self.locals.push();
 
-        let expr_code = self.visit_expr_root(iter)?;
+        let expr_code = self.visit_expr_root(&loop_block.iter)?;
 
         let flushed = self.write_buf_writable(buf)?;
+        buf.writeln("{")?;
+        buf.writeln("let mut _did_not_loop = true;")?;
         buf.write("for (");
-        self.visit_target(buf, true, true, var);
-        match iter {
+        self.visit_target(buf, true, true, &loop_block.var);
+        match loop_block.iter {
             Expr::Range(_, _, _) => buf.writeln(&format!(
                 ", _loop_item) in ::askama::helpers::TemplateLoop::new({}) {{",
                 expr_code
@@ -645,13 +643,24 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             )),
         }?;
 
-        let mut size_hint = self.handle(ctx, body, buf, AstLevel::Nested)?;
-        self.handle_ws(ws2);
-
-        size_hint += self.write_buf_writable(buf)?;
-        buf.writeln("}")?;
+        buf.writeln("_did_not_loop = false;")?;
+        let mut size_hint1 = self.handle(ctx, &loop_block.body, buf, AstLevel::Nested)?;
+        self.handle_ws(loop_block.ws2);
+        size_hint1 += self.write_buf_writable(buf)?;
         self.locals.pop();
-        Ok(flushed + (size_hint * 3))
+        buf.writeln("}")?;
+
+        buf.writeln("if _did_not_loop {")?;
+        self.locals.push();
+        let mut size_hint2 = self.handle(ctx, &loop_block.else_block, buf, AstLevel::Nested)?;
+        self.handle_ws(loop_block.ws3);
+        size_hint2 += self.write_buf_writable(buf)?;
+        self.locals.pop();
+        buf.writeln("}")?;
+
+        buf.writeln("}")?;
+
+        Ok(flushed + ((size_hint1 * 3) + size_hint2) / 2)
     }
 
     fn write_call(
