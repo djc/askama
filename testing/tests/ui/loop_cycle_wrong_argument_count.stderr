@@ -1,0 +1,7 @@
+error: loop.cycle(…) expects exactly one argument
+ --> $DIR/loop_cycle_wrong_argument_count.rs:3:10
+  |
+3 | #[derive(Template)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
