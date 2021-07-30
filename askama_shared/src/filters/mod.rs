@@ -566,6 +566,7 @@ mod tests {
         };
     }
 
+    #[allow(clippy::needless_borrow)]
     #[test]
     fn test_join() {
         assert_eq!(
