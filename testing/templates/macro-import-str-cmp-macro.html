@@ -1,0 +1,13 @@
+{% macro strcmp0(s, other) -%}
+    {%- if s == "foo" -%}
+        foo
+    {%- else if s == other -%}
+        other
+    {%- else -%}
+        neither
+    {%- endif -%}
+{% endmacro %}
+
+{% macro strcmp(s) %}
+    {%- call strcmp0(s, "bar") -%}
+{% endmacro %}

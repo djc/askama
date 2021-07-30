@@ -63,3 +63,13 @@ fn test_nested_macro_with_args() {
     let t = NestedMacroArgsTemplate {};
     assert_eq!(t.render().unwrap(), "first second");
 }
+
+#[derive(Template)]
+#[template(path = "macro-import-str-cmp.html")]
+struct StrCmpTemplate;
+
+#[test]
+fn str_cmp() {
+    let t = StrCmpTemplate;
+    assert_eq!(t.render().unwrap(), "AfooBotherCneitherD");
+}
