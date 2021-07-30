@@ -304,3 +304,71 @@ fn test_for_enumerate() {
     };
     assert_eq!(t.render().unwrap(), "0=hello-1=world-2=!-");
 }
+
+#[derive(Template)]
+#[template(
+    source = "{% for v in values.iter() %}x{{v}}{% if matches!(v, x if *x==3) %}{% break %}{% endif %}y{% endfor %}",
+    ext = "txt"
+)]
+struct Break<'a> {
+    values: &'a [i32],
+}
+
+#[test]
+fn test_loop_break() {
+    let t = Break {
+        values: &[1, 2, 3, 4, 5],
+    };
+    assert_eq!(t.render().unwrap(), "x1yx2yx3");
+
+    let t = Break {
+        values: &[1, 2, 4, 5],
+    };
+    assert_eq!(t.render().unwrap(), "x1yx2yx4yx5y");
+}
+
+#[derive(Template)]
+#[template(
+    source = "{% for v in values %}x{{v}}{% if matches!(v, x if *x==3) %}{% continue %}{% endif %}y{% endfor %}",
+    ext = "txt"
+)]
+struct Continue<'a> {
+    values: &'a [i32],
+}
+
+#[test]
+fn test_loop_continue() {
+    let t = Continue {
+        values: &[1, 2, 3, 4, 5],
+    };
+    assert_eq!(t.render().unwrap(), "x1yx2yx3x4yx5y");
+
+    let t = Continue {
+        values: &[1, 2, 4, 5],
+    };
+    assert_eq!(t.render().unwrap(), "x1yx2yx4yx5y");
+}
+
+#[derive(Template)]
+#[template(path = "for-break-continue.html")]
+struct BreakContinue<'a> {
+    values: &'a [i32],
+}
+
+#[test]
+fn test_loop_break_continue() {
+    let t = BreakContinue {
+        values: &[1, 2, 3, 4, 5],
+    };
+    assert_eq!(t.render().unwrap(), "x1yx2yx3yx4yx5y");
+
+    let t = BreakContinue {
+        values: &[1, 2, 3, 10, 4, 5],
+    };
+    assert_eq!(t.render().unwrap(), "x1yx2yx3yx10");
+
+    let t = BreakContinue {
+        values: &[1, 2, 3, 11, 4, 5],
+    };
+    assert_eq!(t.render().unwrap(), "x1yx2yx3yx11x4yx5y");
+}

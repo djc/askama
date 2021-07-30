@@ -27,6 +27,8 @@ pub enum Node<'a> {
     Import(Ws, &'a str, &'a str),
     Macro(&'a str, Macro<'a>),
     Raw(Ws, &'a str, Ws),
+    Break(Ws),
+    Continue(Ws),
 }
 
 #[derive(Debug, PartialEq)]
@@ -1068,6 +1070,18 @@ fn block_raw<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> 
     ))
 }
 
+fn break_statement(i: &[u8]) -> IResult<&[u8], Node<'_>> {
+    let mut p = tuple((opt(tag("-")), ws(tag("break")), opt(tag("-"))));
+    let (i, (pws, _, nws)) = p(i)?;
+    Ok((i, Node::Break(Ws(pws.is_some(), nws.is_some()))))
+}
+
+fn continue_statement(i: &[u8]) -> IResult<&[u8], Node<'_>> {
+    let mut p = tuple((opt(tag("-")), ws(tag("continue")), opt(tag("-"))));
+    let (i, (pws, _, nws)) = p(i)?;
+    Ok((i, Node::Continue(Ws(pws.is_some(), nws.is_some()))))
+}
+
 fn block_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
     let mut p = tuple((
         |i| tag_block_start(i, s),
@@ -1083,6 +1097,8 @@ fn block_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>>
             |i| block_block(i, s),
             |i| block_macro(i, s),
             |i| block_raw(i, s),
+            break_statement,
+            continue_statement,
         )),
         cut(|i| tag_block_end(i, s)),
     ));
