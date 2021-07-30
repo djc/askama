@@ -1,0 +1,11 @@
+{%- for v in values -%}
+    x {{- v -}}
+    {%- if matches!(v, x if *x > 9) -%}
+        {%- if matches!(v, x if *x % 2 == 0) -%}
+            {%- break -%}
+        {%- else -%}
+            {%- continue -%}
+        {%- endif -%}
+    {%- endif -%}
+    y
+{%- endfor -%}

@@ -459,6 +459,16 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     // No whitespace handling: child template top-level is not used,
                     // except for the blocks defined in it.
                 }
+                Node::Break(ws) => {
+                    self.handle_ws(ws);
+                    self.write_buf_writable(buf)?;
+                    buf.writeln("break;")?;
+                }
+                Node::Continue(ws) => {
+                    self.handle_ws(ws);
+                    self.write_buf_writable(buf)?;
+                    buf.writeln("continue;")?;
+                }
             }
         }
 
