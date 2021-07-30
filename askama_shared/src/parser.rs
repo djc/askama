@@ -1,3 +1,6 @@
+use std::cell::Cell;
+use std::str;
+
 use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_until};
 use nom::character::complete::{anychar, char, digit1};
@@ -6,7 +9,6 @@ use nom::error::{Error, ParseError};
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{self, error_position, Compare, IResult, InputLength, InputTake};
-use std::str;
 
 use crate::{CompileError, Syntax};
 
@@ -180,14 +182,19 @@ enum ContentState {
     End(usize),
 }
 
-fn take_content<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> ParserError<'a, Node<'a>> {
+struct State<'a> {
+    syntax: &'a Syntax<'a>,
+    loop_depth: Cell<usize>,
+}
+
+fn take_content<'a>(i: &'a [u8], s: &State<'_>) -> ParserError<'a, Node<'a>> {
     use crate::parser::ContentState::*;
-    let bs = s.block_start.as_bytes()[0];
-    let be = s.block_start.as_bytes()[1];
-    let cs = s.comment_start.as_bytes()[0];
-    let ce = s.comment_start.as_bytes()[1];
-    let es = s.expr_start.as_bytes()[0];
-    let ee = s.expr_start.as_bytes()[1];
+    let bs = s.syntax.block_start.as_bytes()[0];
+    let be = s.syntax.block_start.as_bytes()[1];
+    let cs = s.syntax.comment_start.as_bytes()[0];
+    let ce = s.syntax.comment_start.as_bytes()[1];
+    let es = s.syntax.expr_start.as_bytes()[0];
+    let ee = s.syntax.expr_start.as_bytes()[1];
 
     let mut state = Start;
     for (idx, c) in i.iter().enumerate() {
@@ -685,7 +692,7 @@ fn expr_any(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     alt((range_right, compound, expr_or))(i)
 }
 
-fn expr_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
+fn expr_node<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     let mut p = tuple((
         |i| tag_expr_start(i, s),
         cut(tuple((opt(tag("-")), ws(expr_any), opt(tag("-")), |i| {
@@ -731,7 +738,7 @@ fn cond_if(i: &[u8]) -> IResult<&[u8], CondTest<'_>> {
     Ok((i, CondTest { target, expr }))
 }
 
-fn cond_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Cond<'a>> {
+fn cond_block<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Cond<'a>> {
     let mut p = tuple((
         |i| tag_block_start(i, s),
         opt(tag("-")),
@@ -747,7 +754,7 @@ fn cond_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Cond<'a>>
     Ok((i, (Ws(pws.is_some(), nws.is_some()), cond, block)))
 }
 
-fn block_if<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
+fn block_if<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     let mut p = tuple((
         opt(tag("-")),
         cond_if,
@@ -773,7 +780,7 @@ fn block_if<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
     Ok((i, Node::Cond(res, Ws(pws2.is_some(), nws2.is_some()))))
 }
 
-fn match_else_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], When<'a>> {
+fn match_else_block<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], When<'a>> {
     let mut p = tuple((
         |i| tag_block_start(i, s),
         opt(tag("-")),
@@ -791,7 +798,7 @@ fn match_else_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Whe
     ))
 }
 
-fn when_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], When<'a>> {
+fn when_block<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], When<'a>> {
     let mut p = tuple((
         |i| tag_block_start(i, s),
         opt(tag("-")),
@@ -807,7 +814,7 @@ fn when_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], When<'a>>
     Ok((i, (Ws(pws.is_some(), nws.is_some()), target, block)))
 }
 
-fn block_match<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
+fn block_match<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     let mut p = tuple((
         opt(tag("-")),
         ws(tag("match")),
@@ -887,7 +894,14 @@ fn block_let(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     ))
 }
 
-fn block_for<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
+fn parse_loop_content<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Vec<Node<'a>>> {
+    s.loop_depth.set(s.loop_depth.get() + 1);
+    let (i, node) = parse_template(i, s)?;
+    s.loop_depth.set(s.loop_depth.get() - 1);
+    Ok((i, node))
+}
+
+fn block_for<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     let mut p = tuple((
         opt(tag("-")),
         ws(tag("for")),
@@ -899,7 +913,7 @@ fn block_for<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> 
                 opt(tag("-")),
                 |i| tag_block_end(i, s),
                 cut(tuple((
-                    |i| parse_template(i, s),
+                    |i| parse_loop_content(i, s),
                     cut(tuple((
                         |i| tag_block_start(i, s),
                         opt(tag("-")),
@@ -928,7 +942,7 @@ fn block_extends(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     Ok((i, Node::Extends(name)))
 }
 
-fn block_block<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
+fn block_block<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     let mut start = tuple((
         opt(tag("-")),
         ws(tag("block")),
@@ -1003,7 +1017,7 @@ fn block_import(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     ))
 }
 
-fn block_macro<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
+fn block_macro<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     let mut p = tuple((
         opt(tag("-")),
         ws(tag("macro")),
@@ -1043,7 +1057,7 @@ fn block_macro<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>
     ))
 }
 
-fn block_raw<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
+fn block_raw<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     let mut p = tuple((
         opt(tag("-")),
         ws(tag("raw")),
@@ -1070,19 +1084,31 @@ fn block_raw<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> 
     ))
 }
 
-fn break_statement(i: &[u8]) -> IResult<&[u8], Node<'_>> {
+fn break_statement<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     let mut p = tuple((opt(tag("-")), ws(tag("break")), opt(tag("-"))));
-    let (i, (pws, _, nws)) = p(i)?;
-    Ok((i, Node::Break(Ws(pws.is_some(), nws.is_some()))))
+    let (j, (pws, _, nws)) = p(i)?;
+    if s.loop_depth.get() == 0 {
+        return Err(nom::Err::Failure(error_position!(
+            i,
+            nom::error::ErrorKind::Tag
+        )));
+    }
+    Ok((j, Node::Break(Ws(pws.is_some(), nws.is_some()))))
 }
 
-fn continue_statement(i: &[u8]) -> IResult<&[u8], Node<'_>> {
+fn continue_statement<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     let mut p = tuple((opt(tag("-")), ws(tag("continue")), opt(tag("-"))));
-    let (i, (pws, _, nws)) = p(i)?;
-    Ok((i, Node::Continue(Ws(pws.is_some(), nws.is_some()))))
+    let (j, (pws, _, nws)) = p(i)?;
+    if s.loop_depth.get() == 0 {
+        return Err(nom::Err::Failure(error_position!(
+            i,
+            nom::error::ErrorKind::Tag
+        )));
+    }
+    Ok((j, Node::Continue(Ws(pws.is_some(), nws.is_some()))))
 }
 
-fn block_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
+fn block_node<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     let mut p = tuple((
         |i| tag_block_start(i, s),
         alt((
@@ -1097,8 +1123,8 @@ fn block_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>>
             |i| block_block(i, s),
             |i| block_macro(i, s),
             |i| block_raw(i, s),
-            break_statement,
-            continue_statement,
+            |i| break_statement(i, s),
+            |i| continue_statement(i, s),
         )),
         cut(|i| tag_block_end(i, s)),
     ));
@@ -1106,11 +1132,11 @@ fn block_node<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>>
     Ok((i, contents))
 }
 
-fn block_comment_body<'a>(mut i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], &'a [u8]> {
+fn block_comment_body<'a>(mut i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], &'a [u8]> {
     let mut level = 0;
     loop {
-        let (end, tail) = take_until(s.comment_end)(i)?;
-        match take_until::<_, _, Error<_>>(s.comment_start)(i) {
+        let (end, tail) = take_until(s.syntax.comment_end)(i)?;
+        match take_until::<_, _, Error<_>>(s.syntax.comment_start)(i) {
             Ok((start, _)) if start.as_ptr() < end.as_ptr() => {
                 level += 1;
                 i = &start[2..];
@@ -1124,7 +1150,7 @@ fn block_comment_body<'a>(mut i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8
     }
 }
 
-fn block_comment<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'a>> {
+fn block_comment<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     let mut p = tuple((
         |i| tag_comment_start(i, s),
         cut(tuple((
@@ -1137,7 +1163,7 @@ fn block_comment<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Node<'
     Ok((i, Node::Comment(Ws(pws.is_some(), tail.ends_with(b"-")))))
 }
 
-fn parse_template<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Vec<Node<'a>>> {
+fn parse_template<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Vec<Node<'a>>> {
     many0(alt((
         complete(|i| take_content(i, s)),
         complete(|i| block_comment(i, s)),
@@ -1146,27 +1172,31 @@ fn parse_template<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], Vec<N
     )))(i)
 }
 
-fn tag_block_start<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], &'a [u8]> {
-    tag(s.block_start)(i)
+fn tag_block_start<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], &'a [u8]> {
+    tag(s.syntax.block_start)(i)
 }
-fn tag_block_end<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], &'a [u8]> {
-    tag(s.block_end)(i)
+fn tag_block_end<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], &'a [u8]> {
+    tag(s.syntax.block_end)(i)
 }
-fn tag_comment_start<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], &'a [u8]> {
-    tag(s.comment_start)(i)
+fn tag_comment_start<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], &'a [u8]> {
+    tag(s.syntax.comment_start)(i)
 }
-fn tag_comment_end<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], &'a [u8]> {
-    tag(s.comment_end)(i)
+fn tag_comment_end<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], &'a [u8]> {
+    tag(s.syntax.comment_end)(i)
 }
-fn tag_expr_start<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], &'a [u8]> {
-    tag(s.expr_start)(i)
+fn tag_expr_start<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], &'a [u8]> {
+    tag(s.syntax.expr_start)(i)
 }
-fn tag_expr_end<'a>(i: &'a [u8], s: &'a Syntax<'a>) -> IResult<&'a [u8], &'a [u8]> {
-    tag(s.expr_end)(i)
+fn tag_expr_end<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], &'a [u8]> {
+    tag(s.syntax.expr_end)(i)
 }
 
 pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Result<Vec<Node<'a>>, CompileError> {
-    match parse_template(src.as_bytes(), syntax) {
+    let state = State {
+        syntax,
+        loop_depth: Cell::new(0),
+    };
+    match parse_template(src.as_bytes(), &state) {
         Ok((left, res)) => {
             if !left.is_empty() {
                 let s = str::from_utf8(left).unwrap();
