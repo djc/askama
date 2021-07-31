@@ -19,8 +19,7 @@ yaml = ["serde", "serde_yaml"]
 [dependencies]
 askama_escape = { version = "0.10", path = "../askama_escape" }
 humansize = { version = "1.1.0", optional = true }
-funty = "=1.1.0" # Temporary fix for bitvec, remove once fixed. (https://github.com/bitvecto-rs/bitvec/issues/105)
-nom = { version = "6", features = ["std"], default-features = false }
+nom = { version = "6.2.1", features = ["std"], default-features = false } # Gets us a newer version of bitvec https://github.com/Geal/nom/issues/1311#issuecomment-880902973
 num-traits = { version = "0.2.6", optional = true }
 proc-macro2 = "1"
 quote = "1"
