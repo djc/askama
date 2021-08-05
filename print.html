@@ -923,15 +923,6 @@ return a value of that type in a Rocket handler. See
 from the Askama test suite for more on how to integrate.</p>
 <p>In case a run-time error occurs during templating, a <code>500 Internal Server Error</code> <code>Status</code> value will be returned, so that this can be further
 handled by your error catcher.</p>
-<h2 id="iron-integration"><a class="header" href="#iron-integration">Iron integration</a></h2>
-<p>Enabling the <code>with-iron</code> feature appends an implementation of Iron's
-<code>Modifier&lt;Response&gt;</code> trait for each template type. This makes it easy to
-trivially return a value of that type in an Iron handler. See
-<a href="https://github.com/djc/askama/blob/main/askama_iron/tests/basic.rs">the example</a>
-from the Askama test suite for more on how to integrate.</p>
-<p>Note that Askama's generated <code>Modifier&lt;Response&gt;</code> implementation currently
-unwraps any run-time errors from the template. If you have a better
-suggestion, please <a href="https://github.com/djc/askama/issues/new">file an issue</a>.</p>
 <h2 id="actix-web-integration"><a class="header" href="#actix-web-integration">Actix-web integration</a></h2>
 <p>Enabling the <code>with-actix-web</code> feature appends an implementation of Actix-web's
 <code>Responder</code> trait for each template type. This makes it easy to trivially return
