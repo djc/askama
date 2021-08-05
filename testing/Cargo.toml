@@ -10,7 +10,7 @@ publish = false
 default = ["serde_json", "askama/serde-json"]
 
 [dependencies]
-askama = { path = "../askama", version = "*" }
+askama = { path = "../askama", version = "0.11.0-beta.1" }
 serde_json = { version = "1.0", optional = true }
 
 [dev-dependencies]

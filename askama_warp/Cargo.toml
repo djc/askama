@@ -14,7 +14,7 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-askama = { version = "0.10", path = "../askama", default-features = false, features = ["with-warp", "mime", "mime_guess"] }
+askama = { version = "0.11.0-beta.1", path = "../askama", default-features = false, features = ["with-warp", "mime", "mime_guess"] }
 warp = { version = "0.3", default-features = false }
 
 [dev-dependencies]
