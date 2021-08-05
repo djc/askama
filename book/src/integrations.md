@@ -12,18 +12,6 @@ In case a run-time error occurs during templating, a `500 Internal Server
 Error` `Status` value will be returned, so that this can be further
 handled by your error catcher.
 
-## Iron integration
-
-Enabling the `with-iron` feature appends an implementation of Iron's
-`Modifier<Response>` trait for each template type. This makes it easy to
-trivially return a value of that type in an Iron handler. See
-[the example](https://github.com/djc/askama/blob/main/askama_iron/tests/basic.rs)
-from the Askama test suite for more on how to integrate.
-
-Note that Askama's generated `Modifier<Response>` implementation currently
-unwraps any run-time errors from the template. If you have a better
-suggestion, please [file an issue](https://github.com/djc/askama/issues/new).
-
 ## Actix-web integration
 
 Enabling the `with-actix-web` feature appends an implementation of Actix-web's
