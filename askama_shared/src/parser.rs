@@ -5,7 +5,7 @@ use nom::combinator::{complete, cut, map, opt, recognize, value};
 use nom::error::{Error, ParseError};
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
-use nom::{self, error_position, Compare, IResult, InputTake};
+use nom::{self, error_position, Compare, IResult, InputLength, InputTake};
 use std::str;
 
 use crate::{CompileError, Syntax};
@@ -126,7 +126,7 @@ pub struct CondTest<'a> {
 fn ws<F, I, O, E>(mut inner: F) -> impl FnMut(I) -> IResult<I, O, E>
 where
     F: FnMut(I) -> IResult<I, O, E>,
-    I: InputTake + Clone + PartialEq + for<'a> Compare<&'a [u8; 1]>,
+    I: InputLength + InputTake + Clone + PartialEq + for<'a> Compare<&'a [u8; 1]>,
     E: ParseError<I>,
 {
     move |i: I| {
@@ -388,9 +388,13 @@ fn target(i: &[u8]) -> IResult<&[u8], Target<'_>> {
 
         let mut targets = vec![first_target];
         let (i, _) = cut(tuple((
-            fold_many0(preceded(ws(tag(",")), target), (), |_, target| {
-                targets.push(target);
-            }),
+            fold_many0(
+                preceded(ws(tag(",")), target),
+                || (),
+                |_, target| {
+                    targets.push(target);
+                },
+            ),
             opt(ws(tag(","))),
             ws(cut(tag(")"))),
         )))(i)?;
