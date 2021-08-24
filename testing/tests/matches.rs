@@ -26,6 +26,24 @@ fn test_match_option() {
     assert_eq!(s.render().unwrap(), "\nNot Found\n");
 }
 
+#[derive(Template)]
+#[template(path = "match-opt-bool.html")]
+struct MatchOptBoolTemplate {
+    item: Option<bool>,
+}
+
+#[test]
+fn test_match_option_bool() {
+    let s = MatchOptBoolTemplate { item: Some(true) };
+    assert_eq!(s.render().unwrap(), "\nFound Some(true)\n");
+
+    let s = MatchOptBoolTemplate { item: Some(false) };
+    assert_eq!(s.render().unwrap(), "\nFound Some(false)\n");
+
+    let s = MatchOptBoolTemplate { item: None };
+    assert_eq!(s.render().unwrap(), "\nNot Found\n");
+}
+
 #[test]
 fn test_match_ref_deref() {
     let s = MatchOptRefTemplate { item: &Some("foo") };
