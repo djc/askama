@@ -29,7 +29,7 @@ fn test_match_option() {
 #[derive(Template)]
 #[template(path = "match-opt-bool.html")]
 struct MatchOptBoolTemplate {
-    item: Option<bool>
+    item: Option<bool>,
 }
 
 #[test]
