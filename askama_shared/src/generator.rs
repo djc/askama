@@ -1484,6 +1484,12 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 }
                 self.visit_char_lit(buf, s);
             }
+            Target::BoolLit(s) => {
+                if first_level {
+                    buf.write("&");
+                }
+                buf.write(s);
+            }
         }
     }
 
