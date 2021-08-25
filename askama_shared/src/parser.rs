@@ -109,6 +109,7 @@ pub enum Target<'a> {
     NumLit(&'a str),
     StrLit(&'a str),
     CharLit(&'a str),
+    BoolLit(&'a str),
     Path(Vec<&'a str>),
 }
 
@@ -241,10 +242,18 @@ fn non_ascii(chr: u8) -> bool {
     (0x80..=0xFD).contains(&chr)
 }
 
-fn expr_bool_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn bool_lit(i: &[u8]) -> IResult<&[u8], &str> {
     map(alt((tag("false"), tag("true"))), |s| {
-        Expr::BoolLit(str::from_utf8(s).unwrap())
+        str::from_utf8(s).unwrap()
     })(i)
+}
+
+fn expr_bool_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+    map(bool_lit, Expr::BoolLit)(i)
+}
+
+fn variant_bool_lit(i: &[u8]) -> IResult<&[u8], Target<'_>> {
+    map(bool_lit, Target::BoolLit)(i)
 }
 
 fn num_lit(i: &[u8]) -> IResult<&[u8], &str> {
@@ -362,12 +371,21 @@ fn named_target(i: &[u8]) -> IResult<&[u8], (&str, Target<'_>)> {
     Ok((i, (src, target.unwrap_or(Target::Name(src)))))
 }
 
+fn variant_lit(i: &[u8]) -> IResult<&[u8], Target<'_>> {
+    alt((
+        variant_str_lit,
+        variant_char_lit,
+        variant_num_lit,
+        variant_bool_lit,
+    ))(i)
+}
+
 fn target(i: &[u8]) -> IResult<&[u8], Target<'_>> {
     let mut opt_opening_paren = map(opt(ws(tag("("))), |o| o.is_some());
     let mut opt_closing_paren = map(opt(ws(tag(")"))), |o| o.is_some());
     let mut opt_opening_brace = map(opt(ws(tag("{"))), |o| o.is_some());
 
-    let (i, lit) = opt(alt((variant_str_lit, variant_char_lit, variant_num_lit)))(i)?;
+    let (i, lit) = opt(variant_lit)(i)?;
     if let Some(lit) = lit {
         return Ok((i, lit));
     }
