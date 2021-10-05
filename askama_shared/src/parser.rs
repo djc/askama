@@ -272,21 +272,19 @@ fn num_lit(i: &[u8]) -> IResult<&[u8], &str> {
 }
 
 fn expr_num_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
-    map(num_lit, |s| Expr::NumLit(s))(i)
+    map(num_lit, Expr::NumLit)(i)
 }
 
 fn expr_array_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     delimited(
         ws(tag("[")),
-        map(separated_list1(ws(tag(",")), expr_any), |arr| {
-            Expr::Array(arr)
-        }),
+        map(separated_list1(ws(tag(",")), expr_any), Expr::Array),
         ws(tag("]")),
     )(i)
 }
 
 fn variant_num_lit(i: &[u8]) -> IResult<&[u8], Target<'_>> {
-    map(num_lit, |s| Target::NumLit(s))(i)
+    map(num_lit, Target::NumLit)(i)
 }
 
 fn str_lit(i: &[u8]) -> IResult<&[u8], &str> {
@@ -301,11 +299,11 @@ fn str_lit(i: &[u8]) -> IResult<&[u8], &str> {
 }
 
 fn expr_str_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
-    map(str_lit, |s| Expr::StrLit(s))(i)
+    map(str_lit, Expr::StrLit)(i)
 }
 
 fn variant_str_lit(i: &[u8]) -> IResult<&[u8], Target<'_>> {
-    map(str_lit, |s| Target::StrLit(s))(i)
+    map(str_lit, Target::StrLit)(i)
 }
 
 fn char_lit(i: &[u8]) -> IResult<&[u8], &str> {
@@ -320,15 +318,15 @@ fn char_lit(i: &[u8]) -> IResult<&[u8], &str> {
 }
 
 fn expr_char_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
-    map(char_lit, |s| Expr::CharLit(s))(i)
+    map(char_lit, Expr::CharLit)(i)
 }
 
 fn variant_char_lit(i: &[u8]) -> IResult<&[u8], Target<'_>> {
-    map(char_lit, |s| Target::CharLit(s))(i)
+    map(char_lit, Target::CharLit)(i)
 }
 
 fn expr_var(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
-    map(identifier, |s| Expr::Var(s))(i)
+    map(identifier, Expr::Var)(i)
 }
 
 fn expr_var_call(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
@@ -1039,9 +1037,7 @@ fn block_macro<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     ));
 
     let (i, (pws1, _, (name, params, nws1, _, (contents, (_, pws2, _, nws2))))) = p(i)?;
-    if name == "super" {
-        panic!("invalid macro name 'super'");
-    }
+    assert_ne!(name, "super", "invalid macro name 'super'");
 
     Ok((
         i,
