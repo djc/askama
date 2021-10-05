@@ -17,6 +17,9 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
     match build_template(&ast) {
         Ok(source) => source.parse().unwrap(),
+        // Use precise span information if available, otherwise fall back to placing
+        // the error at the macro call site.
+        Err(CompileError::Darling(e)) => e.write_errors().into(),
         Err(e) => syn::Error::new(Span::call_site(), e)
             .to_compile_error()
             .into(),

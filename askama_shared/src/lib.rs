@@ -294,6 +294,7 @@ static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
 pub enum CompileError {
     Static(&'static str),
     String(String),
+    Darling(darling::Error),
 }
 
 impl fmt::Display for CompileError {
@@ -301,6 +302,7 @@ impl fmt::Display for CompileError {
         match self {
             CompileError::Static(s) => write!(fmt, "{}", s),
             CompileError::String(s) => write!(fmt, "{}", s),
+            CompileError::Darling(e) => write!(fmt, "{}", e),
         }
     }
 }
@@ -314,6 +316,12 @@ impl From<&'static str> for CompileError {
 impl From<String> for CompileError {
     fn from(s: String) -> Self {
         CompileError::String(s)
+    }
+}
+
+impl From<darling::Error> for CompileError {
+    fn from(e: darling::Error) -> Self {
+        CompileError::Darling(e)
     }
 }
 
