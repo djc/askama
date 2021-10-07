@@ -75,7 +75,7 @@ fn find_used_templates(
     map: &mut HashMap<PathBuf, String>,
     source: String,
 ) -> Result<(), CompileError> {
-    let mut dependency_graph = Vec::<String>::new();
+    let mut dependency_graph = Vec::new();
     let mut check = vec![(input.path.clone(), source)];
     while let Some((path, source)) = check.pop() {
         for n in parse(&source, input.syntax)? {
