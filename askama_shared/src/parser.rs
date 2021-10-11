@@ -187,7 +187,7 @@ struct State<'a> {
     loop_depth: Cell<usize>,
 }
 
-fn take_content<'a>(i: &'a [u8], s: &State<'_>) -> ParserError<'a, Node<'a>> {
+fn take_content<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     use crate::parser::ContentState::*;
     let bs = s.syntax.block_start.as_bytes()[0];
     let be = s.syntax.block_start.as_bytes()[1];
@@ -230,7 +230,7 @@ fn take_content<'a>(i: &'a [u8], s: &State<'_>) -> ParserError<'a, Node<'a>> {
     }
 }
 
-fn identifier(input: &[u8]) -> ParserError<'_, &str> {
+fn identifier(input: &[u8]) -> IResult<&[u8], &str> {
     if !nom::character::is_alphabetic(input[0]) && input[0] != b'_' && !non_ascii(input[0]) {
         return Err(nom::Err::Error(nom::error::Error::new(
             input,
@@ -475,7 +475,7 @@ fn macro_arguments(i: &[u8]) -> IResult<&[u8], &str> {
     delimited(char('('), nested_parenthesis, char(')'))(i)
 }
 
-fn nested_parenthesis(i: &[u8]) -> ParserError<'_, &str> {
+fn nested_parenthesis(i: &[u8]) -> IResult<&[u8], &str> {
     let mut nested = 0;
     let mut last = 0;
     let mut in_str = false;
@@ -1636,5 +1636,3 @@ mod tests {
         );
     }
 }
-
-type ParserError<'a, T> = Result<(&'a [u8], T), nom::Err<nom::error::Error<&'a [u8]>>>;
