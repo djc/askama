@@ -144,18 +144,17 @@ fn is_ws(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\r' | '\n')
 }
 
-fn not_ws(c: u8) -> bool {
-    !is_ws(c as char)
+fn not_ws(c: char) -> bool {
+    !is_ws(c)
 }
 
 fn ws<'a, O>(
-    inner: impl FnMut(&'a [u8]) -> IResult<&'a [u8], O>,
-) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], O> {
+    inner: impl FnMut(&'a str) -> IResult<&'a str, O>,
+) -> impl FnMut(&'a str) -> IResult<&'a str, O> {
     delimited(take_till(not_ws), inner, take_till(not_ws))
 }
 
-fn split_ws_parts(s: &[u8]) -> Node<'_> {
-    let s = str::from_utf8(s).unwrap();
+fn split_ws_parts(s: &str) -> Node<'_> {
     let trimmed_start = s.trim_start_matches(is_ws);
     let len_start = s.len() - trimmed_start.len();
     let trimmed = trimmed_start.trim_end_matches(is_ws);
@@ -175,27 +174,27 @@ struct State<'a> {
     loop_depth: Cell<usize>,
 }
 
-fn take_content<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
+fn take_content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     use crate::parser::ContentState::*;
-    let bs = s.syntax.block_start.as_bytes()[0];
-    let be = s.syntax.block_start.as_bytes()[1];
-    let cs = s.syntax.comment_start.as_bytes()[0];
-    let ce = s.syntax.comment_start.as_bytes()[1];
-    let es = s.syntax.expr_start.as_bytes()[0];
-    let ee = s.syntax.expr_start.as_bytes()[1];
+    let bs = s.syntax.block_start.as_bytes()[0] as char;
+    let be = s.syntax.block_start.as_bytes()[1] as char;
+    let cs = s.syntax.comment_start.as_bytes()[0] as char;
+    let ce = s.syntax.comment_start.as_bytes()[1] as char;
+    let es = s.syntax.expr_start.as_bytes()[0] as char;
+    let ee = s.syntax.expr_start.as_bytes()[1] as char;
 
     let mut state = Start;
-    for (idx, c) in i.iter().enumerate() {
+    for (idx, c) in i.chars().enumerate() {
         state = match state {
             Start | Any => {
-                if *c == bs || *c == es || *c == cs {
+                if c == bs || c == es || c == cs {
                     Brace(idx)
                 } else {
                     Any
                 }
             }
             Brace(start) => {
-                if *c == be || *c == ee || *c == ce {
+                if c == be || c == ee || c == ce {
                     End(start)
                 } else {
                     Any
@@ -215,50 +214,45 @@ fn take_content<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     }
 }
 
-fn identifier(input: &[u8]) -> IResult<&[u8], &str> {
-    let (i, s) = recognize(pair(identifier_start, opt(identifier_tail)))(input)?;
-    Ok((i, str::from_utf8(s).unwrap()))
+fn identifier(input: &str) -> IResult<&str, &str> {
+    recognize(pair(identifier_start, opt(identifier_tail)))(input)
 }
 
-fn identifier_start(s: &[u8]) -> IResult<&[u8], &[u8]> {
+fn identifier_start(s: &str) -> IResult<&str, &str> {
     s.split_at_position1_complete(
-        |c| !(c.is_alpha() || c == b'_' || c >= 0x80),
+        |c| !(c.is_alpha() || c == '_' || c >= '\u{0080}'),
         nom::error::ErrorKind::Alpha,
     )
 }
 
-fn identifier_tail(s: &[u8]) -> IResult<&[u8], &[u8]> {
+fn identifier_tail(s: &str) -> IResult<&str, &str> {
     s.split_at_position1_complete(
-        |c| !(c.is_alphanum() || c == b'_' || c >= 0x80),
+        |c| !(c.is_alphanum() || c == '_' || c >= '\u{0080}'),
         nom::error::ErrorKind::Alpha,
     )
 }
 
-fn bool_lit(i: &[u8]) -> IResult<&[u8], &str> {
-    map(alt((tag("false"), tag("true"))), |s| {
-        str::from_utf8(s).unwrap()
-    })(i)
+fn bool_lit(i: &str) -> IResult<&str, &str> {
+    alt((tag("false"), tag("true")))(i)
 }
 
-fn expr_bool_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_bool_lit(i: &str) -> IResult<&str, Expr<'_>> {
     map(bool_lit, Expr::BoolLit)(i)
 }
 
-fn variant_bool_lit(i: &[u8]) -> IResult<&[u8], Target<'_>> {
+fn variant_bool_lit(i: &str) -> IResult<&str, Target<'_>> {
     map(bool_lit, Target::BoolLit)(i)
 }
 
-fn num_lit(i: &[u8]) -> IResult<&[u8], &str> {
-    map(recognize(pair(digit1, opt(pair(char('.'), digit1)))), |s| {
-        str::from_utf8(s).unwrap()
-    })(i)
+fn num_lit(i: &str) -> IResult<&str, &str> {
+    recognize(pair(digit1, opt(pair(char('.'), digit1))))(i)
 }
 
-fn expr_num_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_num_lit(i: &str) -> IResult<&str, Expr<'_>> {
     map(num_lit, Expr::NumLit)(i)
 }
 
-fn expr_array_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_array_lit(i: &str) -> IResult<&str, Expr<'_>> {
     delimited(
         ws(char('[')),
         map(separated_list1(ws(char(',')), expr_any), Expr::Array),
@@ -266,58 +260,54 @@ fn expr_array_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     )(i)
 }
 
-fn variant_num_lit(i: &[u8]) -> IResult<&[u8], Target<'_>> {
+fn variant_num_lit(i: &str) -> IResult<&str, Target<'_>> {
     map(num_lit, Target::NumLit)(i)
 }
 
-fn str_lit(i: &[u8]) -> IResult<&[u8], &str> {
-    map(
-        delimited(
-            char('\"'),
-            opt(escaped(is_not("\\\""), '\\', anychar)),
-            char('\"'),
-        ),
-        |s| s.map(|s| str::from_utf8(s).unwrap()).unwrap_or(""),
-    )(i)
+fn str_lit(i: &str) -> IResult<&str, &str> {
+    let (i, s) = delimited(
+        char('"'),
+        opt(escaped(is_not("\\\""), '\\', anychar)),
+        char('"'),
+    )(i)?;
+    Ok((i, s.unwrap_or_default()))
 }
 
-fn expr_str_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_str_lit(i: &str) -> IResult<&str, Expr<'_>> {
     map(str_lit, Expr::StrLit)(i)
 }
 
-fn variant_str_lit(i: &[u8]) -> IResult<&[u8], Target<'_>> {
+fn variant_str_lit(i: &str) -> IResult<&str, Target<'_>> {
     map(str_lit, Target::StrLit)(i)
 }
 
-fn char_lit(i: &[u8]) -> IResult<&[u8], &str> {
-    map(
-        delimited(
-            char('\''),
-            opt(escaped(is_not("\\\'"), '\\', anychar)),
-            char('\''),
-        ),
-        |s| s.map(|s| str::from_utf8(s).unwrap()).unwrap_or(""),
-    )(i)
+fn char_lit(i: &str) -> IResult<&str, &str> {
+    let (i, s) = delimited(
+        char('\''),
+        opt(escaped(is_not("\\\'"), '\\', anychar)),
+        char('\''),
+    )(i)?;
+    Ok((i, s.unwrap_or_default()))
 }
 
-fn expr_char_lit(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_char_lit(i: &str) -> IResult<&str, Expr<'_>> {
     map(char_lit, Expr::CharLit)(i)
 }
 
-fn variant_char_lit(i: &[u8]) -> IResult<&[u8], Target<'_>> {
+fn variant_char_lit(i: &str) -> IResult<&str, Target<'_>> {
     map(char_lit, Target::CharLit)(i)
 }
 
-fn expr_var(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_var(i: &str) -> IResult<&str, Expr<'_>> {
     map(identifier, Expr::Var)(i)
 }
 
-fn expr_var_call(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_var_call(i: &str) -> IResult<&str, Expr<'_>> {
     let (i, (s, args)) = tuple((ws(identifier), arguments))(i)?;
     Ok((i, Expr::VarCall(s, args)))
 }
 
-fn path(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
+fn path(i: &str) -> IResult<&str, Vec<&str>> {
     let root = opt(value("", ws(tag("::"))));
     let tail = separated_list1(ws(tag("::")), identifier);
 
@@ -346,22 +336,22 @@ fn path(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
     }
 }
 
-fn expr_path(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_path(i: &str) -> IResult<&str, Expr<'_>> {
     let (i, path) = path(i)?;
     Ok((i, Expr::Path(path)))
 }
 
-fn expr_path_call(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_path_call(i: &str) -> IResult<&str, Expr<'_>> {
     let (i, (path, args)) = tuple((ws(path), arguments))(i)?;
     Ok((i, Expr::PathCall(path, args)))
 }
 
-fn named_target(i: &[u8]) -> IResult<&[u8], (&str, Target<'_>)> {
+fn named_target(i: &str) -> IResult<&str, (&str, Target<'_>)> {
     let (i, (src, target)) = pair(identifier, opt(preceded(ws(char(':')), target)))(i)?;
     Ok((i, (src, target.unwrap_or(Target::Name(src)))))
 }
 
-fn variant_lit(i: &[u8]) -> IResult<&[u8], Target<'_>> {
+fn variant_lit(i: &str) -> IResult<&str, Target<'_>> {
     alt((
         variant_str_lit,
         variant_char_lit,
@@ -370,7 +360,7 @@ fn variant_lit(i: &[u8]) -> IResult<&[u8], Target<'_>> {
     ))(i)
 }
 
-fn target(i: &[u8]) -> IResult<&[u8], Target<'_>> {
+fn target(i: &str) -> IResult<&str, Target<'_>> {
     let mut opt_opening_paren = map(opt(ws(char('('))), |o| o.is_some());
     let mut opt_closing_paren = map(opt(ws(char(')'))), |o| o.is_some());
     let mut opt_opening_brace = map(opt(ws(char('{'))), |o| o.is_some());
@@ -446,7 +436,7 @@ fn target(i: &[u8]) -> IResult<&[u8], Target<'_>> {
     map(identifier, Target::Name)(i)
 }
 
-fn arguments(i: &[u8]) -> IResult<&[u8], Vec<Expr<'_>>> {
+fn arguments(i: &str) -> IResult<&str, Vec<Expr<'_>>> {
     delimited(
         ws(char('(')),
         separated_list0(char(','), ws(expr_any)),
@@ -454,28 +444,28 @@ fn arguments(i: &[u8]) -> IResult<&[u8], Vec<Expr<'_>>> {
     )(i)
 }
 
-fn macro_arguments(i: &[u8]) -> IResult<&[u8], &str> {
-    delimited(char('('), nested_parenthesis, char(')'))(i)
+fn macro_arguments(i: &str) -> IResult<&str, &str> {
+    delimited(char('('), recognize(nested_parenthesis), char(')'))(i)
 }
 
-fn nested_parenthesis(i: &[u8]) -> IResult<&[u8], &str> {
+fn nested_parenthesis(i: &str) -> IResult<&str, ()> {
     let mut nested = 0;
     let mut last = 0;
     let mut in_str = false;
     let mut escaped = false;
 
-    for (i, b) in i.iter().enumerate() {
-        if !(*b == b'(' || *b == b')') || !in_str {
-            match *b {
-                b'(' => nested += 1,
-                b')' => {
+    for (i, b) in i.chars().enumerate() {
+        if !(b == '(' || b == ')') || !in_str {
+            match b {
+                '(' => nested += 1,
+                ')' => {
                     if nested == 0 {
                         last = i;
                         break;
                     }
                     nested -= 1;
                 }
-                b'"' => {
+                '"' => {
                     if in_str {
                         if !escaped {
                             in_str = false;
@@ -484,20 +474,20 @@ fn nested_parenthesis(i: &[u8]) -> IResult<&[u8], &str> {
                         in_str = true;
                     }
                 }
-                b'\\' => {
+                '\\' => {
                     escaped = !escaped;
                 }
                 _ => (),
             }
         }
 
-        if escaped && *b != b'\\' {
+        if escaped && b != '\\' {
             escaped = false;
         }
     }
 
     if nested == 0 {
-        Ok((&i[last..], str::from_utf8(&i[..last]).unwrap()))
+        Ok((&i[last..], ()))
     } else {
         Err(nom::Err::Error(error_position!(
             i,
@@ -506,7 +496,7 @@ fn nested_parenthesis(i: &[u8]) -> IResult<&[u8], &str> {
     }
 }
 
-fn parameters(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
+fn parameters(i: &str) -> IResult<&str, Vec<&str>> {
     delimited(
         ws(char('(')),
         separated_list0(char(','), ws(identifier)),
@@ -514,13 +504,13 @@ fn parameters(i: &[u8]) -> IResult<&[u8], Vec<&str>> {
     )(i)
 }
 
-fn expr_group(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_group(i: &str) -> IResult<&str, Expr<'_>> {
     map(delimited(ws(char('(')), expr_any, ws(char(')'))), |s| {
         Expr::Group(Box::new(s))
     })(i)
 }
 
-fn expr_single(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_single(i: &str) -> IResult<&str, Expr<'_>> {
     alt((
         expr_bool_lit,
         expr_num_lit,
@@ -536,7 +526,7 @@ fn expr_single(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     ))(i)
 }
 
-fn attr(i: &[u8]) -> IResult<&[u8], (&str, Option<Vec<Expr<'_>>>)> {
+fn attr(i: &str) -> IResult<&str, (&str, Option<Vec<Expr<'_>>>)> {
     let (i, (_, attr, args)) = tuple((
         ws(char('.')),
         alt((num_lit, identifier)),
@@ -545,7 +535,7 @@ fn attr(i: &[u8]) -> IResult<&[u8], (&str, Option<Vec<Expr<'_>>>)> {
     Ok((i, (attr, args)))
 }
 
-fn expr_attr(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_attr(i: &str) -> IResult<&str, Expr<'_>> {
     let (i, (obj, attrs)) = tuple((expr_single, many0(attr)))(i)?;
 
     let mut res = obj;
@@ -560,7 +550,7 @@ fn expr_attr(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     Ok((i, res))
 }
 
-fn expr_index(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_index(i: &str) -> IResult<&str, Expr<'_>> {
     let key = opt(tuple((ws(char('[')), expr_any, ws(char(']')))));
     let (i, (obj, key)) = tuple((expr_attr, key))(i)?;
     let key = key.map(|(_, key, _)| key);
@@ -574,12 +564,12 @@ fn expr_index(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     ))
 }
 
-fn filter(i: &[u8]) -> IResult<&[u8], (&str, Option<Vec<Expr<'_>>>)> {
+fn filter(i: &str) -> IResult<&str, (&str, Option<Vec<Expr<'_>>>)> {
     let (i, (_, fname, args)) = tuple((char('|'), ws(identifier), opt(arguments)))(i)?;
     Ok((i, (fname, args)))
 }
 
-fn expr_filtered(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_filtered(i: &str) -> IResult<&str, Expr<'_>> {
     let (i, (obj, filters)) = tuple((expr_unary, many0(filter)))(i)?;
 
     let mut res = obj;
@@ -597,25 +587,25 @@ fn expr_filtered(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     Ok((i, res))
 }
 
-fn expr_unary(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_unary(i: &str) -> IResult<&str, Expr<'_>> {
     let (i, (op, expr)) = tuple((opt(alt((ws(tag("!")), ws(tag("-"))))), expr_index))(i)?;
     Ok((
         i,
         match op {
-            Some(op) => Expr::Unary(str::from_utf8(op).unwrap(), Box::new(expr)),
+            Some(op) => Expr::Unary(op, Box::new(expr)),
             None => expr,
         },
     ))
 }
 
-fn expr_rust_macro(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_rust_macro(i: &str) -> IResult<&str, Expr<'_>> {
     let (i, (mname, _, args)) = tuple((identifier, char('!'), macro_arguments))(i)?;
     Ok((i, Expr::RustMacro(mname, args)))
 }
 
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $op:expr ) => {
-        fn $name(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+        fn $name(i: &str) -> IResult<&str, Expr<'_>> {
             let (i, left) = $inner(i)?;
             let (i, right) = many0(pair(
                 ws(tag($op)),
@@ -624,13 +614,13 @@ macro_rules! expr_prec_layer {
             Ok((
                 i,
                 right.into_iter().fold(left, |left, (op, right)| {
-                    Expr::BinOp(str::from_utf8(op).unwrap(), Box::new(left), Box::new(right))
+                    Expr::BinOp(op, Box::new(left), Box::new(right))
                 }),
             ))
         }
     };
     ( $name:ident, $inner:ident, $( $op:expr ),+ ) => {
-        fn $name(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+        fn $name(i: &str) -> IResult<&str, Expr<'_>> {
             let (i, left) = $inner(i)?;
             let (i, right) = many0(pair(
                 ws(alt(($( tag($op) ),*,))),
@@ -639,7 +629,7 @@ macro_rules! expr_prec_layer {
             Ok((
                 i,
                 right.into_iter().fold(left, |left, (op, right)| {
-                    Expr::BinOp(str::from_utf8(op).unwrap(), Box::new(left), Box::new(right))
+                    Expr::BinOp(op, Box::new(left), Box::new(right))
                 }),
             ))
         }
@@ -656,7 +646,7 @@ expr_prec_layer!(expr_compare, expr_bor, "==", "!=", ">=", ">", "<=", "<");
 expr_prec_layer!(expr_and, expr_compare, "&&");
 expr_prec_layer!(expr_or, expr_and, "||");
 
-fn range_right(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn range_right(i: &str) -> IResult<&str, Expr<'_>> {
     let (i, (_, incl, right)) = tuple((ws(tag("..")), opt(ws(char('='))), opt(expr_or)))(i)?;
     Ok((
         i,
@@ -668,7 +658,7 @@ fn range_right(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     ))
 }
 
-fn expr_any(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
+fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
     let compound = map(tuple((expr_or, range_right)), |(left, rest)| match rest {
         Expr::Range(op, _, right) => Expr::Range(op, Some(Box::new(left)), right),
         _ => unreachable!(),
@@ -676,7 +666,7 @@ fn expr_any(i: &[u8]) -> IResult<&[u8], Expr<'_>> {
     alt((range_right, compound, expr_or))(i)
 }
 
-fn expr_node<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
+fn expr_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
         |i| tag_expr_start(i, s),
         cut(tuple((opt(char('-')), ws(expr_any), opt(char('-')), |i| {
@@ -687,7 +677,7 @@ fn expr_node<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     Ok((i, Node::Expr(Ws(pws.is_some(), nws.is_some()), expr)))
 }
 
-fn block_call(i: &[u8]) -> IResult<&[u8], Node<'_>> {
+fn block_call(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
         opt(char('-')),
         ws(tag("call")),
@@ -706,7 +696,7 @@ fn block_call(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     ))
 }
 
-fn cond_if(i: &[u8]) -> IResult<&[u8], CondTest<'_>> {
+fn cond_if(i: &str) -> IResult<&str, CondTest<'_>> {
     let mut p = preceded(
         ws(tag("if")),
         cut(tuple((
@@ -722,7 +712,7 @@ fn cond_if(i: &[u8]) -> IResult<&[u8], CondTest<'_>> {
     Ok((i, CondTest { target, expr }))
 }
 
-fn cond_block<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Cond<'a>> {
+fn cond_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Cond<'a>> {
     let mut p = tuple((
         |i| tag_block_start(i, s),
         opt(char('-')),
@@ -738,7 +728,7 @@ fn cond_block<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Cond<'a>> {
     Ok((i, (Ws(pws.is_some(), nws.is_some()), cond, block)))
 }
 
-fn block_if<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
+fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
         opt(char('-')),
         cond_if,
@@ -764,7 +754,7 @@ fn block_if<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     Ok((i, Node::Cond(res, Ws(pws2.is_some(), nws2.is_some()))))
 }
 
-fn match_else_block<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], When<'a>> {
+fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
     let mut p = tuple((
         |i| tag_block_start(i, s),
         opt(char('-')),
@@ -782,7 +772,7 @@ fn match_else_block<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], When<'a
     ))
 }
 
-fn when_block<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], When<'a>> {
+fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
     let mut p = tuple((
         |i| tag_block_start(i, s),
         opt(char('-')),
@@ -798,7 +788,7 @@ fn when_block<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], When<'a>> {
     Ok((i, (Ws(pws.is_some(), nws.is_some()), target, block)))
 }
 
-fn block_match<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
+fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
         opt(char('-')),
         ws(tag("match")),
@@ -856,7 +846,7 @@ fn block_match<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     ))
 }
 
-fn block_let(i: &[u8]) -> IResult<&[u8], Node<'_>> {
+fn block_let(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
         opt(char('-')),
         ws(alt((tag("let"), tag("set")))),
@@ -878,14 +868,14 @@ fn block_let(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     ))
 }
 
-fn parse_loop_content<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Vec<Node<'a>>> {
+fn parse_loop_content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {
     s.loop_depth.set(s.loop_depth.get() + 1);
     let result = parse_template(i, s);
     s.loop_depth.set(s.loop_depth.get() - 1);
     result
 }
 
-fn block_for<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
+fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let if_cond = preceded(ws(tag("if")), cut(ws(expr_any)));
     let else_block = |i| {
         let mut p = preceded(
@@ -945,12 +935,12 @@ fn block_for<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     ))
 }
 
-fn block_extends(i: &[u8]) -> IResult<&[u8], Node<'_>> {
+fn block_extends(i: &str) -> IResult<&str, Node<'_>> {
     let (i, (_, name)) = tuple((ws(tag("extends")), ws(expr_str_lit)))(i)?;
     Ok((i, Node::Extends(name)))
 }
 
-fn block_block<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
+fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut start = tuple((
         opt(char('-')),
         ws(tag("block")),
@@ -982,7 +972,7 @@ fn block_block<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     ))
 }
 
-fn block_include(i: &[u8]) -> IResult<&[u8], Node<'_>> {
+fn block_include(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
         opt(char('-')),
         ws(tag("include")),
@@ -1001,7 +991,7 @@ fn block_include(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     ))
 }
 
-fn block_import(i: &[u8]) -> IResult<&[u8], Node<'_>> {
+fn block_import(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
         opt(char('-')),
         ws(tag("import")),
@@ -1025,7 +1015,7 @@ fn block_import(i: &[u8]) -> IResult<&[u8], Node<'_>> {
     ))
 }
 
-fn block_macro<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
+fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
         opt(char('-')),
         ws(tag("macro")),
@@ -1063,7 +1053,7 @@ fn block_macro<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     ))
 }
 
-fn block_raw<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
+fn block_raw<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
         opt(char('-')),
         ws(tag("raw")),
@@ -1079,18 +1069,17 @@ fn block_raw<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     ));
 
     let (i, (pws1, _, (nws1, _, contents, _, pws2, _, nws2))) = p(i)?;
-    let str_contents = str::from_utf8(contents).unwrap();
     Ok((
         i,
         Node::Raw(
             Ws(pws1.is_some(), nws1.is_some()),
-            str_contents,
+            contents,
             Ws(pws2.is_some(), nws2.is_some()),
         ),
     ))
 }
 
-fn break_statement<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
+fn break_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((opt(char('-')), ws(tag("break")), opt(char('-'))));
     let (j, (pws, _, nws)) = p(i)?;
     if s.loop_depth.get() == 0 {
@@ -1099,7 +1088,7 @@ fn break_statement<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>
     Ok((j, Node::Break(Ws(pws.is_some(), nws.is_some()))))
 }
 
-fn continue_statement<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
+fn continue_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((opt(char('-')), ws(tag("continue")), opt(char('-'))));
     let (j, (pws, _, nws)) = p(i)?;
     if s.loop_depth.get() == 0 {
@@ -1108,7 +1097,7 @@ fn continue_statement<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<
     Ok((j, Node::Continue(Ws(pws.is_some(), nws.is_some()))))
 }
 
-fn block_node<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
+fn block_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
         |i| tag_block_start(i, s),
         alt((
@@ -1132,7 +1121,7 @@ fn block_node<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
     Ok((i, contents))
 }
 
-fn block_comment_body<'a>(mut i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], &'a [u8]> {
+fn block_comment_body<'a>(mut i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
     let mut level = 0;
     loop {
         let (end, tail) = take_until(s.syntax.comment_end)(i)?;
@@ -1150,7 +1139,7 @@ fn block_comment_body<'a>(mut i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], &
     }
 }
 
-fn block_comment<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
+fn block_comment<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
         |i| tag_comment_start(i, s),
         cut(tuple((
@@ -1160,10 +1149,10 @@ fn block_comment<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> 
         ))),
     ));
     let (i, (_, (pws, tail, _))) = p(i)?;
-    Ok((i, Node::Comment(Ws(pws.is_some(), tail.ends_with(b"-")))))
+    Ok((i, Node::Comment(Ws(pws.is_some(), tail.ends_with('-')))))
 }
 
-fn parse_template<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Vec<Node<'a>>> {
+fn parse_template<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {
     many0(alt((
         complete(|i| take_content(i, s)),
         complete(|i| block_comment(i, s)),
@@ -1172,22 +1161,22 @@ fn parse_template<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Vec<Node<
     )))(i)
 }
 
-fn tag_block_start<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], &'a [u8]> {
+fn tag_block_start<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
     tag(s.syntax.block_start)(i)
 }
-fn tag_block_end<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], &'a [u8]> {
+fn tag_block_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
     tag(s.syntax.block_end)(i)
 }
-fn tag_comment_start<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], &'a [u8]> {
+fn tag_comment_start<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
     tag(s.syntax.comment_start)(i)
 }
-fn tag_comment_end<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], &'a [u8]> {
+fn tag_comment_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
     tag(s.syntax.comment_end)(i)
 }
-fn tag_expr_start<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], &'a [u8]> {
+fn tag_expr_start<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
     tag(s.syntax.expr_start)(i)
 }
-fn tag_expr_end<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], &'a [u8]> {
+fn tag_expr_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
     tag(s.syntax.expr_end)(i)
 }
 
@@ -1196,11 +1185,10 @@ pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Result<Vec<Node<'a>>, 
         syntax,
         loop_depth: Cell::new(0),
     };
-    match parse_template(src.as_bytes(), &state) {
+    match parse_template(src, &state) {
         Ok((left, res)) => {
             if !left.is_empty() {
-                let s = str::from_utf8(left).unwrap();
-                Err(format!("unable to parse template:\n\n{:?}", s).into())
+                Err(format!("unable to parse template:\n\n{:?}", left).into())
             } else {
                 Ok(res)
             }
@@ -1238,7 +1226,7 @@ mod tests {
     use crate::Syntax;
 
     fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
-        match super::split_ws_parts(s.as_bytes()) {
+        match super::split_ws_parts(s) {
             Node::Lit(lws, s, rws) => {
                 assert_eq!(lws, res.0);
                 assert_eq!(s, res.1);
