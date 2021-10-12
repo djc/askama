@@ -4,11 +4,11 @@ use std::str;
 use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_a, is_not, tag, take_till, take_until};
 use nom::character::complete::{anychar, char, digit1};
-use nom::combinator::{complete, cut, map, opt, recognize, value};
+use nom::combinator::{complete, cut, eof, map, not, opt, recognize, value};
 use nom::error::Error;
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
-use nom::{self, IResult, Offset, error_position};
+use nom::{self, error_position, IResult, Offset};
 
 use crate::{CompileError, Syntax};
 
@@ -170,60 +170,32 @@ fn split_ws_parts(s: &[u8]) -> Node<'_> {
     Node::Lit(&s[..len_start], trimmed, &trimmed_start[trimmed.len()..])
 }
 
-#[derive(Debug)]
-enum ContentState {
-    Start,
-    Any,
-    Brace(usize),
-    End(usize),
-}
-
 struct State<'a> {
     syntax: &'a Syntax<'a>,
     loop_depth: Cell<usize>,
 }
 
 fn take_content<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
-    use crate::parser::ContentState::*;
-    let bs = s.syntax.block_start.as_bytes()[0];
-    let be = s.syntax.block_start.as_bytes()[1];
-    let cs = s.syntax.comment_start.as_bytes()[0];
-    let ce = s.syntax.comment_start.as_bytes()[1];
-    let es = s.syntax.expr_start.as_bytes()[0];
-    let ee = s.syntax.expr_start.as_bytes()[1];
-
-    let mut state = Start;
-    for (idx, c) in i.iter().enumerate() {
-        state = match state {
-            Start | Any => {
-                if *c == bs || *c == es || *c == cs {
-                    Brace(idx)
-                } else {
-                    Any
-                }
+    let p_start = alt((
+        tag(s.syntax.block_start),
+        tag(s.syntax.comment_start),
+        tag(s.syntax.expr_start),
+    ));
+    let (i, _) = not(eof)(i)?;
+    let (_, d) = opt(skip_till(anychar, p_start))(i)?;
+    let (content, i) = match d {
+        Some((content, _)) => match content {
+            &[] => {
+                return Err(nom::Err::Error(error_position!(
+                    i,
+                    nom::error::ErrorKind::TakeUntil
+                )))
             }
-            Brace(start) => {
-                if *c == be || *c == ee || *c == ce {
-                    End(start)
-                } else {
-                    Any
-                }
-            }
-            End(_) => unreachable!(),
-        };
-        if let End(_) = state {
-            break;
-        }
-    }
-
-    match state {
-        Any | Brace(_) => Ok((&i[..0], split_ws_parts(i))),
-        Start | End(0) => Err(nom::Err::Error(error_position!(
-            i,
-            nom::error::ErrorKind::TakeUntil
-        ))),
-        End(start) => Ok((&i[start..], split_ws_parts(&i[..start]))),
-    }
+            content => i.split_at(content.len()),
+        },
+        None => (i, &[][..]),
+    };
+    Ok((i, split_ws_parts(content)))
 }
 
 fn identifier(input: &[u8]) -> IResult<&[u8], &str> {
