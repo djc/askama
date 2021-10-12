@@ -8,7 +8,7 @@ use nom::combinator::{complete, cut, eof, map, not, opt, recognize, value};
 use nom::error::Error;
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
-use nom::{self, error_position, IResult, Offset};
+use nom::{self, error_position, AsChar, IResult, InputTakeAtPosition, Offset};
 
 use crate::{CompileError, Syntax};
 
@@ -199,24 +199,22 @@ fn take_content<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
 }
 
 fn identifier(input: &[u8]) -> IResult<&[u8], &str> {
-    if !nom::character::is_alphabetic(input[0]) && input[0] != b'_' && !non_ascii(input[0]) {
-        return Err(nom::Err::Error(nom::error::Error::new(
-            input,
-            nom::error::ErrorKind::AlphaNumeric,
-        )));
-    }
-    for (i, ch) in input.iter().enumerate() {
-        if i == 0 || nom::character::is_alphanumeric(*ch) || *ch == b'_' || non_ascii(*ch) {
-            continue;
-        }
-        return Ok((&input[i..], str::from_utf8(&input[..i]).unwrap()));
-    }
-    Ok((&input[1..], str::from_utf8(&input[..1]).unwrap()))
+    let (i, s) = recognize(pair(identifier_start, opt(identifier_tail)))(input)?;
+    Ok((i, str::from_utf8(s).unwrap()))
 }
 
-#[inline]
-fn non_ascii(chr: u8) -> bool {
-    (0x80..=0xFD).contains(&chr)
+fn identifier_start(s: &[u8]) -> IResult<&[u8], &[u8]> {
+    s.split_at_position1_complete(
+        |c| !(c.is_alpha() || c == b'_' || c >= 0x80),
+        nom::error::ErrorKind::Alpha,
+    )
+}
+
+fn identifier_tail(s: &[u8]) -> IResult<&[u8], &[u8]> {
+    s.split_at_position1_complete(
+        |c| !(c.is_alphanum() || c == b'_' || c >= 0x80),
+        nom::error::ErrorKind::Alpha,
+    )
 }
 
 fn bool_lit(i: &[u8]) -> IResult<&[u8], &str> {
