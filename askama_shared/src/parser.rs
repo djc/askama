@@ -2,13 +2,13 @@ use std::cell::Cell;
 use std::str;
 
 use nom::branch::alt;
-use nom::bytes::complete::{escaped, is_not, tag, take_until};
+use nom::bytes::complete::{escaped, is_not, tag, take_till, take_until};
 use nom::character::complete::{anychar, char, digit1};
 use nom::combinator::{complete, cut, map, opt, recognize, value};
-use nom::error::{Error, ErrorKind, ParseError};
+use nom::error::{Error, ErrorKind};
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
-use nom::{self, error_position, Compare, IResult, InputLength, InputTake};
+use nom::{self, IResult, error_position};
 
 use crate::{CompileError, Syntax};
 
@@ -140,50 +140,26 @@ pub struct CondTest<'a> {
     pub expr: Expr<'a>,
 }
 
-fn ws<F, I, O, E>(mut inner: F) -> impl FnMut(I) -> IResult<I, O, E>
-where
-    F: FnMut(I) -> IResult<I, O, E>,
-    I: InputLength + InputTake + Clone + PartialEq + for<'a> Compare<&'a [u8; 1]>,
-    E: ParseError<I>,
-{
-    move |i: I| {
-        let mut ws = many0(alt::<_, _, (), _>((
-            tag(b" "),
-            tag(b"\t"),
-            tag(b"\r"),
-            tag(b"\n"),
-        )));
-        let i = ws(i.clone()).map(|(i, _)| i).unwrap_or(i);
-        let (i, res) = inner(i)?;
-        let i = ws(i.clone()).map(|(i, _)| i).unwrap_or(i);
-        Ok((i, res))
-    }
+fn is_ws(c: char) -> bool {
+    matches!(c, ' ' | '\t' | '\r' | '\n')
+}
+
+fn not_ws(c: u8) -> bool {
+    !is_ws(c as char)
+}
+
+fn ws<'a, O>(
+    inner: impl FnMut(&'a [u8]) -> IResult<&'a [u8], O>,
+) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], O> {
+    delimited(take_till(not_ws), inner, take_till(not_ws))
 }
 
 fn split_ws_parts(s: &[u8]) -> Node<'_> {
-    if s.is_empty() {
-        let rs = str::from_utf8(s).unwrap();
-        return Node::Lit(rs, rs, rs);
-    }
-
-    let is_ws = |c: &u8| *c != b' ' && *c != b'\t' && *c != b'\r' && *c != b'\n';
-    let start = s.iter().position(&is_ws);
-    let res = if let Some(start) = start {
-        let end = s.iter().rposition(&is_ws);
-        if let Some(end) = end {
-            (&s[..start], &s[start..=end], &s[end + 1..])
-        } else {
-            (&s[..start], &s[start..], &[] as &[u8])
-        }
-    } else {
-        (s, &[] as &[u8], &[] as &[u8])
-    };
-
-    Node::Lit(
-        str::from_utf8(res.0).unwrap(),
-        str::from_utf8(res.1).unwrap(),
-        str::from_utf8(res.2).unwrap(),
-    )
+    let s = str::from_utf8(s).unwrap();
+    let trimmed_start = s.trim_start_matches(is_ws);
+    let len_start = s.len() - trimmed_start.len();
+    let trimmed = trimmed_start.trim_end_matches(is_ws);
+    Node::Lit(&s[..len_start], trimmed, &trimmed_start[trimmed.len()..])
 }
 
 #[derive(Debug)]
