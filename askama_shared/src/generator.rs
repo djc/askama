@@ -1284,7 +1284,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             self.visit_expr(buf, obj)?;
         }
 
-        buf.write(&format!(".{}(", method));
+        buf.write(&format!(".{}(", normalize_identifier(method)));
         self._visit_args(buf, args)?;
         buf.write(")");
         Ok(DisplayWrap::Unwrapped)
