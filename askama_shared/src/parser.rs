@@ -2,13 +2,13 @@ use std::cell::Cell;
 use std::str;
 
 use nom::branch::alt;
-use nom::bytes::complete::{escaped, is_not, tag, take_till, take_until};
+use nom::bytes::complete::{escaped, is_a, is_not, tag, take_till, take_until};
 use nom::character::complete::{anychar, char, digit1};
 use nom::combinator::{complete, cut, map, opt, recognize, value};
 use nom::error::Error;
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
-use nom::{self, IResult, error_position};
+use nom::{self, IResult, Offset, error_position};
 
 use crate::{CompileError, Syntax};
 
@@ -126,6 +126,26 @@ pub type Cond<'a> = (Ws, Option<CondTest<'a>>, Vec<Node<'a>>);
 pub struct CondTest<'a> {
     pub target: Option<Target<'a>>,
     pub expr: Expr<'a>,
+}
+
+/// Skips over the any amout of `inner` until `end` was found.
+/// Returns a tuple of the skipped string and the found end marker.
+fn skip_till<'a, I, O>(
+    mut inner: impl FnMut(&'a [u8]) -> IResult<&'a [u8], I>,
+    end: impl FnMut(&'a [u8]) -> IResult<&'a [u8], O>,
+) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], (&'a [u8], O)> {
+    let mut opt_end = opt(end);
+    move |start: &'a [u8]| {
+        let mut i = start;
+        loop {
+            if let (j, Some(o)) = opt_end(i)? {
+                let skipped = &start[..start.offset(i)];
+                return Ok((j, (skipped, o)));
+            } else {
+                i = inner(i)?.0;
+            }
+        }
+    }
 }
 
 fn is_ws(c: char) -> bool {
@@ -448,54 +468,24 @@ fn arguments(i: &[u8]) -> IResult<&[u8], Vec<Expr<'_>>> {
 }
 
 fn macro_arguments(i: &[u8]) -> IResult<&[u8], &str> {
-    delimited(char('('), nested_parenthesis, char(')'))(i)
+    let (i, s) = delimited(char('('), recognize(nested_parenthesis), char(')'))(i)?;
+    Ok((i, str::from_utf8(s).unwrap()))
 }
 
-fn nested_parenthesis(i: &[u8]) -> IResult<&[u8], &str> {
-    let mut nested = 0;
-    let mut last = 0;
-    let mut in_str = false;
-    let mut escaped = false;
-
-    for (i, b) in i.iter().enumerate() {
-        if !(*b == b'(' || *b == b')') || !in_str {
-            match *b {
-                b'(' => nested += 1,
-                b')' => {
-                    if nested == 0 {
-                        last = i;
-                        break;
-                    }
-                    nested -= 1;
-                }
-                b'"' => {
-                    if in_str {
-                        if !escaped {
-                            in_str = false;
-                        }
-                    } else {
-                        in_str = true;
-                    }
-                }
-                b'\\' => {
-                    escaped = !escaped;
-                }
-                _ => (),
-            }
-        }
-
-        if escaped && *b != b'\\' {
-            escaped = false;
-        }
-    }
-
-    if nested == 0 {
-        Ok((&i[last..], str::from_utf8(&i[..last]).unwrap()))
-    } else {
-        Err(nom::Err::Error(error_position!(
-            i,
-            nom::error::ErrorKind::SeparatedNonEmptyList
-        )))
+fn nested_parenthesis(mut i: &[u8]) -> IResult<&[u8], ()> {
+    loop {
+        let (j, d) = opt(skip_till(anychar, is_a("()[]{}\"'")))(i)?;
+        let (data, delim) = match d {
+            Some((data, delim)) => (data, delim),
+            None => return Ok((j, ())),
+        };
+        i = match delim {
+            [b'('] => skip_till(nested_parenthesis, char(')'))(j)?.0,
+            [b'['] => skip_till(nested_parenthesis, char(']'))(j)?.0,
+            [b'{'] => skip_till(nested_parenthesis, char('}'))(j)?.0,
+            [b'\"'] | [b'\''] => skip_till(anychar, tag(delim))(j)?.0,
+            _ => return Ok((&i[data.len()..], ())),
+        };
     }
 }
 
