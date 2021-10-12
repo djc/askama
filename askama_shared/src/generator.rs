@@ -457,9 +457,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     self.flush_ws(m.ws1);
                     self.prepare_ws(m.ws2);
                 }
-                Node::Raw(ws1, contents, ws2) => {
+                Node::Raw(ws1, lws, val, rws, ws2) => {
                     self.handle_ws(ws1);
-                    self.buf_writable.push(Writable::Lit(contents));
+                    self.visit_lit(lws, val, rws);
                     self.handle_ws(ws2);
                 }
                 Node::Import(ws, _, _) => {
