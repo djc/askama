@@ -5,7 +5,7 @@ use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_until};
 use nom::character::complete::{anychar, char, digit1};
 use nom::combinator::{complete, cut, map, opt, recognize, value};
-use nom::error::{Error, ParseError};
+use nom::error::{Error, ErrorKind, ParseError};
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{self, error_position, Compare, IResult, InputLength, InputTake};
@@ -234,19 +234,16 @@ fn take_content<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
 
     match state {
         Any | Brace(_) => Ok((&i[..0], split_ws_parts(i))),
-        Start | End(0) => Err(nom::Err::Error(error_position!(
-            i,
-            nom::error::ErrorKind::TakeUntil
-        ))),
+        Start | End(0) => Err(nom::Err::Error(error_position!(i, ErrorKind::TakeUntil))),
         End(start) => Ok((&i[start..], split_ws_parts(&i[..start]))),
     }
 }
 
 fn identifier(input: &[u8]) -> IResult<&[u8], &str> {
     if !nom::character::is_alphabetic(input[0]) && input[0] != b'_' && !non_ascii(input[0]) {
-        return Err(nom::Err::Error(nom::error::Error::new(
+        return Err(nom::Err::Error(error_position!(
             input,
-            nom::error::ErrorKind::AlphaNumeric,
+            ErrorKind::AlphaNumeric
         )));
     }
     for (i, ch) in input.iter().enumerate() {
@@ -530,7 +527,7 @@ fn nested_parenthesis(i: &[u8]) -> IResult<&[u8], &str> {
     } else {
         Err(nom::Err::Error(error_position!(
             i,
-            nom::error::ErrorKind::SeparatedNonEmptyList
+            ErrorKind::SeparatedNonEmptyList
         )))
     }
 }
@@ -1123,10 +1120,7 @@ fn break_statement<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>
     let mut p = tuple((opt(char('-')), ws(tag("break")), opt(char('-'))));
     let (j, (pws, _, nws)) = p(i)?;
     if s.loop_depth.get() == 0 {
-        return Err(nom::Err::Failure(error_position!(
-            i,
-            nom::error::ErrorKind::Tag
-        )));
+        return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
     }
     Ok((j, Node::Break(Ws(pws.is_some(), nws.is_some()))))
 }
@@ -1135,10 +1129,7 @@ fn continue_statement<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<
     let mut p = tuple((opt(char('-')), ws(tag("continue")), opt(char('-'))));
     let (j, (pws, _, nws)) = p(i)?;
     if s.loop_depth.get() == 0 {
-        return Err(nom::Err::Failure(error_position!(
-            i,
-            nom::error::ErrorKind::Tag
-        )));
+        return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
     }
     Ok((j, Node::Continue(Ws(pws.is_some(), nws.is_some()))))
 }
