@@ -19,6 +19,22 @@ fn test_self_method() {
 }
 
 #[derive(Template)]
+#[template(source = "{{ self.type() }}", ext = "txt")]
+struct SelfRawIdentifierMethodTemplate {}
+
+impl SelfRawIdentifierMethodTemplate {
+    fn r#type(&self) -> &str {
+        "foo"
+    }
+}
+
+#[test]
+fn test_self_rawidentifiermethod() {
+    let t = SelfRawIdentifierMethodTemplate {};
+    assert_eq!(t.render().unwrap(), "foo");
+}
+
+#[derive(Template)]
 #[template(source = "{{ self.get_s() }} {{ t.get_s() }}", ext = "txt")]
 struct NestedSelfMethodTemplate<'a> {
     t: SelfMethodTemplate<'a>,
