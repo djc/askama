@@ -29,7 +29,7 @@ impl SelfRawIdentifierMethodTemplate {
 }
 
 #[test]
-fn test_self_rawidentifiermethod() {
+fn test_self_raw_identifier_method() {
     let t = SelfRawIdentifierMethodTemplate {};
     assert_eq!(t.render().unwrap(), "foo");
 }
