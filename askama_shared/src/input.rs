@@ -31,15 +31,11 @@ impl<'a> TemplateInput<'a> {
         let meta = ast
             .attrs
             .iter()
-            .find_map(|attr| match attr.parse_meta() {
-                Ok(m) => {
-                    if m.path().is_ident("template") {
-                        Some(Ok(m))
-                    } else {
-                        None
-                    }
-                }
-                Err(e) => Some(Err(format!("unable to parse attribute: {}", e).into())),
+            .find_map(|attr| {
+                attr.path.is_ident("template").then(|| {
+                    attr.parse_meta()
+                        .map_err(|e| format!("unable to parse attribute: {}", e).into())
+                })
             })
             .unwrap_or(Err(CompileError::Static("no attribute 'template' found")))?;
 
