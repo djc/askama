@@ -82,11 +82,14 @@ fn find_used_templates(
             match n {
                 Node::Extends(Expr::StrLit(extends)) => {
                     let extends = input.config.find_template(extends, Some(&path))?;
-                    let dependency_path = format!("{:?} --> {:?}", path, extends);
+                    let dependency_path = (path.clone(), extends.clone());
                     if dependency_graph.contains(&dependency_path) {
                         return Err(CompileError::String(format!(
-                            "There is cyclic dependecy in dependency graph {:#?}",
+                            "cyclic dependecy in graph {:#?}",
                             dependency_graph
+                                .iter()
+                                .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
+                                .collect::<Vec<String>>()
                         )));
                     }
                     dependency_graph.push(dependency_path);
