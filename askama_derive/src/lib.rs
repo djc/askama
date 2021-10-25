@@ -75,12 +75,24 @@ fn find_used_templates(
     map: &mut HashMap<PathBuf, String>,
     source: String,
 ) -> Result<(), CompileError> {
+    let mut dependency_graph = Vec::new();
     let mut check = vec![(input.path.clone(), source)];
     while let Some((path, source)) = check.pop() {
         for n in parse(&source, input.syntax)? {
             match n {
                 Node::Extends(Expr::StrLit(extends)) => {
                     let extends = input.config.find_template(extends, Some(&path))?;
+                    let dependency_path = (path.clone(), extends.clone());
+                    if dependency_graph.contains(&dependency_path) {
+                        return Err(CompileError::String(format!(
+                            "cyclic dependecy in graph {:#?}",
+                            dependency_graph
+                                .iter()
+                                .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
+                                .collect::<Vec<String>>()
+                        )));
+                    }
+                    dependency_graph.push(dependency_path);
                     let source = get_template_source(&extends)?;
                     check.push((extends, source));
                 }
