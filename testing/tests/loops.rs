@@ -417,3 +417,21 @@ fn test_for_cycle_empty() {
     };
     assert!(t.render().is_err())
 }
+
+#[derive(Template)]
+#[template(
+    source = "{% for i in 0..limit if i % 2 == 1 %}{{i}}.{% else %}:({% endfor %}",
+    ext = "txt"
+)]
+struct ForInIf {
+    limit: usize,
+}
+
+#[test]
+fn test_for_in_if() {
+    let t = ForInIf { limit: 10 };
+    assert_eq!(t.render().unwrap(), "1.3.5.7.9.");
+
+    let t = ForInIf { limit: 1 };
+    assert_eq!(t.render().unwrap(), ":(");
+}
