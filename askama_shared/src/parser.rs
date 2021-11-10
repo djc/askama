@@ -38,6 +38,7 @@ pub struct Loop<'a> {
     pub ws1: Ws,
     pub var: Target<'a>,
     pub iter: Expr<'a>,
+    pub cond: Option<Expr<'a>>,
     pub body: Vec<Node<'a>>,
     pub ws2: Ws,
     pub else_block: Vec<Node<'a>>,
@@ -914,6 +915,7 @@ fn parse_loop_content<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Vec<N
 }
 
 fn block_for<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
+    let if_cond = preceded(ws(tag("if")), cut(ws(expr_any)));
     let else_block = |i| {
         let mut p = preceded(
             ws(tag("else")),
@@ -938,6 +940,7 @@ fn block_for<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
             ws(tag("in")),
             cut(tuple((
                 ws(expr_any),
+                opt(if_cond),
                 opt(char('-')),
                 |i| tag_block_end(i, s),
                 cut(tuple((
@@ -953,7 +956,8 @@ fn block_for<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
             ))),
         ))),
     ));
-    let (i, (pws1, _, (var, _, (iter, nws1, _, (body, (_, pws2, else_block, _, nws2)))))) = p(i)?;
+    let (i, (pws1, _, (var, _, (iter, cond, nws1, _, (body, (_, pws2, else_block, _, nws2)))))) =
+        p(i)?;
     let (nws3, else_block, pws3) = else_block.unwrap_or_default();
     Ok((
         i,
@@ -961,6 +965,7 @@ fn block_for<'a>(i: &'a [u8], s: &State<'_>) -> IResult<&'a [u8], Node<'a>> {
             ws1: Ws(pws1.is_some(), nws1.is_some()),
             var,
             iter,
+            cond,
             body,
             ws2: Ws(pws2.is_some(), nws3),
             else_block,

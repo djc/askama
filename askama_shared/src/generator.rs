@@ -605,52 +605,50 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         let flushed = self.write_buf_writable(buf)?;
         buf.writeln("{")?;
-        buf.writeln("let mut _did_not_loop = true;")?;
-        buf.write("for (");
-        self.visit_target(buf, true, true, &loop_block.var);
+        buf.writeln("let mut _did_loop = false;")?;
         match loop_block.iter {
-            Expr::Range(_, _, _) => buf.writeln(&format!(
-                ", _loop_item) in ::askama::helpers::TemplateLoop::new({}) {{",
-                expr_code
-            )),
-            Expr::Array(..) => buf.writeln(&format!(
-                ", _loop_item) in ::askama::helpers::TemplateLoop::new({}.iter()) {{",
-                expr_code
-            )),
+            Expr::Range(_, _, _) => buf.writeln(&format!("let _iter = {};", expr_code)),
+            Expr::Array(..) => buf.writeln(&format!("let _iter = {}.iter();", expr_code)),
             // If `iter` is a call then we assume it's something that returns
             // an iterator. If not then the user can explicitly add the needed
             // call without issues.
-            Expr::MethodCall(..) | Expr::PathCall(..) | Expr::Index(..) => buf.writeln(&format!(
-                ", _loop_item) in ::askama::helpers::TemplateLoop::new(({}).into_iter()) {{",
-                expr_code
-            )),
+            Expr::MethodCall(..) | Expr::PathCall(..) | Expr::Index(..) => {
+                buf.writeln(&format!("let _iter = ({}).into_iter();", expr_code))
+            }
             // If accessing `self` then it most likely needs to be
             // borrowed, to prevent an attempt of moving.
-            _ if expr_code.starts_with("self.") => buf.writeln(&format!(
-                ", _loop_item) in ::askama::helpers::TemplateLoop::new(((&{}).into_iter())) {{",
-                expr_code
-            )),
+            _ if expr_code.starts_with("self.") => {
+                buf.writeln(&format!("let _iter = (&{}).into_iter();", expr_code))
+            }
             // If accessing a field then it most likely needs to be
             // borrowed, to prevent an attempt of moving.
-            Expr::Attr(..) => buf.writeln(&format!(
-                ", _loop_item) in ::askama::helpers::TemplateLoop::new(((&{}).into_iter())) {{",
-                expr_code
-            )),
+            Expr::Attr(..) => buf.writeln(&format!("let _iter = (&{}).into_iter();", expr_code)),
             // Otherwise, we borrow `iter` assuming that it implements `IntoIterator`.
-            _ => buf.writeln(&format!(
-                ", _loop_item) in ::askama::helpers::TemplateLoop::new(({}).into_iter()) {{",
-                expr_code
-            )),
+            _ => buf.writeln(&format!("let _iter = ({}).into_iter();", expr_code)),
         }?;
+        if let Some(cond) = &loop_block.cond {
+            self.locals.push();
+            buf.write("let _iter = _iter.filter(|");
+            self.visit_target(buf, true, true, &loop_block.var);
+            buf.write("| -> bool {");
+            self.visit_expr(buf, cond)?;
+            buf.writeln("});")?;
+            self.locals.pop();
+        }
 
-        buf.writeln("_did_not_loop = false;")?;
+        self.locals.push();
+        buf.write("for (");
+        self.visit_target(buf, true, true, &loop_block.var);
+        buf.writeln(", _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {")?;
+
+        buf.writeln("_did_loop = true;")?;
         let mut size_hint1 = self.handle(ctx, &loop_block.body, buf, AstLevel::Nested)?;
         self.handle_ws(loop_block.ws2);
         size_hint1 += self.write_buf_writable(buf)?;
         self.locals.pop();
         buf.writeln("}")?;
 
-        buf.writeln("if _did_not_loop {")?;
+        buf.writeln("if !_did_loop {")?;
         self.locals.push();
         let mut size_hint2 = self.handle(ctx, &loop_block.else_block, buf, AstLevel::Nested)?;
         self.handle_ws(loop_block.ws3);
