@@ -212,7 +212,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         self.write_header(buf, "::actix_web::Responder", None)?;
         buf.writeln(
             "fn respond_to(self, _req: &::actix_web::HttpRequest) \
-             -> actix_web::HttpResponse {",
+             -> ::actix_web::HttpResponse {",
         )?;
 
         buf.writeln("use ::askama_actix::TemplateToResponse;")?;
