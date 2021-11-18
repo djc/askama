@@ -106,15 +106,6 @@ where
     Ok(MarkupDisplay::new_unsafe(v, e))
 }
 
-/// Alias for the `escape()` filter
-pub fn e<E, T>(e: E, v: T) -> Result<MarkupDisplay<E, T>>
-where
-    E: Escaper,
-    T: fmt::Display,
-{
-    escape(e, v)
-}
-
 #[cfg(feature = "humansize")]
 /// Returns adequate string representation (in KB, ..) of number of bytes
 pub fn filesizeformat<B: FileSize>(b: &B) -> Result<String> {

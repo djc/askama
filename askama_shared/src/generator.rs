@@ -1091,7 +1091,10 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         mut name: &str,
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
-        if name == "format" {
+        if matches!(name, "escape" | "e") {
+            self._visit_escape_filter(buf, args)?;
+            return Ok(DisplayWrap::Wrapped);
+        } else if name == "format" {
             self._visit_format_filter(buf, args)?;
             return Ok(DisplayWrap::Unwrapped);
         } else if name == "fmt" {
@@ -1115,7 +1118,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             return Err("the `yaml` filter requires the `serde-yaml` feature to be enabled".into());
         }
 
-        const FILTERS: [&str; 5] = ["safe", "escape", "e", "json", "yaml"];
+        const FILTERS: [&str; 3] = ["safe", "json", "yaml"];
         if FILTERS.contains(&name) {
             buf.write(&format!(
                 "::askama::filters::{}({}, ",
@@ -1133,6 +1136,37 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             true => DisplayWrap::Wrapped,
             false => DisplayWrap::Unwrapped,
         })
+    }
+
+    fn _visit_escape_filter(
+        &mut self,
+        buf: &mut Buffer,
+        args: &[Expr<'_>],
+    ) -> Result<(), CompileError> {
+        if args.len() > 2 {
+            return Err("only two arguments allowed to escape filter".into());
+        }
+        let opt_escaper = match args.get(1) {
+            Some(Expr::StrLit(name)) => Some(*name),
+            Some(_) => return Err("invalid escaper type for escape filter".into()),
+            None => None,
+        };
+        let escaper = match opt_escaper {
+            Some(name) => self
+                .input
+                .config
+                .escapers
+                .iter()
+                .find_map(|(escapers, escaper)| escapers.contains(name).then(|| escaper))
+                .ok_or(CompileError::Static("invalid escaper for escape filter"))?,
+            None => self.input.escaper,
+        };
+        buf.write("::askama::filters::escape(");
+        buf.write(escaper);
+        buf.write(", ");
+        self._visit_args(buf, &args[..1])?;
+        buf.write(")?");
+        Ok(())
     }
 
     fn _visit_format_filter(
