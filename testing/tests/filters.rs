@@ -27,6 +27,54 @@ fn filter_escape() {
 }
 
 #[derive(Template)]
+#[template(
+    source = "{{ \"<h1 class=\\\"title\\\">Foo Bar</h1>\"|escape(\"none\") }}
+{{ \"<h1 class=\\\"title\\\">Foo Bar</h1>\"|escape(\"html\") }}
+{{ \"<h1 class=\\\"title\\\">Foo Bar</h1>\"|escape }}
+{{ \"<h1 class=\\\"title\\\">Foo Bar</h1>\" }}
+",
+    ext = "txt",
+    escape = "none"
+)]
+struct OptEscaperNoneTemplate;
+
+#[test]
+fn filter_opt_escaper_none() {
+    let t = OptEscaperNoneTemplate;
+    assert_eq!(
+        t.render().unwrap(),
+        r#"<h1 class="title">Foo Bar</h1>
+&lt;h1 class=&quot;title&quot;&gt;Foo Bar&lt;/h1&gt;
+<h1 class="title">Foo Bar</h1>
+<h1 class="title">Foo Bar</h1>"#
+    );
+}
+
+#[derive(Template)]
+#[template(
+    source = "{{ \"<h1 class=\\\"title\\\">Foo Bar</h1>\"|escape(\"none\") }}
+{{ \"<h1 class=\\\"title\\\">Foo Bar</h1>\"|escape(\"html\") }}
+{{ \"<h1 class=\\\"title\\\">Foo Bar</h1>\"|escape }}
+{{ \"<h1 class=\\\"title\\\">Foo Bar</h1>\" }}
+",
+    ext = "txt",
+    escape = "html"
+)]
+struct OptEscaperHtmlTemplate;
+
+#[test]
+fn filter_opt_escaper_html() {
+    let t = OptEscaperHtmlTemplate;
+    assert_eq!(
+        t.render().unwrap(),
+        r#"<h1 class="title">Foo Bar</h1>
+&lt;h1 class=&quot;title&quot;&gt;Foo Bar&lt;/h1&gt;
+&lt;h1 class=&quot;title&quot;&gt;Foo Bar&lt;/h1&gt;
+&lt;h1 class=&quot;title&quot;&gt;Foo Bar&lt;/h1&gt;"#
+    );
+}
+
+#[derive(Template)]
 #[template(path = "format.html", escape = "none")]
 struct FormatTemplate<'a> {
     var: &'a str,
