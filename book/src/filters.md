@@ -73,6 +73,28 @@ Output:
 Escape &lt;&gt;&amp;
 ```
 
+Optionally, it is possible to specify and override which escaper is used. Consider a template where the escaper is configured as [`escape = "none"`]. However, somewhere escaping using the HTML escaper is desired. Then it is possible to override and use the HTML escaper like this:
+
+```jinja
+{{ "Don't Escape <>&"|escape }}
+{{ "Don't Escape <>&"|e }}
+
+{{ "Escape <>&"|escape("html") }}
+{{ "Escape <>&"|e("html") }}
+```
+
+Output:
+
+```text
+Don't Escape <>&
+Don't Escape <>&
+
+Escape &lt;&gt;&amp;
+Escape &lt;&gt;&amp;
+```
+
+[`escape = "none"`]: creating_templates.html#the-template-attribute
+
 ### filesizeformat
 
 Returns adequate string representation (in KB, ..) of number of bytes:
