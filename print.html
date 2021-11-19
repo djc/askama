@@ -772,6 +772,20 @@ but are disabled by default. Enable them with Cargo features (see below for more
 <p>Output:</p>
 <pre><code>Escape &amp;lt;&amp;gt;&amp;amp;
 </code></pre>
+<p>Optionally, it is possible to specify and override which escaper is used. Consider a template where the escaper is configured as <a href="creating_templates.html#the-template-attribute"><code>escape = &quot;none&quot;</code></a>. However, somewhere escaping using the HTML escaper is desired. Then it is possible to override and use the HTML escaper like this:</p>
+<pre><code class="language-jinja">{{ &quot;Don't Escape &lt;&gt;&amp;&quot;|escape }}
+{{ &quot;Don't Escape &lt;&gt;&amp;&quot;|e }}
+
+{{ &quot;Escape &lt;&gt;&amp;&quot;|escape(&quot;html&quot;) }}
+{{ &quot;Escape &lt;&gt;&amp;&quot;|e(&quot;html&quot;) }}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Don't Escape &lt;&gt;&amp;
+Don't Escape &lt;&gt;&amp;
+
+Escape &amp;lt;&amp;gt;&amp;amp;
+Escape &amp;lt;&amp;gt;&amp;amp;
+</code></pre>
 <h3 id="filesizeformat"><a class="header" href="#filesizeformat">filesizeformat</a></h3>
 <p>Returns adequate string representation (in KB, ..) of number of bytes:</p>
 <pre><code>{{ 1000|filesizeformat }}
