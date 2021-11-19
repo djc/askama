@@ -4,7 +4,7 @@ use std::str;
 use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_till, take_until};
 use nom::character::complete::{anychar, char, digit1};
-use nom::combinator::{complete, cut, map, opt, recognize, value};
+use nom::combinator::{complete, cut, eof, map, not, opt, recognize, value};
 use nom::error::{Error, ErrorKind};
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
@@ -161,12 +161,26 @@ fn split_ws_parts(s: &str) -> Node<'_> {
     Node::Lit(&s[..len_start], trimmed, &trimmed_start[trimmed.len()..])
 }
 
-#[derive(Debug)]
-enum ContentState {
-    Start,
-    Any,
-    Brace(usize),
-    End(usize),
+/// Skips input until `end` was found, but does not consume it.
+/// Returns tuple that would be returned when parsing `end`.
+fn skip_till<'a, O>(
+    end: impl FnMut(&'a str) -> IResult<&'a str, O>,
+) -> impl FnMut(&'a str) -> IResult<&'a str, (&'a str, O)> {
+    enum Next<O> {
+        IsEnd(O),
+        NotEnd(char),
+    }
+    let mut next = alt((map(end, Next::IsEnd), map(anychar, Next::NotEnd)));
+    move |start: &'a str| {
+        let mut i = start;
+        loop {
+            let (j, is_end) = next(i)?;
+            match is_end {
+                Next::IsEnd(lookahead) => return Ok((i, (j, lookahead))),
+                Next::NotEnd(_) => i = j,
+            }
+        }
+    }
 }
 
 struct State<'a> {
@@ -175,43 +189,23 @@ struct State<'a> {
 }
 
 fn take_content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
-    use crate::parser::ContentState::*;
-    let bs = s.syntax.block_start.as_bytes()[0] as char;
-    let be = s.syntax.block_start.as_bytes()[1] as char;
-    let cs = s.syntax.comment_start.as_bytes()[0] as char;
-    let ce = s.syntax.comment_start.as_bytes()[1] as char;
-    let es = s.syntax.expr_start.as_bytes()[0] as char;
-    let ee = s.syntax.expr_start.as_bytes()[1] as char;
+    let p_start = alt((
+        tag(s.syntax.block_start),
+        tag(s.syntax.comment_start),
+        tag(s.syntax.expr_start),
+    ));
 
-    let mut state = Start;
-    for (idx, c) in i.chars().enumerate() {
-        state = match state {
-            Start | Any => {
-                if c == bs || c == es || c == cs {
-                    Brace(idx)
-                } else {
-                    Any
-                }
-            }
-            Brace(start) => {
-                if c == be || c == ee || c == ce {
-                    End(start)
-                } else {
-                    Any
-                }
-            }
-            End(_) => unreachable!(),
-        };
-        if let End(_) = state {
-            break;
+    let (i, _) = not(eof)(i)?;
+    let (i, content) = opt(recognize(skip_till(p_start)))(i)?;
+    let (i, content) = match content {
+        Some("") => {
+            // {block,comment,expr}_start follows immediately.
+            return Err(nom::Err::Error(error_position!(i, ErrorKind::TakeUntil)));
         }
-    }
-
-    match state {
-        Any | Brace(_) => Ok((&i[..0], split_ws_parts(i))),
-        Start | End(0) => Err(nom::Err::Error(error_position!(i, ErrorKind::TakeUntil))),
-        End(start) => Ok((&i[start..], split_ws_parts(&i[..start]))),
-    }
+        Some(content) => (i, content),
+        None => ("", i), // there is no {block,comment,expr}_start: take everything
+    };
+    Ok((i, split_ws_parts(content)))
 }
 
 fn identifier(input: &str) -> IResult<&str, &str> {
