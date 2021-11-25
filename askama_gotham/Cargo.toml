@@ -1,7 +1,6 @@
 [package]
 name = "askama_gotham"
 version = "0.12.0"
-authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Gotham integration for Askama templates"
 documentation = "https://docs.rs/askama"
 keywords = ["markup", "template", "jinja2", "html"]

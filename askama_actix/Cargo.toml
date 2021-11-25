@@ -1,7 +1,6 @@
 [package]
 name = "askama_actix"
 version = "0.11.1"
-authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Actix-Web integration for Askama templates"
 documentation = "https://docs.rs/askama"
 keywords = ["markup", "template", "jinja2", "html"]
