@@ -298,7 +298,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             .push(syn::parse_str("A::ResponseBody: From<String>").unwrap());
         where_clause
             .predicates
-            .push(syn::parse_str("A::Error: From<::mendes::askama::Error>").unwrap());
+            .push(syn::parse_str("A::Error: From<::askama_mendes::Error>").unwrap());
 
         buf.writeln(
             format!(
@@ -317,7 +317,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         )?;
 
         buf.writeln(&format!(
-            "::mendes::askama::into_response(app, req, &self, {:?})",
+            "::askama_mendes::into_response(app, req, &self, {:?})",
             self.input.extension()
         ))?;
         buf.writeln("}")?;
