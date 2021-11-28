@@ -149,6 +149,15 @@ handled by your error catcher.</p>
 a value of that type in an Actix-web handler. See
 <a href="https://github.com/djc/askama/blob/main/askama_actix/tests/basic.rs">the example</a>
 from the Askama test suite for more on how to integrate.</p>
+<h2 id="axum-integration"><a class="header" href="#axum-integration">Axum integration</a></h2>
+<p>Enabling the <code>with-axum</code> feature appends an implementation of Axum's
+<code>IntoResponse</code> trait for each template type. This makes it easy to trivially
+return a value of that type in a Axum handler. See
+<a href="https://github.com/djc/askama/blob/main/askama_axum/tests/basic.rs">the example</a>
+from the Askama test suite for more on how to integrate.</p>
+<p>In case of a run-time error occurring during templating, the response will be of the same
+signature, with a status code of <code>500 Internal Server Error</code>, mime <code>*/*</code>, and an empty <code>Body</code>.
+This preserves the response chain if any custom error handling needs to occur.</p>
 <h2 id="gotham-integration"><a class="header" href="#gotham-integration">Gotham integration</a></h2>
 <p>Enabling the <code>with-gotham</code> feature appends an implementation of Gotham's
 <code>IntoResponse</code> trait for each template type. This makes it easy to trivially
