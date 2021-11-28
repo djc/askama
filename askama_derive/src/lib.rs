@@ -111,6 +111,7 @@ fn find_used_templates(
 
 const INTEGRATIONS: Integrations = Integrations {
     actix: cfg!(feature = "actix-web"),
+    axum: cfg!(feature = "axum"),
     gotham: cfg!(feature = "gotham"),
     iron: cfg!(feature = "iron"),
     mendes: cfg!(feature = "mendes"),

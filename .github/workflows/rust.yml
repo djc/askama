@@ -48,6 +48,19 @@ jobs:
       - run: cargo test --package askama_actix --all-targets
       - run: cargo clippy --package askama_actix --all-targets -- -D warnings
 
+  Axum:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: clippy
+      - run: cargo test --package askama_axum --all-targets
+      - run: cargo clippy --package askama_axum --all-targets -- -D warnings
+
   Gotham:
     runs-on: ubuntu-latest
     steps:

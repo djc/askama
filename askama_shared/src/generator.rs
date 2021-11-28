@@ -96,6 +96,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         if self.integrations.actix {
             self.impl_actix_web_responder(&mut buf)?;
         }
+        if self.integrations.axum {
+            self.impl_axum_into_response(&mut buf)?;
+        }
         if self.integrations.gotham {
             self.impl_gotham_into_response(&mut buf)?;
         }
@@ -218,6 +221,21 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("use ::askama_actix::TemplateToResponse;")?;
         buf.writeln("self.to_response()")?;
 
+        buf.writeln("}")?;
+        buf.writeln("}")
+    }
+
+    // Implement Axum's `IntoResponse`.
+    fn impl_axum_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+        self.write_header(buf, "::axum::response::IntoResponse", None)?;
+        buf.writeln(
+            "type Body = ::axum::body::Full<::axum::body::Bytes>;\n\
+            type BodyError = std::convert::Infallible;\n\
+            fn into_response(self)\
+             -> ::axum::http::Response<Self::Body> {",
+        )?;
+        let ext = self.input.extension().unwrap_or("txt");
+        buf.writeln(&format!("::askama_axum::into_response(&self, {:?})", ext))?;
         buf.writeln("}")?;
         buf.writeln("}")
     }

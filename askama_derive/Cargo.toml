@@ -17,6 +17,7 @@ proc-macro = true
 config = ["askama_shared/config"]
 
 actix-web = []
+axum = []
 gotham = []
 iron = []
 mendes = []

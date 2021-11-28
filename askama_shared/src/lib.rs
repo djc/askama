@@ -274,6 +274,7 @@ pub fn get_template_source(tpl_path: &Path) -> std::result::Result<String, Compi
 #[derive(Clone, Copy, Debug)]
 pub struct Integrations {
     pub actix: bool,
+    pub axum: bool,
     pub gotham: bool,
     pub iron: bool,
     pub mendes: bool,
