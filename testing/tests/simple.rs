@@ -433,6 +433,16 @@ fn test_raw_complex() {
     );
 }
 
+#[derive(Template)]
+#[template(path = "raw-ws.html")]
+struct RawTemplateWs;
+
+#[test]
+fn test_raw_ws() {
+    let template = RawTemplateWs;
+    assert_eq!(template.render().unwrap(), "<{{hello}}>\n<{{bye}}>");
+}
+
 mod without_import_on_derive {
     #[derive(askama::Template)]
     #[template(source = "foo", ext = "txt")]

@@ -4,7 +4,7 @@ use std::str;
 use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_till, take_until};
 use nom::character::complete::{anychar, char, digit1};
-use nom::combinator::{complete, cut, eof, map, not, opt, recognize, value};
+use nom::combinator::{complete, consumed, cut, eof, map, not, opt, peek, recognize, value};
 use nom::error::{Error, ErrorKind};
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
@@ -28,7 +28,7 @@ pub enum Node<'a> {
     Include(Ws, &'a str),
     Import(Ws, &'a str, &'a str),
     Macro(&'a str, Macro<'a>),
-    Raw(Ws, &'a str, Ws),
+    Raw(Ws, &'a str, &'a str, &'a str, Ws),
     Break(Ws),
     Continue(Ws),
 }
@@ -1048,29 +1048,32 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 }
 
 fn block_raw<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
+    let endraw = tuple((
+        |i| tag_block_start(i, s),
+        opt(char('-')),
+        ws(tag("endraw")),
+        opt(char('-')),
+        peek(|i| tag_block_end(i, s)),
+    ));
+
     let mut p = tuple((
         opt(char('-')),
         ws(tag("raw")),
         cut(tuple((
             opt(char('-')),
             |i| tag_block_end(i, s),
-            take_until("{% endraw %}"),
-            |i| tag_block_start(i, s),
-            opt(char('-')),
-            ws(tag("endraw")),
-            opt(char('-')),
+            consumed(skip_till(endraw)),
         ))),
     ));
 
-    let (i, (pws1, _, (nws1, _, contents, _, pws2, _, nws2))) = p(i)?;
-    Ok((
-        i,
-        Node::Raw(
-            Ws(pws1.is_some(), nws1.is_some()),
-            contents,
-            Ws(pws2.is_some(), nws2.is_some()),
-        ),
-    ))
+    let (_, (pws1, _, (nws1, _, (contents, (i, (_, pws2, _, nws2, _)))))) = p(i)?;
+    let (lws, val, rws) = match split_ws_parts(contents) {
+        Node::Lit(lws, val, rws) => (lws, val, rws),
+        _ => unreachable!(),
+    };
+    let ws1 = Ws(pws1.is_some(), nws1.is_some());
+    let ws2 = Ws(pws2.is_some(), nws2.is_some());
+    Ok((i, Node::Raw(ws1, lws, val, rws, ws2)))
 }
 
 fn break_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
