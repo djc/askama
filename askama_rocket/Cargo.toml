@@ -1,7 +1,6 @@
 [package]
 name = "askama_rocket"
 version = "0.11.0-rc.2"
-authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 description = "Rocket integration for Askama templates"
 documentation = "https://docs.rs/askama"
 keywords = ["markup", "template", "jinja2", "html"]

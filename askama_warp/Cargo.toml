@@ -1,7 +1,6 @@
 [package]
 name = "askama_warp"
-version = "0.11.0"
-authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>", "Bjørn Madsen <bm@aeons.dk>"]
+version = "0.12.0"
 description = "Warp integration for Askama templates"
 documentation = "https://docs.rs/askama"
 keywords = ["markup", "template", "jinja2", "html"]
@@ -14,7 +13,7 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-askama = { version = "0.11.0-beta.1", path = "../askama", default-features = false, features = ["with-warp", "mime", "mime_guess"] }
+askama = { version = "0.11.0", path = "../askama", default-features = false, features = ["with-warp", "mime", "mime_guess"] }
 warp = { version = "0.3", default-features = false }
 
 [dev-dependencies]
