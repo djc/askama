@@ -128,7 +128,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     ) -> Result<(), CompileError> {
         self.write_header(buf, "::askama::Template", None)?;
         buf.writeln(
-            "fn render_into(&self, writer: &mut dyn ::std::fmt::Write) -> \
+            "fn render_into(&self, writer: &mut (impl ::std::fmt::Write + ?Sized)) -> \
              ::askama::Result<()> {",
         )?;
 
@@ -160,25 +160,13 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("Ok(())")?;
         buf.writeln("}")?;
 
-        buf.writeln("fn extension(&self) -> Option<&'static str> {")?;
+        buf.writeln("const EXTENSION: ::std::option::Option<&'static ::std::primitive::str> = ")?;
         buf.writeln(&format!("{:?}", self.input.extension()))?;
-        buf.writeln("}")?;
+        buf.writeln(";")?;
 
-        buf.writeln("fn size_hint(&self) -> usize {")?;
+        buf.writeln("const SIZE_HINT: ::std::primitive::usize = ")?;
         buf.writeln(&format!("{}", size_hint))?;
-        buf.writeln("}")?;
-
-        buf.writeln("}")?;
-
-        self.write_header(buf, "::askama::SizedTemplate", None)?;
-
-        buf.writeln("fn size_hint() -> usize {")?;
-        buf.writeln(&format!("{}", size_hint))?;
-        buf.writeln("}")?;
-
-        buf.writeln("fn extension() -> Option<&'static str> {")?;
-        buf.writeln(&format!("{:?}", self.input.extension()))?;
-        buf.writeln("}")?;
+        buf.writeln(";")?;
 
         buf.writeln("}")?;
         Ok(())

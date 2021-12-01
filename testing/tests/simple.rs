@@ -1,6 +1,6 @@
 #![allow(clippy::blacklisted_name)]
 
-use askama::{SizedTemplate, Template};
+use askama::Template;
 
 use std::collections::HashMap;
 
@@ -26,10 +26,7 @@ fn test_variables() {
          Iñtërnâtiônàlizætiøn is important\n\
          in vars too: Iñtërnâtiônàlizætiøn"
     );
-    assert_eq!(
-        <VariablesTemplate as SizedTemplate>::extension(),
-        Some("html")
-    );
+    assert_eq!(VariablesTemplate::EXTENSION, Some("html"));
 }
 
 #[derive(Template)]
