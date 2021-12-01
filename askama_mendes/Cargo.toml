@@ -1,0 +1,23 @@
+[package]
+name = "askama_mendes"
+version = "0.1.0"
+description = "Mendes integration for Askama templates"
+documentation = "https://docs.rs/askama"
+keywords = ["markup", "template", "jinja2", "html"]
+categories = ["template-engine"]
+homepage = "https://github.com/djc/askama"
+repository = "https://github.com/djc/askama"
+license = "MIT OR Apache-2.0"
+workspace = ".."
+readme = "README.md"
+edition = "2018"
+
+[dependencies]
+askama = { version = "0.11.0-beta.1", path = "../askama", default-features = false, features = ["with-mendes", "mime", "mime_guess"] }
+mendes = "0.0.59"
+mime_guess = "2.0.3"
+
+[dev-dependencies]
+async-trait = "0.1.51"
+hyper = "0.14.15"
+tokio = { version = "1.12", features = ["macros", "rt-multi-thread"] }
