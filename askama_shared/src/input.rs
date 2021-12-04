@@ -15,6 +15,7 @@ pub struct TemplateInput<'a> {
     pub ext: Option<String>,
     pub parent: Option<&'a syn::Type>,
     pub path: PathBuf,
+    pub block: Option<String>,
 }
 
 impl<'a> TemplateInput<'a> {
@@ -52,6 +53,7 @@ impl<'a> TemplateInput<'a> {
         let mut escaping = None;
         let mut ext = None;
         let mut syntax = None;
+        let mut block = None;
         for item in meta_list.nested {
             let pair = match item {
                 syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
@@ -105,6 +107,12 @@ impl<'a> TemplateInput<'a> {
                     syntax = Some(s.value())
                 } else {
                     return Err("syntax value must be string literal".into());
+                }
+            } else if pair.path.is_ident("block") {
+                if let syn::Lit::Str(ref s) = pair.lit {
+                    block = Some(s.value());
+                } else {
+                    return Err("block value must be string literal".into());
                 }
             } else {
                 return Err(format!(
@@ -189,6 +197,7 @@ impl<'a> TemplateInput<'a> {
             ext,
             parent,
             path,
+            block,
         })
     }
 

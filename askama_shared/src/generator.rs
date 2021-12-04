@@ -120,6 +120,23 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         Ok(buf.buf)
     }
 
+    fn try_find_block_nodes(
+        &mut self,
+        block_name: &str,
+        nodes: &'a [Node<'a>],
+    ) -> Option<&'a [Node<'a>]> {
+        nodes.iter().find_map(|n| match n {
+            Node::BlockDef(_, name, block_nodes, _) => {
+                if *name == block_name {
+                    Some(block_nodes.as_slice())
+                } else {
+                    self.try_find_block_nodes(block_name, block_nodes.as_slice())
+                }
+            }
+            _ => None,
+        })
+    }
+
     // Implement `Template` for the given context struct.
     fn impl_template(
         &mut self,
@@ -150,11 +167,23 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
         }
 
-        let size_hint = if let Some(heritage) = self.heritage {
-            self.handle(heritage.root, heritage.root.nodes, buf, AstLevel::Top)
+        let root = if let Some(heritage) = self.heritage {
+            heritage.root
         } else {
-            self.handle(ctx, ctx.nodes, buf, AstLevel::Top)
-        }?;
+            ctx
+        };
+
+        let nodes = if let Some(block_name) = &self.input.block {
+            if let Some(block_nodes) = self.try_find_block_nodes(block_name, ctx.nodes) {
+                block_nodes
+            } else {
+                return Err(format!("cannot find block {}", block_name).into());
+            }
+        } else {
+            root.nodes
+        };
+
+        let size_hint = self.handle(root, nodes, buf, AstLevel::Top)?;
 
         self.flush_ws(Ws(false, false));
         buf.writeln("Ok(())")?;
