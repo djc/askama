@@ -1,7 +1,6 @@
 [package]
 name = "askama_axum"
 version = "0.10.0"
-authors = ["Michael Alyn Miller <malyn@strangeGizmo.com>"]
 edition = "2018"
 description = "Axum integration for Askama templates"
 keywords = ["markup", "template", "jinja2", "html", "axum"]
@@ -14,10 +13,13 @@ workspace = ".."
 readme = "README.md"
 
 [dependencies]
-askama = { version = "0.11.0-beta.1", path = "../askama", default-features = false, features = ["with-axum", "mime", "mime_guess"] }
-axum = { version = "0.3", default-features = false }
+askama = { version = "0.11.0", path = "../askama", default-features = false, features = ["with-axum", "mime", "mime_guess"] }
+axum-core = "0.1"
+http = "0.2"
+http-body = "0.4"
 
 [dev-dependencies]
+axum = { version = "0.4", default-features = false }
 hyper = { version = "0.14", features = ["full"] }
 tokio = { version = "1.0", features = ["full"] }
 tower = { version = "0.4", features = ["util"] }
