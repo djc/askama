@@ -981,7 +981,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         for s in mem::take(&mut self.buf_writable) {
             match s {
                 Writable::Lit(s) => {
-                    buf_format.write(&s.replace("{", "{{").replace("}", "}}"));
+                    buf_format.write(&s.replace('{', "{{").replace('}', "}}"));
                     size_hint += s.len();
                 }
                 Writable::Expr(s) => {

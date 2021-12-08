@@ -193,7 +193,7 @@ pub fn format() {}
 /// followed by a blank line becomes a paragraph break `<p>`.
 pub fn linebreaks<T: fmt::Display>(s: T) -> Result<String> {
     let s = s.to_string();
-    let linebroken = s.replace("\n\n", "</p><p>").replace("\n", "<br/>");
+    let linebroken = s.replace("\n\n", "</p><p>").replace('\n', "<br/>");
 
     Ok(format!("<p>{}</p>", linebroken))
 }
@@ -201,7 +201,7 @@ pub fn linebreaks<T: fmt::Display>(s: T) -> Result<String> {
 /// Converts all newlines in a piece of plain text to HTML line breaks
 pub fn linebreaksbr<T: fmt::Display>(s: T) -> Result<String> {
     let s = s.to_string();
-    Ok(s.replace("\n", "<br/>"))
+    Ok(s.replace('\n', "<br/>"))
 }
 
 /// Replaces only paragraph breaks in plain text with appropriate HTML
