@@ -14,7 +14,7 @@ edition = "2018"
 
 [dependencies]
 askama = { version = "0.11.0-beta.1", path = "../askama", default-features = false, features = ["with-mendes", "mime", "mime_guess"] }
-mendes = "0.0.59"
+mendes = "0.0.60"
 mime_guess = "2.0.3"
 
 [dev-dependencies]
