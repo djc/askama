@@ -213,9 +213,10 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     // Implement Actix-web's `Responder`.
     fn impl_actix_web_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::actix_web::Responder", None)?;
+        buf.writeln("type Body = actix_web::body::BoxBody;")?;
         buf.writeln(
             "fn respond_to(self, _req: &::actix_web::HttpRequest) \
-             -> ::actix_web::HttpResponse {",
+             -> ::actix_web::HttpResponse<Self::Body> {",
         )?;
 
         buf.writeln("use ::askama_actix::TemplateToResponse;")?;
