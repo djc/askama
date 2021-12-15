@@ -11,13 +11,12 @@ pub trait TemplateToResponse {
 
 impl<T: askama::Template> TemplateToResponse for T {
     fn to_response(&self) -> HttpResponse {
-        let mut buffer = BytesMut::with_capacity(self.size_hint());
+        let mut buffer = BytesMut::with_capacity(T::SIZE_HINT);
         if self.render_into(&mut buffer).is_err() {
             return ErrorInternalServerError("Template parsing error").error_response();
         }
 
-        let ctype =
-            askama::mime::extension_to_mime_type(self.extension().unwrap_or("txt")).to_string();
+        let ctype = askama::mime::extension_to_mime_type(T::EXTENSION.unwrap_or("txt")).to_string();
         HttpResponse::Ok()
             .content_type(ctype.as_str())
             .body(buffer.freeze())
