@@ -1,6 +1,6 @@
 [package]
 name = "askama_actix"
-version = "0.11.1"
+version = "0.12.0"
 description = "Actix-Web integration for Askama templates"
 documentation = "https://docs.rs/askama"
 keywords = ["markup", "template", "jinja2", "html"]
@@ -13,11 +13,10 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-actix-web = { version = "4.0.0-beta.14", default-features = false }
+actix-web = { version = "3", default-features = false }
 askama = { version = "0.11.0", path = "../askama", default-features = false, features = ["with-actix-web", "mime", "mime_guess"] }
-bytes = { version = "1" }
+bytes = { version = "0.5" }
 futures-util = { version = "0.3" }
 
 [dev-dependencies]
-actix-rt = { version = "2", default-features = false }
-actix-test = "0.1.0-beta.8"
+actix-rt = { version = "1", default-features = false }
