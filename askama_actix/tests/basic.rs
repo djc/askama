@@ -11,7 +11,7 @@ struct HelloTemplate<'a> {
 
 #[actix_rt::test]
 async fn test_actix_web() {
-    let srv = actix_test::start(|| {
+    let srv = actix_web::test::start(|| {
         actix_web::App::new()
             .service(web::resource("/").to(|| async { HelloTemplate { name: "world" } }))
     });
@@ -30,10 +30,10 @@ async fn test_actix_web() {
 
 #[actix_rt::test]
 async fn test_actix_web_responder() {
-    let srv = actix_test::start(|| {
+    let srv = actix_web::test::start(|| {
         actix_web::App::new().service(web::resource("/").to(|| async {
             let name = "world".to_owned();
-            HelloTemplate { name: &name }.to_response().await
+            HelloTemplate { name: &name }.to_response()
         }))
     });
 

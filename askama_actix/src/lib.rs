@@ -3,23 +3,23 @@
 pub use askama::*;
 use bytes::BytesMut;
 
-use actix_web::{error::ErrorInternalServerError, HttpResponse};
+use actix_web::{error::ErrorInternalServerError, Error, HttpResponse};
 
 pub trait TemplateToResponse {
-    fn to_response(&self) -> HttpResponse;
+    fn to_response(&self) -> std::result::Result<HttpResponse, Error>;
 }
 
 impl<T: askama::Template> TemplateToResponse for T {
-    fn to_response(&self) -> HttpResponse {
+    fn to_response(&self) -> std::result::Result<HttpResponse, Error> {
         let mut buffer = BytesMut::with_capacity(T::SIZE_HINT);
         if self.render_into(&mut buffer).is_err() {
-            return ErrorInternalServerError("Template parsing error").error_response();
+            return Err(ErrorInternalServerError("Template parsing error"));
         }
 
         let ctype = askama::mime::extension_to_mime_type(T::EXTENSION.unwrap_or("txt")).to_string();
-        HttpResponse::Ok()
+        Ok(HttpResponse::Ok()
             .content_type(ctype.as_str())
-            .body(buffer.freeze())
+            .body(buffer.freeze()))
     }
 }
 
