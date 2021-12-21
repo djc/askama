@@ -13,6 +13,6 @@ pub fn respond<T: Template>(t: &T, ext: &str) -> Result<'static> {
     let ctype = ContentType::from_extension(ext).ok_or(Status::InternalServerError)?;
     Response::build()
         .header(ctype)
-        .sized_body(rsp.len(), Cursor::new(rsp))
+        .sized_body(Cursor::new(rsp))
         .ok()
 }
