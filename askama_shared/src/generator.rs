@@ -319,15 +319,17 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
         self.write_header(
             buf,
-            "::askama_rocket::Responder<'askama, 'static>",
+            "::askama_rocket::Responder<'askama>",
             Some(vec![param]),
         )?;
+
         buf.writeln(
             "fn respond_to(self, _: &::askama_rocket::Request) \
-             -> ::askama_rocket::Result<'static> {",
+             -> ::askama_rocket::Result<'askama> {",
         )?;
         let ext = self.input.extension().unwrap_or("txt");
         buf.writeln(&format!("::askama_rocket::respond(&self, {:?})", ext))?;
+
         buf.writeln("}")?;
         buf.writeln("}")?;
         Ok(())
