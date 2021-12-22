@@ -35,6 +35,7 @@ where
         }
     }
 
+    #[must_use]
     pub fn mark_safe(mut self) -> MarkupDisplay<E, T> {
         self.value = match self.value {
             DisplayValue::Unsafe(t) => DisplayValue::Safe(t),
