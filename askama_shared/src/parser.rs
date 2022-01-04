@@ -52,9 +52,7 @@ pub enum Expr<'a> {
     StrLit(&'a str),
     CharLit(&'a str),
     Var(&'a str),
-    VarCall(&'a str, Vec<Expr<'a>>),
     Path(Vec<&'a str>),
-    PathCall(Vec<&'a str>, Vec<Expr<'a>>),
     Array(Vec<Expr<'a>>),
     Attr(Box<Expr<'a>>, &'a str),
     Index(Box<Expr<'a>>, Box<Expr<'a>>),
@@ -63,7 +61,7 @@ pub enum Expr<'a> {
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
     Range(&'a str, Option<Box<Expr<'a>>>, Option<Box<Expr<'a>>>),
     Group(Box<Expr<'a>>),
-    MethodCall(Box<Expr<'a>>, &'a str, Vec<Expr<'a>>),
+    Call(Box<Expr<'a>>, Vec<Expr<'a>>),
     RustMacro(&'a str, &'a str),
 }
 
@@ -86,7 +84,7 @@ impl Expr<'_> {
             // The result of a call likely doesn't need to be borrowed,
             // as in that case the call is more likely to return a
             // reference in the first place then.
-            VarCall(..) | Path(..) | PathCall(..) | MethodCall(..) => true,
+            Call(..) | Path(..) => true,
             // If the `expr` is within a `Unary` or `BinOp` then
             // an assumption can be made that the operand is copy.
             // If not, then the value is moved and adding `.clone()`
@@ -296,11 +294,6 @@ fn expr_var(i: &str) -> IResult<&str, Expr<'_>> {
     map(identifier, Expr::Var)(i)
 }
 
-fn expr_var_call(i: &str) -> IResult<&str, Expr<'_>> {
-    let (i, (s, args)) = tuple((ws(identifier), arguments))(i)?;
-    Ok((i, Expr::VarCall(s, args)))
-}
-
 fn path(i: &str) -> IResult<&str, Vec<&str>> {
     let root = opt(value("", ws(tag("::"))));
     let tail = separated_list1(ws(tag("::")), identifier);
@@ -333,11 +326,6 @@ fn path(i: &str) -> IResult<&str, Vec<&str>> {
 fn expr_path(i: &str) -> IResult<&str, Expr<'_>> {
     let (i, path) = path(i)?;
     Ok((i, Expr::Path(path)))
-}
-
-fn expr_path_call(i: &str) -> IResult<&str, Expr<'_>> {
-    let (i, (path, args)) = tuple((ws(path), arguments))(i)?;
-    Ok((i, Expr::PathCall(path, args)))
 }
 
 fn named_target(i: &str) -> IResult<&str, (&str, Target<'_>)> {
@@ -510,52 +498,33 @@ fn expr_single(i: &str) -> IResult<&str, Expr<'_>> {
         expr_num_lit,
         expr_str_lit,
         expr_char_lit,
-        expr_path_call,
         expr_path,
         expr_rust_macro,
         expr_array_lit,
-        expr_var_call,
         expr_var,
         expr_group,
     ))(i)
 }
 
-fn attr(i: &str) -> IResult<&str, (&str, Option<Vec<Expr<'_>>>)> {
-    let (i, (_, attr, args)) = tuple((
-        ws(char('.')),
-        alt((num_lit, identifier)),
-        ws(opt(arguments)),
-    ))(i)?;
-    Ok((i, (attr, args)))
+fn expr_attr<'a>(i: &'a str) -> IResult<&'a str, Box<dyn 'a + FnOnce(Expr<'a>) -> Expr<'a>>> {
+    let (i, name) = preceded(
+        ws(pair(char('.'), not(char('.')))),
+        cut(alt((num_lit, identifier))),
+    )(i)?;
+    Ok((i, Box::new(move |left| Expr::Attr(Box::new(left), name))))
 }
 
-fn expr_attr(i: &str) -> IResult<&str, Expr<'_>> {
-    let (i, (obj, attrs)) = tuple((expr_single, many0(attr)))(i)?;
-
-    let mut res = obj;
-    for (aname, args) in attrs {
-        res = if let Some(args) = args {
-            Expr::MethodCall(Box::new(res), aname, args)
-        } else {
-            Expr::Attr(Box::new(res), aname)
-        };
-    }
-
-    Ok((i, res))
-}
-
-fn expr_index(i: &str) -> IResult<&str, Expr<'_>> {
-    let key = opt(tuple((ws(char('[')), expr_any, ws(char(']')))));
-    let (i, (obj, key)) = tuple((expr_attr, key))(i)?;
-    let key = key.map(|(_, key, _)| key);
-
+fn expr_index<'a>(i: &'a str) -> IResult<&'a str, Box<dyn 'a + FnOnce(Expr<'a>) -> Expr<'a>>> {
+    let (i, right) = preceded(ws(char('[')), cut(terminated(expr_any, ws(char(']')))))(i)?;
     Ok((
         i,
-        match key {
-            Some(key) => Expr::Index(Box::new(obj), Box::new(key)),
-            None => obj,
-        },
+        Box::new(move |left| Expr::Index(Box::new(left), Box::new(right))),
     ))
+}
+
+fn expr_call<'a>(i: &'a str) -> IResult<&'a str, Box<dyn 'a + FnOnce(Expr<'a>) -> Expr<'a>>> {
+    let (i, right) = arguments(i)?;
+    Ok((i, Box::new(move |left| Expr::Call(Box::new(left), right))))
 }
 
 fn filter(i: &str) -> IResult<&str, (&str, Option<Vec<Expr<'_>>>)> {
@@ -564,7 +533,7 @@ fn filter(i: &str) -> IResult<&str, (&str, Option<Vec<Expr<'_>>>)> {
 }
 
 fn expr_filtered(i: &str) -> IResult<&str, Expr<'_>> {
-    let (i, (obj, filters)) = tuple((expr_unary, many0(filter)))(i)?;
+    let (i, (obj, filters)) = tuple((expr_prefix, many0(filter)))(i)?;
 
     let mut res = obj;
     for (fname, args) in filters {
@@ -581,15 +550,25 @@ fn expr_filtered(i: &str) -> IResult<&str, Expr<'_>> {
     Ok((i, res))
 }
 
-fn expr_unary(i: &str) -> IResult<&str, Expr<'_>> {
-    let (i, (op, expr)) = tuple((opt(alt((ws(tag("!")), ws(tag("-"))))), expr_index))(i)?;
-    Ok((
-        i,
-        match op {
-            Some(op) => Expr::Unary(op, Box::new(expr)),
-            None => expr,
-        },
-    ))
+fn expr_prefix(i: &str) -> IResult<&str, Expr<'_>> {
+    let (i, (ops, mut expr)) = pair(many0(ws(alt((tag("!"), tag("-"))))), expr_suffix)(i)?;
+    for op in ops.iter().rev() {
+        expr = Expr::Unary(op, Box::new(expr));
+    }
+    Ok((i, expr))
+}
+
+fn expr_suffix(i: &str) -> IResult<&str, Expr<'_>> {
+    let (mut i, mut expr) = expr_single(i)?;
+    loop {
+        let (j, make_expr) = opt(alt((expr_attr, expr_index, expr_call)))(i)?;
+        i = j;
+        match make_expr {
+            Some(make_expr) => expr = make_expr(expr),
+            None => break,
+        }
+    }
+    Ok((i, expr))
 }
 
 fn expr_rust_macro(i: &str) -> IResult<&str, Expr<'_>> {
@@ -1348,7 +1327,10 @@ mod tests {
             super::parse("{{ Some(123) }}", &s).unwrap(),
             vec![Node::Expr(
                 Ws(false, false),
-                Expr::PathCall(vec!["Some"], vec![Expr::NumLit("123")],),
+                Expr::Call(
+                    Box::new(Expr::Path(vec!["Some"])),
+                    vec![Expr::NumLit("123")]
+                ),
             )],
         );
 
@@ -1356,14 +1338,14 @@ mod tests {
             super::parse("{{ Ok(123) }}", &s).unwrap(),
             vec![Node::Expr(
                 Ws(false, false),
-                Expr::PathCall(vec!["Ok"], vec![Expr::NumLit("123")],),
+                Expr::Call(Box::new(Expr::Path(vec!["Ok"])), vec![Expr::NumLit("123")]),
             )],
         );
         assert_eq!(
             super::parse("{{ Err(123) }}", &s).unwrap(),
             vec![Node::Expr(
                 Ws(false, false),
-                Expr::PathCall(vec!["Err"], vec![Expr::NumLit("123")],),
+                Expr::Call(Box::new(Expr::Path(vec!["Err"])), vec![Expr::NumLit("123")]),
             )],
         );
     }
@@ -1374,7 +1356,10 @@ mod tests {
             super::parse("{{ function(\"123\", 3) }}", &Syntax::default()).unwrap(),
             vec![Node::Expr(
                 Ws(false, false),
-                Expr::VarCall("function", vec![Expr::StrLit("123"), Expr::NumLit("3")]),
+                Expr::Call(
+                    Box::new(Expr::Var("function")),
+                    vec![Expr::StrLit("123"), Expr::NumLit("3")]
+                ),
             )],
         );
     }
@@ -1394,7 +1379,10 @@ mod tests {
             super::parse("{{ Option::Some(123) }}", &s).unwrap(),
             vec![Node::Expr(
                 Ws(false, false),
-                Expr::PathCall(vec!["Option", "Some"], vec![Expr::NumLit("123")],),
+                Expr::Call(
+                    Box::new(Expr::Path(vec!["Option", "Some"])),
+                    vec![Expr::NumLit("123")],
+                ),
             )],
         );
 
@@ -1402,8 +1390,8 @@ mod tests {
             super::parse("{{ self::function(\"123\", 3) }}", &s).unwrap(),
             vec![Node::Expr(
                 Ws(false, false),
-                Expr::PathCall(
-                    vec!["self", "function"],
+                Expr::Call(
+                    Box::new(Expr::Path(vec!["self", "function"])),
                     vec![Expr::StrLit("123"), Expr::NumLit("3")],
                 ),
             )],
@@ -1417,14 +1405,20 @@ mod tests {
             super::parse("{{ std::string::String::new() }}", &syntax).unwrap(),
             vec![Node::Expr(
                 Ws(false, false),
-                Expr::PathCall(vec!["std", "string", "String", "new"], vec![]),
+                Expr::Call(
+                    Box::new(Expr::Path(vec!["std", "string", "String", "new"])),
+                    vec![]
+                ),
             )],
         );
         assert_eq!(
             super::parse("{{ ::std::string::String::new() }}", &syntax).unwrap(),
             vec![Node::Expr(
                 Ws(false, false),
-                Expr::PathCall(vec!["", "std", "string", "String", "new"], vec![]),
+                Expr::Call(
+                    Box::new(Expr::Path(vec!["", "std", "string", "String", "new"])),
+                    vec![]
+                ),
             )],
         );
     }
