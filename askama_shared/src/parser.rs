@@ -640,24 +640,20 @@ expr_prec_layer!(expr_compare, expr_bor, "==", "!=", ">=", ">", "<=", "<");
 expr_prec_layer!(expr_and, expr_compare, "&&");
 expr_prec_layer!(expr_or, expr_and, "||");
 
-fn range_right(i: &str) -> IResult<&str, Expr<'_>> {
-    let (i, (_, incl, right)) = tuple((ws(tag("..")), opt(ws(char('='))), opt(expr_or)))(i)?;
-    Ok((
-        i,
-        Expr::Range(
-            if incl.is_some() { "..=" } else { ".." },
-            None,
-            right.map(Box::new),
-        ),
-    ))
-}
-
 fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
-    let compound = map(tuple((expr_or, range_right)), |(left, rest)| match rest {
-        Expr::Range(op, _, right) => Expr::Range(op, Some(Box::new(left)), right),
-        _ => unreachable!(),
-    });
-    alt((range_right, compound, expr_or))(i)
+    let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(expr_or))(i);
+    alt((
+        map(range_right, |(op, right)| {
+            Expr::Range(op, None, right.map(Box::new))
+        }),
+        map(
+            pair(expr_or, opt(range_right)),
+            |(left, right)| match right {
+                Some((op, right)) => Expr::Range(op, Some(Box::new(left)), right.map(Box::new)),
+                None => left,
+            },
+        ),
+    ))(i)
 }
 
 fn expr_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
