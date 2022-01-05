@@ -1,5 +1,4 @@
-use std::iter::Enumerate;
-use std::iter::Peekable;
+use std::iter::{Enumerate, Peekable};
 
 pub struct TemplateLoop<I>
 where
