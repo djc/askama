@@ -32,7 +32,7 @@ pub struct Config<'a> {
     pub escapers: Vec<(HashSet<String>, String)>,
 }
 
-impl<'a> Config<'a> {
+impl Config<'_> {
     pub fn new(s: &str) -> std::result::Result<Config<'_>, CompileError> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default_dirs = vec![root.join("templates")];
@@ -138,7 +138,7 @@ pub struct Syntax<'a> {
     pub comment_end: &'a str,
 }
 
-impl<'a> Default for Syntax<'a> {
+impl Default for Syntax<'_> {
     fn default() -> Self {
         Self {
             block_start: "{%",
@@ -198,7 +198,7 @@ struct RawConfig<'d> {
     escaper: Option<Vec<RawEscaper<'d>>>,
 }
 
-impl<'d> RawConfig<'d> {
+impl RawConfig<'_> {
     #[cfg(feature = "config")]
     fn from_toml_str(s: &str) -> std::result::Result<RawConfig<'_>, CompileError> {
         toml::from_str(s).map_err(|e| {

@@ -72,7 +72,7 @@ pub struct EscapeWriter<'a, E, W> {
     escaper: &'a E,
 }
 
-impl<'a, E, W> Write for EscapeWriter<'a, E, W>
+impl<E, W> Write for EscapeWriter<'_, E, W>
 where
     W: Write,
     E: Escaper,
@@ -98,7 +98,7 @@ where
     escaper: E,
 }
 
-impl<'a, E> Display for Escaped<'a, E>
+impl<E> Display for Escaped<'_, E>
 where
     E: Escaper,
 {
