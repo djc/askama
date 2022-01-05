@@ -617,7 +617,7 @@ macro_rules! expr_prec_layer {
         fn $name(i: &str) -> IResult<&str, Expr<'_>> {
             let (i, left) = $inner(i)?;
             let (i, right) = many0(pair(
-                ws(alt(($( tag($op) ),*,))),
+                ws(alt(($( tag($op) ),+,))),
                 $inner,
             ))(i)?;
             Ok((
