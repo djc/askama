@@ -17,7 +17,7 @@ pub struct TemplateInput<'a> {
     pub path: PathBuf,
 }
 
-impl<'a> TemplateInput<'a> {
+impl TemplateInput<'_> {
     /// Extract the template metadata from the `DeriveInput` structure. This
     /// mostly recovers the data for the `TemplateInput` fields from the
     /// `template()` attribute list fields; it also finds the of the `_parent`

@@ -1680,7 +1680,7 @@ impl LocalMeta {
 // type SetChain<'a, T> = MapChain<'a, T, ()>;
 
 #[derive(Debug)]
-struct MapChain<'a, K: 'a, V: 'a>
+struct MapChain<'a, K, V>
 where
     K: cmp::Eq + hash::Hash,
 {

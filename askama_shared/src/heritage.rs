@@ -9,7 +9,7 @@ pub struct Heritage<'a> {
     pub blocks: BlockAncestry<'a>,
 }
 
-impl<'a> Heritage<'a> {
+impl Heritage<'_> {
     pub fn new<'n>(
         mut ctx: &'n Context<'n>,
         contexts: &'n HashMap<&'n PathBuf, Context<'n>>,
@@ -41,7 +41,7 @@ pub struct Context<'a> {
     pub imports: HashMap<&'a str, PathBuf>,
 }
 
-impl<'a> Context<'a> {
+impl Context<'_> {
     pub fn new<'n>(
         config: &Config<'_>,
         path: &Path,
