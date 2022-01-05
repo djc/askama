@@ -7,6 +7,7 @@ extern crate std;
 use core::fmt::{self, Display, Formatter, Write};
 use core::str;
 
+#[derive(Debug)]
 pub struct MarkupDisplay<E, T>
 where
     E: Escaper,
@@ -65,6 +66,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct EscapeWriter<'a, E, W> {
     fmt: W,
     escaper: &'a E,
@@ -87,6 +89,7 @@ where
     Escaped { string, escaper }
 }
 
+#[derive(Debug)]
 pub struct Escaped<'a, E>
 where
     E: Escaper,
