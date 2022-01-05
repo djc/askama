@@ -1,4 +1,5 @@
 #![cfg_attr(feature = "cargo-clippy", allow(unused_parens))]
+#![forbid(unsafe_code)]
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
