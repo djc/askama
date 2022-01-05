@@ -60,6 +60,7 @@
 //!   provided by Askama.
 
 #![deny(elided_lifetimes_in_paths)]
+#![deny(unreachable_pub)]
 
 pub use askama_shared as shared;
 
