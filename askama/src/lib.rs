@@ -59,6 +59,7 @@
 //!   in the configuration file. The default syntax , "default",  is the one
 //!   provided by Askama.
 
+#![forbid(unsafe_code)]
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
