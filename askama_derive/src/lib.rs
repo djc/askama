@@ -1,4 +1,5 @@
 #![deny(elided_lifetimes_in_paths)]
+#![deny(unreachable_pub)]
 
 use askama_shared::heritage::{Context, Heritage};
 use askama_shared::input::{Print, Source, TemplateInput};
