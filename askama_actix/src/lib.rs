@@ -1,31 +1,29 @@
 #![deny(elided_lifetimes_in_paths)]
 
+use actix_web::body::BoxBody;
+use actix_web::http::StatusCode;
+use actix_web::HttpResponseBuilder;
+use askama::mime::extension_to_mime_type;
 pub use askama::*;
-use bytes::BytesMut;
 
-use actix_web::{error::ErrorInternalServerError, Error, HttpResponse};
+use actix_web::HttpResponse;
 
 pub trait TemplateToResponse {
-    fn to_response(&self) -> std::result::Result<HttpResponse, Error>;
+    fn to_response(&self) -> HttpResponse<BoxBody>;
 }
 
 impl<T: askama::Template> TemplateToResponse for T {
-    fn to_response(&self) -> std::result::Result<HttpResponse, Error> {
-        let mut buffer = BytesMut::with_capacity(T::SIZE_HINT);
-        if self.render_into(&mut buffer).is_err() {
-            return Err(ErrorInternalServerError("Template parsing error"));
+    fn to_response(&self) -> HttpResponse<BoxBody> {
+        match self.render() {
+            Ok(buffer) => {
+                let ctype = extension_to_mime_type(T::EXTENSION.unwrap_or("txt"));
+                HttpResponseBuilder::new(StatusCode::OK)
+                    .content_type(ctype)
+                    .body(buffer)
+            }
+            Err(err) => {
+                HttpResponse::from_error(Box::new(err) as Box<dyn std::error::Error + 'static>)
+            }
         }
-
-        let ctype = askama::mime::extension_to_mime_type(T::EXTENSION.unwrap_or("txt")).to_string();
-        Ok(HttpResponse::Ok()
-            .content_type(ctype.as_str())
-            .body(buffer.freeze()))
     }
-}
-
-// Re-exported for use by generated code
-#[doc(hidden)]
-pub mod futures {
-    pub use futures_util::future::ready;
-    pub use futures_util::future::Ready;
 }
