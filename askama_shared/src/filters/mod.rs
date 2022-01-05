@@ -570,16 +570,10 @@ mod tests {
         assert_eq!(join(empty.iter(), ", ").unwrap(), "");
 
         let input: Vec<String> = vec!["foo".into(), "bar".into(), "bazz".into()];
-        assert_eq!(
-            join((&input).iter(), ":".to_string()).unwrap(),
-            "foo:bar:bazz"
-        );
         assert_eq!(join(input.iter(), ":").unwrap(), "foo:bar:bazz");
-        assert_eq!(join(input.iter(), ":".to_string()).unwrap(), "foo:bar:bazz");
 
         let input: &[String] = &["foo".into(), "bar".into()];
         assert_eq!(join(input.iter(), ":").unwrap(), "foo:bar");
-        assert_eq!(join(input.iter(), ":".to_string()).unwrap(), "foo:bar");
 
         let real: String = "blah".into();
         let input: Vec<&str> = vec![&real];
