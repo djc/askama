@@ -9,14 +9,11 @@ use warp::http::{self, header, StatusCode};
 use warp::hyper::Body;
 use warp::reply::Response;
 
-pub fn reply<T: askama::Template>(t: &T, ext: &str) -> Response {
+pub fn reply<T: askama::Template>(t: &T, _ext: &str) -> Response {
     match t.render() {
         Ok(body) => http::Response::builder()
             .status(StatusCode::OK)
-            .header(
-                header::CONTENT_TYPE,
-                mime::extension_to_mime_type(ext).to_string(),
-            )
+            .header(header::CONTENT_TYPE, T::MIME_TYPE)
             .body(body.into()),
         Err(_) => http::Response::builder()
             .status(StatusCode::INTERNAL_SERVER_ERROR)

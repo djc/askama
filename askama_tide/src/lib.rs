@@ -6,16 +6,12 @@ pub use askama;
 pub use tide;
 
 use askama::*;
-use tide::{http::Mime, Body, Response};
+use tide::{Body, Response};
 
-pub fn try_into_body<T: Template>(t: &T, ext: &str) -> Result<Body> {
+pub fn try_into_body<T: Template>(t: &T, _ext: &str) -> Result<Body> {
     let string = t.render()?;
     let mut body = Body::from_string(string);
-
-    if let Some(mime) = Mime::from_extension(ext) {
-        body.set_mime(mime);
-    }
-
+    body.set_mime(T::MIME_TYPE);
     Ok(body)
 }
 

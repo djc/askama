@@ -5,9 +5,9 @@
 use std::fmt;
 
 use actix_web::body::BoxBody;
+use actix_web::http::header::HeaderValue;
 use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, HttpResponseBuilder, ResponseError};
-use askama::mime::extension_to_mime_type;
 pub use askama::*;
 
 /// Newtype to let askama::Error implement actix_web::ResponseError.
@@ -36,12 +36,9 @@ pub trait TemplateToResponse {
 impl<T: askama::Template> TemplateToResponse for T {
     fn to_response(&self) -> HttpResponse<BoxBody> {
         match self.render() {
-            Ok(buffer) => {
-                let ctype = extension_to_mime_type(T::EXTENSION.unwrap_or("txt"));
-                HttpResponseBuilder::new(StatusCode::OK)
-                    .content_type(ctype)
-                    .body(buffer)
-            }
+            Ok(buffer) => HttpResponseBuilder::new(StatusCode::OK)
+                .content_type(HeaderValue::from_static(T::MIME_TYPE))
+                .body(buffer),
             Err(err) => HttpResponse::from_error(ActixError(err)),
         }
     }
