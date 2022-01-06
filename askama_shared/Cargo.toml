@@ -18,6 +18,8 @@ yaml = ["serde", "serde_yaml"]
 [dependencies]
 askama_escape = { version = "0.10.2", path = "../askama_escape" }
 humansize = { version = "1.1.0", optional = true }
+mime = "0.3"
+mime_guess = "2"
 nom = "7"
 num-traits = { version = "0.2.6", optional = true }
 proc-macro2 = "1"

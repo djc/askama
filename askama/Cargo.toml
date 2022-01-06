@@ -31,12 +31,14 @@ with-rocket = ["askama_derive/rocket"]
 with-tide = ["askama_derive/tide"]
 with-warp = ["askama_derive/warp"]
 
+# deprecated
+mime = []
+mime_guess = []
+
 [dependencies]
 askama_derive = { version = "0.11.0", path = "../askama_derive" }
 askama_escape = { version = "0.10", path = "../askama_escape" }
 askama_shared = { version = "0.12.0", path = "../askama_shared", default-features = false }
-mime = { version = "0.3", optional = true }
-mime_guess = { version = "2", optional = true }
 
 [package.metadata.docs.rs]
 features = ["config", "humansize", "num-traits", "serde-json", "serde-yaml"]

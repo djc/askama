@@ -3,6 +3,7 @@ use crate::{CompileError, Config, Syntax};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use mime::Mime;
 use quote::ToTokens;
 
 pub struct TemplateInput<'a> {
@@ -238,6 +239,32 @@ impl FromStr for Print {
         })
     }
 }
+
+#[doc(hidden)]
+pub fn extension_to_mime_type(ext: &str) -> Mime {
+    let basic_type = mime_guess::from_ext(ext).first_or_octet_stream();
+    for (simple, utf_8) in &TEXT_TYPES {
+        if &basic_type == simple {
+            return utf_8.clone();
+        }
+    }
+    basic_type
+}
+
+const TEXT_TYPES: [(Mime, Mime); 6] = [
+    (mime::TEXT_PLAIN, mime::TEXT_PLAIN_UTF_8),
+    (mime::TEXT_HTML, mime::TEXT_HTML_UTF_8),
+    (mime::TEXT_CSS, mime::TEXT_CSS_UTF_8),
+    (mime::TEXT_CSV, mime::TEXT_CSV_UTF_8),
+    (
+        mime::TEXT_TAB_SEPARATED_VALUES,
+        mime::TEXT_TAB_SEPARATED_VALUES_UTF_8,
+    ),
+    (
+        mime::APPLICATION_JAVASCRIPT,
+        mime::APPLICATION_JAVASCRIPT_UTF_8,
+    ),
+];
 
 #[cfg(test)]
 mod tests {

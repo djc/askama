@@ -11,6 +11,7 @@ use std::{env, fmt, fs};
 #[cfg(feature = "serde")]
 use serde::Deserialize;
 
+pub use crate::input::extension_to_mime_type;
 pub use askama_escape::MarkupDisplay;
 
 mod error;
