@@ -102,9 +102,6 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         if self.integrations.gotham {
             self.impl_gotham_into_response(&mut buf)?;
         }
-        if self.integrations.iron {
-            self.impl_iron_modifier_response(&mut buf)?;
-        }
         if self.integrations.mendes {
             self.impl_mendes_responder(&mut buf)?;
         }
@@ -233,29 +230,6 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         )?;
         let ext = self.input.extension().unwrap_or("txt");
         buf.writeln(&format!("::askama_gotham::respond(&self, {:?})", ext))?;
-        buf.writeln("}")?;
-        buf.writeln("}")
-    }
-
-    // Implement iron's Modifier<Response> if enabled
-    fn impl_iron_modifier_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        self.write_header(
-            buf,
-            "::askama_iron::Modifier<::askama_iron::Response>",
-            None,
-        )?;
-        buf.writeln("fn modify(self, res: &mut ::askama_iron::Response) {")?;
-        buf.writeln(
-            "res.body = Some(Box::new(::askama_iron::Template::render(&self).unwrap().into_bytes()));",
-        )?;
-
-        match self.input.extension().unwrap_or("") {
-            "html" | "htm" => {
-                buf.writeln("::askama_iron::ContentType::html().0.modify(res);")?;
-            }
-            _ => (),
-        };
-
         buf.writeln("}")?;
         buf.writeln("}")
     }
