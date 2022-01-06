@@ -9,7 +9,7 @@ use warp::http::{self, header, StatusCode};
 use warp::hyper::Body;
 use warp::reply::Response;
 
-pub fn reply<T: askama::Template>(t: &T, _ext: &str) -> Response {
+pub fn reply<T: askama::Template>(t: &T) -> Response {
     match t.render() {
         Ok(body) => http::Response::builder()
             .status(StatusCode::OK)

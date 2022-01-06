@@ -6,7 +6,7 @@ pub use askama::*;
 pub use axum_core::response::{IntoResponse, Response};
 use http::StatusCode;
 
-pub fn into_response<T: Template>(t: &T, _ext: &str) -> Response {
+pub fn into_response<T: Template>(t: &T) -> Response {
     match t.render() {
         Ok(body) => {
             let headers = [(
