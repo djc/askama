@@ -278,7 +278,6 @@ pub struct Integrations {
     pub actix: bool,
     pub axum: bool,
     pub gotham: bool,
-    pub iron: bool,
     pub mendes: bool,
     pub rocket: bool,
     pub tide: bool,
