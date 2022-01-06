@@ -10,13 +10,13 @@ pub use http::Response;
 use http::StatusCode;
 use http_body::{Empty, Full};
 
-pub fn into_response<T: Template>(t: &T, ext: &str) -> Response<BoxBody> {
+pub fn into_response<T: Template>(t: &T, _ext: &str) -> Response<BoxBody> {
     match t.render() {
         Ok(body) => Response::builder()
             .status(StatusCode::OK)
             .header(
-                "content-type",
-                askama::mime::extension_to_mime_type(ext).to_string(),
+                http::header::CONTENT_TYPE,
+                http::HeaderValue::from_static(T::MIME_TYPE),
             )
             .body(body::boxed(Full::from(body)))
             .unwrap(),

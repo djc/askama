@@ -19,7 +19,7 @@ async fn test() {
         rsp.headers
             .get("content-type")
             .and_then(|hv| hv.to_str().ok()),
-        Some("text/plain")
+        Some("text/plain; charset=utf-8")
     );
     assert_eq!(to_bytes(body).await.unwrap(), &b"Hello, world!"[..]);
 }
