@@ -180,6 +180,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             "type Target = {};",
             parent_type.into_token_stream()
         ))?;
+        buf.writeln("#[inline]")?;
         buf.writeln("fn deref(&self) -> &Self::Target {")?;
         buf.writeln("&self._parent")?;
         buf.writeln("}")?;
@@ -189,6 +190,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     // Implement `Display` for the given context struct.
     fn impl_display(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::std::fmt::Display", None)?;
+        buf.writeln("#[inline]")?;
         buf.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {")?;
         buf.writeln("::askama::Template::render_into(self, f).map_err(|_| ::std::fmt::Error {})")?;
         buf.writeln("}")?;
@@ -199,6 +201,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn impl_actix_web_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::actix_web::Responder", None)?;
         buf.writeln("type Body = ::actix_web::body::BoxBody;")?;
+        buf.writeln("#[inline]")?;
         buf.writeln(
             "fn respond_to(self, _req: &::actix_web::HttpRequest) \
              -> ::actix_web::web::HttpResponse<Self::Body> {",
@@ -211,6 +214,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     // Implement Axum's `IntoResponse`.
     fn impl_axum_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama_axum::IntoResponse", None)?;
+        buf.writeln("#[inline]")?;
         buf.writeln(
             "fn into_response(self)\
              -> ::askama_axum::Response<::askama_axum::BoxBody> {",
@@ -224,6 +228,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     // Implement gotham's `IntoResponse`.
     fn impl_gotham_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama_gotham::IntoResponse", None)?;
+        buf.writeln("#[inline]")?;
         buf.writeln(
             "fn into_response(self, _state: &::askama_gotham::State)\
              -> ::askama_gotham::Response<::askama_gotham::Body> {",
@@ -293,6 +298,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             Some(vec![param]),
         )?;
 
+        buf.writeln("#[inline]")?;
         buf.writeln(
             "fn respond_to(self, _: &::askama_rocket::Request) \
              -> ::askama_rocket::Result<'askama> {",
@@ -315,6 +321,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         )?;
         buf.writeln(
             "type Error = ::askama_tide::askama::Error;\n\
+            #[inline]\n\
             fn try_into(self) -> ::askama_tide::askama::Result<::askama_tide::tide::Body> {",
         )?;
         buf.writeln(&format!("::askama_tide::try_into_body(&self, {:?})", &ext))?;
@@ -323,6 +330,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         buf.writeln("#[allow(clippy::from_over_into)]")?;
         self.write_header(buf, "Into<::askama_tide::tide::Response>", None)?;
+        buf.writeln("#[inline]")?;
         buf.writeln("fn into(self) -> ::askama_tide::tide::Response {")?;
         buf.writeln(&format!("::askama_tide::into_response(&self, {:?})", ext))?;
         buf.writeln("}\n}")
@@ -330,6 +338,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
     fn impl_warp_reply(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama_warp::warp::reply::Reply", None)?;
+        buf.writeln("#[inline]")?;
         buf.writeln("fn into_response(self) -> ::askama_warp::warp::reply::Response {")?;
         let ext = self.input.extension().unwrap_or("txt");
         buf.writeln(&format!("::askama_warp::reply(&self, {:?})", ext))?;
