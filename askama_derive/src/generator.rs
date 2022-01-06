@@ -428,8 +428,7 @@ impl<'a> Generator<'a> {
             "fn into_response(self)\
              -> ::askama_axum::Response {",
         )?;
-        let ext = self.input.extension().unwrap_or("txt");
-        buf.writeln(&format!("::askama_axum::into_response(&self, {:?})", ext))?;
+        buf.writeln("::askama_axum::into_response(&self)")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
@@ -443,8 +442,7 @@ impl<'a> Generator<'a> {
             "fn into_response(self, _state: &::askama_gotham::State)\
              -> ::askama_gotham::Response<::askama_gotham::Body> {",
         )?;
-        let ext = self.input.extension().unwrap_or("txt");
-        buf.writeln(&format!("::askama_gotham::respond(&self, {:?})", ext))?;
+        buf.writeln("::askama_gotham::respond(&self)")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
@@ -490,10 +488,7 @@ impl<'a> Generator<'a> {
              -> ::mendes::http::Response<A::ResponseBody> {",
         )?;
 
-        buf.writeln(&format!(
-            "::askama_mendes::into_response(app, req, &self, {:?})",
-            self.input.extension()
-        ))?;
+        buf.writeln("::askama_mendes::into_response(app, req, &self)")?;
         buf.writeln("}")?;
         buf.writeln("}")?;
         Ok(())
@@ -515,8 +510,7 @@ impl<'a> Generator<'a> {
             "fn respond_to(self, _: &::askama_rocket::Request) \
              -> ::askama_rocket::Result<'askama> {",
         )?;
-        let ext = self.input.extension().unwrap_or("txt");
-        buf.writeln(&format!("::askama_rocket::respond(&self, {:?})", ext))?;
+        buf.writeln("::askama_rocket::respond(&self)")?;
 
         buf.writeln("}")?;
         buf.writeln("}")?;
@@ -525,8 +519,6 @@ impl<'a> Generator<'a> {
 
     #[cfg(feature = "with-tide")]
     fn impl_tide_integrations(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let ext = self.input.extension().unwrap_or("txt");
-
         self.write_header(
             buf,
             "::std::convert::TryInto<::askama_tide::tide::Body>",
@@ -537,7 +529,7 @@ impl<'a> Generator<'a> {
             #[inline]\n\
             fn try_into(self) -> ::askama_tide::askama::Result<::askama_tide::tide::Body> {",
         )?;
-        buf.writeln(&format!("::askama_tide::try_into_body(&self, {:?})", &ext))?;
+        buf.writeln("::askama_tide::try_into_body(&self)")?;
         buf.writeln("}")?;
         buf.writeln("}")?;
 
@@ -545,7 +537,7 @@ impl<'a> Generator<'a> {
         self.write_header(buf, "Into<::askama_tide::tide::Response>", None)?;
         buf.writeln("#[inline]")?;
         buf.writeln("fn into(self) -> ::askama_tide::tide::Response {")?;
-        buf.writeln(&format!("::askama_tide::into_response(&self, {:?})", ext))?;
+        buf.writeln("::askama_tide::into_response(&self)")?;
         buf.writeln("}\n}")
     }
 
@@ -554,8 +546,7 @@ impl<'a> Generator<'a> {
         self.write_header(buf, "::askama_warp::warp::reply::Reply", None)?;
         buf.writeln("#[inline]")?;
         buf.writeln("fn into_response(self) -> ::askama_warp::warp::reply::Response {")?;
-        let ext = self.input.extension().unwrap_or("txt");
-        buf.writeln(&format!("::askama_warp::reply(&self, {:?})", ext))?;
+        buf.writeln("::askama_warp::reply(&self)")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
