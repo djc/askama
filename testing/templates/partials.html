@@ -1,0 +1,20 @@
+<div>
+    {% block first -%}
+    <div>First section: {{ first }}</div>
+    {%- endblock %}
+
+    {% block second -%}
+    <div>
+        {% block second_a -%}
+        <span>Second section, subsection A: {{ second_a }}</span>
+        {%- endblock %}
+        {% block second_b -%}
+        <span>Second section, subsection B: {{ second_b }}</span>
+        {%- endblock %}
+    </div>
+    {%- endblock %}
+
+    {% block third -%}
+    <div>Third section: {{ third }}</div>
+    {%- endblock %}
+</div>

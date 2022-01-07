@@ -66,6 +66,14 @@ recognized:
       name: &'a str,
   }
   ```
+* `block` (as `block = "section_a"`): extracts a named block (a "partial")
+  from the original template source and uses only the contents of that
+  block in the final template.
+  ```rust
+  #[derive(Template)]
+  #[template(path = "hello.html", block = "greeting")]
+  struct HelloPartial<'a> { ... }
+  ```
 * `print` (as `print = "code"`): enable debugging by printing nothing
   (`none`), the parsed syntax tree (`ast`), the generated code (`code`)
   or `all` for both. The requested data will be printed to stdout at
