@@ -165,6 +165,10 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln(&format!("{}", size_hint))?;
         buf.writeln(";")?;
 
+        buf.writeln("const MIME_TYPE: &'static ::std::primitive::str = ")?;
+        buf.writeln(&format!("{:?}", &self.input.mime_type))?;
+        buf.writeln(";")?;
+
         buf.writeln("}")?;
         Ok(())
     }

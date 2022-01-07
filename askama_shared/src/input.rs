@@ -14,6 +14,7 @@ pub struct TemplateInput<'a> {
     pub print: Print,
     pub escaper: &'a str,
     pub ext: Option<String>,
+    pub mime_type: String,
     pub parent: Option<&'a syn::Type>,
     pub path: PathBuf,
 }
@@ -180,6 +181,10 @@ impl TemplateInput<'_> {
             CompileError::String(format!("no escaper defined for extension '{}'", escaping,))
         })?;
 
+        let mime_type =
+            extension_to_mime_type(ext_default_to_path(ext.as_deref(), &path).unwrap_or("txt"))
+                .to_string();
+
         Ok(TemplateInput {
             ast,
             config,
@@ -188,6 +193,7 @@ impl TemplateInput<'_> {
             print,
             escaper,
             ext,
+            mime_type,
             parent,
             path,
         })
