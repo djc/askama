@@ -39,3 +39,91 @@ fn test_extra_whitespace() {
     template.nested_1.nested_2.hash.insert("key", "value");
     assert_eq!(template.render().unwrap(), "\n0\n0\n0\n0\n\n\n\n0\n0\n0\n0\n0\n\na0\na1\nvalue\n\n\n\n\n\n[\n  \"a0\",\n  \"a1\",\n  \"a2\",\n  \"a3\"\n]\n[\n  \"a0\",\n  \"a1\",\n  \"a2\",\n  \"a3\"\n][\n  \"a0\",\n  \"a1\",\n  \"a2\",\n  \"a3\"\n]\n[\n  \"a1\"\n][\n  \"a1\"\n]\n[\n  \"a1\",\n  \"a2\"\n][\n  \"a1\",\n  \"a2\"\n]\n[\n  \"a1\"\n][\n  \"a1\"\n]1-1-1\n3333 3\n2222 2\n0000 0\n3333 3\n\ntruefalse\nfalsefalsefalse\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
 }
+
+#[derive(askama::Template)]
+#[template(source = " a \t b   c\n\nd e\n  f\n\n\n", ext = "txt", strip = "none")]
+struct StripNone;
+
+#[test]
+fn test_strip_none() {
+    assert_eq!(StripNone.render().unwrap(), " a \t b   c\n\nd e\n  f");
+}
+
+#[derive(askama::Template)]
+#[template(source = " a \t b   c\n\nd e\n  f\n\n\n", ext = "txt", strip = "tail")]
+struct StripTail;
+
+#[test]
+fn test_strip_tail() {
+    assert_eq!(StripTail.render().unwrap(), " a \t b   c\n\nd e\n  f");
+}
+
+#[derive(askama::Template)]
+#[template(
+    source = " a \t b   c\n\nd e\n  f\n\n\n",
+    ext = "txt",
+    strip = "trim-lines"
+)]
+struct StripTrimLines;
+
+#[test]
+fn test_strip_trim_lines() {
+    assert_eq!(StripTrimLines.render().unwrap(), "a \t b   c\nd e\nf");
+}
+
+#[derive(askama::Template)]
+#[template(source = " a \t b   c\n\nd e\n  f\n\n\n", ext = "txt", strip = "eager")]
+struct StripEager;
+
+#[test]
+fn test_strip_eager() {
+    assert_eq!(StripEager.render().unwrap(), "a b c\nd e\nf");
+}
+
+#[derive(askama::Template)]
+#[template(path = "whitespace_trimming.html", strip = "none")]
+struct StripNone2;
+
+#[test]
+fn test_strip_none2() {
+    assert_eq!(
+        StripNone2.render().unwrap(),
+        "\n<!DOCTYPE html>\n\n<html>\n <body>\n  <p>\n   .  .   .\n  </p>\n </body>\n</html>"
+    );
+}
+
+#[derive(askama::Template)]
+#[template(path = "whitespace_trimming.html", strip = "tail")]
+struct StripTail2;
+
+#[test]
+fn test_strip_tail2() {
+    assert_eq!(
+        StripTail2.render().unwrap(),
+        "\n<!DOCTYPE html>\n\n<html>\n <body>\n  <p>\n   .  .   .\n  </p>\n </body>\n</html>"
+    );
+}
+
+#[derive(askama::Template)]
+#[template(path = "whitespace_trimming.html", strip = "trim-lines")]
+struct StripTrimLines2;
+
+#[test]
+fn test_strip_trim_lines2() {
+    assert_eq!(
+        StripTrimLines2.render().unwrap(),
+        "<!DOCTYPE html>\n<html>\n<body>\n<p>\n.  .   .\n</p>\n</body>\n</html>"
+    );
+}
+
+#[derive(askama::Template)]
+#[template(path = "whitespace_trimming.html", strip = "eager")]
+struct StripEager2;
+
+#[test]
+fn test_strip_eager2() {
+    assert_eq!(
+        StripEager2.render().unwrap(),
+        "<!DOCTYPE html>\n<html>\n<body>\n<p>\n. . .\n</p>\n</body>\n</html>"
+    );
+}

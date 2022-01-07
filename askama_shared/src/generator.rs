@@ -1,11 +1,9 @@
-use super::{get_template_source, CompileError, Integrations};
-use crate::filters;
 use crate::heritage::{Context, Heritage};
 use crate::input::{Source, TemplateInput};
 use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Ws};
+use crate::{filters, get_template_source, CompileError, Integrations};
 
 use proc_macro2::Span;
-
 use quote::{quote, ToTokens};
 
 use std::collections::HashMap;
@@ -765,7 +763,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             .input
             .config
             .find_template(path, Some(&self.input.path))?;
-        let src = get_template_source(&path)?;
+        let src = get_template_source(&path, self.input.strip)?;
         let nodes = parse(&src, self.input.syntax)?;
 
         // Make sure the compiler understands that the generated code depends on the template file.

@@ -37,8 +37,8 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     let config = Config::new(&config_toml)?;
     let input = TemplateInput::new(ast, &config)?;
     let source: String = match input.source {
-        Source::Source(ref s) => s.clone(),
-        Source::Path(_) => get_template_source(&input.path)?,
+        Source::Source(ref s) => input.strip.apply(s),
+        Source::Path(_) => get_template_source(&input.path, input.strip)?,
     };
 
     let mut sources = HashMap::new();
@@ -96,12 +96,12 @@ fn find_used_templates(
                         .into());
                     }
                     dependency_graph.push(dependency_path);
-                    let source = get_template_source(&extends)?;
+                    let source = get_template_source(&extends, input.strip)?;
                     check.push((extends, source));
                 }
                 Node::Import(_, import, _) => {
                     let import = input.config.find_template(import, Some(&path))?;
-                    let source = get_template_source(&import)?;
+                    let source = get_template_source(&import, input.strip)?;
                     check.push((import, source));
                 }
                 _ => {}

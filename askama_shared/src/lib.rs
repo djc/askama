@@ -13,6 +13,7 @@ use std::{env, fmt, fs};
 use serde::Deserialize;
 
 pub use crate::input::extension_to_mime_type;
+pub use crate::strip::Strip;
 pub use askama_escape::MarkupDisplay;
 
 mod error;
@@ -27,6 +28,7 @@ pub mod heritage;
 pub mod input;
 #[doc(hidden)]
 pub mod parser;
+mod strip;
 
 #[derive(Debug)]
 pub struct Config<'a> {
@@ -34,6 +36,7 @@ pub struct Config<'a> {
     pub syntaxes: BTreeMap<String, Syntax<'a>>,
     pub default_syntax: &'a str,
     pub escapers: Vec<(HashSet<String>, String)>,
+    pub strip: Strip,
 }
 
 impl Config<'_> {
@@ -102,6 +105,7 @@ impl Config<'_> {
             syntaxes,
             default_syntax,
             escapers,
+            strip: raw.strip.unwrap_or_default(),
         })
     }
 
@@ -200,6 +204,7 @@ struct RawConfig<'d> {
     general: Option<General<'d>>,
     syntax: Option<Vec<RawSyntax<'d>>>,
     escaper: Option<Vec<RawEscaper<'d>>>,
+    strip: Option<Strip>,
 }
 
 impl RawConfig<'_> {
@@ -257,19 +262,17 @@ where
 }
 
 #[allow(clippy::match_wild_err_arm)]
-pub fn get_template_source(tpl_path: &Path) -> std::result::Result<String, CompileError> {
+pub fn get_template_source(
+    tpl_path: &Path,
+    strip: Strip,
+) -> std::result::Result<String, CompileError> {
     match fs::read_to_string(tpl_path) {
         Err(_) => Err(format!(
             "unable to open template file '{}'",
             tpl_path.to_str().unwrap()
         )
         .into()),
-        Ok(mut source) => {
-            if source.ends_with('\n') {
-                let _ = source.pop();
-            }
-            Ok(source)
-        }
+        Ok(source) => Ok(strip.apply(source)),
     }
 }
 
@@ -328,7 +331,7 @@ mod tests {
         let path = Config::new("")
             .and_then(|config| config.find_template("b.html", None))
             .unwrap();
-        assert_eq!(get_template_source(&path).unwrap(), "bar");
+        assert_eq!(get_template_source(&path, Strip::Tail).unwrap(), "bar");
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use crate::{CompileError, Config, Syntax};
+use crate::{CompileError, Config, Strip, Syntax};
 
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -17,6 +17,7 @@ pub struct TemplateInput<'a> {
     pub mime_type: String,
     pub parent: Option<&'a syn::Type>,
     pub path: PathBuf,
+    pub strip: Strip,
 }
 
 impl TemplateInput<'_> {
@@ -62,6 +63,7 @@ impl TemplateInput<'_> {
         let mut escaping = None;
         let mut ext = None;
         let mut syntax = None;
+        let mut strip = config.strip;
         for item in template_args {
             let pair = match item {
                 syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
@@ -119,6 +121,12 @@ impl TemplateInput<'_> {
                     syntax = Some(s.value())
                 } else {
                     return Err("syntax value must be string literal".into());
+                }
+            } else if ident == "strip" {
+                if let syn::Lit::Str(ref s) = pair.lit {
+                    strip = s.value().parse()?;
+                } else {
+                    return Err("syntax strip must be string literal".into());
                 }
             } else {
                 return Err(format!("unsupported attribute key {:?} found", ident).into());
@@ -205,6 +213,7 @@ impl TemplateInput<'_> {
             mime_type,
             parent,
             path,
+            strip,
         })
     }
 
