@@ -86,6 +86,9 @@ pub trait Template {
 
     /// Provides a conservative estimate of the expanded length of the rendered template
     const SIZE_HINT: usize;
+
+    /// The MIME type (Content-Type) of the data that gets rendered by this Template
+    const MIME_TYPE: &'static str;
 }
 
 /// Object-safe wrapper trait around [`Template`] implementers
@@ -103,6 +106,9 @@ pub trait DynTemplate {
 
     /// Provides a conservative estimate of the expanded length of the rendered template
     fn size_hint(&self) -> usize;
+
+    /// The MIME type (Content-Type) of the data that gets rendered by this Template
+    fn mime_type(&self) -> &'static str;
 }
 
 impl<T: Template> DynTemplate for T {
@@ -120,6 +126,10 @@ impl<T: Template> DynTemplate for T {
 
     fn size_hint(&self) -> usize {
         Self::SIZE_HINT
+    }
+
+    fn mime_type(&self) -> &'static str {
+        Self::MIME_TYPE
     }
 }
 
@@ -162,6 +172,8 @@ mod tests {
             const EXTENSION: Option<&'static str> = Some("txt");
 
             const SIZE_HINT: usize = 4;
+
+            const MIME_TYPE: &'static str = "text/plain; charset=utf-8";
         }
 
         fn render(t: &dyn DynTemplate) -> String {
