@@ -161,7 +161,7 @@ impl TemplateInput<'_> {
 
         // Match extension against defined output formats
 
-        let extension = escaping.unwrap_or_else(|| {
+        let escaping = escaping.unwrap_or_else(|| {
             path.extension()
                 .map(|s| s.to_str().unwrap())
                 .unwrap_or("")
@@ -170,14 +170,14 @@ impl TemplateInput<'_> {
 
         let mut escaper = None;
         for (extensions, path) in &config.escapers {
-            if extensions.contains(&extension) {
+            if extensions.contains(&escaping) {
                 escaper = Some(path);
                 break;
             }
         }
 
         let escaper = escaper.ok_or_else(|| {
-            CompileError::String(format!("no escaper defined for extension '{}'", extension,))
+            CompileError::String(format!("no escaper defined for extension '{}'", escaping,))
         })?;
 
         Ok(TemplateInput {
