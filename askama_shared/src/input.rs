@@ -193,9 +193,15 @@ impl TemplateInput<'_> {
         })
     }
 
+    #[inline]
     pub fn extension(&self) -> Option<&str> {
-        self.ext.as_deref().or_else(|| extension(&self.path))
+        ext_default_to_path(self.ext.as_deref(), &self.path)
     }
+}
+
+#[inline]
+pub fn ext_default_to_path<'a>(ext: Option<&'a str>, path: &'a Path) -> Option<&'a str> {
+    ext.or_else(|| extension(path))
 }
 
 fn extension(path: &Path) -> Option<&str> {
