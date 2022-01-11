@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <title>{% block title %}{{ title }}{% endblock %}</title>
+    {% block head %}{% endblock %}
+</head>
+<body>
+<div class="navbar">
+    <a href="/{{lang}}">Home</a>
+    <a href="/{{lang}}/about">About</a>
+    {% if page == "home" %}
+        <a href="/en">English</a>
+    {% endif %}
+    {% if page == "about" %}
+        <a href="/en/about">English</a>
+    {% endif %}
+</div>
+<div id="content">
+    {% block content %}{% endblock %}
+</div>
+</body>
+</html>
