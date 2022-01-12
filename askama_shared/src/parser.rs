@@ -640,6 +640,14 @@ expr_prec_layer!(expr_compare, expr_bor, "==", "!=", ">=", ">", "<=", "<");
 expr_prec_layer!(expr_and, expr_compare, "&&");
 expr_prec_layer!(expr_or, expr_and, "||");
 
+pub(crate) fn one_expr(s: &str) -> Result<Expr<'_>, nom::Err<nom::error::Error<&str>>> {
+    Ok(terminated(ws(expr_any), eof)(s)?.1)
+}
+
+pub(crate) fn one_target(s: &str) -> Result<Target<'_>, nom::Err<nom::error::Error<&str>>> {
+    Ok(terminated(ws(target), eof)(s)?.1)
+}
+
 fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
     let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(expr_or))(i);
     alt((

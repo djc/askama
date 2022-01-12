@@ -2,7 +2,9 @@ use super::{get_template_source, CompileError, Integrations};
 use crate::filters;
 use crate::heritage::{Context, Heritage};
 use crate::input::{Source, TemplateInput};
-use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Ws};
+use crate::parser::{
+    one_expr, one_target, parse, Cond, CondTest, Expr, Loop, Node, Target, When, Ws,
+};
 
 use proc_macro2::Span;
 
@@ -164,7 +166,30 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
         }
 
-        let size_hint = self.impl_single_template(buf, &self.input.path)?;
+        let mut size_hints = vec![];
+        if let Some((localizer, l10n)) = &self.input.l10n {
+            let localizer = one_expr(localizer).unwrap();
+            let expr_code = self.visit_expr_root(&localizer)?;
+            buf.writeln(&format!("match &{} {{", expr_code))?;
+
+            for (pattern, path) in l10n {
+                self.locals.push();
+                let pattern = one_target(pattern).unwrap();
+                self.visit_target(buf, true, true, &pattern);
+                buf.writeln(" => {")?;
+                size_hints.push(self.impl_single_template(buf, path)?);
+                buf.writeln("}")?;
+                self.locals.pop();
+            }
+            buf.writeln("_ => {")?;
+        }
+
+        size_hints.push(self.impl_single_template(buf, &self.input.path)?);
+
+        if self.input.l10n.is_some() {
+            buf.writeln("}")?;
+            buf.writeln("}")?;
+        }
 
         self.flush_ws(Ws(false, false));
         buf.writeln("::askama::Result::Ok(())")?;
@@ -174,8 +199,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln(&format!("{:?}", self.input.extension()))?;
         buf.writeln(";")?;
 
+        let sum: u128 = size_hints.iter().map(|i| *i as u128).sum();
         buf.writeln("const SIZE_HINT: ::std::primitive::usize = ")?;
-        buf.writeln(&format!("{}", size_hint))?;
+        buf.writeln(&format!("{}", sum / size_hints.len() as u128))?;
         buf.writeln(";")?;
 
         buf.writeln("const MIME_TYPE: &'static ::std::primitive::str = ")?;

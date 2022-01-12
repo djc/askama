@@ -14,7 +14,7 @@ use proc_macro2::Span;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-#[proc_macro_derive(Template, attributes(template))]
+#[proc_macro_derive(Template, attributes(template, l10n))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
     match build_template(&ast) {
@@ -42,7 +42,14 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     };
 
     let mut sources = HashMap::new();
-    find_used_templates(&input, &mut sources, source)?;
+    find_used_templates(&input, &mut sources, input.path.clone(), source)?;
+
+    if let Some((_, l10n)) = &input.l10n {
+        for (_, path) in l10n {
+            let source = get_template_source(path)?;
+            find_used_templates(&input, &mut sources, path.clone(), source)?;
+        }
+    }
 
     let mut parsed = HashMap::new();
     for (path, src) in &sources {
@@ -78,11 +85,15 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
 fn find_used_templates(
     input: &TemplateInput<'_>,
     map: &mut HashMap<PathBuf, String>,
+    path: PathBuf,
     source: String,
 ) -> Result<(), CompileError> {
     let mut dependency_graph = Vec::new();
-    let mut check = vec![(input.path.clone(), source)];
+    let mut check = vec![(path, source)];
     while let Some((path, source)) = check.pop() {
+        if map.contains_key(&path) {
+            continue;
+        }
         for n in parse(&source, input.syntax)? {
             match n {
                 Node::Extends(Expr::StrLit(extends)) => {

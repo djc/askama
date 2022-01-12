@@ -1,3 +1,4 @@
+use crate::parser::{one_expr, one_target};
 use crate::{CompileError, Config, Syntax};
 
 use std::path::{Path, PathBuf};
@@ -17,6 +18,7 @@ pub struct TemplateInput<'a> {
     pub mime_type: String,
     pub parent: Option<&'a syn::Type>,
     pub path: PathBuf,
+    pub l10n: Option<(String, Vec<(String, PathBuf)>)>, // TODO: rename
 }
 
 impl TemplateInput<'_> {
@@ -31,6 +33,7 @@ impl TemplateInput<'_> {
         // Check that an attribute called `template()` exists once and that it is
         // the proper type (list).
         let mut template_args = None;
+        let mut l10n = None;
         for attr in &ast.attrs {
             if attr.path.is_ident("template") {
                 if template_args.is_some() {
@@ -43,6 +46,14 @@ impl TemplateInput<'_> {
                     }
                     Ok(_) => return Err("'template' attribute must be a list".into()),
                     Err(e) => return Err(format!("unable to parse attribute: {}", e).into()),
+                }
+            } else if attr.path.is_ident("l10n") {
+                match attr.parse_meta() {
+                    Ok(syn::Meta::List(inner)) => {
+                        l10n.get_or_insert_with(Vec::new).push(inner.nested);
+                    }
+                    Ok(_) => return Err("attribute 'l10n' has incorrect type".into()),
+                    Err(e) => return Err(format!("unable to parse 'l10n' attribute: {}", e).into()),
                 }
             }
         }
@@ -57,6 +68,7 @@ impl TemplateInput<'_> {
         let mut escaping = None;
         let mut ext = None;
         let mut syntax = None;
+        let mut localizer = None;
         for item in template_args {
             let pair = match item {
                 syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
@@ -111,6 +123,16 @@ impl TemplateInput<'_> {
                 } else {
                     return Err("syntax value must be string literal".into());
                 }
+            } else if pair.path.is_ident("localizer") {
+                if let syn::Lit::Str(ref s) = pair.lit {
+                    let s = s.value();
+                    if one_expr(&s).is_err() {
+                        return Err(CompileError::Static("localizer value must be expression"));
+                    }
+                    localizer = Some(s);
+                } else {
+                    return Err("localizer value must be string literal".into());
+                }
             } else {
                 return Err(format!(
                     "unsupported attribute key '{}' found",
@@ -119,6 +141,71 @@ impl TemplateInput<'_> {
                 .into());
             }
         }
+
+        // 'localizer' and 'l10n' go together
+        let l10n = match (localizer, l10n) {
+            (None, None) => None,
+            (Some(localizer), Some(l10n)) => {
+                let multi = l10n
+                    .into_iter()
+                    .map(|args| {
+                        let mut multi_path = None;
+                        let mut multi_pattern = None;
+                        for item in args {
+                            let pair = match item {
+                                syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
+                                _ => {
+                                    return Err(format!(
+                                        "unsupported attribute argument {:?}",
+                                        item.to_token_stream()
+                                    )
+                                    .into())
+                                }
+                            };
+
+                            if pair.path.is_ident("path") {
+                                if let syn::Lit::Str(ref s) = pair.lit {
+                                    multi_path = Some(s.value());
+                                } else {
+                                    return Err("path value must be string literal".into());
+                                }
+                            } else if pair.path.is_ident("pattern") {
+                                if let syn::Lit::Str(ref s) = pair.lit {
+                                    multi_pattern = Some(s.value());
+                                } else {
+                                    return Err("pattern value must be string literal".into());
+                                }
+                            } else {
+                                return Err(format!(
+                                    "unsupported attribute key '{}' found",
+                                    pair.path.to_token_stream()
+                                )
+                                .into());
+                            }
+                        }
+
+                        // TODO: start_at = path ?
+                        let multi_path = multi_path
+                            .ok_or(CompileError::Static("multi-template path missing"))?;
+                        let multi_path = config.find_template(&multi_path, None)?;
+
+                        let multi_pattern = multi_pattern
+                            .ok_or(CompileError::Static("multi-template pattern missing"))?;
+                        if one_target(&multi_pattern).is_err() {
+                            return Err("the pattern attribute could not be parsed".into());
+                        }
+
+                        Ok((multi_pattern, multi_path))
+                    })
+                    .collect::<Result<_, CompileError>>()?;
+                Some((localizer, multi))
+            }
+            _ => {
+                return Err(CompileError::Static(
+                    "#[template(localizer)] and #[l10n] have to be used together",
+                ));
+            }
+        };
 
         // Validate the `source` and `ext` value together, since they are
         // related. In case `source` was used instead of `path`, the value
@@ -199,6 +286,7 @@ impl TemplateInput<'_> {
             mime_type,
             parent,
             path,
+            l10n,
         })
     }
 
