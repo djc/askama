@@ -9,24 +9,24 @@ use proc_macro2::Span;
 use quote::{quote, ToTokens};
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::Path;
 use std::{cmp, hash, mem, str};
 
 pub fn generate<S: std::hash::BuildHasher>(
     input: &TemplateInput<'_>,
-    contexts: &HashMap<&PathBuf, Context<'_>, S>,
+    contexts: &HashMap<&Path, Context<'_>, S>,
     heritage: Option<&Heritage<'_>>,
     integrations: Integrations,
 ) -> Result<String, CompileError> {
     Generator::new(input, contexts, heritage, integrations, MapChain::new())
-        .build(&contexts[&input.path])
+        .build(&contexts[input.path.as_path()])
 }
 
 struct Generator<'a, S: std::hash::BuildHasher> {
     // The template input state: original struct AST and attributes
     input: &'a TemplateInput<'a>,
     // All contexts, keyed by the package-relative template path
-    contexts: &'a HashMap<&'a PathBuf, Context<'a>, S>,
+    contexts: &'a HashMap<&'a Path, Context<'a>, S>,
     // The heritage contains references to blocks and their ancestry
     heritage: Option<&'a Heritage<'a>>,
     // What integrations need to be generated
@@ -51,7 +51,7 @@ struct Generator<'a, S: std::hash::BuildHasher> {
 impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn new<'n>(
         input: &'n TemplateInput<'_>,
-        contexts: &'n HashMap<&'n PathBuf, Context<'n>, S>,
+        contexts: &'n HashMap<&'n Path, Context<'n>, S>,
         heritage: Option<&'n Heritage<'_>>,
         integrations: Integrations,
         locals: MapChain<'n, &'n str, LocalMeta>,
@@ -134,7 +134,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             // Skip the fake path of templates defined in rust source.
             let path_is_valid = match self.input.source {
                 Source::Path(_) => true,
-                Source::Source(_) => *path != &self.input.path,
+                Source::Source(_) => path != &self.input.path,
             };
             if path_is_valid {
                 let path = path.to_str().unwrap();
@@ -669,7 +669,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             let path = ctx.imports.get(s).ok_or_else(|| {
                 CompileError::String(format!("no import found for scope '{}'", s))
             })?;
-            let mctx = self.contexts.get(path).ok_or_else(|| {
+            let mctx = self.contexts.get(path.as_path()).ok_or_else(|| {
                 CompileError::String(format!("context for '{:?}' not found", path))
             })?;
             (

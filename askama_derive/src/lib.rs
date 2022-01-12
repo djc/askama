@@ -46,7 +46,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
 
     let mut parsed = HashMap::new();
     for (path, src) in &sources {
-        parsed.insert(path, parse(src, input.syntax)?);
+        parsed.insert(path.as_path(), parse(src, input.syntax)?);
     }
 
     let mut contexts = HashMap::new();
@@ -54,7 +54,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
         contexts.insert(*path, Context::new(input.config, path, nodes)?);
     }
 
-    let ctx = &contexts[&input.path];
+    let ctx = &contexts[input.path.as_path()];
     let heritage = if !ctx.blocks.is_empty() || ctx.extends.is_some() {
         Some(Heritage::new(ctx, &contexts))
     } else {
@@ -62,7 +62,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     };
 
     if input.print == Print::Ast || input.print == Print::All {
-        eprintln!("{:?}", parsed[&input.path]);
+        eprintln!("{:?}", parsed[input.path.as_path()]);
     }
 
     let code = generator::generate(&input, &contexts, heritage.as_ref(), INTEGRATIONS)?;
