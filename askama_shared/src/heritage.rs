@@ -10,9 +10,9 @@ pub struct Heritage<'a> {
 }
 
 impl Heritage<'_> {
-    pub fn new<'n>(
+    pub fn new<'n, S: std::hash::BuildHasher>(
         mut ctx: &'n Context<'n>,
-        contexts: &'n HashMap<&'n PathBuf, Context<'n>>,
+        contexts: &'n HashMap<&'n PathBuf, Context<'n>, S>,
     ) -> Heritage<'n> {
         let mut blocks: BlockAncestry<'n> = ctx
             .blocks
