@@ -154,7 +154,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         }?;
 
         self.flush_ws(Ws(false, false));
-        buf.writeln("Ok(())")?;
+        buf.writeln("::askama::Result::Ok(())")?;
         buf.writeln("}")?;
 
         buf.writeln("const EXTENSION: ::std::option::Option<&'static ::std::primitive::str> = ")?;
@@ -320,7 +320,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         self.write_header(
             buf,
-            "std::convert::TryInto<::askama_tide::tide::Body>",
+            "::std::convert::TryInto<::askama_tide::tide::Body>",
             None,
         )?;
         buf.writeln(
@@ -994,7 +994,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
         }
 
-        buf.writeln("write!(")?;
+        buf.writeln("::std::write!(")?;
         buf.indent();
         buf.writeln("writer,")?;
         buf.writeln(&format!("{:#?},", &buf_format.buf))?;
