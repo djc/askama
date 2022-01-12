@@ -15,7 +15,7 @@ use std::{cmp, hash, mem, str};
 pub fn generate<S: std::hash::BuildHasher>(
     input: &TemplateInput<'_>,
     contexts: &HashMap<&PathBuf, Context<'_>, S>,
-    heritage: &Option<Heritage<'_>>,
+    heritage: Option<&Heritage<'_>>,
     integrations: Integrations,
 ) -> Result<String, CompileError> {
     Generator::new(input, contexts, heritage, integrations, MapChain::new())
@@ -28,7 +28,7 @@ struct Generator<'a, S: std::hash::BuildHasher> {
     // All contexts, keyed by the package-relative template path
     contexts: &'a HashMap<&'a PathBuf, Context<'a>, S>,
     // The heritage contains references to blocks and their ancestry
-    heritage: &'a Option<Heritage<'a>>,
+    heritage: Option<&'a Heritage<'a>>,
     // What integrations need to be generated
     integrations: Integrations,
     // Variables accessible directly from the current scope (not redirected to context)
@@ -52,7 +52,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn new<'n>(
         input: &'n TemplateInput<'_>,
         contexts: &'n HashMap<&'n PathBuf, Context<'n>, S>,
-        heritage: &'n Option<Heritage<'_>>,
+        heritage: Option<&'n Heritage<'_>>,
         integrations: Integrations,
         locals: MapChain<'n, &'n str, LocalMeta>,
     ) -> Generator<'n, S> {
