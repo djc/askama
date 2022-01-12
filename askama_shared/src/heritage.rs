@@ -12,7 +12,7 @@ pub struct Heritage<'a> {
 impl Heritage<'_> {
     pub fn new<'n, S: std::hash::BuildHasher>(
         mut ctx: &'n Context<'n>,
-        contexts: &'n HashMap<&'n PathBuf, Context<'n>, S>,
+        contexts: &'n HashMap<&'n Path, Context<'n>, S>,
     ) -> Heritage<'n> {
         let mut blocks: BlockAncestry<'n> = ctx
             .blocks
@@ -21,7 +21,7 @@ impl Heritage<'_> {
             .collect();
 
         while let Some(ref path) = ctx.extends {
-            ctx = &contexts[&path];
+            ctx = &contexts[path.as_path()];
             for (name, def) in &ctx.blocks {
                 blocks.entry(name).or_insert_with(Vec::new).push((ctx, def));
             }
