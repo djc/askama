@@ -28,23 +28,29 @@ impl TemplateInput<'_> {
         ast: &'n syn::DeriveInput,
         config: &'n Config<'_>,
     ) -> Result<TemplateInput<'n>, CompileError> {
-        // Check that an attribute called `template()` exists and that it is
+        // Check that an attribute called `template()` exists once and that it is
         // the proper type (list).
-        let template = ast
-            .attrs
-            .iter()
-            .find_map(|attr| {
-                attr.path.is_ident("template").then(|| {
-                    attr.parse_meta()
-                        .map_err(|e| format!("unable to parse attribute: {}", e).into())
-                })
-            })
-            .unwrap_or(Err(CompileError::Static("no attribute 'template' found")))?;
-
-        let template_args = match template {
-            syn::Meta::List(inner) => inner,
-            _ => return Err("attribute 'template' has incorrect type".into()),
-        };
+        let mut template_args = None;
+        for attr in &ast.attrs {
+            if attr.path.is_ident("template") {
+                if template_args.is_some() {
+                    return Err(CompileError::Static("duplicated 'template' attribute"));
+                }
+                let template = attr.parse_meta().map_err(|e| {
+                    CompileError::String(format!("unable to parse attribute: {}", e))
+                })?;
+                match template {
+                    syn::Meta::List(inner) => template_args = Some(inner),
+                    _ => {
+                        return Err(CompileError::Static(
+                            "attribute 'template' has incorrect type",
+                        ));
+                    }
+                }
+            }
+        }
+        let template_args =
+            template_args.ok_or(CompileError::Static("no attribute 'template' found"))?;
 
         // Loop over the meta attributes and find everything that we
         // understand. Raise panics if something is not right.
