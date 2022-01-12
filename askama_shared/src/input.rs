@@ -30,7 +30,7 @@ impl TemplateInput<'_> {
     ) -> Result<TemplateInput<'n>, CompileError> {
         // Check that an attribute called `template()` exists and that it is
         // the proper type (list).
-        let meta = ast
+        let template = ast
             .attrs
             .iter()
             .find_map(|attr| {
@@ -41,7 +41,7 @@ impl TemplateInput<'_> {
             })
             .unwrap_or(Err(CompileError::Static("no attribute 'template' found")))?;
 
-        let meta_list = match meta {
+        let template_args = match template {
             syn::Meta::List(inner) => inner,
             _ => return Err("attribute 'template' has incorrect type".into()),
         };
@@ -54,7 +54,7 @@ impl TemplateInput<'_> {
         let mut escaping = None;
         let mut ext = None;
         let mut syntax = None;
-        for item in meta_list.nested {
+        for item in template_args.nested {
             let pair = match item {
                 syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
                 _ => {
