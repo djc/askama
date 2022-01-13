@@ -36,16 +36,13 @@ impl TemplateInput<'_> {
                 if template_args.is_some() {
                     return Err(CompileError::Static("duplicated 'template' attribute"));
                 }
-                let template = attr.parse_meta().map_err(|e| {
-                    CompileError::String(format!("unable to parse attribute: {}", e))
-                })?;
-                match template {
-                    syn::Meta::List(inner) => template_args = Some(inner),
-                    _ => {
-                        return Err(CompileError::Static(
-                            "attribute 'template' has incorrect type",
-                        ));
+
+                match attr.parse_meta() {
+                    Ok(syn::Meta::List(syn::MetaList { nested, .. })) => {
+                        template_args = Some(nested);
                     }
+                    Ok(_) => return Err("'template' attribute must be a list".into()),
+                    Err(e) => return Err(format!("unable to parse attribute: {}", e).into()),
                 }
             }
         }
@@ -60,7 +57,7 @@ impl TemplateInput<'_> {
         let mut escaping = None;
         let mut ext = None;
         let mut syntax = None;
-        for item in template_args.nested {
+        for item in template_args {
             let pair = match item {
                 syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
                 _ => {
