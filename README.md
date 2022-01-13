@@ -5,7 +5,7 @@
 [![Build Status](https://github.com/djc/askama/workflows/CI/badge.svg)](https://github.com/djc/askama/actions?query=workflow%3ACI)
 [![Chat](https://badges.gitter.im/gitterHQ/gitter.svg)](https://gitter.im/djc/askama)
 
-Askama implements a template rendering engine based on Jinja.
+Askama implements a template rendering engine based on [Jinja](https://jinja.palletsprojects.com/).
 It generates Rust code from your templates at compile time
 based on a user-defined `struct` to hold the template's context.
 See below for an example, or read [the book][docs].
