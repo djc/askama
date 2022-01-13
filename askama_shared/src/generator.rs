@@ -118,6 +118,26 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         Ok(buf.buf)
     }
 
+    fn impl_single_template(
+        &mut self,
+        buf: &mut Buffer,
+        path: &'a Path,
+    ) -> Result<usize, CompileError> {
+        match self.heritages.get(path) {
+            Some(heritage) => {
+                self.heritage = Some(heritage);
+                let size_hint =
+                    self.handle(heritage.root, heritage.root.nodes, buf, AstLevel::Top)?;
+                self.heritage = None;
+                Ok(size_hint)
+            }
+            None => {
+                let ctx = &self.contexts[path];
+                self.handle(ctx, ctx.nodes, buf, AstLevel::Top)
+            }
+        }
+    }
+
     // Implement `Template` for the given context struct.
     fn impl_template(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama::Template", None)?;
@@ -144,18 +164,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
         }
 
-        let size_hint;
-        match self.heritages.get(&*self.input.path) {
-            Some(heritage) => {
-                self.heritage = Some(heritage);
-                size_hint = self.handle(heritage.root, heritage.root.nodes, buf, AstLevel::Top)?;
-                self.heritage = None;
-            }
-            None => {
-                let ctx = &self.contexts[self.input.path.as_path()];
-                size_hint = self.handle(ctx, ctx.nodes, buf, AstLevel::Top)?;
-            }
-        }
+        let size_hint = self.impl_single_template(buf, &self.input.path)?;
 
         self.flush_ws(Ws(false, false));
         buf.writeln("::askama::Result::Ok(())")?;
