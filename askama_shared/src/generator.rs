@@ -15,11 +15,10 @@ use std::{cmp, hash, mem, str};
 pub fn generate<S: std::hash::BuildHasher>(
     input: &TemplateInput<'_>,
     contexts: &HashMap<&Path, Context<'_>, S>,
-    heritage: Option<&Heritage<'_>>,
+    heritages: &HashMap<&Path, Heritage<'_>, S>,
     integrations: Integrations,
 ) -> Result<String, CompileError> {
-    Generator::new(input, contexts, heritage, integrations, MapChain::new())
-        .build(&contexts[input.path.as_path()])
+    Generator::new(input, contexts, heritages, integrations, MapChain::new()).build()
 }
 
 struct Generator<'a, S: std::hash::BuildHasher> {
@@ -29,6 +28,7 @@ struct Generator<'a, S: std::hash::BuildHasher> {
     contexts: &'a HashMap<&'a Path, Context<'a>, S>,
     // The heritage contains references to blocks and their ancestry
     heritage: Option<&'a Heritage<'a>>,
+    heritages: &'a HashMap<&'a Path, Heritage<'a>, S>,
     // What integrations need to be generated
     integrations: Integrations,
     // Variables accessible directly from the current scope (not redirected to context)
@@ -51,15 +51,16 @@ struct Generator<'a, S: std::hash::BuildHasher> {
 impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn new<'n>(
         input: &'n TemplateInput<'_>,
-        contexts: &'n HashMap<&'n Path, Context<'n>, S>,
-        heritage: Option<&'n Heritage<'_>>,
+        contexts: &'n HashMap<&Path, Context<'_>, S>,
+        heritages: &'n HashMap<&Path, Heritage<'_>, S>,
         integrations: Integrations,
         locals: MapChain<'n, &'n str, LocalMeta>,
     ) -> Generator<'n, S> {
         Generator {
             input,
             contexts,
-            heritage,
+            heritage: None,
+            heritages,
             integrations,
             locals,
             next_ws: None,
@@ -75,22 +76,22 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         Self::new(
             self.input,
             self.contexts,
-            self.heritage,
+            self.heritages,
             self.integrations,
             locals,
         )
     }
 
     // Takes a Context and generates the relevant implementations.
-    fn build(mut self, ctx: &'a Context<'_>) -> Result<String, CompileError> {
+    fn build(mut self) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
-        if !ctx.blocks.is_empty() {
+        if !self.contexts[self.input.path.as_path()].blocks.is_empty() {
             if let Some(parent) = self.input.parent {
                 self.deref_to_parent(&mut buf, parent)?;
             }
         };
 
-        self.impl_template(ctx, &mut buf)?;
+        self.impl_template(&mut buf)?;
         self.impl_display(&mut buf)?;
 
         if self.integrations.actix {
@@ -118,11 +119,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement `Template` for the given context struct.
-    fn impl_template(
-        &mut self,
-        ctx: &'a Context<'_>,
-        buf: &mut Buffer,
-    ) -> Result<(), CompileError> {
+    fn impl_template(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama::Template", None)?;
         buf.writeln(
             "fn render_into(&self, writer: &mut (impl ::std::fmt::Write + ?Sized)) -> \
@@ -147,11 +144,18 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
         }
 
-        let size_hint = if let Some(heritage) = self.heritage {
-            self.handle(heritage.root, heritage.root.nodes, buf, AstLevel::Top)
-        } else {
-            self.handle(ctx, ctx.nodes, buf, AstLevel::Top)
-        }?;
+        let size_hint;
+        match self.heritages.get(&*self.input.path) {
+            Some(heritage) => {
+                self.heritage = Some(heritage);
+                size_hint = self.handle(heritage.root, heritage.root.nodes, buf, AstLevel::Top)?;
+                self.heritage = None;
+            }
+            None => {
+                let ctx = &self.contexts[self.input.path.as_path()];
+                size_hint = self.handle(ctx, ctx.nodes, buf, AstLevel::Top)?;
+            }
+        }
 
         self.flush_ws(Ws(false, false));
         buf.writeln("::askama::Result::Ok(())")?;

@@ -54,18 +54,21 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
         contexts.insert(*path, Context::new(input.config, path, nodes)?);
     }
 
-    let ctx = &contexts[input.path.as_path()];
-    let heritage = if !ctx.blocks.is_empty() || ctx.extends.is_some() {
-        Some(Heritage::new(ctx, &contexts))
-    } else {
-        None
-    };
+    let heritages = contexts
+        .iter()
+        .filter_map(
+            |(&path, ctx)| match !ctx.blocks.is_empty() || ctx.extends.is_some() {
+                true => Some((path, Heritage::new(ctx, &contexts))),
+                false => None,
+            },
+        )
+        .collect();
 
     if input.print == Print::Ast || input.print == Print::All {
         eprintln!("{:?}", parsed[input.path.as_path()]);
     }
 
-    let code = generator::generate(&input, &contexts, heritage.as_ref(), INTEGRATIONS)?;
+    let code = generator::generate(&input, &contexts, &heritages, INTEGRATIONS)?;
     if input.print == Print::Code || input.print == Print::All {
         eprintln!("{}", code);
     }
