@@ -61,6 +61,7 @@ pub enum Expr<'a> {
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
     Range(&'a str, Option<Box<Expr<'a>>>, Option<Box<Expr<'a>>>),
     Group(Box<Expr<'a>>),
+    Tuple(Vec<Expr<'a>>),
     Call(Box<Expr<'a>>, Vec<Expr<'a>>),
     RustMacro(&'a str, &'a str),
     Try(Box<Expr<'a>>),
@@ -488,9 +489,31 @@ fn parameters(i: &str) -> IResult<&str, Vec<&str>> {
 }
 
 fn expr_group(i: &str) -> IResult<&str, Expr<'_>> {
-    map(delimited(ws(char('(')), expr_any, ws(char(')'))), |s| {
-        Expr::Group(Box::new(s))
-    })(i)
+    let (i, expr) = preceded(ws(char('(')), opt(expr_any))(i)?;
+    let expr = match expr {
+        Some(expr) => expr,
+        None => {
+            let (i, _) = char(')')(i)?;
+            return Ok((i, Expr::Tuple(vec![])));
+        }
+    };
+
+    let (i, comma) = ws(opt(peek(char(','))))(i)?;
+    if comma.is_none() {
+        let (i, _) = char(')')(i)?;
+        return Ok((i, Expr::Group(Box::new(expr))));
+    }
+
+    let mut exprs = vec![expr];
+    let (i, _) = fold_many0(
+        preceded(char(','), ws(expr_any)),
+        || (),
+        |_, expr| {
+            exprs.push(expr);
+        },
+    )(i)?;
+    let (i, _) = pair(ws(opt(char(','))), char(')'))(i)?;
+    Ok((i, Expr::Tuple(exprs)))
 }
 
 fn expr_single(i: &str) -> IResult<&str, Expr<'_>> {
@@ -1685,6 +1708,125 @@ mod tests {
         assert_eq!(
             super::parse("{# foo {# bar #} {# {# baz #} qux #} #}", s).unwrap(),
             vec![Node::Comment(Ws(false, false))],
+        );
+    }
+
+    #[test]
+    fn test_parse_tuple() {
+        use super::Expr::*;
+        let syntax = Syntax::default();
+        assert_eq!(
+            super::parse("{{ () }}", &syntax).unwrap(),
+            vec![Node::Expr(Ws(false, false), Tuple(vec![]),)],
+        );
+        assert_eq!(
+            super::parse("{{ (1) }}", &syntax).unwrap(),
+            vec![Node::Expr(Ws(false, false), Group(Box::new(NumLit("1"))),)],
+        );
+        assert_eq!(
+            super::parse("{{ (1,) }}", &syntax).unwrap(),
+            vec![Node::Expr(Ws(false, false), Tuple(vec![NumLit("1")]),)],
+        );
+        assert_eq!(
+            super::parse("{{ (1, ) }}", &syntax).unwrap(),
+            vec![Node::Expr(Ws(false, false), Tuple(vec![NumLit("1")]),)],
+        );
+        assert_eq!(
+            super::parse("{{ (1 ,) }}", &syntax).unwrap(),
+            vec![Node::Expr(Ws(false, false), Tuple(vec![NumLit("1")]),)],
+        );
+        assert_eq!(
+            super::parse("{{ (1 , ) }}", &syntax).unwrap(),
+            vec![Node::Expr(Ws(false, false), Tuple(vec![NumLit("1")]),)],
+        );
+        assert_eq!(
+            super::parse("{{ (1, 2) }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Tuple(vec![NumLit("1"), NumLit("2")]),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ (1, 2,) }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Tuple(vec![NumLit("1"), NumLit("2")]),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ (1, 2, 3) }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Tuple(vec![NumLit("1"), NumLit("2"), NumLit("3")]),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ ()|abs }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Filter("abs", vec![Tuple(vec![])]),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ () | abs }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                BinOp("|", Box::new(Tuple(vec![])), Box::new(Var("abs"))),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ (1)|abs }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Filter("abs", vec![Group(Box::new(NumLit("1")))]),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ (1) | abs }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                BinOp(
+                    "|",
+                    Box::new(Group(Box::new(NumLit("1")))),
+                    Box::new(Var("abs"))
+                ),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ (1,)|abs }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Filter("abs", vec![Tuple(vec![NumLit("1")])]),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ (1,) | abs }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                BinOp(
+                    "|",
+                    Box::new(Tuple(vec![NumLit("1")])),
+                    Box::new(Var("abs"))
+                ),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ (1, 2)|abs }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Filter("abs", vec![Tuple(vec![NumLit("1"), NumLit("2")])]),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ (1, 2) | abs }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                BinOp(
+                    "|",
+                    Box::new(Tuple(vec![NumLit("1"), NumLit("2")])),
+                    Box::new(Var("abs"))
+                ),
+            )],
         );
     }
 }

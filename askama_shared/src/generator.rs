@@ -1061,6 +1061,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             Expr::Call(ref obj, ref args) => self.visit_call(buf, obj, args)?,
             Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
             Expr::Try(ref expr) => self.visit_try(buf, expr.as_ref())?,
+            Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
         })
     }
 
@@ -1399,6 +1400,23 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("(");
         self.visit_expr(buf, inner)?;
+        buf.write(")");
+        Ok(DisplayWrap::Unwrapped)
+    }
+
+    fn visit_tuple(
+        &mut self,
+        buf: &mut Buffer,
+        exprs: &[Expr<'_>],
+    ) -> Result<DisplayWrap, CompileError> {
+        buf.write("(");
+        for (index, expr) in exprs.iter().enumerate() {
+            if index > 0 {
+                buf.write(" ");
+            }
+            self.visit_expr(buf, expr)?;
+            buf.write(",");
+        }
         buf.write(")");
         Ok(DisplayWrap::Unwrapped)
     }
