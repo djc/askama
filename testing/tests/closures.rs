@@ -1,6 +1,6 @@
 use askama::Template;
 
-const FALSE: &'static bool = &false;
+const FALSE: &bool = &false;
 
 #[derive(Debug, Clone)]
 struct User {
