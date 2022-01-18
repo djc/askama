@@ -1063,6 +1063,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             Expr::MethodCall(ref obj, method, ref args) => {
                 self.visit_method_call(buf, obj, method, args)?
             }
+            Expr::Closure(ref params, ref body) => self.visit_closure(buf, params, body)?,
             Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
         })
     }
@@ -1340,6 +1341,38 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             self._visit_args(buf, args)?;
             buf.write(")");
         }
+        Ok(DisplayWrap::Unwrapped)
+    }
+
+    fn visit_closure(
+        &mut self,
+        buf: &mut Buffer,
+        params: &[&'a str],
+        body: &Expr<'a>,
+    ) -> Result<DisplayWrap, CompileError> {
+        self.locals.push();
+
+        buf.write("|");
+        for (i, param) in params.iter().enumerate() {
+            if i > 0 {
+                buf.write(", ");
+            }
+            buf.write(param);
+            self.locals.insert(param, LocalMeta::initialized())
+        }
+        buf.write("|");
+
+        let borrow = !body.is_copyable();
+        if borrow {
+            buf.write("&(");
+        }
+        self.visit_expr(buf, body)?;
+        if borrow {
+            buf.write(")");
+        }
+
+        self.locals.pop();
+
         Ok(DisplayWrap::Unwrapped)
     }
 
