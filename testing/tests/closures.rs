@@ -1,7 +1,5 @@
 use askama::Template;
 
-const FALSE: &bool = &false;
-
 #[derive(Debug, Clone)]
 struct User {
     name: String,
@@ -59,7 +57,7 @@ fn test_closure_shadow() {
 
 #[derive(Template)]
 #[template(
-    source = r#"{{ user_opt.map(|user| user.flag).unwrap_or(FALSE) }}"#,
+    source = r#"{{ user_opt.map(|user| user.flag).copied().unwrap_or(false) }}"#,
     ext = "txt"
 )]
 struct ClosureBorrowTemplate<'a> {
