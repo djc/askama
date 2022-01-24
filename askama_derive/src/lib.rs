@@ -9,7 +9,6 @@ use askama_shared::{
     generator, get_template_source, read_config_file, CompileError, Config, Integrations,
 };
 use proc_macro::TokenStream;
-use proc_macro2::Span;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -19,9 +18,7 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
     match build_template(&ast) {
         Ok(source) => source.parse().unwrap(),
-        Err(e) => syn::Error::new(Span::call_site(), e)
-            .to_compile_error()
-            .into(),
+        Err(e) => syn::Error::from(e).to_compile_error().into(),
     }
 }
 
@@ -86,13 +83,16 @@ fn find_used_templates(
                     let extends = input.config.find_template(extends, Some(&path))?;
                     let dependency_path = (path.clone(), extends.clone());
                     if dependency_graph.contains(&dependency_path) {
-                        return Err(CompileError::String(format!(
-                            "cyclic dependecy in graph {:#?}",
-                            dependency_graph
-                                .iter()
-                                .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
-                                .collect::<Vec<String>>()
-                        )));
+                        return Err(CompileError {
+                            msg: format!(
+                                "cyclic dependecy in graph {:#?}",
+                                dependency_graph
+                                    .iter()
+                                    .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
+                                    .collect::<Vec<String>>(),
+                            )
+                            .into(),
+                        });
                     }
                     dependency_graph.push(dependency_path);
                     let source = get_template_source(&extends)?;

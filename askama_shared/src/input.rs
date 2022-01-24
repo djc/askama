@@ -34,7 +34,9 @@ impl TemplateInput<'_> {
         for attr in &ast.attrs {
             if attr.path.is_ident("template") {
                 if template_args.is_some() {
-                    return Err(CompileError::Static("duplicated 'template' attribute"));
+                    return Err(CompileError {
+                        msg: "duplicated 'template' attribute".into(),
+                    });
                 }
 
                 match attr.parse_meta() {
@@ -42,19 +44,21 @@ impl TemplateInput<'_> {
                         template_args = Some(nested);
                     }
                     Ok(_) => {
-                        return Err(CompileError::Static("'template' attribute must be a list"))
+                        return Err(CompileError {
+                            msg: "'template' attribute must be a list".into(),
+                        });
                     }
                     Err(e) => {
-                        return Err(CompileError::String(format!(
-                            "unable to parse attribute: {}",
-                            e
-                        )))
+                        return Err(CompileError {
+                            msg: format!("unable to parse attribute: {}", e).into(),
+                        });
                     }
                 }
             }
         }
-        let template_args =
-            template_args.ok_or(CompileError::Static("no attribute 'template' found"))?;
+        let template_args = template_args.ok_or(CompileError {
+            msg: "no attribute 'template' found".into(),
+        })?;
 
         // Loop over the meta attributes and find everything that we
         // understand. Raise panics if something is not right.
@@ -68,66 +72,82 @@ impl TemplateInput<'_> {
             let pair = match item {
                 syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
                 _ => {
-                    return Err(CompileError::String(format!(
-                        "unsupported attribute argument {:?}",
-                        item.to_token_stream()
-                    )));
+                    return Err(CompileError {
+                        msg: format!(
+                            "unsupported attribute argument {:?}",
+                            item.to_token_stream()
+                        )
+                        .into(),
+                    });
                 }
             };
 
             if pair.path.is_ident("path") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     if source.is_some() {
-                        return Err(CompileError::Static(
-                            "must specify 'source' or 'path', not both",
-                        ));
+                        return Err(CompileError {
+                            msg: "must specify 'source' or 'path', not both".into(),
+                        });
                     }
                     source = Some(Source::Path(s.value()));
                 } else {
-                    return Err(CompileError::Static("template path must be string literal"));
+                    return Err(CompileError {
+                        msg: "template path must be string literal".into(),
+                    });
                 }
             } else if pair.path.is_ident("source") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     if source.is_some() {
-                        return Err(CompileError::Static(
-                            "must specify 'source' or 'path', not both",
-                        ));
+                        return Err(CompileError {
+                            msg: "must specify 'source' or 'path', not both".into(),
+                        });
                     }
                     source = Some(Source::Source(s.value()));
                 } else {
-                    return Err(CompileError::Static(
-                        "template source must be string literal",
-                    ));
+                    return Err(CompileError {
+                        msg: "template source must be string literal".into(),
+                    });
                 }
             } else if pair.path.is_ident("print") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     print = s.value().parse()?;
                 } else {
-                    return Err(CompileError::Static("print value must be string literal"));
+                    return Err(CompileError {
+                        msg: "print value must be string literal".into(),
+                    });
                 }
             } else if pair.path.is_ident("escape") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     escaping = Some(s.value());
                 } else {
-                    return Err(CompileError::Static("escape value must be string literal"));
+                    return Err(CompileError {
+                        msg: "escape value must be string literal".into(),
+                    });
                 }
             } else if pair.path.is_ident("ext") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     ext = Some(s.value());
                 } else {
-                    return Err(CompileError::Static("ext value must be string literal"));
+                    return Err(CompileError {
+                        msg: "ext value must be string literal".into(),
+                    });
                 }
             } else if pair.path.is_ident("syntax") {
                 if let syn::Lit::Str(ref s) = pair.lit {
-                    syntax = Some(s.value())
+                    syntax = Some(s.value());
                 } else {
-                    return Err(CompileError::Static("syntax value must be string literal"));
+                    return Err(CompileError {
+                        msg: "syntax value must be string literal".into(),
+                    });
                 }
             } else {
-                return Err(CompileError::String(format!(
-                    "unsupported attribute key '{}' found",
-                    pair.path.to_token_stream()
-                )));
+                return Err(CompileError {
+                    msg: format!(
+                        "unsupported attribute key '{}' found",
+                        pair.path.to_token_stream()
+                    )
+                    .into(),
+                });
             }
         }
 
@@ -139,9 +159,9 @@ impl TemplateInput<'_> {
             (&Source::Path(ref path), _) => config.find_template(path, None)?,
             (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
             (&Source::Source(_), None) => {
-                return Err(CompileError::Static(
-                    "must include 'ext' attribute when using 'source' attribute",
-                ))
+                return Err(CompileError {
+                    msg: "must include 'ext' attribute when using 'source' attribute".into(),
+                });
             }
         };
 
@@ -170,8 +190,8 @@ impl TemplateInput<'_> {
         let syntax = syntax.map_or_else(
             || Ok(config.syntaxes.get(config.default_syntax).unwrap()),
             |s| {
-                config.syntaxes.get(&s).ok_or_else(|| {
-                    CompileError::String(format!("attribute syntax {} not exist", s))
+                config.syntaxes.get(&s).ok_or_else(|| CompileError {
+                    msg: format!("attribute syntax {} not exist", s).into(),
                 })
             },
         )?;
@@ -193,8 +213,8 @@ impl TemplateInput<'_> {
             }
         }
 
-        let escaper = escaper.ok_or_else(|| {
-            CompileError::String(format!("no escaper defined for extension '{}'", escaping,))
+        let escaper = escaper.ok_or_else(|| CompileError {
+            msg: format!("no escaper defined for extension '{}'", escaping).into(),
         })?;
 
         let mime_type =
@@ -264,10 +284,9 @@ impl FromStr for Print {
             "code" => Code,
             "none" => None,
             v => {
-                return Err(CompileError::String(format!(
-                    "invalid value for print option: {}",
-                    v,
-                )))
+                return Err(CompileError {
+                    msg: format!("invalid value for print option: {}", v).into(),
+                });
             }
         })
     }

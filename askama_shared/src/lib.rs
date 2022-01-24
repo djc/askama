@@ -3,11 +3,13 @@
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashSet};
 use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
-use std::{env, fmt, fs};
+use std::{env, fs};
 
+use proc_macro2::Span;
 #[cfg(feature = "serde")]
 use serde::Deserialize;
 
@@ -70,19 +72,17 @@ impl Config<'_> {
                     .insert(name.to_string(), Syntax::try_from(raw_s)?)
                     .is_some()
                 {
-                    return Err(CompileError::String(format!(
-                        "syntax \"{}\" is already defined",
-                        name
-                    )));
+                    return Err(CompileError {
+                        msg: format!("syntax \"{}\" is already defined", name).into(),
+                    });
                 }
             }
         }
 
         if !syntaxes.contains_key(default_syntax) {
-            return Err(CompileError::String(format!(
-                "default syntax \"{}\" not found",
-                default_syntax
-            )));
+            return Err(CompileError {
+                msg: format!("default syntax \"{}\" not found", default_syntax).into(),
+            });
         }
 
         let mut escapers = Vec::new();
@@ -129,10 +129,13 @@ impl Config<'_> {
             }
         }
 
-        Err(CompileError::String(format!(
-            "template {:?} not found in directories {:?}",
-            path, self.dirs
-        )))
+        Err(CompileError {
+            msg: format!(
+                "template {:?} not found in directories {:?}",
+                path, self.dirs
+            )
+            .into(),
+        })
     }
 }
 
@@ -180,7 +183,9 @@ impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
             || syntax.comment_start.len() != 2
             || syntax.comment_end.len() != 2
         {
-            return Err(CompileError::Static("length of delimiters must be two"));
+            return Err(CompileError {
+                msg: "length of delimiters must be two".into(),
+            });
         }
 
         let bs = syntax.block_start.as_bytes()[0];
@@ -190,7 +195,7 @@ impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
         let es = syntax.block_start.as_bytes()[0];
         let ee = syntax.block_start.as_bytes()[1];
         if !((bs == cs && bs == es) || (be == ce && be == ee)) {
-            return Err(CompileError::String(format!("bad delimiters block_start: {}, comment_start: {}, expr_start: {}, needs one of the two characters in common", syntax.block_start, syntax.comment_start, syntax.expr_start)));
+            return Err(CompileError { msg: format!("bad delimiters block_start: {}, comment_start: {}, expr_start: {}, needs one of the two characters in common", syntax.block_start, syntax.comment_start, syntax.expr_start).into() });
         }
 
         Ok(syntax)
@@ -209,8 +214,8 @@ struct RawConfig<'d> {
 impl RawConfig<'_> {
     #[cfg(feature = "config")]
     fn from_toml_str(s: &str) -> std::result::Result<RawConfig<'_>, CompileError> {
-        toml::from_str(s).map_err(|e| {
-            CompileError::String(format!("invalid TOML in {}: {}", CONFIG_FILE_NAME, e))
+        toml::from_str(s).map_err(|e| CompileError {
+            msg: format!("invalid TOML in {}: {}", CONFIG_FILE_NAME, e).into(),
         })
     }
 
@@ -248,8 +253,8 @@ pub fn read_config_file() -> std::result::Result<String, CompileError> {
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let filename = root.join(CONFIG_FILE_NAME);
     if filename.exists() {
-        fs::read_to_string(&filename).map_err(|_| {
-            CompileError::String(format!("unable to read {}", filename.to_str().unwrap()))
+        fs::read_to_string(&filename).map_err(|_| CompileError {
+            msg: format!("unable to read {}", filename.to_str().unwrap()).into(),
         })
     } else {
         Ok("".to_string())
@@ -266,10 +271,13 @@ where
 #[allow(clippy::match_wild_err_arm)]
 pub fn get_template_source(tpl_path: &Path) -> std::result::Result<String, CompileError> {
     match fs::read_to_string(tpl_path) {
-        Err(_) => Err(CompileError::String(format!(
-            "unable to open template file '{}'",
-            tpl_path.to_str().unwrap()
-        ))),
+        Err(_) => Err(CompileError {
+            msg: format!(
+                "unable to open template file '{}'",
+                tpl_path.to_str().unwrap()
+            )
+            .into(),
+        }),
         Ok(mut source) => {
             if source.ends_with('\n') {
                 let _ = source.pop();
@@ -299,17 +307,13 @@ static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
 ];
 
 #[derive(Debug)]
-pub enum CompileError {
-    Static(&'static str),
-    String(String),
+pub struct CompileError {
+    pub msg: Cow<'static, str>,
 }
 
-impl fmt::Display for CompileError {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CompileError::Static(s) => write!(fmt, "{}", s),
-            CompileError::String(s) => write!(fmt, "{}", s),
-        }
+impl From<CompileError> for syn::Error {
+    fn from(src: CompileError) -> Self {
+        syn::Error::new(Span::call_site(), src.msg)
     }
 }
 

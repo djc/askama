@@ -425,9 +425,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 }
                 Node::Macro(_, ref m) => {
                     if level != AstLevel::Top {
-                        return Err(CompileError::Static(
-                            "macro blocks only allowed at the top level",
-                        ));
+                        return Err(CompileError {
+                            msg: "macro blocks only allowed at the top level".into(),
+                        });
                     }
                     self.flush_ws(m.ws1);
                     self.prepare_ws(m.ws2);
@@ -439,17 +439,17 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 }
                 Node::Import(ws, _, _) => {
                     if level != AstLevel::Top {
-                        return Err(CompileError::Static(
-                            "import blocks only allowed at the top level",
-                        ));
+                        return Err(CompileError {
+                            msg: "import blocks only allowed at the top level".into(),
+                        });
                     }
                     self.handle_ws(ws);
                 }
                 Node::Extends(_) => {
                     if level != AstLevel::Top {
-                        return Err(CompileError::Static(
-                            "extend blocks only allowed at the top level",
-                        ));
+                        return Err(CompileError {
+                            msg: "extend blocks only allowed at the top level".into(),
+                        });
                     }
                     // No whitespace handling: child template top-level is not used,
                     // except for the blocks defined in it.
@@ -672,23 +672,26 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         }
 
         let (def, own_ctx) = if let Some(s) = scope {
-            let path = ctx.imports.get(s).ok_or_else(|| {
-                CompileError::String(format!("no import found for scope '{}'", s))
+            let path = ctx.imports.get(s).ok_or_else(|| CompileError {
+                msg: format!("no import found for scope '{}'", s).into(),
             })?;
-            let mctx = self.contexts.get(path.as_path()).ok_or_else(|| {
-                CompileError::String(format!("context for '{:?}' not found", path))
-            })?;
+            let mctx = self
+                .contexts
+                .get(path.as_path())
+                .ok_or_else(|| CompileError {
+                    msg: format!("context for '{:?}' not found", path).into(),
+                })?;
             (
-                mctx.macros.get(name).ok_or_else(|| {
-                    CompileError::String(format!("macro '{}' not found in scope '{}'", name, s))
+                mctx.macros.get(name).ok_or_else(|| CompileError {
+                    msg: format!("macro '{}' not found in scope '{}'", name, s).into(),
                 })?,
                 mctx,
             )
         } else {
             (
-                ctx.macros
-                    .get(name)
-                    .ok_or_else(|| CompileError::String(format!("macro '{}' not found", name)))?,
+                ctx.macros.get(name).ok_or_else(|| CompileError {
+                    msg: format!("macro '{}' not found", name).into(),
+                })?,
                 ctx,
             )
         };
@@ -703,8 +706,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let mut values = Buffer::new(0);
         let mut is_first_variable = true;
         for (i, arg) in def.args.iter().enumerate() {
-            let expr = args.get(i).ok_or_else(|| {
-                CompileError::String(format!("macro '{}' takes more than {} arguments", name, i))
+            let expr = args.get(i).ok_or_else(|| CompileError {
+                msg: format!("macro '{}' takes more than {} arguments", name, i).into(),
             })?;
 
             match expr {
@@ -879,10 +882,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             (Some(cur_name), None) => (cur_name, 0),
             // A block definition contains a block definition of the same name
             (Some(cur_name), Some((prev_name, _))) if cur_name == prev_name => {
-                return Err(CompileError::String(format!(
-                    "cannot define recursive blocks ({})",
-                    cur_name
-                )));
+                return Err(CompileError {
+                    msg: format!("cannot define recursive blocks ({})", cur_name).into(),
+                });
             }
             // A block definition contains a definition of another block
             (Some(cur_name), Some((_, _))) => (cur_name, 0),
@@ -890,22 +892,27 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             (None, Some((prev_name, gen))) => (prev_name, gen + 1),
             // `super()` is called from outside a block
             (None, None) => {
-                return Err(CompileError::Static("cannot call 'super()' outside block"))
+                return Err(CompileError {
+                    msg: "cannot call 'super()' outside block".into(),
+                });
             }
         };
         self.super_block = Some(cur);
 
         // Get the block definition from the heritage chain
-        let heritage = self
+        let (ctx, def) = self
             .heritage
-            .as_ref()
-            .ok_or(CompileError::Static("no block ancestors available"))?;
-        let (ctx, def) = heritage.blocks[cur.0].get(cur.1).ok_or_else(|| {
-            CompileError::String(match name {
-                None => format!("no super() block found for block '{}'", cur.0),
-                Some(name) => format!("no block found for name '{}'", name),
-            })
-        })?;
+            .ok_or(CompileError {
+                msg: "no block ancestors available".into(),
+            })?
+            .blocks[cur.0]
+            .get(cur.1)
+            .ok_or_else(|| CompileError {
+                msg: match name {
+                    None => format!("no super() block found for block '{}'", cur.0).into(),
+                    Some(name) => format!("no block found for name '{}'", name).into(),
+                },
+            })?;
 
         // Get the nodes and whitespace suppression data from the block definition
         let (ws1, nodes, ws2) = if let Node::BlockDef(ws1, _, nodes, ws2) = def {
@@ -1113,15 +1120,15 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         #[cfg(not(feature = "json"))]
         if name == "json" {
-            return Err(CompileError::Static(
-                "the `json` filter requires the `serde-json` feature to be enabled",
-            ));
+            return Err(CompileError {
+                msg: "the `json` filter requires the `serde-json` feature to be enabled".into(),
+            });
         }
         #[cfg(not(feature = "yaml"))]
         if name == "yaml" {
-            return Err(CompileError::Static(
-                "the `yaml` filter requires the `serde-yaml` feature to be enabled",
-            ));
+            return Err(CompileError {
+                msg: "the `yaml` filter requires the `serde-yaml` feature to be enabled".into(),
+            });
         }
 
         const FILTERS: [&str; 3] = ["safe", "json", "yaml"];
@@ -1150,16 +1157,16 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         args: &[Expr<'_>],
     ) -> Result<(), CompileError> {
         if args.len() > 2 {
-            return Err(CompileError::Static(
-                "only two arguments allowed to escape filter",
-            ));
+            return Err(CompileError {
+                msg: "only two arguments allowed to escape filter".into(),
+            });
         }
         let opt_escaper = match args.get(1) {
             Some(Expr::StrLit(name)) => Some(*name),
             Some(_) => {
-                return Err(CompileError::Static(
-                    "invalid escaper type for escape filter",
-                ))
+                return Err(CompileError {
+                    msg: "invalid escaper type for escape filter".into(),
+                })
             }
             None => None,
         };
@@ -1170,7 +1177,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 .escapers
                 .iter()
                 .find_map(|(escapers, escaper)| escapers.contains(name).then(|| escaper))
-                .ok_or(CompileError::Static("invalid escaper for escape filter"))?,
+                .ok_or(CompileError {
+                    msg: "invalid escaper for escape filter".into(),
+                })?,
             None => self.input.escaper,
         };
         buf.write("::askama::filters::escape(");
@@ -1193,9 +1202,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 buf.write(", ");
             }
         } else {
-            return Err(CompileError::Static(
-                "invalid expression type for format filter",
-            ));
+            return Err(CompileError {
+                msg: "invalid expression type for format filter".into(),
+            });
         }
         self._visit_args(buf, &args[1..])?;
         buf.write(")");
@@ -1212,15 +1221,15 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             self.visit_str_lit(buf, v);
             buf.write(", ");
         } else {
-            return Err(CompileError::Static(
-                "invalid expression type for fmt filter",
-            ));
+            return Err(CompileError {
+                msg: "invalid expression type for fmt filter".into(),
+            });
         }
         self._visit_args(buf, &args[0..1])?;
         if args.len() > 2 {
-            return Err(CompileError::Static(
-                "only two arguments allowed to fmt filter",
-            ));
+            return Err(CompileError {
+                msg: "only two arguments allowed to fmt filter".into(),
+            });
         }
         buf.write(")");
         Ok(())
@@ -1305,7 +1314,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     buf.write("_loop_item.last");
                     return Ok(DisplayWrap::Unwrapped);
                 } else {
-                    return Err(CompileError::Static("unknown loop variable"));
+                    return Err(CompileError {
+                        msg: "unknown loop variable".into(),
+                    });
                 }
             }
         }
@@ -1354,16 +1365,15 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                         buf.writeln("})")?;
                     }
                     _ => {
-                        return Err(CompileError::Static(
-                            "loop.cycle(…) expects exactly one argument",
-                        ))
+                        return Err(CompileError {
+                            msg: "loop.cycle(…) expects exactly one argument".into(),
+                        });
                     }
                 },
                 s => {
-                    return Err(CompileError::String(format!(
-                        "unknown loop method: {:?}",
-                        s
-                    )))
+                    return Err(CompileError {
+                        msg: format!("unknown loop method: {:?}", s).into(),
+                    });
                 }
             }
         } else {
@@ -1671,9 +1681,9 @@ impl Buffer {
 
     fn dedent(&mut self) -> Result<(), CompileError> {
         if self.indent == 0 {
-            return Err(CompileError::Static(
-                "dedent() called while indentation == 0",
-            ));
+            return Err(CompileError {
+                msg: "dedent() called while indentation == 0".into(),
+            });
         }
         self.indent -= 1;
         Ok(())
