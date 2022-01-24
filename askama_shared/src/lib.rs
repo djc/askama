@@ -38,7 +38,7 @@ pub struct Config<'a> {
 }
 
 impl Config<'_> {
-    pub fn new(s: &str) -> std::result::Result<Config<'_>, CompileError> {
+    pub fn new(s: &str) -> std::result::Result<Config<'_>, Cow<'static, str>> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default_dirs = vec![root.join("templates")];
 
@@ -72,17 +72,13 @@ impl Config<'_> {
                     .insert(name.to_string(), Syntax::try_from(raw_s)?)
                     .is_some()
                 {
-                    return Err(CompileError {
-                        msg: format!("syntax \"{}\" is already defined", name).into(),
-                    });
+                    return Err(format!("syntax \"{}\" is already defined", name).into());
                 }
             }
         }
 
         if !syntaxes.contains_key(default_syntax) {
-            return Err(CompileError {
-                msg: format!("default syntax \"{}\" not found", default_syntax).into(),
-            });
+            return Err(format!("default syntax \"{}\" not found", default_syntax).into());
         }
 
         let mut escapers = Vec::new();
@@ -114,7 +110,7 @@ impl Config<'_> {
         &self,
         path: &str,
         start_at: Option<&Path>,
-    ) -> std::result::Result<PathBuf, CompileError> {
+    ) -> std::result::Result<PathBuf, Cow<'static, str>> {
         if let Some(root) = start_at {
             let relative = root.with_file_name(path);
             if relative.exists() {
@@ -129,13 +125,11 @@ impl Config<'_> {
             }
         }
 
-        Err(CompileError {
-            msg: format!(
-                "template {:?} not found in directories {:?}",
-                path, self.dirs
-            )
-            .into(),
-        })
+        Err(format!(
+            "template {:?} not found in directories {:?}",
+            path, self.dirs
+        )
+        .into())
     }
 }
 
@@ -163,7 +157,7 @@ impl Default for Syntax<'_> {
 }
 
 impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
-    type Error = CompileError;
+    type Error = Cow<'static, str>;
 
     fn try_from(raw: RawSyntax<'a>) -> std::result::Result<Self, Self::Error> {
         let default = Self::default();
@@ -183,9 +177,7 @@ impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
             || syntax.comment_start.len() != 2
             || syntax.comment_end.len() != 2
         {
-            return Err(CompileError {
-                msg: "length of delimiters must be two".into(),
-            });
+            return Err("length of delimiters must be two".into());
         }
 
         let bs = syntax.block_start.as_bytes()[0];
@@ -195,7 +187,7 @@ impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
         let es = syntax.block_start.as_bytes()[0];
         let ee = syntax.block_start.as_bytes()[1];
         if !((bs == cs && bs == es) || (be == ce && be == ee)) {
-            return Err(CompileError { msg: format!("bad delimiters block_start: {}, comment_start: {}, expr_start: {}, needs one of the two characters in common", syntax.block_start, syntax.comment_start, syntax.expr_start).into() });
+            return Err(format!("bad delimiters block_start: {}, comment_start: {}, expr_start: {}, needs one of the two characters in common", syntax.block_start, syntax.comment_start, syntax.expr_start).into());
         }
 
         Ok(syntax)
@@ -213,14 +205,12 @@ struct RawConfig<'d> {
 
 impl RawConfig<'_> {
     #[cfg(feature = "config")]
-    fn from_toml_str(s: &str) -> std::result::Result<RawConfig<'_>, CompileError> {
-        toml::from_str(s).map_err(|e| CompileError {
-            msg: format!("invalid TOML in {}: {}", CONFIG_FILE_NAME, e).into(),
-        })
+    fn from_toml_str(s: &str) -> std::result::Result<RawConfig<'_>, Cow<'static, str>> {
+        toml::from_str(s).map_err(|e| format!("invalid TOML in {}: {}", CONFIG_FILE_NAME, e).into())
     }
 
     #[cfg(not(feature = "config"))]
-    fn from_toml_str(_: &str) -> std::result::Result<RawConfig<'_>, CompileError> {
+    fn from_toml_str(_: &str) -> std::result::Result<RawConfig<'_>, Cow<'static, str>> {
         Err("TOML support not available".into())
     }
 }
@@ -249,13 +239,12 @@ struct RawEscaper<'a> {
     extensions: Vec<&'a str>,
 }
 
-pub fn read_config_file() -> std::result::Result<String, CompileError> {
+pub fn read_config_file() -> std::result::Result<String, Cow<'static, str>> {
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let filename = root.join(CONFIG_FILE_NAME);
     if filename.exists() {
-        fs::read_to_string(&filename).map_err(|_| CompileError {
-            msg: format!("unable to read {}", filename.to_str().unwrap()).into(),
-        })
+        fs::read_to_string(&filename)
+            .map_err(|_| format!("unable to read {}", filename.to_str().unwrap()).into())
     } else {
         Ok("".to_string())
     }
@@ -269,15 +258,13 @@ where
 }
 
 #[allow(clippy::match_wild_err_arm)]
-pub fn get_template_source(tpl_path: &Path) -> std::result::Result<String, CompileError> {
+pub fn get_template_source(tpl_path: &Path) -> std::result::Result<String, Cow<'static, str>> {
     match fs::read_to_string(tpl_path) {
-        Err(_) => Err(CompileError {
-            msg: format!(
-                "unable to open template file '{}'",
-                tpl_path.to_str().unwrap()
-            )
-            .into(),
-        }),
+        Err(_) => Err(format!(
+            "unable to open template file '{}'",
+            tpl_path.to_str().unwrap()
+        )
+        .into()),
         Ok(mut source) => {
             if source.ends_with('\n') {
                 let _ = source.pop();

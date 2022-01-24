@@ -1,4 +1,4 @@
-use super::{get_template_source, CompileError, Integrations};
+use super::{get_template_source, Integrations};
 use crate::filters;
 use crate::heritage::{Context, Heritage};
 use crate::input::{Source, TemplateInput};
@@ -8,6 +8,7 @@ use proc_macro2::Span;
 
 use quote::{quote, ToTokens};
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
 use std::{cmp, hash, mem, str};
@@ -17,7 +18,7 @@ pub fn generate<S: std::hash::BuildHasher>(
     contexts: &HashMap<&Path, Context<'_>, S>,
     heritage: Option<&Heritage<'_>>,
     integrations: Integrations,
-) -> Result<String, CompileError> {
+) -> Result<String, Cow<'static, str>> {
     Generator::new(input, contexts, heritage, integrations, MapChain::new())
         .build(&contexts[input.path.as_path()])
 }
@@ -82,7 +83,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Takes a Context and generates the relevant implementations.
-    fn build(mut self, ctx: &'a Context<'_>) -> Result<String, CompileError> {
+    fn build(mut self, ctx: &'a Context<'_>) -> Result<String, Cow<'static, str>> {
         let mut buf = Buffer::new(0);
         if !ctx.blocks.is_empty() {
             if let Some(parent) = self.input.parent {
@@ -122,7 +123,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-    ) -> Result<(), CompileError> {
+    ) -> Result<(), Cow<'static, str>> {
         self.write_header(buf, "::askama::Template", None)?;
         buf.writeln(
             "fn render_into(&self, writer: &mut (impl ::std::fmt::Write + ?Sized)) -> \
@@ -178,7 +179,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         buf: &mut Buffer,
         parent_type: &syn::Type,
-    ) -> Result<(), CompileError> {
+    ) -> Result<(), Cow<'static, str>> {
         self.write_header(buf, "::std::ops::Deref", None)?;
         buf.writeln(&format!(
             "type Target = {};",
@@ -192,7 +193,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement `Display` for the given context struct.
-    fn impl_display(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+    fn impl_display(&mut self, buf: &mut Buffer) -> Result<(), Cow<'static, str>> {
         self.write_header(buf, "::std::fmt::Display", None)?;
         buf.writeln("#[inline]")?;
         buf.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {")?;
@@ -202,7 +203,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement Actix-web's `Responder`.
-    fn impl_actix_web_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+    fn impl_actix_web_responder(&mut self, buf: &mut Buffer) -> Result<(), Cow<'static, str>> {
         self.write_header(buf, "::actix_web::Responder", None)?;
         buf.writeln("type Body = ::actix_web::body::BoxBody;")?;
         buf.writeln("#[inline]")?;
@@ -216,7 +217,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement Axum's `IntoResponse`.
-    fn impl_axum_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+    fn impl_axum_into_response(&mut self, buf: &mut Buffer) -> Result<(), Cow<'static, str>> {
         self.write_header(buf, "::askama_axum::IntoResponse", None)?;
         buf.writeln("#[inline]")?;
         buf.writeln(
@@ -230,7 +231,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement gotham's `IntoResponse`.
-    fn impl_gotham_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+    fn impl_gotham_into_response(&mut self, buf: &mut Buffer) -> Result<(), Cow<'static, str>> {
         self.write_header(buf, "::askama_gotham::IntoResponse", None)?;
         buf.writeln("#[inline]")?;
         buf.writeln(
@@ -244,7 +245,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement mendes' `Responder`.
-    fn impl_mendes_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+    fn impl_mendes_responder(&mut self, buf: &mut Buffer) -> Result<(), Cow<'static, str>> {
         let param = syn::parse_str("A: ::mendes::Application").unwrap();
 
         let mut generics = self.input.ast.generics.clone();
@@ -293,7 +294,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement Rocket's `Responder`.
-    fn impl_rocket_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+    fn impl_rocket_responder(&mut self, buf: &mut Buffer) -> Result<(), Cow<'static, str>> {
         let lifetime = syn::Lifetime::new("'askama", Span::call_site());
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
         self.write_header(
@@ -315,7 +316,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         Ok(())
     }
 
-    fn impl_tide_integrations(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+    fn impl_tide_integrations(&mut self, buf: &mut Buffer) -> Result<(), Cow<'static, str>> {
         let ext = self.input.extension().unwrap_or("txt");
 
         self.write_header(
@@ -340,7 +341,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("}\n}")
     }
 
-    fn impl_warp_reply(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+    fn impl_warp_reply(&mut self, buf: &mut Buffer) -> Result<(), Cow<'static, str>> {
         self.write_header(buf, "::askama_warp::warp::reply::Reply", None)?;
         buf.writeln("#[inline]")?;
         buf.writeln("fn into_response(self) -> ::askama_warp::warp::reply::Response {")?;
@@ -357,7 +358,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         target: &str,
         params: Option<Vec<syn::GenericParam>>,
-    ) -> Result<(), CompileError> {
+    ) -> Result<(), Cow<'static, str>> {
         let mut generics = self.input.ast.generics.clone();
         if let Some(params) = params {
             for param in params {
@@ -386,7 +387,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         nodes: &'a [Node<'_>],
         buf: &mut Buffer,
         level: AstLevel,
-    ) -> Result<usize, CompileError> {
+    ) -> Result<usize, Cow<'static, str>> {
         let mut size_hint = 0;
         for n in nodes {
             match *n {
@@ -425,9 +426,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 }
                 Node::Macro(_, ref m) => {
                     if level != AstLevel::Top {
-                        return Err(CompileError {
-                            msg: "macro blocks only allowed at the top level".into(),
-                        });
+                        return Err("macro blocks only allowed at the top level".into());
                     }
                     self.flush_ws(m.ws1);
                     self.prepare_ws(m.ws2);
@@ -439,17 +438,13 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 }
                 Node::Import(ws, _, _) => {
                     if level != AstLevel::Top {
-                        return Err(CompileError {
-                            msg: "import blocks only allowed at the top level".into(),
-                        });
+                        return Err("import blocks only allowed at the top level".into());
                     }
                     self.handle_ws(ws);
                 }
                 Node::Extends(_) => {
                     if level != AstLevel::Top {
-                        return Err(CompileError {
-                            msg: "extend blocks only allowed at the top level".into(),
-                        });
+                        return Err("extend blocks only allowed at the top level".into());
                     }
                     // No whitespace handling: child template top-level is not used,
                     // except for the blocks defined in it.
@@ -479,7 +474,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         conds: &'a [Cond<'_>],
         ws: Ws,
-    ) -> Result<usize, CompileError> {
+    ) -> Result<usize, Cow<'static, str>> {
         let mut flushed = 0;
         let mut arm_sizes = Vec::new();
         let mut has_else = false;
@@ -496,7 +491,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 if i == 0 {
                     buf.write("if ");
                 } else {
-                    buf.dedent()?;
+                    buf.dedent();
                     buf.write("} else if ");
                 }
 
@@ -520,7 +515,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     buf.write(") as &bool)");
                 }
             } else {
-                buf.dedent()?;
+                buf.dedent();
                 buf.write("} else");
                 has_else = true;
             }
@@ -551,7 +546,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         expr: &Expr<'_>,
         arms: &'a [When<'_>],
         ws2: Ws,
-    ) -> Result<usize, CompileError> {
+    ) -> Result<usize, Cow<'static, str>> {
         self.flush_ws(ws1);
         let flushed = self.write_buf_writable(buf)?;
         let mut arm_sizes = Vec::new();
@@ -594,7 +589,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
         loop_block: &'a Loop<'_>,
-    ) -> Result<usize, CompileError> {
+    ) -> Result<usize, Cow<'static, str>> {
         self.handle_ws(loop_block.ws1);
         self.locals.push();
 
@@ -666,32 +661,31 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         scope: Option<&str>,
         name: &str,
         args: &[Expr<'_>],
-    ) -> Result<usize, CompileError> {
+    ) -> Result<usize, Cow<'static, str>> {
         if name == "super" {
             return self.write_block(buf, None, ws);
         }
 
         let (def, own_ctx) = if let Some(s) = scope {
-            let path = ctx.imports.get(s).ok_or_else(|| CompileError {
-                msg: format!("no import found for scope '{}'", s).into(),
-            })?;
+            let path = ctx
+                .imports
+                .get(s)
+                .ok_or_else(|| Cow::Owned(format!("no import found for scope '{}'", s)))?;
             let mctx = self
                 .contexts
                 .get(path.as_path())
-                .ok_or_else(|| CompileError {
-                    msg: format!("context for '{:?}' not found", path).into(),
-                })?;
+                .ok_or_else(|| Cow::Owned(format!("context for '{:?}' not found", path)))?;
             (
-                mctx.macros.get(name).ok_or_else(|| CompileError {
-                    msg: format!("macro '{}' not found in scope '{}'", name, s).into(),
+                mctx.macros.get(name).ok_or_else(|| {
+                    Cow::Owned(format!("macro '{}' not found in scope '{}'", name, s))
                 })?,
                 mctx,
             )
         } else {
             (
-                ctx.macros.get(name).ok_or_else(|| CompileError {
-                    msg: format!("macro '{}' not found", name).into(),
-                })?,
+                ctx.macros
+                    .get(name)
+                    .ok_or_else(|| Cow::Owned(format!("macro '{}' not found", name)))?,
                 ctx,
             )
         };
@@ -706,9 +700,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let mut values = Buffer::new(0);
         let mut is_first_variable = true;
         for (i, arg) in def.args.iter().enumerate() {
-            let expr = args.get(i).ok_or_else(|| CompileError {
-                msg: format!("macro '{}' takes more than {} arguments", name, i).into(),
-            })?;
+            let expr = args
+                .get(i)
+                .ok_or_else(|| format!("macro '{}' takes more than {} arguments", name, i))?;
 
             match expr {
                 // If `expr` is already a form of variable then
@@ -767,7 +761,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         ws: Ws,
         path: &str,
-    ) -> Result<usize, CompileError> {
+    ) -> Result<usize, Cow<'static, str>> {
         self.flush_ws(ws);
         self.write_buf_writable(buf)?;
         let path = self
@@ -805,7 +799,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         ws: Ws,
         var: &'a Target<'_>,
-    ) -> Result<(), CompileError> {
+    ) -> Result<(), Cow<'static, str>> {
         self.handle_ws(ws);
         self.write_buf_writable(buf)?;
         buf.write("let ");
@@ -842,7 +836,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         ws: Ws,
         var: &'a Target<'_>,
         val: &Expr<'_>,
-    ) -> Result<(), CompileError> {
+    ) -> Result<(), Cow<'static, str>> {
         self.handle_ws(ws);
         let mut expr_buf = Buffer::new(0);
         self.visit_expr(&mut expr_buf, val)?;
@@ -872,7 +866,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         name: Option<&'a str>,
         outer: Ws,
-    ) -> Result<usize, CompileError> {
+    ) -> Result<usize, Cow<'static, str>> {
         // Flush preceding whitespace according to the outer WS spec
         self.flush_ws(outer);
 
@@ -882,9 +876,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             (Some(cur_name), None) => (cur_name, 0),
             // A block definition contains a block definition of the same name
             (Some(cur_name), Some((prev_name, _))) if cur_name == prev_name => {
-                return Err(CompileError {
-                    msg: format!("cannot define recursive blocks ({})", cur_name).into(),
-                });
+                return Err(format!("cannot define recursive blocks ({})", cur_name).into());
             }
             // A block definition contains a definition of another block
             (Some(cur_name), Some((_, _))) => (cur_name, 0),
@@ -892,9 +884,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             (None, Some((prev_name, gen))) => (prev_name, gen + 1),
             // `super()` is called from outside a block
             (None, None) => {
-                return Err(CompileError {
-                    msg: "cannot call 'super()' outside block".into(),
-                });
+                return Err("cannot call 'super()' outside block".into());
             }
         };
         self.super_block = Some(cur);
@@ -902,16 +892,14 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         // Get the block definition from the heritage chain
         let (ctx, def) = self
             .heritage
-            .ok_or(CompileError {
-                msg: "no block ancestors available".into(),
-            })?
+            .ok_or(Cow::Borrowed("no block ancestors available"))?
             .blocks[cur.0]
             .get(cur.1)
-            .ok_or_else(|| CompileError {
-                msg: match name {
-                    None => format!("no super() block found for block '{}'", cur.0).into(),
-                    Some(name) => format!("no block found for name '{}'", name).into(),
-                },
+            .ok_or_else(|| {
+                Cow::Owned(match name {
+                    None => format!("no super() block found for block '{}'", cur.0),
+                    Some(name) => format!("no block found for name '{}'", name),
+                })
             })?;
 
         // Get the nodes and whitespace suppression data from the block definition
@@ -947,7 +935,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Write expression buffer and empty
-    fn write_buf_writable(&mut self, buf: &mut Buffer) -> Result<usize, CompileError> {
+    fn write_buf_writable(&mut self, buf: &mut Buffer) -> Result<usize, Cow<'static, str>> {
         if self.buf_writable.is_empty() {
             return Ok(0);
         }
@@ -1017,7 +1005,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("writer,")?;
         buf.writeln(&format!("{:#?},", &buf_format.buf))?;
         buf.writeln(buf_expr.buf.trim())?;
-        buf.dedent()?;
+        buf.dedent();
         buf.writeln(")?;")?;
         Ok(size_hint)
     }
@@ -1050,7 +1038,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
     /* Visitor methods for expression types */
 
-    fn visit_expr_root(&mut self, expr: &Expr<'_>) -> Result<String, CompileError> {
+    fn visit_expr_root(&mut self, expr: &Expr<'_>) -> Result<String, Cow<'static, str>> {
         let mut buf = Buffer::new(0);
         self.visit_expr(&mut buf, expr)?;
         Ok(buf.buf)
@@ -1060,7 +1048,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         buf: &mut Buffer,
         expr: &Expr<'_>,
-    ) -> Result<DisplayWrap, CompileError> {
+    ) -> Result<DisplayWrap, Cow<'static, str>> {
         Ok(match *expr {
             Expr::BoolLit(s) => self.visit_bool_lit(buf, s),
             Expr::NumLit(s) => self.visit_num_lit(buf, s),
@@ -1099,7 +1087,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         mut name: &str,
         args: &[Expr<'_>],
-    ) -> Result<DisplayWrap, CompileError> {
+    ) -> Result<DisplayWrap, Cow<'static, str>> {
         if matches!(name, "escape" | "e") {
             self._visit_escape_filter(buf, args)?;
             return Ok(DisplayWrap::Wrapped);
@@ -1120,15 +1108,11 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         #[cfg(not(feature = "json"))]
         if name == "json" {
-            return Err(CompileError {
-                msg: "the `json` filter requires the `serde-json` feature to be enabled".into(),
-            });
+            return Err("the `json` filter requires the `serde-json` feature to be enabled".into());
         }
         #[cfg(not(feature = "yaml"))]
         if name == "yaml" {
-            return Err(CompileError {
-                msg: "the `yaml` filter requires the `serde-yaml` feature to be enabled".into(),
-            });
+            return Err("the `yaml` filter requires the `serde-yaml` feature to be enabled".into());
         }
 
         const FILTERS: [&str; 3] = ["safe", "json", "yaml"];
@@ -1155,18 +1139,14 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
-    ) -> Result<(), CompileError> {
+    ) -> Result<(), Cow<'static, str>> {
         if args.len() > 2 {
-            return Err(CompileError {
-                msg: "only two arguments allowed to escape filter".into(),
-            });
+            return Err("only two arguments allowed to escape filter".into());
         }
         let opt_escaper = match args.get(1) {
             Some(Expr::StrLit(name)) => Some(*name),
             Some(_) => {
-                return Err(CompileError {
-                    msg: "invalid escaper type for escape filter".into(),
-                })
+                return Err("invalid escaper type for escape filter".into());
             }
             None => None,
         };
@@ -1177,9 +1157,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 .escapers
                 .iter()
                 .find_map(|(escapers, escaper)| escapers.contains(name).then(|| escaper))
-                .ok_or(CompileError {
-                    msg: "invalid escaper for escape filter".into(),
-                })?,
+                .ok_or(Cow::Borrowed("invalid escaper for escape filter"))?,
             None => self.input.escaper,
         };
         buf.write("::askama::filters::escape(");
@@ -1194,7 +1172,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
-    ) -> Result<(), CompileError> {
+    ) -> Result<(), Cow<'static, str>> {
         buf.write("format!(");
         if let Some(Expr::StrLit(v)) = args.first() {
             self.visit_str_lit(buf, v);
@@ -1202,9 +1180,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 buf.write(", ");
             }
         } else {
-            return Err(CompileError {
-                msg: "invalid expression type for format filter".into(),
-            });
+            return Err("invalid expression type for format filter".into());
         }
         self._visit_args(buf, &args[1..])?;
         buf.write(")");
@@ -1215,21 +1191,17 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
-    ) -> Result<(), CompileError> {
+    ) -> Result<(), Cow<'static, str>> {
         buf.write("format!(");
         if let Some(Expr::StrLit(v)) = args.get(1) {
             self.visit_str_lit(buf, v);
             buf.write(", ");
         } else {
-            return Err(CompileError {
-                msg: "invalid expression type for fmt filter".into(),
-            });
+            return Err("invalid expression type for fmt filter".into());
         }
         self._visit_args(buf, &args[0..1])?;
         if args.len() > 2 {
-            return Err(CompileError {
-                msg: "only two arguments allowed to fmt filter".into(),
-            });
+            return Err("only two arguments allowed to fmt filter".into());
         }
         buf.write(")");
         Ok(())
@@ -1240,7 +1212,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
-    ) -> Result<(), CompileError> {
+    ) -> Result<(), Cow<'static, str>> {
         buf.write("::askama::filters::join((&");
         for (i, arg) in args.iter().enumerate() {
             if i > 0 {
@@ -1255,7 +1227,11 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         Ok(())
     }
 
-    fn _visit_args(&mut self, buf: &mut Buffer, args: &[Expr<'_>]) -> Result<(), CompileError> {
+    fn _visit_args(
+        &mut self,
+        buf: &mut Buffer,
+        args: &[Expr<'_>],
+    ) -> Result<(), Cow<'static, str>> {
         if args.is_empty() {
             return Ok(());
         }
@@ -1298,7 +1274,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         obj: &Expr<'_>,
         attr: &str,
-    ) -> Result<DisplayWrap, CompileError> {
+    ) -> Result<DisplayWrap, Cow<'static, str>> {
         if let Expr::Var(name) = *obj {
             if name == "loop" {
                 if attr == "index" {
@@ -1314,9 +1290,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     buf.write("_loop_item.last");
                     return Ok(DisplayWrap::Unwrapped);
                 } else {
-                    return Err(CompileError {
-                        msg: "unknown loop variable".into(),
-                    });
+                    return Err("unknown loop variable".into());
                 }
             }
         }
@@ -1330,7 +1304,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         obj: &Expr<'_>,
         key: &Expr<'_>,
-    ) -> Result<DisplayWrap, CompileError> {
+    ) -> Result<DisplayWrap, Cow<'static, str>> {
         buf.write("&");
         self.visit_expr(buf, obj)?;
         buf.write("[");
@@ -1345,7 +1319,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         obj: &Expr<'_>,
         method: &str,
         args: &[Expr<'_>],
-    ) -> Result<DisplayWrap, CompileError> {
+    ) -> Result<DisplayWrap, Cow<'static, str>> {
         if matches!(obj, Expr::Var("loop")) {
             match method {
                 "cycle" => match args {
@@ -1365,15 +1339,11 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                         buf.writeln("})")?;
                     }
                     _ => {
-                        return Err(CompileError {
-                            msg: "loop.cycle(…) expects exactly one argument".into(),
-                        });
+                        return Err("loop.cycle(…) expects exactly one argument".into());
                     }
                 },
                 s => {
-                    return Err(CompileError {
-                        msg: format!("unknown loop method: {:?}", s).into(),
-                    });
+                    return Err(format!("unknown loop method: {:?}", s).into());
                 }
             }
         } else {
@@ -1394,7 +1364,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         op: &str,
         inner: &Expr<'_>,
-    ) -> Result<DisplayWrap, CompileError> {
+    ) -> Result<DisplayWrap, Cow<'static, str>> {
         buf.write(op);
         self.visit_expr(buf, inner)?;
         Ok(DisplayWrap::Unwrapped)
@@ -1406,7 +1376,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         op: &str,
         left: &Option<Box<Expr<'_>>>,
         right: &Option<Box<Expr<'_>>>,
-    ) -> Result<DisplayWrap, CompileError> {
+    ) -> Result<DisplayWrap, Cow<'static, str>> {
         if let Some(left) = left {
             self.visit_expr(buf, left)?;
         }
@@ -1423,7 +1393,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         op: &str,
         left: &Expr<'_>,
         right: &Expr<'_>,
-    ) -> Result<DisplayWrap, CompileError> {
+    ) -> Result<DisplayWrap, Cow<'static, str>> {
         self.visit_expr(buf, left)?;
         buf.write(&format!(" {} ", op));
         self.visit_expr(buf, right)?;
@@ -1434,7 +1404,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         buf: &mut Buffer,
         inner: &Expr<'_>,
-    ) -> Result<DisplayWrap, CompileError> {
+    ) -> Result<DisplayWrap, Cow<'static, str>> {
         buf.write("(");
         self.visit_expr(buf, inner)?;
         buf.write(")");
@@ -1445,7 +1415,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         buf: &mut Buffer,
         elements: &[Expr<'_>],
-    ) -> Result<DisplayWrap, CompileError> {
+    ) -> Result<DisplayWrap, Cow<'static, str>> {
         buf.write("[");
         for (i, el) in elements.iter().enumerate() {
             if i > 0 {
@@ -1472,7 +1442,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         path: &[&str],
         args: &[Expr<'_>],
-    ) -> Result<DisplayWrap, CompileError> {
+    ) -> Result<DisplayWrap, Cow<'static, str>> {
         for (i, part) in path.iter().enumerate() {
             if i > 0 {
                 buf.write("::");
@@ -1500,7 +1470,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         s: &str,
         args: &[Expr<'_>],
-    ) -> Result<DisplayWrap, CompileError> {
+    ) -> Result<DisplayWrap, Cow<'static, str>> {
         buf.write("(");
         let s = normalize_identifier(s);
         if !self.locals.contains(&s) && s != "self" {
@@ -1650,9 +1620,9 @@ impl Buffer {
         }
     }
 
-    fn writeln(&mut self, s: &str) -> Result<(), CompileError> {
+    fn writeln(&mut self, s: &str) -> Result<(), Cow<'static, str>> {
         if s == "}" {
-            self.dedent()?;
+            self.dedent();
         }
         if !s.is_empty() {
             self.write(s);
@@ -1679,14 +1649,11 @@ impl Buffer {
         self.indent += 1;
     }
 
-    fn dedent(&mut self) -> Result<(), CompileError> {
+    fn dedent(&mut self) {
         if self.indent == 0 {
-            return Err(CompileError {
-                msg: "dedent() called while indentation == 0".into(),
-            });
+            panic!("dedent() called while indentation == 0");
         }
         self.indent -= 1;
-        Ok(())
     }
 }
 

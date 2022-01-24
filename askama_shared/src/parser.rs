@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cell::Cell;
 use std::str;
 
@@ -10,7 +11,7 @@ use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{self, error_position, AsChar, IResult, InputTakeAtPosition};
 
-use crate::{CompileError, Syntax};
+use crate::Syntax;
 
 #[derive(Debug, PartialEq)]
 pub enum Node<'a> {
@@ -1173,7 +1174,7 @@ fn tag_expr_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
     tag(s.syntax.expr_end)(i)
 }
 
-pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Result<Vec<Node<'a>>, CompileError> {
+pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Result<Vec<Node<'a>>, Cow<'static, str>> {
     let state = State {
         syntax,
         loop_depth: Cell::new(0),
@@ -1181,9 +1182,7 @@ pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Result<Vec<Node<'a>>, 
     match parse_template(src, &state) {
         Ok((left, res)) => {
             if !left.is_empty() {
-                Err(CompileError {
-                    msg: format!("unable to parse template:\n\n{:?}", left).into(),
-                })
+                Err(format!("unable to parse template:\n\n{:?}", left).into())
             } else {
                 Ok(res)
             }
@@ -1202,20 +1201,16 @@ pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Result<Vec<Node<'a>>, 
             let (row, last_line) = source_before.lines().enumerate().last().unwrap();
             let column = last_line.chars().count();
 
-            Err(CompileError {
-                msg: format!(
-                    "problems parsing template source at row {}, column {} near:\n{}",
-                    row + 1,
-                    column,
-                    source_after,
-                )
-                .into(),
-            })
+            Err(format!(
+                "problems parsing template source at row {}, column {} near:\n{}",
+                row + 1,
+                column,
+                source_after,
+            )
+            .into())
         }
 
-        Err(nom::Err::Incomplete(_)) => Err(CompileError {
-            msg: "parsing incomplete".into(),
-        }),
+        Err(nom::Err::Incomplete(_)) => panic!("parsing incomplete"),
     }
 }
 

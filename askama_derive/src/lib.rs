@@ -10,6 +10,7 @@ use askama_shared::{
 };
 use proc_macro::TokenStream;
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -30,25 +31,31 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 /// the parse tree and/or generated source according to the `print` key's
 /// value as passed to the `template()` attribute.
 fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
-    let config_toml = read_config_file()?;
-    let config = Config::new(&config_toml)?;
+    let config_toml = read_config_file().map_err(|msg| CompileError { msg })?;
+    let config = Config::new(&config_toml).map_err(|msg| CompileError { msg })?;
     let input = TemplateInput::new(ast, &config)?;
     let source: String = match input.source {
         Source::Source(ref s) => s.clone(),
-        Source::Path(_) => get_template_source(&input.path)?,
+        Source::Path(_) => get_template_source(&input.path).map_err(|msg| CompileError { msg })?,
     };
 
     let mut sources = HashMap::new();
-    find_used_templates(&input, &mut sources, source)?;
+    find_used_templates(&input, &mut sources, source).map_err(|msg| CompileError { msg })?;
 
     let mut parsed = HashMap::new();
     for (path, src) in &sources {
-        parsed.insert(path.as_path(), parse(src, input.syntax)?);
+        parsed.insert(
+            path.as_path(),
+            parse(src, input.syntax).map_err(|msg| CompileError { msg })?,
+        );
     }
 
     let mut contexts = HashMap::new();
     for (path, nodes) in &parsed {
-        contexts.insert(*path, Context::new(input.config, path, nodes)?);
+        contexts.insert(
+            *path,
+            Context::new(input.config, path, nodes).map_err(|msg| CompileError { msg })?,
+        );
     }
 
     let ctx = &contexts[input.path.as_path()];
@@ -62,7 +69,8 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
         eprintln!("{:?}", parsed[input.path.as_path()]);
     }
 
-    let code = generator::generate(&input, &contexts, heritage.as_ref(), INTEGRATIONS)?;
+    let code = generator::generate(&input, &contexts, heritage.as_ref(), INTEGRATIONS)
+        .map_err(|msg| CompileError { msg })?;
     if input.print == Print::Code || input.print == Print::All {
         eprintln!("{}", code);
     }
@@ -73,7 +81,7 @@ fn find_used_templates(
     input: &TemplateInput<'_>,
     map: &mut HashMap<PathBuf, String>,
     source: String,
-) -> Result<(), CompileError> {
+) -> Result<(), Cow<'static, str>> {
     let mut dependency_graph = Vec::new();
     let mut check = vec![(input.path.clone(), source)];
     while let Some((path, source)) = check.pop() {
@@ -83,16 +91,14 @@ fn find_used_templates(
                     let extends = input.config.find_template(extends, Some(&path))?;
                     let dependency_path = (path.clone(), extends.clone());
                     if dependency_graph.contains(&dependency_path) {
-                        return Err(CompileError {
-                            msg: format!(
-                                "cyclic dependecy in graph {:#?}",
-                                dependency_graph
-                                    .iter()
-                                    .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
-                                    .collect::<Vec<String>>(),
-                            )
-                            .into(),
-                        });
+                        return Err(format!(
+                            "cyclic dependecy in graph {:#?}",
+                            dependency_graph
+                                .iter()
+                                .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
+                                .collect::<Vec<String>>(),
+                        )
+                        .into());
                     }
                     dependency_graph.push(dependency_path);
                     let source = get_template_source(&extends)?;

@@ -1,5 +1,6 @@
 use crate::{CompileError, Config, Syntax};
 
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -110,7 +111,7 @@ impl TemplateInput<'_> {
                 }
             } else if pair.path.is_ident("print") {
                 if let syn::Lit::Str(ref s) = pair.lit {
-                    print = s.value().parse()?;
+                    print = s.value().parse().map_err(|msg| CompileError { msg })?;
                 } else {
                     return Err(CompileError {
                         msg: "print value must be string literal".into(),
@@ -156,7 +157,9 @@ impl TemplateInput<'_> {
         // of `ext` is merged into a synthetic `path` value here.
         let source = source.expect("template path or source not found in attributes");
         let path = match (&source, &ext) {
-            (&Source::Path(ref path), _) => config.find_template(path, None)?,
+            (&Source::Path(ref path), _) => config
+                .find_template(path, None)
+                .map_err(|msg| CompileError { msg })?,
             (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
             (&Source::Source(_), None) => {
                 return Err(CompileError {
@@ -274,7 +277,7 @@ pub enum Print {
 }
 
 impl FromStr for Print {
-    type Err = CompileError;
+    type Err = Cow<'static, str>;
 
     fn from_str(s: &str) -> Result<Print, Self::Err> {
         use self::Print::*;
@@ -284,9 +287,7 @@ impl FromStr for Print {
             "code" => Code,
             "none" => None,
             v => {
-                return Err(CompileError {
-                    msg: format!("invalid value for print option: {}", v).into(),
-                });
+                return Err(format!("invalid value for print option: {}", v).into());
             }
         })
     }
