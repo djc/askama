@@ -542,7 +542,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
         ws1: Ws,
-        expr: &Expr<'_>,
+        expr: &Expr<'a>,
         arms: &'a [When<'_>],
         ws2: Ws,
     ) -> Result<usize, CompileError> {
@@ -659,7 +659,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         ws: Ws,
         scope: Option<&str>,
         name: &str,
-        args: &[Expr<'_>],
+        args: &[Expr<'a>],
     ) -> Result<usize, CompileError> {
         if name == "super" {
             return self.write_block(buf, None, ws);
@@ -832,7 +832,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         ws: Ws,
         var: &'a Target<'_>,
-        val: &Expr<'_>,
+        val: &Expr<'a>,
     ) -> Result<(), CompileError> {
         self.handle_ws(ws);
         let mut expr_buf = Buffer::new(0);
@@ -1032,7 +1032,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
     /* Visitor methods for expression types */
 
-    fn visit_expr_root(&mut self, expr: &Expr<'_>) -> Result<String, CompileError> {
+    fn visit_expr_root(&mut self, expr: &Expr<'a>) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
         self.visit_expr(&mut buf, expr)?;
         Ok(buf.buf)
@@ -1041,7 +1041,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn visit_expr(
         &mut self,
         buf: &mut Buffer,
-        expr: &Expr<'_>,
+        expr: &Expr<'a>,
     ) -> Result<DisplayWrap, CompileError> {
         Ok(match *expr {
             Expr::BoolLit(s) => self.visit_bool_lit(buf, s),
@@ -1063,6 +1063,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             Expr::MethodCall(ref obj, method, ref args) => {
                 self.visit_method_call(buf, obj, method, args)?
             }
+            Expr::Closure(ref params, ref body) => self.visit_closure(buf, params, body)?,
             Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
         })
     }
@@ -1080,7 +1081,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         buf: &mut Buffer,
         mut name: &str,
-        args: &[Expr<'_>],
+        args: &[Expr<'a>],
     ) -> Result<DisplayWrap, CompileError> {
         if matches!(name, "escape" | "e") {
             self._visit_escape_filter(buf, args)?;
@@ -1132,7 +1133,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn _visit_escape_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[Expr<'a>],
     ) -> Result<(), CompileError> {
         if args.len() > 2 {
             return Err("only two arguments allowed to escape filter".into());
@@ -1163,7 +1164,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn _visit_format_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[Expr<'a>],
     ) -> Result<(), CompileError> {
         buf.write("format!(");
         if let Some(Expr::StrLit(v)) = args.first() {
@@ -1182,7 +1183,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn _visit_fmt_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[Expr<'a>],
     ) -> Result<(), CompileError> {
         buf.write("format!(");
         if let Some(Expr::StrLit(v)) = args.get(1) {
@@ -1203,7 +1204,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn _visit_join_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[Expr<'a>],
     ) -> Result<(), CompileError> {
         buf.write("::askama::filters::join((&");
         for (i, arg) in args.iter().enumerate() {
@@ -1219,7 +1220,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         Ok(())
     }
 
-    fn _visit_args(&mut self, buf: &mut Buffer, args: &[Expr<'_>]) -> Result<(), CompileError> {
+    fn _visit_args(&mut self, buf: &mut Buffer, args: &[Expr<'a>]) -> Result<(), CompileError> {
         if args.is_empty() {
             return Ok(());
         }
@@ -1260,7 +1261,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn visit_attr(
         &mut self,
         buf: &mut Buffer,
-        obj: &Expr<'_>,
+        obj: &Expr<'a>,
         attr: &str,
     ) -> Result<DisplayWrap, CompileError> {
         if let Expr::Var(name) = *obj {
@@ -1290,8 +1291,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn visit_index(
         &mut self,
         buf: &mut Buffer,
-        obj: &Expr<'_>,
-        key: &Expr<'_>,
+        obj: &Expr<'a>,
+        key: &Expr<'a>,
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("&");
         self.visit_expr(buf, obj)?;
@@ -1304,9 +1305,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn visit_method_call(
         &mut self,
         buf: &mut Buffer,
-        obj: &Expr<'_>,
+        obj: &Expr<'a>,
         method: &str,
-        args: &[Expr<'_>],
+        args: &[Expr<'a>],
     ) -> Result<DisplayWrap, CompileError> {
         if matches!(obj, Expr::Var("loop")) {
             match method {
@@ -1343,11 +1344,43 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         Ok(DisplayWrap::Unwrapped)
     }
 
+    fn visit_closure(
+        &mut self,
+        buf: &mut Buffer,
+        params: &[&'a str],
+        body: &Expr<'a>,
+    ) -> Result<DisplayWrap, CompileError> {
+        self.locals.push();
+
+        buf.write("|");
+        for (i, param) in params.iter().enumerate() {
+            if i > 0 {
+                buf.write(", ");
+            }
+            buf.write(param);
+            self.locals.insert(param, LocalMeta::initialized())
+        }
+        buf.write("|");
+
+        let borrow = !body.is_copyable();
+        if borrow {
+            buf.write("&(");
+        }
+        self.visit_expr(buf, body)?;
+        if borrow {
+            buf.write(")");
+        }
+
+        self.locals.pop();
+
+        Ok(DisplayWrap::Unwrapped)
+    }
+
     fn visit_unary(
         &mut self,
         buf: &mut Buffer,
         op: &str,
-        inner: &Expr<'_>,
+        inner: &Expr<'a>,
     ) -> Result<DisplayWrap, CompileError> {
         buf.write(op);
         self.visit_expr(buf, inner)?;
@@ -1358,8 +1391,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         buf: &mut Buffer,
         op: &str,
-        left: &Option<Box<Expr<'_>>>,
-        right: &Option<Box<Expr<'_>>>,
+        left: &Option<Box<Expr<'a>>>,
+        right: &Option<Box<Expr<'a>>>,
     ) -> Result<DisplayWrap, CompileError> {
         if let Some(left) = left {
             self.visit_expr(buf, left)?;
@@ -1375,8 +1408,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         buf: &mut Buffer,
         op: &str,
-        left: &Expr<'_>,
-        right: &Expr<'_>,
+        left: &Expr<'a>,
+        right: &Expr<'a>,
     ) -> Result<DisplayWrap, CompileError> {
         self.visit_expr(buf, left)?;
         buf.write(&format!(" {} ", op));
@@ -1387,7 +1420,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn visit_group(
         &mut self,
         buf: &mut Buffer,
-        inner: &Expr<'_>,
+        inner: &Expr<'a>,
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("(");
         self.visit_expr(buf, inner)?;
@@ -1398,7 +1431,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn visit_array(
         &mut self,
         buf: &mut Buffer,
-        elements: &[Expr<'_>],
+        elements: &[Expr<'a>],
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("[");
         for (i, el) in elements.iter().enumerate() {
@@ -1425,7 +1458,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         buf: &mut Buffer,
         path: &[&str],
-        args: &[Expr<'_>],
+        args: &[Expr<'a>],
     ) -> Result<DisplayWrap, CompileError> {
         for (i, part) in path.iter().enumerate() {
             if i > 0 {
@@ -1453,7 +1486,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         buf: &mut Buffer,
         s: &str,
-        args: &[Expr<'_>],
+        args: &[Expr<'a>],
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("(");
         let s = normalize_identifier(s);

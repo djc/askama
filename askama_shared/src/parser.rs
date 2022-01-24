@@ -64,6 +64,7 @@ pub enum Expr<'a> {
     Range(&'a str, Option<Box<Expr<'a>>>, Option<Box<Expr<'a>>>),
     Group(Box<Expr<'a>>),
     MethodCall(Box<Expr<'a>>, &'a str, Vec<Expr<'a>>),
+    Closure(Vec<&'a str>, Box<Expr<'a>>),
     RustMacro(&'a str, &'a str),
 }
 
@@ -87,6 +88,9 @@ impl Expr<'_> {
             // as in that case the call is more likely to return a
             // reference in the first place then.
             VarCall(..) | Path(..) | PathCall(..) | MethodCall(..) => true,
+            // Closures likely don't need to be borrowed,
+            // as they are usually used in place.
+            Closure(..) => true,
             // If the `expr` is within a `Unary` or `BinOp` then
             // an assumption can be made that the operand is copy.
             // If not, then the value is moved and adding `.clone()`
@@ -640,7 +644,7 @@ expr_prec_layer!(expr_compare, expr_bor, "==", "!=", ">=", ">", "<=", "<");
 expr_prec_layer!(expr_and, expr_compare, "&&");
 expr_prec_layer!(expr_or, expr_and, "||");
 
-fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
+fn expr_range(i: &str) -> IResult<&str, Expr<'_>> {
     let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(expr_or))(i);
     alt((
         map(range_right, |(op, right)| {
@@ -654,6 +658,27 @@ fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
             },
         ),
     ))(i)
+}
+
+fn expr_closure(i: &str) -> IResult<&str, Expr<'_>> {
+    let parameters = delimited(
+        ws(char('|')),
+        separated_list0(char(','), ws(identifier)),
+        ws(char('|')),
+    );
+
+    let (i, (parameters, expr)) = tuple((opt(parameters), expr_range))(i)?;
+    Ok((
+        i,
+        match parameters {
+            Some(parameters) => Expr::Closure(parameters, Box::new(expr)),
+            None => expr,
+        },
+    ))
+}
+
+fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
+    expr_closure(i)
 }
 
 fn expr_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
@@ -1425,6 +1450,50 @@ mod tests {
             vec![Node::Expr(
                 Ws(false, false),
                 Expr::PathCall(vec!["", "std", "string", "String", "new"], vec![]),
+            )],
+        );
+    }
+
+    #[test]
+    fn test_parse_closure() {
+        let syntax = Syntax::default();
+        assert_eq!(
+            super::parse("{{ || 12 }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Expr::Closure(vec![], Expr::NumLit("12").into()),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ |a| a.b }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Expr::Closure(vec!["a"], Expr::Attr(Expr::Var("a").into(), "b").into()),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ |a, b, c| a + b }}", &Syntax::default()).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Expr::Closure(
+                    vec!["a", "b", "c"],
+                    Expr::BinOp("+", Expr::Var("a").into(), Expr::Var("b").into()).into(),
+                ),
+            )],
+        );
+
+        assert_eq!(
+            super::parse("{{ user_opt.map(|user| user.name) }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Expr::MethodCall(
+                    Expr::Var("user_opt").into(),
+                    "map",
+                    vec![Expr::Closure(
+                        vec!["user"],
+                        Expr::Attr(Expr::Var("user").into(), "name").into(),
+                    )]
+                ),
             )],
         );
     }
