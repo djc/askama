@@ -33,7 +33,11 @@ impl TemplateInput<'_> {
         // the proper type (list).
         let mut template_args = None;
         for attr in &ast.attrs {
-            if attr.path.is_ident("template") {
+            let ident = match attr.path.get_ident() {
+                Some(ident) => ident,
+                None => continue,
+            };
+            if ident == "template" {
                 if template_args.is_some() {
                     return Err(CompileError {
                         msg: "duplicated 'template' attribute".into(),
@@ -83,7 +87,12 @@ impl TemplateInput<'_> {
                 }
             };
 
-            if pair.path.is_ident("path") {
+            let ident = match pair.path.get_ident() {
+                Some(ident) => ident,
+                None => continue,
+            };
+
+            if ident == "path" {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     if source.is_some() {
                         return Err(CompileError {
@@ -96,7 +105,7 @@ impl TemplateInput<'_> {
                         msg: "template path must be string literal".into(),
                     });
                 }
-            } else if pair.path.is_ident("source") {
+            } else if ident == "source" {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     if source.is_some() {
                         return Err(CompileError {
@@ -109,7 +118,7 @@ impl TemplateInput<'_> {
                         msg: "template source must be string literal".into(),
                     });
                 }
-            } else if pair.path.is_ident("print") {
+            } else if ident == "print" {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     print = s.value().parse().map_err(|msg| CompileError { msg })?;
                 } else {
@@ -117,7 +126,7 @@ impl TemplateInput<'_> {
                         msg: "print value must be string literal".into(),
                     });
                 }
-            } else if pair.path.is_ident("escape") {
+            } else if ident == "escape" {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     escaping = Some(s.value());
                 } else {
@@ -125,7 +134,7 @@ impl TemplateInput<'_> {
                         msg: "escape value must be string literal".into(),
                     });
                 }
-            } else if pair.path.is_ident("ext") {
+            } else if ident == "ext" {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     ext = Some(s.value());
                 } else {
@@ -133,7 +142,7 @@ impl TemplateInput<'_> {
                         msg: "ext value must be string literal".into(),
                     });
                 }
-            } else if pair.path.is_ident("syntax") {
+            } else if ident == "syntax" {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     syntax = Some(s.value());
                 } else {
