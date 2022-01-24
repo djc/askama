@@ -41,8 +41,15 @@ impl TemplateInput<'_> {
                     Ok(syn::Meta::List(syn::MetaList { nested, .. })) => {
                         template_args = Some(nested);
                     }
-                    Ok(_) => return Err("'template' attribute must be a list".into()),
-                    Err(e) => return Err(format!("unable to parse attribute: {}", e).into()),
+                    Ok(_) => {
+                        return Err(CompileError::Static("'template' attribute must be a list"))
+                    }
+                    Err(e) => {
+                        return Err(CompileError::String(format!(
+                            "unable to parse attribute: {}",
+                            e
+                        )))
+                    }
                 }
             }
         }
@@ -61,62 +68,66 @@ impl TemplateInput<'_> {
             let pair = match item {
                 syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
                 _ => {
-                    return Err(format!(
+                    return Err(CompileError::String(format!(
                         "unsupported attribute argument {:?}",
                         item.to_token_stream()
-                    )
-                    .into())
+                    )));
                 }
             };
 
             if pair.path.is_ident("path") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     if source.is_some() {
-                        return Err("must specify 'source' or 'path', not both".into());
+                        return Err(CompileError::Static(
+                            "must specify 'source' or 'path', not both",
+                        ));
                     }
                     source = Some(Source::Path(s.value()));
                 } else {
-                    return Err("template path must be string literal".into());
+                    return Err(CompileError::Static("template path must be string literal"));
                 }
             } else if pair.path.is_ident("source") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     if source.is_some() {
-                        return Err("must specify 'source' or 'path', not both".into());
+                        return Err(CompileError::Static(
+                            "must specify 'source' or 'path', not both",
+                        ));
                     }
                     source = Some(Source::Source(s.value()));
                 } else {
-                    return Err("template source must be string literal".into());
+                    return Err(CompileError::Static(
+                        "template source must be string literal",
+                    ));
                 }
             } else if pair.path.is_ident("print") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     print = s.value().parse()?;
                 } else {
-                    return Err("print value must be string literal".into());
+                    return Err(CompileError::Static("print value must be string literal"));
                 }
             } else if pair.path.is_ident("escape") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     escaping = Some(s.value());
                 } else {
-                    return Err("escape value must be string literal".into());
+                    return Err(CompileError::Static("escape value must be string literal"));
                 }
             } else if pair.path.is_ident("ext") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     ext = Some(s.value());
                 } else {
-                    return Err("ext value must be string literal".into());
+                    return Err(CompileError::Static("ext value must be string literal"));
                 }
             } else if pair.path.is_ident("syntax") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     syntax = Some(s.value())
                 } else {
-                    return Err("syntax value must be string literal".into());
+                    return Err(CompileError::Static("syntax value must be string literal"));
                 }
             } else {
-                return Err(format!(
+                return Err(CompileError::String(format!(
                     "unsupported attribute key '{}' found",
                     pair.path.to_token_stream()
-                )
-                .into());
+                )));
             }
         }
 
@@ -128,7 +139,9 @@ impl TemplateInput<'_> {
             (&Source::Path(ref path), _) => config.find_template(path, None)?,
             (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
             (&Source::Source(_), None) => {
-                return Err("must include 'ext' attribute when using 'source' attribute".into())
+                return Err(CompileError::Static(
+                    "must include 'ext' attribute when using 'source' attribute",
+                ))
             }
         };
 
@@ -250,7 +263,12 @@ impl FromStr for Print {
             "ast" => Ast,
             "code" => Code,
             "none" => None,
-            v => return Err(format!("invalid value for print option: {}", v,).into()),
+            v => {
+                return Err(CompileError::String(format!(
+                    "invalid value for print option: {}",
+                    v,
+                )))
+            }
         })
     }
 }

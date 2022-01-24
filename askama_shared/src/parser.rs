@@ -1181,7 +1181,10 @@ pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Result<Vec<Node<'a>>, 
     match parse_template(src, &state) {
         Ok((left, res)) => {
             if !left.is_empty() {
-                Err(format!("unable to parse template:\n\n{:?}", left).into())
+                Err(CompileError::String(format!(
+                    "unable to parse template:\n\n{:?}",
+                    left
+                )))
             } else {
                 Ok(res)
             }
@@ -1200,16 +1203,15 @@ pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Result<Vec<Node<'a>>, 
             let (row, last_line) = source_before.lines().enumerate().last().unwrap();
             let column = last_line.chars().count();
 
-            let msg = format!(
+            Err(CompileError::String(format!(
                 "problems parsing template source at row {}, column {} near:\n{}",
                 row + 1,
                 column,
                 source_after,
-            );
-            Err(msg.into())
+            )))
         }
 
-        Err(nom::Err::Incomplete(_)) => Err("parsing incomplete".into()),
+        Err(nom::Err::Incomplete(_)) => Err(CompileError::Static("parsing incomplete")),
     }
 }
 

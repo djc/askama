@@ -70,13 +70,19 @@ impl Config<'_> {
                     .insert(name.to_string(), Syntax::try_from(raw_s)?)
                     .is_some()
                 {
-                    return Err(format!("syntax \"{}\" is already defined", name).into());
+                    return Err(CompileError::String(format!(
+                        "syntax \"{}\" is already defined",
+                        name
+                    )));
                 }
             }
         }
 
         if !syntaxes.contains_key(default_syntax) {
-            return Err(format!("default syntax \"{}\" not found", default_syntax).into());
+            return Err(CompileError::String(format!(
+                "default syntax \"{}\" not found",
+                default_syntax
+            )));
         }
 
         let mut escapers = Vec::new();
@@ -123,11 +129,10 @@ impl Config<'_> {
             }
         }
 
-        Err(format!(
+        Err(CompileError::String(format!(
             "template {:?} not found in directories {:?}",
             path, self.dirs
-        )
-        .into())
+        )))
     }
 }
 
@@ -175,7 +180,7 @@ impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
             || syntax.comment_start.len() != 2
             || syntax.comment_end.len() != 2
         {
-            return Err("length of delimiters must be two".into());
+            return Err(CompileError::Static("length of delimiters must be two"));
         }
 
         let bs = syntax.block_start.as_bytes()[0];
@@ -185,7 +190,7 @@ impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
         let es = syntax.block_start.as_bytes()[0];
         let ee = syntax.block_start.as_bytes()[1];
         if !((bs == cs && bs == es) || (be == ce && be == ee)) {
-            return Err(format!("bad delimiters block_start: {}, comment_start: {}, expr_start: {}, needs one of the two characters in common", syntax.block_start, syntax.comment_start, syntax.expr_start).into());
+            return Err(CompileError::String(format!("bad delimiters block_start: {}, comment_start: {}, expr_start: {}, needs one of the two characters in common", syntax.block_start, syntax.comment_start, syntax.expr_start)));
         }
 
         Ok(syntax)
@@ -305,18 +310,6 @@ impl fmt::Display for CompileError {
             CompileError::Static(s) => write!(fmt, "{}", s),
             CompileError::String(s) => write!(fmt, "{}", s),
         }
-    }
-}
-
-impl From<&'static str> for CompileError {
-    fn from(s: &'static str) -> Self {
-        CompileError::Static(s)
-    }
-}
-
-impl From<String> for CompileError {
-    fn from(s: String) -> Self {
-        CompileError::String(s)
     }
 }
 
