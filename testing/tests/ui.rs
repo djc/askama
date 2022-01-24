@@ -14,6 +14,10 @@ fn ui() {
         t.compile_fail("tests/ui/before_1.58/*.rs");
     }
 
+    if rustc::is_min_version("1.54").unwrap() {
+        t.compile_fail("tests/ui/since_1.54/*.rs");
+    }
+
     if rustc::is_min_version("1.54").unwrap() && rustc::is_max_version("1.57").unwrap() {
         t.compile_fail("tests/ui/1.54_to_1.57/*.rs");
     }

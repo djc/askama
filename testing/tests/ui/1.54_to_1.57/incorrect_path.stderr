@@ -1,7 +1,5 @@
 error: template "thisdoesnotexist.html" not found in directories ["$WORKSPACE/target/tests/askama_testing/templates"]
- --> $DIR/incorrect_path.rs:3:10
+ --> tests/ui/1.54_to_1.57/incorrect_path.rs:4:19
   |
-3 | #[derive(Template)]
-  |          ^^^^^^^^
-  |
-  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+4 | #[template(path = "thisdoesnotexist.html")]
+  |                   ^^^^^^^^^^^^^^^^^^^^^^^

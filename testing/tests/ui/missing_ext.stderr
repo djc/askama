@@ -1,0 +1,5 @@
+error: must include 'ext' attribute when using 'source' attribute
+ --> tests/ui/missing_ext.rs:4:3
+  |
+4 | #[template(source = "🙂")]
+  |   ^^^^^^^^

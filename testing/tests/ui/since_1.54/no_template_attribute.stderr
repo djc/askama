@@ -1,5 +1,5 @@
 error: no attribute 'template' found
- --> tests/ui/no_template_attribute.rs:3:10
+ --> tests/ui/since_1.54/no_template_attribute.rs:3:10
   |
 3 | #[derive(Template)]
   |          ^^^^^^^^

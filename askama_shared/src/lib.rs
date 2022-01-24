@@ -301,7 +301,7 @@ pub struct CompileError {
 
 impl From<CompileError> for syn::Error {
     fn from(src: CompileError) -> Self {
-        syn::Error::new(Span::call_site(), src.msg)
+        syn::Error::new(src.span, src.msg)
     }
 }
 
