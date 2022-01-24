@@ -296,6 +296,7 @@ static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
 #[derive(Debug)]
 pub struct CompileError {
     pub msg: Cow<'static, str>,
+    pub span: Span,
 }
 
 impl From<CompileError> for syn::Error {

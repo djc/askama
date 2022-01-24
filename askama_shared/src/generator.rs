@@ -134,8 +134,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         for path in self.contexts.keys() {
             // Skip the fake path of templates defined in rust source.
             let path_is_valid = match self.input.source {
-                Source::Path(_) => true,
-                Source::Source(_) => path != &self.input.path,
+                Source::Path(_, _) => true,
+                Source::Source(_, _) => path != &self.input.path,
             };
             if path_is_valid {
                 let path = path.to_str().unwrap();

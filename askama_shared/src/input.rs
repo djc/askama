@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use mime::Mime;
+use proc_macro2::Span;
 use quote::ToTokens;
+use syn::spanned::Spanned;
 
 pub struct TemplateInput<'a> {
     pub ast: &'a syn::DeriveInput,
@@ -41,28 +43,32 @@ impl TemplateInput<'_> {
                 if template_args.is_some() {
                     return Err(CompileError {
                         msg: "duplicated 'template' attribute".into(),
+                        span: ident.span(),
                     });
                 }
 
                 match attr.parse_meta() {
                     Ok(syn::Meta::List(syn::MetaList { nested, .. })) => {
-                        template_args = Some(nested);
+                        template_args = Some((ident.span(), nested));
                     }
-                    Ok(_) => {
+                    Ok(meta) => {
                         return Err(CompileError {
                             msg: "'template' attribute must be a list".into(),
+                            span: meta.span(),
                         });
                     }
                     Err(e) => {
                         return Err(CompileError {
                             msg: format!("unable to parse attribute: {}", e).into(),
+                            span: e.span(),
                         });
                     }
                 }
             }
         }
-        let template_args = template_args.ok_or(CompileError {
+        let (template_span, template_args) = template_args.ok_or(CompileError {
             msg: "no attribute 'template' found".into(),
+            span: proc_macro2::Span::call_site(),
         })?;
 
         // Loop over the meta attributes and find everything that we
@@ -75,14 +81,11 @@ impl TemplateInput<'_> {
         let mut syntax = None;
         for item in template_args {
             let pair = match item {
-                syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
-                _ => {
+                syn::NestedMeta::Meta(syn::Meta::NameValue(pair)) => pair,
+                meta => {
                     return Err(CompileError {
-                        msg: format!(
-                            "unsupported attribute argument {:?}",
-                            item.to_token_stream()
-                        )
-                        .into(),
+                        msg: "unsupported attribute argument".into(),
+                        span: meta.span(),
                     });
                 }
             };
@@ -97,12 +100,14 @@ impl TemplateInput<'_> {
                     if source.is_some() {
                         return Err(CompileError {
                             msg: "must specify 'source' or 'path', not both".into(),
+                            span: pair.lit.span(),
                         });
                     }
-                    source = Some(Source::Path(s.value()));
+                    source = Some(Source::Path(s.value(), s.span()));
                 } else {
                     return Err(CompileError {
                         msg: "template path must be string literal".into(),
+                        span: pair.lit.span(),
                     });
                 }
             } else if ident == "source" {
@@ -110,20 +115,26 @@ impl TemplateInput<'_> {
                     if source.is_some() {
                         return Err(CompileError {
                             msg: "must specify 'source' or 'path', not both".into(),
+                            span: pair.lit.span(),
                         });
                     }
-                    source = Some(Source::Source(s.value()));
+                    source = Some(Source::Source(s.value(), s.span()));
                 } else {
                     return Err(CompileError {
                         msg: "template source must be string literal".into(),
+                        span: pair.lit.span(),
                     });
                 }
             } else if ident == "print" {
                 if let syn::Lit::Str(ref s) = pair.lit {
-                    print = s.value().parse().map_err(|msg| CompileError { msg })?;
+                    print = s.value().parse().map_err(|msg| CompileError {
+                        msg,
+                        span: pair.lit.span(),
+                    })?;
                 } else {
                     return Err(CompileError {
                         msg: "print value must be string literal".into(),
+                        span: pair.lit.span(),
                     });
                 }
             } else if ident == "escape" {
@@ -132,22 +143,25 @@ impl TemplateInput<'_> {
                 } else {
                     return Err(CompileError {
                         msg: "escape value must be string literal".into(),
+                        span: pair.lit.span(),
                     });
                 }
             } else if ident == "ext" {
-                if let syn::Lit::Str(ref s) = pair.lit {
-                    ext = Some(s.value());
+                if let syn::Lit::Str(s) = pair.lit {
+                    ext = Some(s);
                 } else {
                     return Err(CompileError {
                         msg: "ext value must be string literal".into(),
+                        span: pair.lit.span(),
                     });
                 }
             } else if ident == "syntax" {
-                if let syn::Lit::Str(ref s) = pair.lit {
-                    syntax = Some(s.value());
+                if let syn::Lit::Str(s) = pair.lit {
+                    syntax = Some(s);
                 } else {
                     return Err(CompileError {
                         msg: "syntax value must be string literal".into(),
+                        span: pair.lit.span(),
                     });
                 }
             } else {
@@ -157,6 +171,7 @@ impl TemplateInput<'_> {
                         pair.path.to_token_stream()
                     )
                     .into(),
+                    span: ident.span(),
                 });
             }
         }
@@ -164,15 +179,17 @@ impl TemplateInput<'_> {
         // Validate the `source` and `ext` value together, since they are
         // related. In case `source` was used instead of `path`, the value
         // of `ext` is merged into a synthetic `path` value here.
+        let ext_value = ext.as_ref().map(|ext| ext.value());
         let source = source.expect("template path or source not found in attributes");
-        let path = match (&source, &ext) {
-            (&Source::Path(ref path), _) => config
+        let path = match (&source, &ext_value) {
+            (&Source::Path(ref path, span), _) => config
                 .find_template(path, None)
-                .map_err(|msg| CompileError { msg })?,
-            (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
-            (&Source::Source(_), None) => {
+                .map_err(|msg| CompileError { msg, span })?,
+            (&Source::Source(_, _), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
+            (&Source::Source(_, _), None) => {
                 return Err(CompileError {
                     msg: "must include 'ext' attribute when using 'source' attribute".into(),
+                    span: template_span,
                 });
             }
         };
@@ -199,14 +216,21 @@ impl TemplateInput<'_> {
         }
 
         // Validate syntax
-        let syntax = syntax.map_or_else(
-            || Ok(config.syntaxes.get(config.default_syntax).unwrap()),
-            |s| {
-                config.syntaxes.get(&s).ok_or_else(|| CompileError {
-                    msg: format!("attribute syntax {} not exist", s).into(),
-                })
-            },
-        )?;
+        let syntax = match syntax {
+            Some(lit) => {
+                let s = lit.value();
+                match config.syntaxes.get(&s) {
+                    Some(syntax) => syntax,
+                    None => {
+                        return Err(CompileError {
+                            msg: format!("attribute syntax {} not exist", s).into(),
+                            span: lit.span(),
+                        })
+                    }
+                }
+            }
+            None => config.syntaxes.get(config.default_syntax).unwrap(),
+        };
 
         // Match extension against defined output formats
 
@@ -225,13 +249,22 @@ impl TemplateInput<'_> {
             }
         }
 
-        let escaper = escaper.ok_or_else(|| CompileError {
-            msg: format!("no escaper defined for extension '{}'", escaping).into(),
+        let escaper = escaper.ok_or_else(|| {
+            let span = match (&ext, &source) {
+                (Some(ext), _) => ext.span(),
+                (None, Source::Path(_, span)) => *span,
+                _ => template_span,
+            };
+            CompileError {
+                msg: format!("no escaper defined for extension '{}'", escaping).into(),
+                span,
+            }
         })?;
 
-        let mime_type =
-            extension_to_mime_type(ext_default_to_path(ext.as_deref(), &path).unwrap_or("txt"))
-                .to_string();
+        let mime_type = extension_to_mime_type(
+            ext_default_to_path(ext_value.as_deref(), &path).unwrap_or("txt"),
+        )
+        .to_string();
 
         Ok(TemplateInput {
             ast,
@@ -240,7 +273,7 @@ impl TemplateInput<'_> {
             source,
             print,
             escaper,
-            ext,
+            ext: ext_value,
             mime_type,
             parent,
             path,
@@ -273,8 +306,8 @@ fn extension(path: &Path) -> Option<&str> {
 }
 
 pub enum Source {
-    Path(String),
-    Source(String),
+    Path(String, Span),
+    Source(String, Span),
 }
 
 #[derive(PartialEq)]
