@@ -807,26 +807,36 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln(";")
     }
 
-    fn is_shadowing_variable(&self, var: &Target<'a>) -> bool {
+    fn is_shadowing_variable(&self, var: &Target<'a>) -> Result<bool, Cow<'static, str>> {
         match var {
             Target::Name(name) => {
                 let name = normalize_identifier(name);
-                match self.locals.get(&name) {
+                Ok(match self.locals.get(&name) {
                     // declares a new variable
                     None => false,
                     // an initialized variable gets shadowed
                     Some(meta) if meta.initialized => true,
                     // initializes a variable that was introduced in a LetDecl before
                     _ => false,
-                }
+                })
             }
-            Target::Tuple(_, targets) => targets
-                .iter()
-                .any(|target| self.is_shadowing_variable(target)),
-            Target::Struct(_, named_targets) => named_targets
-                .iter()
-                .any(|(_, target)| self.is_shadowing_variable(target)),
-            _ => panic!("Cannot have literals on the left-hand-side of an assignment."),
+            Target::Tuple(_, targets) => {
+                for target in targets {
+                    if self.is_shadowing_variable(target)? {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+            Target::Struct(_, named_targets) => {
+                for (_, target) in named_targets {
+                    if self.is_shadowing_variable(target)? {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+            _ => Err("Cannot have literals on the left-hand-side of an assignment.".into()),
         }
     }
 
@@ -841,7 +851,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let mut expr_buf = Buffer::new(0);
         self.visit_expr(&mut expr_buf, val)?;
 
-        let shadowed = self.is_shadowing_variable(var);
+        let shadowed = self.is_shadowing_variable(var)?;
         if shadowed {
             // Need to flush the buffer if the variable is being shadowed,
             // to ensure the old variable is used.
