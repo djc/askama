@@ -9,7 +9,6 @@ use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
-use proc_macro2::Span;
 #[cfg(feature = "serde")]
 use serde::Deserialize;
 
@@ -292,18 +291,6 @@ static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
     (&["md", "none", "txt", "yml", ""], "::askama::Text"),
     (&["j2", "jinja", "jinja2"], "::askama::Html"),
 ];
-
-#[derive(Debug)]
-pub struct CompileError {
-    pub msg: Cow<'static, str>,
-    pub span: Span,
-}
-
-impl From<CompileError> for syn::Error {
-    fn from(src: CompileError) -> Self {
-        syn::Error::new(src.span, src.msg)
-    }
-}
 
 #[cfg(test)]
 #[allow(clippy::blacklisted_name)]

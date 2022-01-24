@@ -5,9 +5,7 @@
 use askama_shared::heritage::{Context, Heritage};
 use askama_shared::input::{Print, Source, TemplateInput};
 use askama_shared::parser::{parse, Expr, Node};
-use askama_shared::{
-    generator, get_template_source, read_config_file, CompileError, Config, Integrations,
-};
+use askama_shared::{generator, get_template_source, read_config_file, Config, Integrations};
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 
@@ -20,7 +18,7 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
     match build_template(&ast) {
         Ok(source) => source.parse().unwrap(),
-        Err(err) => syn::Error::from(err).to_compile_error().into(),
+        Err(err) => err.to_compile_error().into(),
     }
 }
 
@@ -31,34 +29,27 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 /// parsed, and the parse tree is fed to the code generator. Will print
 /// the parse tree and/or generated source according to the `print` key's
 /// value as passed to the `template()` attribute.
-fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
-    let config_toml = read_config_file().map_err(|msg| CompileError {
-        msg,
-        span: Span::call_site(),
-    })?;
-    let config = Config::new(&config_toml).map_err(|msg| CompileError {
-        msg,
-        span: Span::call_site(),
-    })?;
+fn build_template(ast: &syn::DeriveInput) -> Result<String, syn::Error> {
+    let config_toml = read_config_file().map_err(|msg| syn::Error::new(Span::call_site(), msg))?;
+    let config =
+        Config::new(&config_toml).map_err(|msg| syn::Error::new(Span::call_site(), msg))?;
     let input = TemplateInput::new(ast, &config)?;
     let (source, span) = match &input.source {
-        Source::Source(s, span) => (s.clone(), span),
+        Source::Source(s, span) => (s.clone(), *span),
         Source::Path(_, span) => {
-            let s = get_template_source(&input.path)
-                .map_err(|msg| CompileError { msg, span: *span })?;
-            (s, span)
+            let s = get_template_source(&input.path).map_err(|msg| syn::Error::new(*span, msg))?;
+            (s, *span)
         }
     };
 
     let mut sources = HashMap::new();
-    find_used_templates(&input, &mut sources, source)
-        .map_err(|msg| CompileError { msg, span: *span })?;
+    find_used_templates(&input, &mut sources, source).map_err(|msg| syn::Error::new(span, msg))?;
 
     let mut parsed = HashMap::new();
     for (path, src) in &sources {
         parsed.insert(
             path.as_path(),
-            parse(src, input.syntax).map_err(|msg| CompileError { msg, span: *span })?,
+            parse(src, input.syntax).map_err(|msg| syn::Error::new(span, msg))?,
         );
     }
 
@@ -66,8 +57,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     for (path, nodes) in &parsed {
         contexts.insert(
             *path,
-            Context::new(input.config, path, nodes)
-                .map_err(|msg| CompileError { msg, span: *span })?,
+            Context::new(input.config, path, nodes).map_err(|msg| syn::Error::new(span, msg))?,
         );
     }
 
@@ -83,7 +73,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     }
 
     let code = generator::generate(&input, &contexts, heritage.as_ref(), INTEGRATIONS)
-        .map_err(|msg| CompileError { msg, span: *span })?;
+        .map_err(|msg| syn::Error::new(span, msg))?;
     if input.print == Print::Code || input.print == Print::All {
         eprintln!("{}", code);
     }
