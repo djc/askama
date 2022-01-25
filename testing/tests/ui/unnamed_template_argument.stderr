@@ -1,0 +1,5 @@
+error: unsupported attribute argument
+ --> tests/ui/unnamed_template_argument.rs:4:25
+  |
+4 | #[template(ext = "txt", "unnamed")]
+  |                         ^^^^^^^^^

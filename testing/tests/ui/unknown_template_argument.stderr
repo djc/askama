@@ -1,0 +1,5 @@
+error: unsupported attribute key found
+ --> tests/ui/unknown_template_argument.rs:4:12
+  |
+4 | #[template(no_such_argument = "fail")]
+  |            ^^^^^^^^^^^^^^^^

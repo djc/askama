@@ -6,7 +6,6 @@ use std::str::FromStr;
 
 use mime::Mime;
 use proc_macro2::Span;
-use quote::ToTokens;
 use syn::spanned::Spanned;
 
 pub struct TemplateInput<'a> {
@@ -94,7 +93,7 @@ impl TemplateInput<'_> {
 
             let ident = match pair.path.get_ident() {
                 Some(ident) => ident,
-                None => continue,
+                None => unreachable!("impossible in Meta::NameValue(…)"),
             };
 
             if ident == "path" {
@@ -169,10 +168,7 @@ impl TemplateInput<'_> {
             } else {
                 return Err(syn::Error::new(
                     ident.span(),
-                    format!(
-                        "unsupported attribute key '{}' found",
-                        pair.path.to_token_stream()
-                    ),
+                    "unsupported attribute key found",
                 ));
             }
         }
