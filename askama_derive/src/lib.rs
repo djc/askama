@@ -42,7 +42,13 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     };
 
     let mut sources = HashMap::new();
-    find_used_templates(&config, input.syntax, &mut sources, input.path.clone(), source)?;
+    find_used_templates(
+        &config,
+        input.syntax,
+        &mut sources,
+        input.path.clone(),
+        source,
+    )?;
 
     if let Some((_, multi)) = &input.multi {
         for alternative in multi {
@@ -50,7 +56,13 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
                 Source::Source(ref s) => s.clone(),
                 Source::Path(_) => get_template_source(&alternative.path)?,
             };
-            find_used_templates(&config, alternative.syntax, &mut sources, alternative.path.clone(), source)?;
+            find_used_templates(
+                &config,
+                alternative.syntax,
+                &mut sources,
+                alternative.path.clone(),
+                source,
+            )?;
         }
     }
 

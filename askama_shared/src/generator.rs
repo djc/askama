@@ -1,16 +1,16 @@
 use super::{get_template_source, CompileError, Integrations};
-use crate::filters;
 use crate::heritage::{Context, Heritage};
-use crate::input::{Source, TemplateInput};
+use crate::input::{MultiTemplateInput, Source, TemplateInput};
 use crate::parser::{
     one_expr, one_target, parse, Cond, CondTest, Expr, Loop, Node, Target, When, Ws,
 };
+use crate::{filters, Config};
 
 use proc_macro2::Span;
 use quote::quote;
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::{cmp, hash, mem, str};
 
 pub fn generate<S: std::hash::BuildHasher>(
@@ -24,7 +24,12 @@ pub fn generate<S: std::hash::BuildHasher>(
 
 struct Generator<'a, S: std::hash::BuildHasher> {
     // The template input state: original struct AST and attributes
-    input: &'a TemplateInput<'a>,
+    ast: &'a syn::DeriveInput,
+    current: MultiTemplateInput<'a>,
+    multi: Option<(&'a str, &'a [MultiTemplateInput<'a>])>,
+    extension: Option<&'a str>,
+    mime_type: &'a str,
+    config: &'a Config<'a>,
     // All contexts, keyed by the package-relative template path
     contexts: &'a HashMap<&'a Path, Context<'a>, S>,
     // The heritage contains references to blocks and their ancestry
@@ -58,7 +63,18 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         locals: MapChain<'n, &'n str, LocalMeta>,
     ) -> Generator<'n, S> {
         Generator {
-            input,
+            ast: input.ast,
+            current: MultiTemplateInput {
+                syntax: input.syntax,
+                pattern: "".to_owned(),
+                path: input.path.clone(),
+                source: input.source.clone(),
+                escaper: input.escaper,
+            },
+            multi: input.multi.as_ref().map(|(a, b)| (a.as_ref(), b.as_ref())),
+            extension: input.extension(),
+            mime_type: &input.mime_type,
+            config: input.config,
             contexts,
             heritage: None,
             heritages,
@@ -73,14 +89,24 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     fn child(&mut self) -> Generator<'_, S> {
-        let locals = MapChain::with_parent(&self.locals);
-        Self::new(
-            self.input,
-            self.contexts,
-            self.heritages,
-            self.integrations,
-            locals,
-        )
+        Generator {
+            ast: self.ast,
+            current: self.current.clone(),
+            multi: self.multi,
+            extension: self.extension,
+            mime_type: self.mime_type,
+            config: self.config,
+            contexts: self.contexts,
+            heritage: None,
+            heritages: self.heritages,
+            integrations: self.integrations,
+            locals: MapChain::with_parent(&self.locals),
+            next_ws: None,
+            skip_ws: false,
+            super_block: None,
+            buf_writable: vec![],
+            named: 0,
+        }
     }
 
     // Takes a Context and generates the relevant implementations.
@@ -117,9 +143,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn impl_single_template(
         &mut self,
         buf: &mut Buffer,
-        path: &'a Path,
+        path: PathBuf,
     ) -> Result<usize, CompileError> {
-        match self.heritages.get(path) {
+        match self.heritages.get(&*path) {
             Some(heritage) => {
                 self.heritage = Some(heritage);
                 let size_hint =
@@ -128,7 +154,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 Ok(size_hint)
             }
             None => {
-                let ctx = &self.contexts[path];
+                let ctx = &self.contexts[&*path];
                 self.handle(ctx, ctx.nodes, buf, AstLevel::Top)
             }
         }
@@ -145,9 +171,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         // Make sure the compiler understands that the generated code depends on the template files.
         for path in self.contexts.keys() {
             // Skip the fake path of templates defined in rust source.
-            let path_is_valid = match self.input.source {
+            let path_is_valid = match self.current.source {
                 Source::Path(_) => true,
-                Source::Source(_) => path != &self.input.path,
+                Source::Source(_) => path != &self.current.path,
             };
             if path_is_valid {
                 let path = path.to_str().unwrap();
@@ -161,26 +187,32 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         }
 
         let mut size_hints = vec![];
-        if let Some((localizer, multi)) = &self.input.multi {
+        if let Some((localizer, alternatives)) = self.multi {
+            let old_current = self.current.clone();
+
             let localizer = one_expr(localizer).unwrap();
             let expr_code = self.visit_expr_root(&localizer)?;
             buf.writeln(&format!("match &{} {{", expr_code))?;
 
-            for alternative in multi {
+            for alternative in alternatives {
+                self.current = alternative.clone();
+
                 self.locals.push();
                 let pattern = one_target(&alternative.pattern).unwrap();
                 self.visit_target(buf, true, true, &pattern);
                 buf.writeln(" => {")?;
-                size_hints.push(self.impl_single_template(buf, &alternative.path)?);
+                size_hints.push(self.impl_single_template(buf, alternative.path.clone())?);
                 buf.writeln("}")?;
                 self.locals.pop();
             }
             buf.writeln("_ => {")?;
+
+            self.current = old_current;
         }
 
-        size_hints.push(self.impl_single_template(buf, &self.input.path)?);
+        size_hints.push(self.impl_single_template(buf, self.current.path.clone())?);
 
-        if self.input.multi.is_some() {
+        if self.multi.is_some() {
             buf.writeln("}")?;
             buf.writeln("}")?;
         }
@@ -190,7 +222,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("}")?;
 
         buf.writeln("const EXTENSION: ::std::option::Option<&'static ::std::primitive::str> = ")?;
-        buf.writeln(&format!("{:?}", self.input.extension()))?;
+        buf.writeln(&format!("{:?}", self.extension))?;
         buf.writeln(";")?;
 
         let sum: u128 = size_hints.iter().map(|i| *i as u128).sum();
@@ -199,7 +231,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln(";")?;
 
         buf.writeln("const MIME_TYPE: &'static ::std::primitive::str = ")?;
-        buf.writeln(&format!("{:?}", &self.input.mime_type))?;
+        buf.writeln(&format!("{:?}", self.mime_type))?;
         buf.writeln(";")?;
 
         buf.writeln("}")?;
@@ -238,7 +270,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             "fn into_response(self)\
              -> ::askama_axum::Response<::askama_axum::BoxBody> {",
         )?;
-        let ext = self.input.extension().unwrap_or("txt");
+        let ext = self.extension.unwrap_or("txt");
         buf.writeln(&format!("::askama_axum::into_response(&self, {:?})", ext))?;
         buf.writeln("}")?;
         buf.writeln("}")
@@ -252,7 +284,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             "fn into_response(self, _state: &::askama_gotham::State)\
              -> ::askama_gotham::Response<::askama_gotham::Body> {",
         )?;
-        let ext = self.input.extension().unwrap_or("txt");
+        let ext = self.extension.unwrap_or("txt");
         buf.writeln(&format!("::askama_gotham::respond(&self, {:?})", ext))?;
         buf.writeln("}")?;
         buf.writeln("}")
@@ -262,9 +294,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn impl_mendes_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         let param = syn::parse_str("A: ::mendes::Application").unwrap();
 
-        let mut generics = self.input.ast.generics.clone();
+        let mut generics = self.ast.generics.clone();
         generics.params.push(param);
-        let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
+        let (_, orig_ty_generics, _) = self.ast.generics.split_for_impl();
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
         let mut where_clause = match where_clause {
@@ -287,7 +319,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 "{} {} for {} {} {{",
                 quote!(impl#impl_generics),
                 "::mendes::application::Responder<A>",
-                self.input.ast.ident,
+                self.ast.ident,
                 quote!(#orig_ty_generics #where_clause),
             )
             .as_ref(),
@@ -300,7 +332,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         buf.writeln(&format!(
             "::askama_mendes::into_response(app, req, &self, {:?})",
-            self.input.extension()
+            self.extension
         ))?;
         buf.writeln("}")?;
         buf.writeln("}")?;
@@ -322,7 +354,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             "fn respond_to(self, _: &::askama_rocket::Request) \
              -> ::askama_rocket::Result<'askama> {",
         )?;
-        let ext = self.input.extension().unwrap_or("txt");
+        let ext = self.extension.unwrap_or("txt");
         buf.writeln(&format!("::askama_rocket::respond(&self, {:?})", ext))?;
 
         buf.writeln("}")?;
@@ -331,7 +363,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     fn impl_tide_integrations(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let ext = self.input.extension().unwrap_or("txt");
+        let ext = self.extension.unwrap_or("txt");
 
         self.write_header(
             buf,
@@ -359,7 +391,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         self.write_header(buf, "::askama_warp::warp::reply::Reply", None)?;
         buf.writeln("#[inline]")?;
         buf.writeln("fn into_response(self) -> ::askama_warp::warp::reply::Response {")?;
-        let ext = self.input.extension().unwrap_or("txt");
+        let ext = self.extension.unwrap_or("txt");
         buf.writeln(&format!("::askama_warp::reply(&self, {:?})", ext))?;
         buf.writeln("}")?;
         buf.writeln("}")
@@ -373,20 +405,20 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         target: &str,
         params: Option<Vec<syn::GenericParam>>,
     ) -> Result<(), CompileError> {
-        let mut generics = self.input.ast.generics.clone();
+        let mut generics = self.ast.generics.clone();
         if let Some(params) = params {
             for param in params {
                 generics.params.push(param);
             }
         }
-        let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
+        let (_, orig_ty_generics, _) = self.ast.generics.split_for_impl();
         let (impl_generics, _, where_clause) = generics.split_for_impl();
         buf.writeln(
             format!(
                 "{} {} for {}{} {{",
                 quote!(impl#impl_generics),
                 target,
-                self.input.ast.ident,
+                self.ast.ident,
                 quote!(#orig_ty_generics #where_clause),
             )
             .as_ref(),
@@ -776,12 +808,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     ) -> Result<usize, CompileError> {
         self.flush_ws(ws);
         self.write_buf_writable(buf)?;
-        let path = self
-            .input
-            .config
-            .find_template(path, Some(&self.input.path))?;
+        let path = self.config.find_template(path, Some(&self.current.path))?;
         let src = get_template_source(&path)?;
-        let nodes = parse(&src, self.input.syntax)?;
+        let nodes = parse(&src, self.current.syntax)?;
 
         // Make sure the compiler understands that the generated code depends on the template file.
         {
@@ -982,7 +1011,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                         Wrapped => expr_buf.buf,
                         Unwrapped => format!(
                             "::askama::MarkupDisplay::new_unsafe(&({}), {})",
-                            expr_buf.buf, self.input.escaper
+                            expr_buf.buf, self.current.escaper
                         ),
                     };
 
@@ -1128,7 +1157,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         if FILTERS.contains(&name) {
             buf.write(&format!(
                 "::askama::filters::{}({}, ",
-                name, self.input.escaper
+                name, self.current.escaper
             ));
         } else if filters::BUILT_IN_FILTERS.contains(&name) {
             buf.write(&format!("::askama::filters::{}(", name));
@@ -1159,13 +1188,12 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         };
         let escaper = match opt_escaper {
             Some(name) => self
-                .input
                 .config
                 .escapers
                 .iter()
                 .find_map(|(escapers, escaper)| escapers.contains(name).then(|| escaper))
                 .ok_or(CompileError::Static("invalid escaper for escape filter"))?,
-            None => self.input.escaper,
+            None => self.current.escaper,
         };
         buf.write("::askama::filters::escape(");
         buf.write(escaper);

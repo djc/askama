@@ -7,6 +7,7 @@ use std::str::FromStr;
 use mime::Mime;
 use quote::ToTokens;
 
+#[derive(Clone)]
 pub struct MultiTemplateInput<'a> {
     pub syntax: &'a Syntax<'a>,
     pub pattern: String,
@@ -60,7 +61,11 @@ impl TemplateInput<'_> {
                         multi_args.push(inner.nested);
                     }
                     Ok(_) => return Err("attribute 'multi_template' has incorrect type".into()),
-                    Err(e) => return Err(format!("unable to parse 'multi_template' attribute: {}", e).into()),
+                    Err(e) => {
+                        return Err(
+                            format!("unable to parse 'multi_template' attribute: {}", e).into()
+                        )
+                    }
                 }
             }
         }
@@ -151,9 +156,7 @@ impl TemplateInput<'_> {
             (Some(localizer), multi_args) if !multi_args.is_empty() => {
                 let multi = multi_args
                     .into_iter()
-                    .map(|args| {
-                        parse_multi(ast, config, args)
-                    })
+                    .map(|args| parse_multi(ast, config, args))
                     .collect::<Result<_, CompileError>>()?;
                 Some((localizer, multi))
             }
@@ -265,8 +268,7 @@ fn parse_multi<'a>(
     let escaper = select_escaper(config, escaping.as_deref(), &path)?;
     let syntax = select_syntax(config, syntax)?;
 
-    let pattern = pattern
-        .ok_or(CompileError::Static("multi-template pattern missing"))?;
+    let pattern = pattern.ok_or(CompileError::Static("multi-template pattern missing"))?;
     if one_target(&pattern).is_err() {
         return Err("the pattern attribute could not be parsed".into());
     }
@@ -287,9 +289,10 @@ fn select_syntax<'a>(
     syntax.map_or_else(
         || Ok(config.syntaxes.get(config.default_syntax).unwrap()),
         |s| {
-            config.syntaxes.get(&s).ok_or_else(|| {
-                CompileError::String(format!("attribute syntax {} not exist", s))
-            })
+            config
+                .syntaxes
+                .get(&s)
+                .ok_or_else(|| CompileError::String(format!("attribute syntax {} not exist", s)))
         },
     )
 }
@@ -328,9 +331,7 @@ fn select_escaper<'a>(
     escaping: Option<&str>,
     path: &Path,
 ) -> Result<&'a str, CompileError> {
-    let escaping = escaping.unwrap_or_else(|| {
-        path.extension().map_or("", |s| s.to_str().unwrap())
-    });
+    let escaping = escaping.unwrap_or_else(|| path.extension().map_or("", |s| s.to_str().unwrap()));
 
     let mut escaper = None;
     for (extensions, path) in &config.escapers {
@@ -340,9 +341,15 @@ fn select_escaper<'a>(
         }
     }
 
-    escaper.map_or_else(|| {
-        Err(CompileError::String(format!("no escaper defined for extension '{}'", escaping)))
-    }, |s| Ok(s.as_str()))
+    escaper.map_or_else(
+        || {
+            Err(CompileError::String(format!(
+                "no escaper defined for extension '{}'",
+                escaping
+            )))
+        },
+        |s| Ok(s.as_str()),
+    )
 }
 
 #[inline]
@@ -364,6 +371,7 @@ fn extension(path: &Path) -> Option<&str> {
     }
 }
 
+#[derive(Clone)]
 pub enum Source {
     Path(String),
     Source(String),

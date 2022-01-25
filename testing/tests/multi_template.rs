@@ -2,7 +2,11 @@ use askama::Template;
 
 #[derive(Template)]
 #[template(path = "localization/index.html", multi = "language")]
-#[multi_template(pattern = r#""de""#, path = "localization/index.de.html")]
+#[multi_template(
+    pattern = r#""de""#,
+    path = "localization/index.de.html",
+    escaping = "txt"
+)]
 #[multi_template(pattern = r#""en""#, path = "localization/index.en.html")]
 #[multi_template(pattern = r#""es""#, path = "localization/index.es.html")]
 #[multi_template(pattern = r#""fr""#, path = "localization/index.fr.html")]
@@ -15,34 +19,34 @@ struct MultiTemplate<'a> {
 fn test_localization() {
     let template = MultiTemplate {
         language: "de",
-        user: "you",
+        user: "<you>",
     };
-    assert_eq!(template.render().unwrap(), "Hallo, you!");
+    assert_eq!(template.render().unwrap(), "Hallo, <you>!");
 
     let template = MultiTemplate {
         language: "en",
-        user: "you",
+        user: "<you>",
     };
-    assert_eq!(template.render().unwrap(), "Hello, you!");
+    assert_eq!(template.render().unwrap(), "Hello, &lt;you&gt;!");
 
     let template = MultiTemplate {
         language: "es",
-        user: "you",
+        user: "<you>",
     };
-    assert_eq!(template.render().unwrap(), "¡Hola, you!");
+    assert_eq!(template.render().unwrap(), "¡Hola, &lt;you&gt;!");
 
     let template = MultiTemplate {
         language: "fr",
-        user: "you",
+        user: "<you>",
     };
     assert_eq!(
         template.render().unwrap(),
-        "Localization test:\nBonjour, you !"
+        "Localization test:\nBonjour, &lt;you&gt; !"
     );
 
     let template = MultiTemplate {
         language: "xx",
-        user: "you",
+        user: "<you>",
     };
     assert_eq!(template.render().unwrap(), "Not implemented: xx");
 }
