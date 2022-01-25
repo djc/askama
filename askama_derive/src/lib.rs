@@ -6,7 +6,7 @@ use askama_shared::heritage::{Context, Heritage};
 use askama_shared::input::{Print, Source, TemplateInput};
 use askama_shared::parser::{parse, Expr, Node};
 use askama_shared::{
-    generator, get_template_source, read_config_file, CompileError, Config, Integrations,
+    generator, get_template_source, read_config_file, CompileError, Config, Integrations, Syntax,
 };
 use proc_macro::TokenStream;
 use proc_macro2::Span;
@@ -14,7 +14,7 @@ use proc_macro2::Span;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-#[proc_macro_derive(Template, attributes(template, l10n))]
+#[proc_macro_derive(Template, attributes(template, multi_template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
     match build_template(&ast) {
@@ -42,12 +42,15 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     };
 
     let mut sources = HashMap::new();
-    find_used_templates(&input, &mut sources, input.path.clone(), source)?;
+    find_used_templates(&config, input.syntax, &mut sources, input.path.clone(), source)?;
 
-    if let Some((_, l10n)) = &input.l10n {
-        for (_, path) in l10n {
-            let source = get_template_source(path)?;
-            find_used_templates(&input, &mut sources, path.clone(), source)?;
+    if let Some((_, multi)) = &input.multi {
+        for alternative in multi {
+            let source: String = match alternative.source {
+                Source::Source(ref s) => s.clone(),
+                Source::Path(_) => get_template_source(&alternative.path)?,
+            };
+            find_used_templates(&config, alternative.syntax, &mut sources, alternative.path.clone(), source)?;
         }
     }
 
@@ -83,7 +86,8 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
 }
 
 fn find_used_templates(
-    input: &TemplateInput<'_>,
+    config: &Config<'_>,
+    syntax: &Syntax<'_>,
     map: &mut HashMap<PathBuf, String>,
     path: PathBuf,
     source: String,
@@ -94,10 +98,10 @@ fn find_used_templates(
         if map.contains_key(&path) {
             continue;
         }
-        for n in parse(&source, input.syntax)? {
+        for n in parse(&source, syntax)? {
             match n {
                 Node::Extends(Expr::StrLit(extends)) => {
-                    let extends = input.config.find_template(extends, Some(&path))?;
+                    let extends = config.find_template(extends, Some(&path))?;
                     let dependency_path = (path.clone(), extends.clone());
                     if dependency_graph.contains(&dependency_path) {
                         return Err(CompileError::String(format!(
@@ -113,7 +117,7 @@ fn find_used_templates(
                     check.push((extends, source));
                 }
                 Node::Import(_, import, _) => {
-                    let import = input.config.find_template(import, Some(&path))?;
+                    let import = config.find_template(import, Some(&path))?;
                     let source = get_template_source(&import)?;
                     check.push((import, source));
                 }

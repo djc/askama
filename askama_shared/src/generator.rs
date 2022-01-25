@@ -7,8 +7,7 @@ use crate::parser::{
 };
 
 use proc_macro2::Span;
-
-use quote::{quote, ToTokens};
+use quote::quote;
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -87,11 +86,6 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     // Takes a Context and generates the relevant implementations.
     fn build(mut self) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
-        if !self.contexts[self.input.path.as_path()].blocks.is_empty() {
-            if let Some(parent) = self.input.parent {
-                self.deref_to_parent(&mut buf, parent)?;
-            }
-        };
 
         self.impl_template(&mut buf)?;
         self.impl_display(&mut buf)?;
@@ -167,17 +161,17 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         }
 
         let mut size_hints = vec![];
-        if let Some((localizer, l10n)) = &self.input.l10n {
+        if let Some((localizer, multi)) = &self.input.multi {
             let localizer = one_expr(localizer).unwrap();
             let expr_code = self.visit_expr_root(&localizer)?;
             buf.writeln(&format!("match &{} {{", expr_code))?;
 
-            for (pattern, path) in l10n {
+            for alternative in multi {
                 self.locals.push();
-                let pattern = one_target(pattern).unwrap();
+                let pattern = one_target(&alternative.pattern).unwrap();
                 self.visit_target(buf, true, true, &pattern);
                 buf.writeln(" => {")?;
-                size_hints.push(self.impl_single_template(buf, path)?);
+                size_hints.push(self.impl_single_template(buf, &alternative.path)?);
                 buf.writeln("}")?;
                 self.locals.pop();
             }
@@ -186,7 +180,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         size_hints.push(self.impl_single_template(buf, &self.input.path)?);
 
-        if self.input.l10n.is_some() {
+        if self.input.multi.is_some() {
             buf.writeln("}")?;
             buf.writeln("}")?;
         }
@@ -210,24 +204,6 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         buf.writeln("}")?;
         Ok(())
-    }
-
-    // Implement `Deref<Parent>` for an inheriting context struct.
-    fn deref_to_parent(
-        &mut self,
-        buf: &mut Buffer,
-        parent_type: &syn::Type,
-    ) -> Result<(), CompileError> {
-        self.write_header(buf, "::std::ops::Deref", None)?;
-        buf.writeln(&format!(
-            "type Target = {};",
-            parent_type.into_token_stream()
-        ))?;
-        buf.writeln("#[inline]")?;
-        buf.writeln("fn deref(&self) -> &Self::Target {")?;
-        buf.writeln("&self._parent")?;
-        buf.writeln("}")?;
-        buf.writeln("}")
     }
 
     // Implement `Display` for the given context struct.

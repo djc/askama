@@ -7,6 +7,14 @@ use std::str::FromStr;
 use mime::Mime;
 use quote::ToTokens;
 
+pub struct MultiTemplateInput<'a> {
+    pub syntax: &'a Syntax<'a>,
+    pub pattern: String,
+    pub path: PathBuf,
+    pub source: Source,
+    pub escaper: &'a str,
+}
+
 pub struct TemplateInput<'a> {
     pub ast: &'a syn::DeriveInput,
     pub config: &'a Config<'a>,
@@ -16,9 +24,8 @@ pub struct TemplateInput<'a> {
     pub escaper: &'a str,
     pub ext: Option<String>,
     pub mime_type: String,
-    pub parent: Option<&'a syn::Type>,
     pub path: PathBuf,
-    pub l10n: Option<(String, Vec<(String, PathBuf)>)>, // TODO: rename
+    pub multi: Option<(String, Vec<MultiTemplateInput<'a>>)>,
 }
 
 impl TemplateInput<'_> {
@@ -33,7 +40,7 @@ impl TemplateInput<'_> {
         // Check that an attribute called `template()` exists once and that it is
         // the proper type (list).
         let mut template_args = None;
-        let mut l10n = None;
+        let mut multi_args = vec![];
         for attr in &ast.attrs {
             if attr.path.is_ident("template") {
                 if template_args.is_some() {
@@ -47,13 +54,13 @@ impl TemplateInput<'_> {
                     Ok(_) => return Err("'template' attribute must be a list".into()),
                     Err(e) => return Err(format!("unable to parse attribute: {}", e).into()),
                 }
-            } else if attr.path.is_ident("l10n") {
+            } else if attr.path.is_ident("multi_template") {
                 match attr.parse_meta() {
                     Ok(syn::Meta::List(inner)) => {
-                        l10n.get_or_insert_with(Vec::new).push(inner.nested);
+                        multi_args.push(inner.nested);
                     }
-                    Ok(_) => return Err("attribute 'l10n' has incorrect type".into()),
-                    Err(e) => return Err(format!("unable to parse 'l10n' attribute: {}", e).into()),
+                    Ok(_) => return Err("attribute 'multi_template' has incorrect type".into()),
+                    Err(e) => return Err(format!("unable to parse 'multi_template' attribute: {}", e).into()),
                 }
             }
         }
@@ -64,11 +71,13 @@ impl TemplateInput<'_> {
         // understand. Raise panics if something is not right.
         // `source` contains an enum that can represent `path` or `source`.
         let mut source = None;
+        let mut path = None;
         let mut print = Print::None;
         let mut escaping = None;
         let mut ext = None;
         let mut syntax = None;
-        let mut localizer = None;
+        let mut multi = None;
+
         for item in template_args {
             let pair = match item {
                 syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
@@ -83,19 +92,13 @@ impl TemplateInput<'_> {
 
             if pair.path.is_ident("path") {
                 if let syn::Lit::Str(ref s) = pair.lit {
-                    if source.is_some() {
-                        return Err("must specify 'source' or 'path', not both".into());
-                    }
-                    source = Some(Source::Path(s.value()));
+                    path = Some(s.value());
                 } else {
                     return Err("template path must be string literal".into());
                 }
             } else if pair.path.is_ident("source") {
                 if let syn::Lit::Str(ref s) = pair.lit {
-                    if source.is_some() {
-                        return Err("must specify 'source' or 'path', not both".into());
-                    }
-                    source = Some(Source::Source(s.value()));
+                    source = Some(s.value());
                 } else {
                     return Err("template source must be string literal".into());
                 }
@@ -123,13 +126,13 @@ impl TemplateInput<'_> {
                 } else {
                     return Err("syntax value must be string literal".into());
                 }
-            } else if pair.path.is_ident("localizer") {
+            } else if pair.path.is_ident("multi") {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     let s = s.value();
                     if one_expr(&s).is_err() {
-                        return Err(CompileError::Static("localizer value must be expression"));
+                        return Err(CompileError::Static("multi value must be expression"));
                     }
-                    localizer = Some(s);
+                    multi = Some(s);
                 } else {
                     return Err("localizer value must be string literal".into());
                 }
@@ -142,134 +145,28 @@ impl TemplateInput<'_> {
             }
         }
 
-        // 'localizer' and 'l10n' go together
-        let l10n = match (localizer, l10n) {
-            (None, None) => None,
-            (Some(localizer), Some(l10n)) => {
-                let multi = l10n
+        // 'multi' and 'multi_template' go together
+        let multi = match (multi, multi_args) {
+            (None, multi_args) if multi_args.is_empty() => None,
+            (Some(localizer), multi_args) if !multi_args.is_empty() => {
+                let multi = multi_args
                     .into_iter()
                     .map(|args| {
-                        let mut multi_path = None;
-                        let mut multi_pattern = None;
-                        for item in args {
-                            let pair = match item {
-                                syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
-                                _ => {
-                                    return Err(format!(
-                                        "unsupported attribute argument {:?}",
-                                        item.to_token_stream()
-                                    )
-                                    .into())
-                                }
-                            };
-
-                            if pair.path.is_ident("path") {
-                                if let syn::Lit::Str(ref s) = pair.lit {
-                                    multi_path = Some(s.value());
-                                } else {
-                                    return Err("path value must be string literal".into());
-                                }
-                            } else if pair.path.is_ident("pattern") {
-                                if let syn::Lit::Str(ref s) = pair.lit {
-                                    multi_pattern = Some(s.value());
-                                } else {
-                                    return Err("pattern value must be string literal".into());
-                                }
-                            } else {
-                                return Err(format!(
-                                    "unsupported attribute key '{}' found",
-                                    pair.path.to_token_stream()
-                                )
-                                .into());
-                            }
-                        }
-
-                        // TODO: start_at = path ?
-                        let multi_path = multi_path
-                            .ok_or(CompileError::Static("multi-template path missing"))?;
-                        let multi_path = config.find_template(&multi_path, None)?;
-
-                        let multi_pattern = multi_pattern
-                            .ok_or(CompileError::Static("multi-template pattern missing"))?;
-                        if one_target(&multi_pattern).is_err() {
-                            return Err("the pattern attribute could not be parsed".into());
-                        }
-
-                        Ok((multi_pattern, multi_path))
+                        parse_multi(ast, config, args)
                     })
                     .collect::<Result<_, CompileError>>()?;
                 Some((localizer, multi))
             }
             _ => {
                 return Err(CompileError::Static(
-                    "#[template(localizer)] and #[l10n] have to be used together",
+                    "#[template(multi)] and #[multi_template] have to be used together",
                 ));
             }
         };
 
-        // Validate the `source` and `ext` value together, since they are
-        // related. In case `source` was used instead of `path`, the value
-        // of `ext` is merged into a synthetic `path` value here.
-        let source = source.expect("template path or source not found in attributes");
-        let path = match (&source, &ext) {
-            (&Source::Path(ref path), _) => config.find_template(path, None)?,
-            (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
-            (&Source::Source(_), None) => {
-                return Err("must include 'ext' attribute when using 'source' attribute".into())
-            }
-        };
-
-        // Check to see if a `_parent` field was defined on the context
-        // struct, and store the type for it for use in the code generator.
-        let parent = match ast.data {
-            syn::Data::Struct(syn::DataStruct {
-                fields: syn::Fields::Named(ref fields),
-                ..
-            }) => fields
-                .named
-                .iter()
-                .find(|f| f.ident.as_ref().filter(|name| *name == "_parent").is_some())
-                .map(|f| &f.ty),
-            _ => None,
-        };
-
-        if parent.is_some() {
-            eprint!(
-                "   --> in struct {}\n   = use of deprecated field '_parent'\n",
-                ast.ident
-            );
-        }
-
-        // Validate syntax
-        let syntax = syntax.map_or_else(
-            || Ok(config.syntaxes.get(config.default_syntax).unwrap()),
-            |s| {
-                config.syntaxes.get(&s).ok_or_else(|| {
-                    CompileError::String(format!("attribute syntax {} not exist", s))
-                })
-            },
-        )?;
-
-        // Match extension against defined output formats
-
-        let escaping = escaping.unwrap_or_else(|| {
-            path.extension()
-                .map(|s| s.to_str().unwrap())
-                .unwrap_or("")
-                .to_string()
-        });
-
-        let mut escaper = None;
-        for (extensions, path) in &config.escapers {
-            if extensions.contains(&escaping) {
-                escaper = Some(path);
-                break;
-            }
-        }
-
-        let escaper = escaper.ok_or_else(|| {
-            CompileError::String(format!("no escaper defined for extension '{}'", escaping,))
-        })?;
+        let (source, path) = select_source_and_path(ast, config, source, path, ext.as_deref())?;
+        let escaper = select_escaper(config, escaping.as_deref(), &path)?;
+        let syntax = select_syntax(config, syntax)?;
 
         let mime_type =
             extension_to_mime_type(ext_default_to_path(ext.as_deref(), &path).unwrap_or("txt"))
@@ -284,9 +181,8 @@ impl TemplateInput<'_> {
             escaper,
             ext,
             mime_type,
-            parent,
             path,
-            l10n,
+            multi,
         })
     }
 
@@ -294,6 +190,159 @@ impl TemplateInput<'_> {
     pub fn extension(&self) -> Option<&str> {
         ext_default_to_path(self.ext.as_deref(), &self.path)
     }
+}
+
+fn parse_multi<'a>(
+    ast: &syn::DeriveInput,
+    config: &'a Config<'a>,
+    args: impl IntoIterator<Item = syn::NestedMeta>,
+) -> Result<MultiTemplateInput<'a>, CompileError> {
+    let mut path = None;
+    let mut source = None;
+    let mut ext = None;
+    let mut syntax = None;
+    let mut escaping = None;
+    let mut pattern = None;
+
+    for item in args {
+        let pair = match item {
+            syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
+            _ => {
+                return Err(format!(
+                    "unsupported attribute argument {:?}",
+                    item.to_token_stream()
+                )
+                .into())
+            }
+        };
+
+        if pair.path.is_ident("path") {
+            if let syn::Lit::Str(ref s) = pair.lit {
+                path = Some(s.value());
+            } else {
+                return Err("path value must be string literal".into());
+            }
+        } else if pair.path.is_ident("source") {
+            if let syn::Lit::Str(ref s) = pair.lit {
+                source = Some(s.value());
+            } else {
+                return Err("source value must be string literal".into());
+            }
+        } else if pair.path.is_ident("ext") {
+            if let syn::Lit::Str(ref s) = pair.lit {
+                ext = Some(s.value());
+            } else {
+                return Err("ext value must be string literal".into());
+            }
+        } else if pair.path.is_ident("syntax") {
+            if let syn::Lit::Str(ref s) = pair.lit {
+                syntax = Some(s.value());
+            } else {
+                return Err("pattern value must be string literal".into());
+            }
+        } else if pair.path.is_ident("escaping") {
+            if let syn::Lit::Str(ref s) = pair.lit {
+                escaping = Some(s.value());
+            } else {
+                return Err("escaping value must be string literal".into());
+            }
+        } else if pair.path.is_ident("pattern") {
+            if let syn::Lit::Str(ref s) = pair.lit {
+                pattern = Some(s.value());
+            } else {
+                return Err("pattern value must be string literal".into());
+            }
+        } else {
+            return Err(format!(
+                "unsupported attribute key '{}' found",
+                pair.path.to_token_stream()
+            )
+            .into());
+        }
+    }
+
+    let (source, path) = select_source_and_path(ast, config, source, path, ext.as_deref())?;
+    let escaper = select_escaper(config, escaping.as_deref(), &path)?;
+    let syntax = select_syntax(config, syntax)?;
+
+    let pattern = pattern
+        .ok_or(CompileError::Static("multi-template pattern missing"))?;
+    if one_target(&pattern).is_err() {
+        return Err("the pattern attribute could not be parsed".into());
+    }
+
+    Ok(MultiTemplateInput {
+        pattern,
+        source,
+        path,
+        escaper,
+        syntax,
+    })
+}
+
+fn select_syntax<'a>(
+    config: &'a Config<'a>,
+    syntax: Option<String>,
+) -> Result<&'a Syntax<'a>, CompileError> {
+    syntax.map_or_else(
+        || Ok(config.syntaxes.get(config.default_syntax).unwrap()),
+        |s| {
+            config.syntaxes.get(&s).ok_or_else(|| {
+                CompileError::String(format!("attribute syntax {} not exist", s))
+            })
+        },
+    )
+}
+
+fn select_source_and_path(
+    ast: &syn::DeriveInput,
+    config: &Config<'_>,
+    source: Option<String>,
+    path: Option<String>,
+    ext: Option<&str>,
+) -> Result<(Source, PathBuf), CompileError> {
+    // Validate the `source` and `ext` value together, since they are
+    // related. In case `source` was used instead of `path`, the value
+    // of `ext` is merged into a synthetic `path` value here.
+
+    let source = match (source, path) {
+        (None, None) => return Err("template path or source not found in attributes".into()),
+        (Some(_), Some(_)) => return Err("must specify 'source' or 'path', not both".into()),
+        (None, Some(path)) => Source::Path(path),
+        (Some(source), None) => Source::Source(source),
+    };
+
+    let path = match (&source, ext) {
+        (Source::Path(path), _) => config.find_template(path, None)?,
+        (Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
+        (Source::Source(_), None) => {
+            return Err("must include 'ext' attribute when using 'source' attribute".into())
+        }
+    };
+
+    Ok((source, path))
+}
+
+fn select_escaper<'a>(
+    config: &'a Config<'_>,
+    escaping: Option<&str>,
+    path: &Path,
+) -> Result<&'a str, CompileError> {
+    let escaping = escaping.unwrap_or_else(|| {
+        path.extension().map_or("", |s| s.to_str().unwrap())
+    });
+
+    let mut escaper = None;
+    for (extensions, path) in &config.escapers {
+        if extensions.contains(escaping) {
+            escaper = Some(path);
+            break;
+        }
+    }
+
+    escaper.map_or_else(|| {
+        Err(CompileError::String(format!("no escaper defined for extension '{}'", escaping)))
+    }, |s| Ok(s.as_str()))
 }
 
 #[inline]
