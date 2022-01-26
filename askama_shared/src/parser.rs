@@ -1581,6 +1581,64 @@ mod tests {
     }
 
     #[test]
+    fn test_odd_calls() {
+        use Expr::*;
+        let syntax = Syntax::default();
+        assert_eq!(
+            super::parse("{{ a[b](c) }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Call(
+                    Box::new(Index(Box::new(Var("a")), Box::new(Var("b")))),
+                    vec![Var("c")],
+                ),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ (a + b)(c) }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Call(
+                    Box::new(Group(Box::new(BinOp(
+                        "+",
+                        Box::new(Var("a")),
+                        Box::new(Var("b"))
+                    )))),
+                    vec![Var("c")],
+                ),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ a + b(c) }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                BinOp(
+                    "+",
+                    Box::new(Var("a")),
+                    Box::new(Call(Box::new(Var("b")), vec![Var("c")])),
+                ),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ (-a)(b) }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Call(
+                    Box::new(Group(Box::new(Unary("-", Box::new(Var("a")))))),
+                    vec![Var("b")],
+                ),
+            )],
+        );
+        assert_eq!(
+            super::parse("{{ -a(b) }}", &syntax).unwrap(),
+            vec![Node::Expr(
+                Ws(false, false),
+                Unary("-", Box::new(Call(Box::new(Var("a")), vec![Var("b")])),),
+            )],
+        );
+    }
+
+    #[test]
     fn test_parse_comments() {
         let s = &Syntax::default();
 

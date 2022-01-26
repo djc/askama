@@ -1321,17 +1321,12 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 s => return Err(format!("unknown loop method: {:?}", s).into()),
             },
             left => {
-                match *left {
-                    Expr::Unary(..) | Expr::BinOp(..) | Expr::Range(..) => {
-                        buf.write("(");
-                        self.visit_expr(buf, left)?;
-                        buf.write(")");
-                    }
+                match left {
                     Expr::Var(name) => match self.locals.resolve(name) {
                         Some(resolved) => buf.write(&resolved),
                         None => buf.write(&format!("(&self.{})", normalize_identifier(name))),
                     },
-                    ref left => {
+                    left => {
                         self.visit_expr(buf, left)?;
                     }
                 }
