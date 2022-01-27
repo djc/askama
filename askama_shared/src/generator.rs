@@ -1060,7 +1060,19 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             Expr::Group(ref inner) => self.visit_group(buf, inner)?,
             Expr::Call(ref obj, ref args) => self.visit_call(buf, obj, args)?,
             Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
+            Expr::Try(ref expr) => self.visit_try(buf, expr.as_ref())?,
         })
+    }
+
+    fn visit_try(
+        &mut self,
+        buf: &mut Buffer,
+        expr: &Expr<'_>,
+    ) -> Result<DisplayWrap, CompileError> {
+        buf.write("::askama::shared::into_error!(");
+        self.visit_expr(buf, expr)?;
+        buf.write(")");
+        Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_rust_macro(&mut self, buf: &mut Buffer, name: &str, args: &str) -> DisplayWrap {

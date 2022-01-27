@@ -14,7 +14,8 @@ use serde::Deserialize;
 pub use crate::input::extension_to_mime_type;
 pub use askama_escape::MarkupDisplay;
 
-mod error;
+#[doc(hidden)]
+pub mod error;
 pub use crate::error::{Error, Result};
 pub mod filters;
 #[doc(hidden)]
