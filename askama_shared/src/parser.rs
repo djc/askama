@@ -506,25 +506,31 @@ fn expr_single(i: &str) -> IResult<&str, Expr<'_>> {
     ))(i)
 }
 
-fn expr_attr<'a>(i: &'a str) -> IResult<&'a str, Box<dyn 'a + FnOnce(Expr<'a>) -> Expr<'a>>> {
-    let (i, name) = preceded(
-        ws(pair(char('.'), not(char('.')))),
-        cut(alt((num_lit, identifier))),
-    )(i)?;
-    Ok((i, Box::new(move |left| Expr::Attr(Box::new(left), name))))
+enum Suffix<'a> {
+    Attr(&'a str),
+    Index(Expr<'a>),
+    Call(Vec<Expr<'a>>),
 }
 
-fn expr_index<'a>(i: &'a str) -> IResult<&'a str, Box<dyn 'a + FnOnce(Expr<'a>) -> Expr<'a>>> {
-    let (i, right) = preceded(ws(char('[')), cut(terminated(expr_any, ws(char(']')))))(i)?;
-    Ok((
-        i,
-        Box::new(move |left| Expr::Index(Box::new(left), Box::new(right))),
-    ))
+fn expr_attr(i: &str) -> IResult<&str, Suffix<'_>> {
+    map(
+        preceded(
+            ws(pair(char('.'), not(char('.')))),
+            cut(alt((num_lit, identifier))),
+        ),
+        Suffix::Attr,
+    )(i)
 }
 
-fn expr_call<'a>(i: &'a str) -> IResult<&'a str, Box<dyn 'a + FnOnce(Expr<'a>) -> Expr<'a>>> {
-    let (i, right) = arguments(i)?;
-    Ok((i, Box::new(move |left| Expr::Call(Box::new(left), right))))
+fn expr_index(i: &str) -> IResult<&str, Suffix<'_>> {
+    map(
+        preceded(ws(char('[')), cut(terminated(expr_any, ws(char(']'))))),
+        Suffix::Index,
+    )(i)
+}
+
+fn expr_call(i: &str) -> IResult<&str, Suffix<'_>> {
+    map(arguments, Suffix::Call)(i)
 }
 
 fn filter(i: &str) -> IResult<&str, (&str, Option<Vec<Expr<'_>>>)> {
@@ -561,10 +567,12 @@ fn expr_prefix(i: &str) -> IResult<&str, Expr<'_>> {
 fn expr_suffix(i: &str) -> IResult<&str, Expr<'_>> {
     let (mut i, mut expr) = expr_single(i)?;
     loop {
-        let (j, make_expr) = opt(alt((expr_attr, expr_index, expr_call)))(i)?;
+        let (j, suffix) = opt(alt((expr_attr, expr_index, expr_call)))(i)?;
         i = j;
-        match make_expr {
-            Some(make_expr) => expr = make_expr(expr),
+        match suffix {
+            Some(Suffix::Attr(attr)) => expr = Expr::Attr(expr.into(), attr),
+            Some(Suffix::Index(index)) => expr = Expr::Index(expr.into(), index.into()),
+            Some(Suffix::Call(args)) => expr = Expr::Call(expr.into(), args),
             None => break,
         }
     }
