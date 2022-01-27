@@ -603,7 +603,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             // If `iter` is a call then we assume it's something that returns
             // an iterator. If not then the user can explicitly add the needed
             // call without issues.
-            Expr::MethodCall(..) | Expr::PathCall(..) | Expr::Index(..) => {
+            Expr::Call(..) | Expr::Index(..) => {
                 buf.writeln(&format!("let _iter = ({}).into_iter();", expr_code))
             }
             // If accessing `self` then it most likely needs to be
@@ -1049,9 +1049,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             Expr::StrLit(s) => self.visit_str_lit(buf, s),
             Expr::CharLit(s) => self.visit_char_lit(buf, s),
             Expr::Var(s) => self.visit_var(buf, s),
-            Expr::VarCall(var, ref args) => self.visit_var_call(buf, var, args)?,
             Expr::Path(ref path) => self.visit_path(buf, path),
-            Expr::PathCall(ref path, ref args) => self.visit_path_call(buf, path, args)?,
             Expr::Array(ref elements) => self.visit_array(buf, elements)?,
             Expr::Attr(ref obj, name) => self.visit_attr(buf, obj, name)?,
             Expr::Index(ref obj, ref key) => self.visit_index(buf, obj, key)?,
@@ -1060,9 +1058,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             Expr::BinOp(op, ref left, ref right) => self.visit_binop(buf, op, left, right)?,
             Expr::Range(op, ref left, ref right) => self.visit_range(buf, op, left, right)?,
             Expr::Group(ref inner) => self.visit_group(buf, inner)?,
-            Expr::MethodCall(ref obj, method, ref args) => {
-                self.visit_method_call(buf, obj, method, args)?
-            }
+            Expr::Call(ref obj, ref args) => self.visit_call(buf, obj, args)?,
             Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
         })
     }
@@ -1234,20 +1230,15 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 buf.write("&(");
             }
 
-            let scoped = matches!(
-                arg,
-                Expr::Filter(_, _)
-                    | Expr::MethodCall(_, _, _)
-                    | Expr::VarCall(_, _)
-                    | Expr::PathCall(_, _)
-            );
-
-            if scoped {
-                buf.writeln("{")?;
-                self.visit_expr(buf, arg)?;
-                buf.writeln("}")?;
-            } else {
-                self.visit_expr(buf, arg)?;
+            match arg {
+                Expr::Call(left, _) if !matches!(left.as_ref(), Expr::Path(_)) => {
+                    buf.writeln("{")?;
+                    self.visit_expr(buf, arg)?;
+                    buf.writeln("}")?;
+                }
+                _ => {
+                    self.visit_expr(buf, arg)?;
+                }
             }
 
             if borrow {
@@ -1283,7 +1274,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             }
         }
         self.visit_expr(buf, obj)?;
-        buf.write(&format!(".{}", attr));
+        buf.write(&format!(".{}", normalize_identifier(attr)));
         Ok(DisplayWrap::Unwrapped)
     }
 
@@ -1301,15 +1292,14 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         Ok(DisplayWrap::Unwrapped)
     }
 
-    fn visit_method_call(
+    fn visit_call(
         &mut self,
         buf: &mut Buffer,
-        obj: &Expr<'_>,
-        method: &str,
+        left: &Expr<'_>,
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
-        if matches!(obj, Expr::Var("loop")) {
-            match method {
+        match left {
+            Expr::Attr(left, method) if **left == Expr::Var("loop") => match *method {
                 "cycle" => match args {
                     [arg] => {
                         if matches!(arg, Expr::Array(arr) if arr.is_empty()) {
@@ -1329,16 +1319,22 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     _ => return Err("loop.cycle(…) expects exactly one argument".into()),
                 },
                 s => return Err(format!("unknown loop method: {:?}", s).into()),
+            },
+            left => {
+                match left {
+                    Expr::Var(name) => match self.locals.resolve(name) {
+                        Some(resolved) => buf.write(&resolved),
+                        None => buf.write(&format!("(&self.{})", normalize_identifier(name))),
+                    },
+                    left => {
+                        self.visit_expr(buf, left)?;
+                    }
+                }
+
+                buf.write("(");
+                self._visit_args(buf, args)?;
+                buf.write(")");
             }
-        } else {
-            if let Expr::Var("self") = obj {
-                buf.write("self");
-            } else {
-                self.visit_expr(buf, obj)?;
-            }
-            buf.write(&format!(".{}(", normalize_identifier(method)));
-            self._visit_args(buf, args)?;
-            buf.write(")");
         }
         Ok(DisplayWrap::Unwrapped)
     }
@@ -1421,24 +1417,6 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         DisplayWrap::Unwrapped
     }
 
-    fn visit_path_call(
-        &mut self,
-        buf: &mut Buffer,
-        path: &[&str],
-        args: &[Expr<'_>],
-    ) -> Result<DisplayWrap, CompileError> {
-        for (i, part) in path.iter().enumerate() {
-            if i > 0 {
-                buf.write("::");
-            }
-            buf.write(part);
-        }
-        buf.write("(");
-        self._visit_args(buf, args)?;
-        buf.write(")");
-        Ok(DisplayWrap::Unwrapped)
-    }
-
     fn visit_var(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
         if s == "self" {
             buf.write(s);
@@ -1447,24 +1425,6 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         buf.write(normalize_identifier(&self.locals.resolve_or_self(s)));
         DisplayWrap::Unwrapped
-    }
-
-    fn visit_var_call(
-        &mut self,
-        buf: &mut Buffer,
-        s: &str,
-        args: &[Expr<'_>],
-    ) -> Result<DisplayWrap, CompileError> {
-        buf.write("(");
-        let s = normalize_identifier(s);
-        if !self.locals.contains(&s) && s != "self" {
-            buf.write("self.");
-        }
-        buf.write(s);
-        buf.write(")(");
-        self._visit_args(buf, args)?;
-        buf.write(")");
-        Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_bool_lit(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
@@ -1691,14 +1651,6 @@ where
             parent: Some(parent),
             scopes: vec![HashMap::new()],
         }
-    }
-
-    fn contains(&self, key: &K) -> bool {
-        self.scopes.iter().rev().any(|set| set.contains_key(key))
-            || match self.parent {
-                Some(set) => set.contains(key),
-                None => false,
-            }
     }
 
     /// Iterates the scopes in reverse and returns `Some(LocalMeta)`
