@@ -1,5 +1,4 @@
 use std::fmt::{self, Display};
-use std::marker::PhantomData;
 
 pub type Result<I, E = Error> = ::std::result::Result<I, E>;
 
@@ -29,6 +28,7 @@ pub enum Error {
     /// formatting error
     Fmt(fmt::Error),
 
+    /// an error raised by using `?` in a template
     Custom(Box<dyn std::error::Error + Send + Sync>),
 
     /// json conversion error
@@ -84,70 +84,6 @@ impl From<::serde_yaml::Error> for Error {
     fn from(err: ::serde_yaml::Error) -> Self {
         Error::Yaml(err)
     }
-}
-
-#[doc(hidden)]
-pub struct CustomErrorTag;
-
-#[doc(hidden)]
-pub struct CommonErrorTag;
-
-#[doc(hidden)]
-pub trait CustomErrorKind {
-    #[inline]
-    fn askama_error_kind(&self) -> CustomErrorTag {
-        CustomErrorTag
-    }
-}
-
-#[doc(hidden)]
-pub trait CommonErrorKind {
-    #[inline]
-    fn askama_error_kind(&self) -> CommonErrorTag {
-        CommonErrorTag
-    }
-}
-
-impl CustomErrorTag {
-    #[inline]
-    pub fn convert(self, err: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> Error {
-        Error::Custom(err.into())
-    }
-}
-
-impl CommonErrorTag {
-    #[inline]
-    pub fn convert(self, error: impl Into<Error>) -> Error {
-        error.into()
-    }
-}
-
-#[doc(hidden)]
-pub struct ErrorKindWrapper<E>(PhantomData<fn() -> *const E>);
-
-#[doc(hidden)]
-#[inline]
-pub fn new_error_kind_wrapper<E>(err: E) -> (ErrorKindWrapper<E>, E) {
-    let wrapper = ErrorKindWrapper(PhantomData);
-    (wrapper, err)
-}
-
-impl<T: Into<Box<dyn std::error::Error + Send + Sync>>> CustomErrorKind for &ErrorKindWrapper<T> {}
-
-impl<T: Into<Error>> CommonErrorKind for ErrorKindWrapper<T> {}
-
-#[macro_export]
-macro_rules! into_error {
-    ($value:expr $(,)?) => {
-        match $value {
-            ::core::result::Result::Ok(value) => value,
-            ::core::result::Result::Err(err) => {
-                use ::askama::shared::error::{CommonErrorKind, CustomErrorKind};
-                let (wrapper, err) = ::askama::shared::error::new_error_kind_wrapper(err);
-                return ::askama::shared::Result::Err((&wrapper).askama_error_kind().convert(err));
-            }
-        }
-    };
 }
 
 #[cfg(test)]

@@ -1069,9 +1069,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf: &mut Buffer,
         expr: &Expr<'_>,
     ) -> Result<DisplayWrap, CompileError> {
-        buf.write("::askama::shared::into_error!(");
+        buf.write("::core::result::Result::map_err(");
         self.visit_expr(buf, expr)?;
-        buf.write(")");
+        buf.write(", |err| ::askama::shared::Error::Custom(::core::convert::Into::into(err)))?");
         Ok(DisplayWrap::Unwrapped)
     }
 

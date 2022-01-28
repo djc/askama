@@ -16,6 +16,10 @@ impl IntParserTemplate<'_> {
 fn test_int_parser() {
     let template = IntParserTemplate { s: "💯" };
     assert!(matches!(template.render(), Err(askama::Error::Custom(_))));
+    assert_eq!(
+        format!("{}", &template.render().unwrap_err()),
+        "invalid digit found in string"
+    );
 
     let template = IntParserTemplate { s: "100" };
     assert_eq!(template.render().unwrap(), "100=100");
@@ -32,7 +36,11 @@ fn fail_fmt() {
     let template = FailFmt {
         value: || Err(std::fmt::Error),
     };
-    assert!(matches!(template.render(), Err(askama::Error::Fmt(_))));
+    assert!(matches!(template.render(), Err(askama::Error::Custom(_))));
+    assert_eq!(
+        format!("{}", &template.render().unwrap_err()),
+        format!("{}", std::fmt::Error)
+    );
 
     let template = FailFmt {
         value: || Ok("hello world"),
