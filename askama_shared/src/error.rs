@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-pub type Result<I> = ::std::result::Result<I, Error>;
+pub type Result<I, E = Error> = ::std::result::Result<I, E>;
 
 /// askama error type
 ///
@@ -28,6 +28,9 @@ pub enum Error {
     /// formatting error
     Fmt(fmt::Error),
 
+    /// an error raised by using `?` in a template
+    Custom(Box<dyn std::error::Error + Send + Sync>),
+
     /// json conversion error
     #[cfg(feature = "serde_json")]
     Json(::serde_json::Error),
@@ -41,6 +44,7 @@ impl std::error::Error for Error {
     fn cause(&self) -> Option<&dyn std::error::Error> {
         match *self {
             Error::Fmt(ref err) => err.source(),
+            Error::Custom(ref err) => Some(err.as_ref()),
             #[cfg(feature = "serde_json")]
             Error::Json(ref err) => err.source(),
             #[cfg(feature = "serde_yaml")]
@@ -51,12 +55,13 @@ impl std::error::Error for Error {
 
 impl Display for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            Error::Fmt(ref err) => write!(formatter, "formatting error: {}", err),
+        match self {
+            Error::Fmt(err) => write!(formatter, "formatting error: {}", err),
+            Error::Custom(err) => write!(formatter, "{}", err),
             #[cfg(feature = "serde_json")]
-            Error::Json(ref err) => write!(formatter, "json conversion error: {}", err),
+            Error::Json(err) => write!(formatter, "json conversion error: {}", err),
             #[cfg(feature = "serde_yaml")]
-            Error::Yaml(ref err) => write!(formatter, "yaml conversion error: {}", err),
+            Error::Yaml(err) => write!(formatter, "yaml conversion error: {}", err),
         }
     }
 }
