@@ -172,3 +172,28 @@ fn test_match_option_result_option() {
     };
     assert_eq!(s.render().unwrap(), "num=4711");
 }
+
+#[derive(Template)]
+#[template(
+    ext = "txt",
+    source = r#"
+{%- match good -%}
+    {#- when good, then good -#}
+    {%- when true -%}
+        good
+    {%- when _ -%}
+        bad
+{%- endmatch -%}"#
+)]
+struct MatchWithComment {
+    good: bool,
+}
+
+#[test]
+fn test_match_with_comment() {
+    let s = MatchWithComment { good: true };
+    assert_eq!(s.render().unwrap(), "good");
+
+    let s = MatchWithComment { good: false };
+    assert_eq!(s.render().unwrap(), "bad");
+}

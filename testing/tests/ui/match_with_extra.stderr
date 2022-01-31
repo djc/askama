@@ -1,0 +1,8 @@
+error: problems parsing template source at row 3, column 4 near:
+       "// Help, I forgot how to write comments!"...
+ --> tests/ui/match_with_extra.rs:3:10
+  |
+3 | #[derive(Template)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
