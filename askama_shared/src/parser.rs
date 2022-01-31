@@ -804,7 +804,7 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             opt(char('-')),
             |i| tag_block_end(i, s),
             cut(tuple((
-                opt(|i| take_content(i, s)),
+                ws(many0(ws(value((), |i| block_comment(i, s))))),
                 many1(|i| when_block(i, s)),
                 cut(tuple((
                     opt(|i| match_else_block(i, s)),
@@ -818,28 +818,11 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             ))),
         ))),
     ));
-    let (i, (pws1, _, (expr, nws1, _, (inter, arms, (else_arm, (_, pws2, _, nws2)))))) = p(i)?;
+    let (i, (pws1, _, (expr, nws1, _, (_, arms, (else_arm, (_, pws2, _, nws2)))))) = p(i)?;
 
     let mut arms = arms;
     if let Some(arm) = else_arm {
         arms.push(arm);
-    }
-
-    match inter {
-        Some(Node::Lit(_, val, rws)) => {
-            assert!(
-                val.is_empty(),
-                "only whitespace allowed between match and first when, found {}",
-                val
-            );
-            assert!(
-                rws.is_empty(),
-                "only whitespace allowed between match and first when, found {}",
-                rws
-            );
-        }
-        None => {}
-        _ => panic!("only literals allowed between match and first when"),
     }
 
     Ok((
