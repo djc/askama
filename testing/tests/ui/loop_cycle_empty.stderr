@@ -1,0 +1,8 @@
+error: problems parsing template source at row 1, column 34 near:
+       "([]) }}{{ v }},{% endfor %}"
+ --> tests/ui/loop_cycle_empty.rs:6:10
+  |
+6 | #[derive(Template)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)

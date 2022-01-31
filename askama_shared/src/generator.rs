@@ -1328,7 +1328,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 "cycle" => match args {
                     [arg] => {
                         if matches!(arg, Expr::Array(arr) if arr.is_empty()) {
-                            panic!("loop.cycle(…) cannot use an empty array.");
+                            return Err("loop.cycle(…) cannot use an empty array".into());
                         }
                         buf.write("({");
                         buf.write("let _cycle = &(");
