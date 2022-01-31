@@ -50,7 +50,7 @@ impl TemplateInput<'_> {
             template_args.ok_or(CompileError::Static("no attribute 'template' found"))?;
 
         // Loop over the meta attributes and find everything that we
-        // understand. Raise panics if something is not right.
+        // understand. Return a CompileError if something is not right.
         // `source` contains an enum that can represent `path` or `source`.
         let mut source = None;
         let mut print = Print::None;
