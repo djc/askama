@@ -966,19 +966,10 @@ fn block_include(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
         opt(char('-')),
         ws(tag("include")),
-        cut(pair(ws(expr_str_lit), opt(char('-')))),
+        cut(pair(ws(str_lit), opt(char('-')))),
     ));
     let (i, (pws, _, (name, nws))) = p(i)?;
-    Ok((
-        i,
-        Node::Include(
-            Ws(pws.is_some(), nws.is_some()),
-            match name {
-                Expr::StrLit(s) => s,
-                _ => panic!("include path must be a string literal"),
-            },
-        ),
-    ))
+    Ok((i, Node::Include(Ws(pws.is_some(), nws.is_some()), name)))
 }
 
 fn block_import(i: &str) -> IResult<&str, Node<'_>> {
@@ -986,7 +977,7 @@ fn block_import(i: &str) -> IResult<&str, Node<'_>> {
         opt(char('-')),
         ws(tag("import")),
         cut(tuple((
-            ws(expr_str_lit),
+            ws(str_lit),
             ws(tag("as")),
             cut(pair(ws(identifier), opt(char('-')))),
         ))),
@@ -994,14 +985,7 @@ fn block_import(i: &str) -> IResult<&str, Node<'_>> {
     let (i, (pws, _, (name, _, (scope, nws)))) = p(i)?;
     Ok((
         i,
-        Node::Import(
-            Ws(pws.is_some(), nws.is_some()),
-            match name {
-                Expr::StrLit(s) => s,
-                _ => panic!("import path must be a string literal"),
-            },
-            scope,
-        ),
+        Node::Import(Ws(pws.is_some(), nws.is_some()), name, scope),
     ))
 }
 
