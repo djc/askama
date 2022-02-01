@@ -287,6 +287,53 @@ Output:
 5
 ```
 
+## Optional / feature gated filters
+
+The following filters can be enabled by requesting the respective feature in the Cargo.toml
+[dependencies section](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html), e.g.
+
+```
+[dependencies]
+askama = { version = "0.11.0", features = "serde-json" }
+```
+
+### `json` | `tojson`
+
+Enabling the `serde-json` feature will enable the use of the `json` filter.
+This will output formatted JSON for any value that implements the required
+[`Serialize`](https://docs.rs/serde/1.*/serde/trait.Serialize.html) trait.
+The generated string does not contain ampersands `&`, chevrons `< >`, or apostrophes `'`.
+
+To use it in a `<script>` you can combine it with the safe filter.
+In HTML attributes, you can either use it in quotation marks `"{{data|json}}"` as is,
+or in apostrophes with the (optional) safe filter `'{{data|json|safe}}'`.
+In HTML texts the output of e.g. `<pre>{{data|json|safe}}</pre>` is safe, too.
+
+```
+Good: <li data-extra="{{data|json}}">…</li>
+Good: <li data-extra='{{data|json|safe}}'>…</li>
+Good: <pre>{{data|json|safe}}</pre>
+Good: <script>var data = {{data|json|safe}};</script>
+
+Bad:  <li data-extra="{{data|json|safe}}">…</li>
+Bad:  <script>var data = {{data|json}};</script>
+Bad:  <script>var data = "{{data|json|safe}}";</script>
+
+Ugly: <script>var data = "{{data|json}}";</script>
+Ugly: <script>var data = '{{data|json|safe}}';</script>
+```
+
+### `yaml`
+
+Enabling the `serde-yaml` feature will enable the use of the `yaml` filter.
+This will output formatted YAML for any value that implements the required
+[`Serialize`](https://docs.rs/serde/1.*/serde/trait.Serialize.html) trait.
+
+```jinja
+{{ foo|yaml }}
+```
+
+
 ## Custom Filters
 
 To define your own filters, simply have a module named filters in scope of the context deriving a `Template` impl.
@@ -310,29 +357,4 @@ fn main() {
     let t = MyFilterTemplate { s: "foo" };
     assert_eq!(t.render().unwrap(), "faa");
 }
-```
-
-## The `json` filter
-
-Enabling the `serde-json` feature will enable the use of the `json` filter.
-This will output formatted JSON for any value that implements the required
-`Serialize` trait.
-
-```jinja
-{
-  "foo": "{{ foo }}",
-  "bar": {{ bar|json }}
-}
-```
-
-For compatibility with Jinja, `tojson` can be used in place of `json`.
-
-## The `yaml` filter
-
-Enabling the `serde-yaml` feature will enable the use of the `yaml` filter.
-This will output formatted JSON for any value that implements the required
-`Serialize` trait.
-
-```
-{{ foo|yaml }}
 ```
