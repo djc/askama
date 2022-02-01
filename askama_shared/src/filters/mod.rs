@@ -47,7 +47,7 @@ const URLENCODE_SET: &AsciiSet = &URLENCODE_STRICT_SET.remove(b'/');
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion
 // in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: [&str; 27] = [
+pub const BUILT_IN_FILTERS: &[&str] = &[
     "abs",
     "capitalize",
     "center",
@@ -73,8 +73,10 @@ pub const BUILT_IN_FILTERS: [&str; 27] = [
     "urlencode",
     "urlencode_strict",
     "wordcount",
-    "json", // Optional feature; reserve the name anyway
-    "yaml", // Optional feature; reserve the name anyway
+    // optional features, reserve the names anyway:
+    "json",
+    "markdown",
+    "yaml",
 ];
 
 /// Marks a string (or other `Display` type) as safe
@@ -377,6 +379,54 @@ pub fn wordcount<T: fmt::Display>(s: T) -> Result<usize> {
     let s = s.to_string();
 
     Ok(s.split_whitespace().count())
+}
+
+#[cfg(feature = "markdown")]
+pub fn markdown<E, S>(
+    e: E,
+    s: S,
+    options: Option<&comrak::ComrakOptions>,
+) -> Result<MarkupDisplay<E, String>>
+where
+    E: Escaper,
+    S: AsRef<str>,
+{
+    use comrak::{
+        markdown_to_html, ComrakExtensionOptions, ComrakOptions, ComrakParseOptions,
+        ComrakRenderOptions,
+    };
+
+    const DEFAULT_OPTIONS: ComrakOptions = ComrakOptions {
+        extension: ComrakExtensionOptions {
+            strikethrough: true,
+            tagfilter: true,
+            table: true,
+            autolink: true,
+            // default:
+            tasklist: false,
+            superscript: false,
+            header_ids: None,
+            footnotes: false,
+            description_lists: false,
+            front_matter_delimiter: None,
+        },
+        parse: ComrakParseOptions {
+            // default:
+            smart: false,
+            default_info_string: None,
+        },
+        render: ComrakRenderOptions {
+            unsafe_: false,
+            escape: true,
+            // default:
+            hardbreaks: false,
+            github_pre_lang: false,
+            width: 0,
+        },
+    };
+
+    let s = markdown_to_html(s.as_ref(), options.unwrap_or(&DEFAULT_OPTIONS));
+    Ok(MarkupDisplay::new_safe(s, e))
 }
 
 #[cfg(test)]
