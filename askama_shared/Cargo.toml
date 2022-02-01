@@ -13,7 +13,7 @@ edition = "2018"
 [features]
 default = ["config", "humansize", "num-traits", "percent-encoding"]
 config = ["serde", "toml"]
-json = ["serde", "serde_json"]
+json = ["serde", "serde_json", "askama_escape/json"]
 yaml = ["serde", "serde_yaml"]
 
 [dependencies]

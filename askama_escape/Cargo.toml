@@ -18,6 +18,9 @@ maintenance = { status = "actively-developed" }
 [dev-dependencies]
 criterion = "0.3"
 
+[features]
+json = []
+
 [[bench]]
 name = "all"
 harness = false
