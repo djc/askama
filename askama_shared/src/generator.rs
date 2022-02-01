@@ -1171,7 +1171,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             return Err("the `yaml` filter requires the `serde-yaml` feature to be enabled".into());
         }
 
-        const FILTERS: [&str; 3] = ["safe", "json", "yaml"];
+        const FILTERS: [&str; 2] = ["safe", "yaml"];
         if FILTERS.contains(&name) {
             buf.write(&format!(
                 "::askama::filters::{}({}, ",
