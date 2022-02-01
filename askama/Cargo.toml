@@ -19,6 +19,7 @@ maintenance = { status = "actively-developed" }
 default = ["config", "humansize", "num-traits", "urlencode"]
 config = ["askama_derive/config", "askama_shared/config"]
 humansize = ["askama_shared/humansize"]
+markdown = ["askama_shared/markdown"]
 urlencode = ["askama_shared/percent-encoding"]
 serde-json = ["askama_derive/json", "askama_shared/json"]
 serde-yaml = ["askama_derive/yaml", "askama_shared/yaml"]

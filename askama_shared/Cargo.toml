@@ -13,10 +13,12 @@ edition = "2018"
 default = ["config", "humansize", "num-traits", "percent-encoding"]
 config = ["serde", "toml"]
 json = ["serde", "serde_json"]
+markdown = ["comrak"]
 yaml = ["serde", "serde_yaml"]
 
 [dependencies]
 askama_escape = { version = "0.10.2", path = "../askama_escape" }
+comrak = { version = "0.12", optional = true, default-features = false }
 humansize = { version = "1.1.0", optional = true }
 mime = "0.3"
 mime_guess = "2"
