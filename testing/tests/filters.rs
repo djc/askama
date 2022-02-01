@@ -202,3 +202,63 @@ fn test_filter_truncate() {
     };
     assert_eq!(t.render().unwrap(), "alpha baralpha...");
 }
+
+#[cfg(feature = "serde-json")]
+#[derive(Template)]
+#[template(source = r#"<li data-name="{{name|json}}"></li>"#, ext = "html")]
+struct JsonAttributeTemplate<'a> {
+    name: &'a str,
+}
+
+#[cfg(feature = "serde-json")]
+#[test]
+fn test_json_attribute() {
+    let t = JsonAttributeTemplate {
+        name: r#""><button>Hacked!</button>"#,
+    };
+    assert_eq!(
+        t.render().unwrap(),
+        r#"<li data-name="&quot;\&quot;\u003e\u003cbutton\u003eHacked!\u003c/button\u003e&quot;"></li>"#
+    );
+}
+
+#[cfg(feature = "serde-json")]
+#[derive(Template)]
+#[template(source = r#"<li data-name='{{name|json|safe}}'></li>"#, ext = "html")]
+struct JsonAttribute2Template<'a> {
+    name: &'a str,
+}
+
+#[cfg(feature = "serde-json")]
+#[test]
+fn test_json_attribute2() {
+    let t = JsonAttribute2Template {
+        name: r#"'><button>Hacked!</button>"#,
+    };
+    assert_eq!(
+        t.render().unwrap(),
+        r#"<li data-name='"\u0027\u003e\u003cbutton\u003eHacked!\u003c/button\u003e"'></li>"#
+    );
+}
+
+#[cfg(feature = "serde-json")]
+#[derive(Template)]
+#[template(
+    source = r#"<script>var user = {{name|json|safe}}</script>"#,
+    ext = "html"
+)]
+struct JsonScriptTemplate<'a> {
+    name: &'a str,
+}
+
+#[cfg(feature = "serde-json")]
+#[test]
+fn test_json_script() {
+    let t = JsonScriptTemplate {
+        name: r#"</script><button>Hacked!</button>"#,
+    };
+    assert_eq!(
+        t.render().unwrap(),
+        r#"<script>var user = "\u003c/script\u003e\u003cbutton\u003eHacked!\u003c/button\u003e"</script>"#
+    );
+}

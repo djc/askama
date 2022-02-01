@@ -1104,7 +1104,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             return Ok(DisplayWrap::Unwrapped);
         }
 
-        if name == "escape" || name == "safe" || name == "e" || name == "json" {
+        if name == "escape" || name == "safe" || name == "e" {
             buf.write(&format!(
                 "::askama::filters::{}({}, ",
                 name, self.input.escaper
