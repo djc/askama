@@ -5,7 +5,7 @@
 [![Build Status](https://github.com/djc/askama/workflows/CI/badge.svg)](https://github.com/djc/askama/actions?query=workflow%3ACI)
 [![Chat](https://badges.gitter.im/gitterHQ/gitter.svg)](https://gitter.im/djc/askama)
 
-Askama implements a template rendering engine based on Jinja.
+Askama implements a template rendering engine based on [Jinja](https://jinja.palletsprojects.com/).
 It generates Rust code from your templates at compile time
 based on a user-defined `struct` to hold the template's context.
 See below for an example, or read [the book][docs].
@@ -26,9 +26,10 @@ in a for-profit context, please consider supporting my open source work on
 * Construct templates using a familiar, easy-to-use syntax
 * Benefit from the safety provided by Rust's type system
 * Template code is compiled into your crate for [optimal performance][benchmarks]
-* Optional built-in support for Actix, Gotham, Iron, Rocket and warp web frameworks
+* Optional built-in support for Actix, Axum, Gotham, Mendes, Rocket, tide, and warp web frameworks
 * Debugging features to assist you in template development
 * Templates must be valid UTF-8 and produce UTF-8 when rendered
+* IDE support available in [JetBrains products](https://plugins.jetbrains.com/plugin/16591-askama-template-support)
 * Works on stable Rust
 
 ### Supported in templates
