@@ -139,7 +139,7 @@
 <a href="https://crates.io/crates/askama"><img src="https://img.shields.io/crates/v/askama.svg" alt="Latest version" /></a>
 <a href="https://github.com/djc/askama/actions?query=workflow%3ACI"><img src="https://github.com/djc/askama/workflows/CI/badge.svg" alt="Build Status" /></a>
 <a href="https://gitter.im/djc/askama"><img src="https://badges.gitter.im/gitterHQ/gitter.svg" alt="Chat" /></a></p>
-<p>Askama implements a template rendering engine based on Jinja.
+<p>Askama implements a template rendering engine based on <a href="https://jinja.palletsprojects.com/">Jinja</a>.
 It generates Rust code from your templates at compile time
 based on a user-defined <code>struct</code> to hold the template's context.
 See below for an example, or read <a href="https://djc.github.io/askama/">the book</a>.</p>
@@ -156,9 +156,10 @@ in a for-profit context, please consider supporting my open source work on
 <li>Construct templates using a familiar, easy-to-use syntax</li>
 <li>Benefit from the safety provided by Rust's type system</li>
 <li>Template code is compiled into your crate for <a href="https://github.com/djc/template-benchmarks-rs">optimal performance</a></li>
-<li>Optional built-in support for Actix, Gotham, Iron, Rocket and warp web frameworks</li>
+<li>Optional built-in support for Actix, Axum, Gotham, Mendes, Rocket, tide, and warp web frameworks</li>
 <li>Debugging features to assist you in template development</li>
 <li>Templates must be valid UTF-8 and produce UTF-8 when rendered</li>
+<li>IDE support available in <a href="https://plugins.jetbrains.com/plugin/16591-askama-template-support">JetBrains products</a></li>
 <li>Works on stable Rust</li>
 </ul>
 <h3 id="supported-in-templates"><a class="header" href="#supported-in-templates">Supported in templates</a></h3>
