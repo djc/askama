@@ -665,8 +665,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             return self.write_block(buf, None, ws);
         }
 
-        let (def, own_ctx) =
-            if let Some(s) = scope {
+        let (def, own_ctx) = match scope {
+            Some(s) => {
                 let path = ctx.imports.get(s).ok_or_else(|| {
                     CompileError::from(format!("no import found for scope {:?}", s))
                 })?;
@@ -677,13 +677,15 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     CompileError::from(format!("macro {:?} not found in scope {:?}", name, s))
                 })?;
                 (def, mctx)
-            } else {
+            }
+            None => {
                 let def = ctx
                     .macros
                     .get(name)
                     .ok_or_else(|| CompileError::from(format!("macro {:?} not found", name)))?;
                 (def, ctx)
-            };
+            }
+        };
 
         self.flush_ws(ws); // Cannot handle_ws() here: whitespace from macro definition comes first
         self.locals.push();
