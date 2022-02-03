@@ -3,6 +3,7 @@
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashSet};
 use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
@@ -204,9 +205,7 @@ struct RawConfig<'d> {
 impl RawConfig<'_> {
     #[cfg(feature = "config")]
     fn from_toml_str(s: &str) -> std::result::Result<RawConfig<'_>, CompileError> {
-        toml::from_str(s).map_err(|e| {
-            CompileError::String(format!("invalid TOML in {}: {}", CONFIG_FILE_NAME, e))
-        })
+        toml::from_str(s).map_err(|e| format!("invalid TOML in {}: {}", CONFIG_FILE_NAME, e).into())
     }
 
     #[cfg(not(feature = "config"))]
@@ -243,9 +242,8 @@ pub fn read_config_file() -> std::result::Result<String, CompileError> {
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let filename = root.join(CONFIG_FILE_NAME);
     if filename.exists() {
-        fs::read_to_string(&filename).map_err(|_| {
-            CompileError::String(format!("unable to read {}", filename.to_str().unwrap()))
-        })
+        fs::read_to_string(&filename)
+            .map_err(|_| format!("unable to read {:?}", filename.to_str().unwrap()).into())
     } else {
         Ok("".to_string())
     }
@@ -261,10 +259,11 @@ where
 #[allow(clippy::match_wild_err_arm)]
 pub fn get_template_source(tpl_path: &Path) -> std::result::Result<String, CompileError> {
     match fs::read_to_string(tpl_path) {
-        Err(_) => Err(CompileError::String(format!(
+        Err(_) => Err(format!(
             "unable to open template file '{}'",
             tpl_path.to_str().unwrap()
-        ))),
+        )
+        .into()),
         Ok(mut source) => {
             if source.ends_with('\n') {
                 let _ = source.pop();
@@ -294,29 +293,26 @@ static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
 ];
 
 #[derive(Debug)]
-pub enum CompileError {
-    Static(&'static str),
-    String(String),
-}
+pub struct CompileError(Cow<'static, str>);
 
 impl fmt::Display for CompileError {
+    #[inline]
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CompileError::Static(s) => write!(fmt, "{}", s),
-            CompileError::String(s) => write!(fmt, "{}", s),
-        }
+        fmt.write_str(&self.0)
     }
 }
 
 impl From<&'static str> for CompileError {
+    #[inline]
     fn from(s: &'static str) -> Self {
-        CompileError::Static(s)
+        Self(s.into())
     }
 }
 
 impl From<String> for CompileError {
+    #[inline]
     fn from(s: String) -> Self {
-        CompileError::String(s)
+        Self(s.into())
     }
 }
 

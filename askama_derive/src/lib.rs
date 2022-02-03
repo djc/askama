@@ -86,13 +86,14 @@ fn find_used_templates(
                     let extends = input.config.find_template(extends, Some(&path))?;
                     let dependency_path = (path.clone(), extends.clone());
                     if dependency_graph.contains(&dependency_path) {
-                        return Err(CompileError::String(format!(
+                        return Err(format!(
                             "cyclic dependecy in graph {:#?}",
                             dependency_graph
                                 .iter()
                                 .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
                                 .collect::<Vec<String>>()
-                        )));
+                        )
+                        .into());
                     }
                     dependency_graph.push(dependency_path);
                     let source = get_template_source(&extends)?;
