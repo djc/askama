@@ -9,6 +9,7 @@ use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
 use std::{env, fmt, fs};
 
+use proc_macro2::{Span, TokenStream};
 #[cfg(feature = "serde")]
 use serde::Deserialize;
 
@@ -292,27 +293,45 @@ static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
     (&["j2", "jinja", "jinja2"], "::askama::Html"),
 ];
 
-#[derive(Debug)]
-pub struct CompileError(Cow<'static, str>);
+#[derive(Debug, Clone)]
+pub struct CompileError {
+    msg: Cow<'static, str>,
+    span: Span,
+}
+
+impl CompileError {
+    pub fn new<S: Into<Cow<'static, str>>>(s: S, span: Span) -> Self {
+        Self {
+            msg: s.into(),
+            span,
+        }
+    }
+
+    pub fn to_compile_error(self) -> TokenStream {
+        syn::Error::new(self.span, self.msg).to_compile_error()
+    }
+}
+
+impl std::error::Error for CompileError {}
 
 impl fmt::Display for CompileError {
     #[inline]
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.write_str(&self.0)
+        fmt.write_str(&self.msg)
     }
 }
 
 impl From<&'static str> for CompileError {
     #[inline]
     fn from(s: &'static str) -> Self {
-        Self(s.into())
+        Self::new(s, Span::call_site())
     }
 }
 
 impl From<String> for CompileError {
     #[inline]
     fn from(s: String) -> Self {
-        Self(s.into())
+        Self::new(s, Span::call_site())
     }
 }
 
