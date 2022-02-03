@@ -32,7 +32,12 @@ impl TemplateInput<'_> {
         // the proper type (list).
         let mut template_args = None;
         for attr in &ast.attrs {
-            if attr.path.is_ident("template") {
+            let ident = match attr.path.get_ident() {
+                Some(ident) => ident,
+                None => continue,
+            };
+
+            if ident == "template" {
                 if template_args.is_some() {
                     return Err("duplicated 'template' attribute".into());
                 }
@@ -68,8 +73,12 @@ impl TemplateInput<'_> {
                     .into())
                 }
             };
+            let ident = match pair.path.get_ident() {
+                Some(ident) => ident,
+                None => unreachable!("not possible in syn::Meta::NameValue(…)"),
+            };
 
-            if pair.path.is_ident("path") {
+            if ident == "path" {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     if source.is_some() {
                         return Err("must specify 'source' or 'path', not both".into());
@@ -78,7 +87,7 @@ impl TemplateInput<'_> {
                 } else {
                     return Err("template path must be string literal".into());
                 }
-            } else if pair.path.is_ident("source") {
+            } else if ident == "source" {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     if source.is_some() {
                         return Err("must specify 'source' or 'path', not both".into());
@@ -87,36 +96,32 @@ impl TemplateInput<'_> {
                 } else {
                     return Err("template source must be string literal".into());
                 }
-            } else if pair.path.is_ident("print") {
+            } else if ident == "print" {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     print = s.value().parse()?;
                 } else {
                     return Err("print value must be string literal".into());
                 }
-            } else if pair.path.is_ident("escape") {
+            } else if ident == "escape" {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     escaping = Some(s.value());
                 } else {
                     return Err("escape value must be string literal".into());
                 }
-            } else if pair.path.is_ident("ext") {
+            } else if ident == "ext" {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     ext = Some(s.value());
                 } else {
                     return Err("ext value must be string literal".into());
                 }
-            } else if pair.path.is_ident("syntax") {
+            } else if ident == "syntax" {
                 if let syn::Lit::Str(ref s) = pair.lit {
                     syntax = Some(s.value())
                 } else {
                     return Err("syntax value must be string literal".into());
                 }
             } else {
-                return Err(format!(
-                    "unsupported attribute key '{}' found",
-                    pair.path.to_token_stream()
-                )
-                .into());
+                return Err(format!("unsupported attribute key {:?} found", ident).into());
             }
         }
 
