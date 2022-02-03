@@ -34,7 +34,7 @@ impl TemplateInput<'_> {
         for attr in &ast.attrs {
             if attr.path.is_ident("template") {
                 if template_args.is_some() {
-                    return Err(CompileError::Static("duplicated 'template' attribute"));
+                    return Err("duplicated 'template' attribute".into());
                 }
 
                 match attr.parse_meta() {
@@ -47,7 +47,7 @@ impl TemplateInput<'_> {
             }
         }
         let template_args =
-            template_args.ok_or(CompileError::Static("no attribute 'template' found"))?;
+            template_args.ok_or_else(|| CompileError::from("no attribute 'template' found"))?;
 
         // Loop over the meta attributes and find everything that we
         // understand. Return a CompileError if something is not right.
@@ -157,9 +157,10 @@ impl TemplateInput<'_> {
         let syntax = syntax.map_or_else(
             || Ok(config.syntaxes.get(config.default_syntax).unwrap()),
             |s| {
-                config.syntaxes.get(&s).ok_or_else(|| {
-                    CompileError::String(format!("attribute syntax {} not exist", s))
-                })
+                config
+                    .syntaxes
+                    .get(&s)
+                    .ok_or_else(|| CompileError::from(format!("attribute syntax {} not exist", s)))
             },
         )?;
 
@@ -181,7 +182,7 @@ impl TemplateInput<'_> {
         }
 
         let escaper = escaper.ok_or_else(|| {
-            CompileError::String(format!("no escaper defined for extension '{}'", escaping,))
+            CompileError::from(format!("no escaper defined for extension '{}'", escaping))
         })?;
 
         let mime_type =

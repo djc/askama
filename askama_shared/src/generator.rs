@@ -665,27 +665,25 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             return self.write_block(buf, None, ws);
         }
 
-        let (def, own_ctx) = if let Some(s) = scope {
-            let path = ctx.imports.get(s).ok_or_else(|| {
-                CompileError::String(format!("no import found for scope '{}'", s))
-            })?;
-            let mctx = self.contexts.get(path.as_path()).ok_or_else(|| {
-                CompileError::String(format!("context for '{:?}' not found", path))
-            })?;
-            (
-                mctx.macros.get(name).ok_or_else(|| {
-                    CompileError::String(format!("macro '{}' not found in scope '{}'", name, s))
-                })?,
-                mctx,
-            )
-        } else {
-            (
-                ctx.macros
+        let (def, own_ctx) =
+            if let Some(s) = scope {
+                let path = ctx.imports.get(s).ok_or_else(|| {
+                    CompileError::from(format!("no import found for scope {:?}", s))
+                })?;
+                let mctx = self.contexts.get(path.as_path()).ok_or_else(|| {
+                    CompileError::from(format!("context for {:?} not found", path))
+                })?;
+                let def = mctx.macros.get(name).ok_or_else(|| {
+                    CompileError::from(format!("macro {:?} not found in scope {:?}", name, s))
+                })?;
+                (def, mctx)
+            } else {
+                let def = ctx
+                    .macros
                     .get(name)
-                    .ok_or_else(|| CompileError::String(format!("macro '{}' not found", name)))?,
-                ctx,
-            )
-        };
+                    .ok_or_else(|| CompileError::from(format!("macro {:?} not found", name)))?;
+                (def, ctx)
+            };
 
         self.flush_ws(ws); // Cannot handle_ws() here: whitespace from macro definition comes first
         self.locals.push();
@@ -698,7 +696,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let mut is_first_variable = true;
         for (i, arg) in def.args.iter().enumerate() {
             let expr = args.get(i).ok_or_else(|| {
-                CompileError::String(format!("macro '{}' takes more than {} arguments", name, i))
+                CompileError::from(format!("macro {:?} takes more than {} arguments", name, i))
             })?;
 
             match expr {
@@ -900,7 +898,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let heritage = self
             .heritage
             .as_ref()
-            .ok_or(CompileError::Static("no block ancestors available"))?;
+            .ok_or_else(|| CompileError::from("no block ancestors available"))?;
         let (ctx, def) = heritage.blocks[cur.0].get(cur.1).ok_or_else(|| {
             CompileError::from(match name {
                 None => format!("no super() block found for block '{}'", cur.0),
@@ -1170,7 +1168,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 .escapers
                 .iter()
                 .find_map(|(escapers, escaper)| escapers.contains(name).then(|| escaper))
-                .ok_or(CompileError::Static("invalid escaper for escape filter"))?,
+                .ok_or_else(|| CompileError::from("invalid escaper for escape filter"))?,
             None => self.input.escaper,
         };
         buf.write("::askama::filters::escape(");
