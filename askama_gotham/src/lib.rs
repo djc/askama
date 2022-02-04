@@ -5,16 +5,17 @@
 pub use askama::*;
 
 pub use gotham::handler::IntoResponse;
+use gotham::hyper::header;
+pub use gotham::hyper::{Body, Response, StatusCode};
 pub use gotham::state::State;
-pub use hyper::{Body, Response, StatusCode};
 
 pub fn respond<T: Template>(t: &T, _ext: &str) -> Response<Body> {
     match t.render() {
         Ok(body) => Response::builder()
             .status(StatusCode::OK)
             .header(
-                hyper::header::CONTENT_TYPE,
-                hyper::header::HeaderValue::from_static(T::MIME_TYPE),
+                header::CONTENT_TYPE,
+                header::HeaderValue::from_static(T::MIME_TYPE),
             )
             .body(body.into())
             .unwrap(),
