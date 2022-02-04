@@ -127,3 +127,123 @@ fn test_strip_eager2() {
         "<!DOCTYPE html>\n<html>\n<body>\n<p>\n. . .\n</p>\n</body>\n</html>"
     );
 }
+
+#[test]
+fn test_strip_class() {
+    #[derive(askama::Template)]
+    #[template(
+        source = r#"<li{% if self.0 %}class="active"{% endif %}>"#,
+        ext = "txt",
+        strip = "eager"
+    )]
+    struct StripClass00(bool);
+    assert_eq!(StripClass00(false).render().unwrap(), "<li>");
+    assert_eq!(
+        StripClass00(true).render().unwrap(),
+        r#"<liclass="active">"#
+    );
+
+    #[derive(askama::Template)]
+    #[template(
+        source = r#"<li{% if self.0 %} class="active"{% endif %}>"#,
+        ext = "txt",
+        strip = "eager"
+    )]
+    struct StripClass01(bool);
+    assert_eq!(StripClass01(false).render().unwrap(), "<li>");
+    assert_eq!(
+        StripClass01(true).render().unwrap(),
+        r#"<li class="active">"#
+    );
+
+    #[derive(askama::Template)]
+    #[template(
+        source = r#"<li{% if self.0 %}  class="active"{% endif %}>"#,
+        ext = "txt",
+        strip = "eager"
+    )]
+    struct StripClass02(bool);
+    assert_eq!(StripClass02(false).render().unwrap(), "<li>");
+    assert_eq!(
+        StripClass02(true).render().unwrap(),
+        r#"<li class="active">"#
+    );
+
+    #[derive(askama::Template)]
+    #[template(
+        source = r#"<li {% if self.0 %}class="active"{% endif %}>"#,
+        ext = "txt",
+        strip = "eager"
+    )]
+    struct StripClass10(bool);
+    assert_eq!(StripClass10(false).render().unwrap(), "<li >");
+    assert_eq!(
+        StripClass10(true).render().unwrap(),
+        r#"<li class="active">"#
+    );
+
+    #[derive(askama::Template)]
+    #[template(
+        source = r#"<li {% if self.0 %} class="active"{% endif %}>"#,
+        ext = "txt",
+        strip = "eager"
+    )]
+    struct StripClass11(bool);
+    assert_eq!(StripClass11(false).render().unwrap(), "<li >");
+    assert_eq!(
+        StripClass11(true).render().unwrap(),
+        r#"<li  class="active">"#
+    );
+
+    #[derive(askama::Template)]
+    #[template(
+        source = r#"<li {% if self.0 %}  class="active"{% endif %}>"#,
+        ext = "txt",
+        strip = "eager"
+    )]
+    struct StripClass12(bool);
+    assert_eq!(StripClass12(false).render().unwrap(), "<li >");
+    assert_eq!(
+        StripClass12(true).render().unwrap(),
+        r#"<li  class="active">"#
+    );
+
+    #[derive(askama::Template)]
+    #[template(
+        source = r#"<li  {% if self.0 %}class="active"{% endif %}>"#,
+        ext = "txt",
+        strip = "eager"
+    )]
+    struct StripClass20(bool);
+    assert_eq!(StripClass20(false).render().unwrap(), "<li >");
+    assert_eq!(
+        StripClass20(true).render().unwrap(),
+        r#"<li class="active">"#
+    );
+
+    #[derive(askama::Template)]
+    #[template(
+        source = r#"<li  {% if self.0 %} class="active"{% endif %}>"#,
+        ext = "txt",
+        strip = "eager"
+    )]
+    struct StripClass21(bool);
+    assert_eq!(StripClass21(false).render().unwrap(), "<li >");
+    assert_eq!(
+        StripClass21(true).render().unwrap(),
+        r#"<li  class="active">"#
+    );
+
+    #[derive(askama::Template)]
+    #[template(
+        source = r#"<li  {% if self.0 %}  class="active"{% endif %}>"#,
+        ext = "txt",
+        strip = "eager"
+    )]
+    struct StripClass22(bool);
+    assert_eq!(StripClass22(false).render().unwrap(), "<li >");
+    assert_eq!(
+        StripClass22(true).render().unwrap(),
+        r#"<li  class="active">"#
+    );
+}
