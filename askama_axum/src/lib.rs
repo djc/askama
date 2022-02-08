@@ -26,3 +26,18 @@ pub fn into_response<T: Template>(t: &T, _ext: &str) -> Response<BoxBody> {
             .unwrap(),
     }
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! impl_template {
+    (($ident:ident) ($($impl_generics:tt)*) ($($orig_generics:tt)*) ($($where_clause:tt)*)) => {
+        impl <$($impl_generics)*> $crate::IntoResponse
+            for $ident <$($orig_generics)*> where $($where_clause)*
+        {
+            #[inline]
+            fn into_response(self) -> $crate::Response<$crate::BoxBody> {
+                $crate::into_response(&self, "")
+            }
+        }
+    }
+}

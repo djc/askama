@@ -21,3 +21,18 @@ pub fn reply<T: askama::Template>(t: &T, _ext: &str) -> Response {
     }
     .unwrap()
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! impl_template {
+    (($ident:ident) ($($impl_generics:tt)*) ($($orig_generics:tt)*) ($($where_clause:tt)*)) => {
+        impl <$($impl_generics)*> $crate::warp::reply::Reply
+            for $ident <$($orig_generics)*> where $($where_clause)*
+        {
+            #[inline]
+            fn into_response(self) -> $crate::warp::reply::Response {
+                $crate::reply(&self, "")
+            }
+        }
+    }
+}

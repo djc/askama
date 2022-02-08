@@ -17,3 +17,18 @@ pub fn respond<T: Template>(t: &T, _ext: &str) -> Result<'static> {
         .sized_body(Cursor::new(rsp))
         .ok()
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! impl_template {
+    (($ident:ident) ($($impl_generics:tt)*) ($($orig_generics:tt)*) ($($where_clause:tt)*)) => {
+        impl <'askama, $($impl_generics)*> $crate::Responder<'askama>
+            for $ident <$($orig_generics)*> where $($where_clause)*
+        {
+            #[inline]
+            fn respond_to(self, _: &$crate::Request<'_>) -> $crate::Result<'askama> {
+                $crate::respond(&self, "")
+            }
+        }
+    }
+}

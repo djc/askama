@@ -30,3 +30,31 @@ pub fn into_response<T: Template>(t: &T, ext: &str) -> Response {
         }
     }
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! impl_template {
+    (($ident:ident) ($($impl_generics:tt)*) ($($orig_generics:tt)*) ($($where_clause:tt)*)) => {
+        impl <$($impl_generics)*> ::std::convert::TryFrom<$ident <$($orig_generics)*>>
+            for $crate::tide::Body where $($where_clause)*
+        {
+            type Error = $crate::askama::Error;
+
+            #[inline]
+            fn try_from(
+                template: $ident <$($orig_generics)*>,
+            ) -> $crate::askama::Result<$crate::tide::Body> {
+                $crate::try_into_body(&template, "")
+            }
+        }
+
+        impl <$($impl_generics)*> ::std::convert::From<$ident <$($orig_generics)*>>
+            for $crate::tide::Response where $($where_clause)*
+        {
+            #[inline]
+            fn from(template: $ident <$($orig_generics)*>) -> Self {
+                $crate::into_response(&template, "")
+            }
+        }
+    }
+}

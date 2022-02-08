@@ -4,11 +4,12 @@ use crate::heritage::{Context, Heritage};
 use crate::input::{Source, TemplateInput};
 use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Ws};
 
-use proc_macro2::Span;
+use proc_macro2::{TokenStream, TokenTree};
 
 use quote::{quote, ToTokens};
 
 use std::collections::HashMap;
+use std::iter::FromIterator;
 use std::path::Path;
 use std::{cmp, hash, mem, str};
 
@@ -94,25 +95,25 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         self.impl_display(&mut buf)?;
 
         if self.integrations.actix {
-            self.impl_actix_web_responder(&mut buf)?;
+            self.write_integration_macro(&mut buf, "askama_actix")?;
         }
         if self.integrations.axum {
-            self.impl_axum_into_response(&mut buf)?;
+            self.write_integration_macro(&mut buf, "askama_axum")?;
         }
         if self.integrations.gotham {
-            self.impl_gotham_into_response(&mut buf)?;
+            self.write_integration_macro(&mut buf, "askama_gotham")?;
         }
         if self.integrations.mendes {
-            self.impl_mendes_responder(&mut buf)?;
+            self.write_integration_macro(&mut buf, "askama_mendes")?;
         }
         if self.integrations.rocket {
-            self.impl_rocket_responder(&mut buf)?;
+            self.write_integration_macro(&mut buf, "askama_rocket")?;
         }
         if self.integrations.tide {
-            self.impl_tide_integrations(&mut buf)?;
+            self.write_integration_macro(&mut buf, "askama_tide")?;
         }
         if self.integrations.warp {
-            self.impl_warp_reply(&mut buf)?;
+            self.write_integration_macro(&mut buf, "askama_warp")?;
         }
         Ok(buf.buf)
     }
@@ -201,153 +202,43 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("}")
     }
 
-    // Implement Actix-web's `Responder`.
-    fn impl_actix_web_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        self.write_header(buf, "::actix_web::Responder", None)?;
-        buf.writeln("type Body = ::actix_web::body::BoxBody;")?;
-        buf.writeln("#[inline]")?;
-        buf.writeln(
-            "fn respond_to(self, _req: &::actix_web::HttpRequest) \
-             -> ::actix_web::web::HttpResponse<Self::Body> {",
-        )?;
-        buf.writeln("<Self as ::askama_actix::TemplateToResponse>::to_response(&self)")?;
+    fn write_integration_macro(
+        &mut self,
+        buf: &mut Buffer,
+        target: &str,
+    ) -> Result<(), CompileError> {
+        let ast = self.input.ast;
+        let (impl_generics, type_generics, where_clause) = ast.generics.split_for_impl();
+        let ident = &ast.ident;
+
+        let mut impl_generics: Vec<TokenTree> = quote!(#impl_generics).into_iter().collect();
+        if impl_generics.len() >= 2 {
+            impl_generics.pop();
+            impl_generics.remove(0);
+        }
+        let impl_generics = TokenStream::from_iter(impl_generics);
+
+        let mut type_generics: Vec<TokenTree> = quote!(#type_generics).into_iter().collect();
+        if type_generics.len() >= 2 {
+            type_generics.pop();
+            type_generics.remove(0);
+        }
+        let type_generics = TokenStream::from_iter(type_generics);
+
+        let mut where_clause: Vec<TokenTree> = quote!(#where_clause).into_iter().collect();
+        if !where_clause.is_empty() {
+            where_clause.remove(0);
+        }
+        let where_clause = TokenStream::from_iter(where_clause);
+
+        buf.writeln(&format!("::{}::impl_template! {{", target))?;
+        buf.writeln(&format!("({})", quote!(#ident)))?;
+        buf.writeln(&format!("({})", quote!(#impl_generics)))?;
+        buf.writeln(&format!("({})", quote!(#type_generics)))?;
+        buf.writeln(&format!("({})", quote!(#where_clause)))?;
         buf.writeln("}")?;
-        buf.writeln("}")
-    }
 
-    // Implement Axum's `IntoResponse`.
-    fn impl_axum_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        self.write_header(buf, "::askama_axum::IntoResponse", None)?;
-        buf.writeln("#[inline]")?;
-        buf.writeln(
-            "fn into_response(self)\
-             -> ::askama_axum::Response<::askama_axum::BoxBody> {",
-        )?;
-        let ext = self.input.extension().unwrap_or("txt");
-        buf.writeln(&format!("::askama_axum::into_response(&self, {:?})", ext))?;
-        buf.writeln("}")?;
-        buf.writeln("}")
-    }
-
-    // Implement gotham's `IntoResponse`.
-    fn impl_gotham_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        self.write_header(buf, "::askama_gotham::IntoResponse", None)?;
-        buf.writeln("#[inline]")?;
-        buf.writeln(
-            "fn into_response(self, _state: &::askama_gotham::State)\
-             -> ::askama_gotham::Response<::askama_gotham::Body> {",
-        )?;
-        let ext = self.input.extension().unwrap_or("txt");
-        buf.writeln(&format!("::askama_gotham::respond(&self, {:?})", ext))?;
-        buf.writeln("}")?;
-        buf.writeln("}")
-    }
-
-    // Implement mendes' `Responder`.
-    fn impl_mendes_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let param = syn::parse_str("A: ::mendes::Application").unwrap();
-
-        let mut generics = self.input.ast.generics.clone();
-        generics.params.push(param);
-        let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
-
-        let mut where_clause = match where_clause {
-            Some(clause) => clause.clone(),
-            None => syn::WhereClause {
-                where_token: syn::Token![where](Span::call_site()),
-                predicates: syn::punctuated::Punctuated::new(),
-            },
-        };
-
-        where_clause
-            .predicates
-            .push(syn::parse_str("A::ResponseBody: From<String>").unwrap());
-        where_clause
-            .predicates
-            .push(syn::parse_str("A::Error: From<::askama_mendes::Error>").unwrap());
-
-        buf.writeln(
-            format!(
-                "{} {} for {} {} {{",
-                quote!(impl#impl_generics),
-                "::mendes::application::IntoResponse<A>",
-                self.input.ast.ident,
-                quote!(#orig_ty_generics #where_clause),
-            )
-            .as_ref(),
-        )?;
-
-        buf.writeln(
-            "fn into_response(self, app: &A, req: &::mendes::http::request::Parts) \
-             -> ::mendes::http::Response<A::ResponseBody> {",
-        )?;
-
-        buf.writeln(&format!(
-            "::askama_mendes::into_response(app, req, &self, {:?})",
-            self.input.extension()
-        ))?;
-        buf.writeln("}")?;
-        buf.writeln("}")?;
         Ok(())
-    }
-
-    // Implement Rocket's `Responder`.
-    fn impl_rocket_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let lifetime = syn::Lifetime::new("'askama", Span::call_site());
-        let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
-        self.write_header(
-            buf,
-            "::askama_rocket::Responder<'askama>",
-            Some(vec![param]),
-        )?;
-
-        buf.writeln("#[inline]")?;
-        buf.writeln(
-            "fn respond_to(self, _: &::askama_rocket::Request) \
-             -> ::askama_rocket::Result<'askama> {",
-        )?;
-        let ext = self.input.extension().unwrap_or("txt");
-        buf.writeln(&format!("::askama_rocket::respond(&self, {:?})", ext))?;
-
-        buf.writeln("}")?;
-        buf.writeln("}")?;
-        Ok(())
-    }
-
-    fn impl_tide_integrations(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let ext = self.input.extension().unwrap_or("txt");
-
-        self.write_header(
-            buf,
-            "::std::convert::TryInto<::askama_tide::tide::Body>",
-            None,
-        )?;
-        buf.writeln(
-            "type Error = ::askama_tide::askama::Error;\n\
-            #[inline]\n\
-            fn try_into(self) -> ::askama_tide::askama::Result<::askama_tide::tide::Body> {",
-        )?;
-        buf.writeln(&format!("::askama_tide::try_into_body(&self, {:?})", &ext))?;
-        buf.writeln("}")?;
-        buf.writeln("}")?;
-
-        buf.writeln("#[allow(clippy::from_over_into)]")?;
-        self.write_header(buf, "Into<::askama_tide::tide::Response>", None)?;
-        buf.writeln("#[inline]")?;
-        buf.writeln("fn into(self) -> ::askama_tide::tide::Response {")?;
-        buf.writeln(&format!("::askama_tide::into_response(&self, {:?})", ext))?;
-        buf.writeln("}\n}")
-    }
-
-    fn impl_warp_reply(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        self.write_header(buf, "::askama_warp::warp::reply::Reply", None)?;
-        buf.writeln("#[inline]")?;
-        buf.writeln("fn into_response(self) -> ::askama_warp::warp::reply::Response {")?;
-        let ext = self.input.extension().unwrap_or("txt");
-        buf.writeln(&format!("::askama_warp::reply(&self, {:?})", ext))?;
-        buf.writeln("}")?;
-        buf.writeln("}")
     }
 
     // Writes header for the `impl` for `TraitFromPathName` or `Template`

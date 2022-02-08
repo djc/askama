@@ -4,6 +4,8 @@
 
 use std::fmt;
 
+#[doc(hidden)]
+pub use actix_web;
 use actix_web::body::BoxBody;
 use actix_web::http::header::HeaderValue;
 use actix_web::http::StatusCode;
@@ -42,4 +44,24 @@ impl<T: askama::Template> TemplateToResponse for T {
             Err(err) => HttpResponse::from_error(ActixError(err)),
         }
     }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! impl_template {
+    (($ident:ident) ($($impl_generics:tt)*) ($($orig_generics:tt)*) ($($where_clause:tt)*)) => {
+        impl <$($impl_generics)*> $crate::actix_web::Responder
+            for $ident <$($orig_generics)*> where $($where_clause)*
+        {
+            type Body = $crate::actix_web::body::BoxBody;
+
+            #[inline]
+            fn respond_to(
+                self,
+                _req: &$crate::actix_web::HttpRequest,
+            ) -> $crate::actix_web::web::HttpResponse<Self::Body> {
+                <Self as $crate::TemplateToResponse>::to_response(&self)
+            }
+        }
+    };
 }
