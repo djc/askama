@@ -271,7 +271,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             format!(
                 "{} {} for {} {} {{",
                 quote!(impl#impl_generics),
-                "::mendes::application::Responder<A>",
+                "::mendes::application::IntoResponse<A>",
                 self.input.ast.ident,
                 quote!(#orig_ty_generics #where_clause),
             )

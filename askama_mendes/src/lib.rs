@@ -2,7 +2,7 @@
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
-use mendes::application::{Application, Responder};
+use mendes::application::{Application, IntoResponse};
 use mendes::http::header::{HeaderValue, CONTENT_LENGTH, CONTENT_TYPE};
 use mendes::http::request::Parts;
 use mendes::http::Response;
