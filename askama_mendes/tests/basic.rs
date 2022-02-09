@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::{Body, Request};
-use mendes::application::Responder;
+use mendes::application::IntoResponse;
 use mendes::http::request::Parts;
 use mendes::http::{Response, StatusCode};
 use mendes::{handler, route, Application, Context};
@@ -77,7 +77,7 @@ impl std::fmt::Display for Error {
     }
 }
 
-impl Responder<App> for Error {
+impl IntoResponse<App> for Error {
     fn into_response(self, _: &App, _: &Parts) -> Response<Body> {
         Response::builder()
             .status(StatusCode::from(&self))
