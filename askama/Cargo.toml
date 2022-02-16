@@ -1,6 +1,6 @@
 [package]
 name = "askama"
-version = "0.11.0"
+version = "0.11.1"
 description = "Type-safe, compiled Jinja-like templates for Rust"
 documentation = "https://docs.rs/askama"
 keywords = ["markup", "template", "jinja2", "html"]
@@ -37,9 +37,9 @@ mime = []
 mime_guess = []
 
 [dependencies]
-askama_derive = { version = "0.11.0", path = "../askama_derive" }
+askama_derive = { version = "0.11.2", path = "../askama_derive" }
 askama_escape = { version = "0.10", path = "../askama_escape" }
-askama_shared = { version = "0.12.0", path = "../askama_shared", default-features = false }
+askama_shared = { version = "0.12.1", path = "../askama_shared", default-features = false }
 
 [package.metadata.docs.rs]
 features = ["config", "humansize", "num-traits", "serde-json", "serde-yaml"]
