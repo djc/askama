@@ -1,6 +1,6 @@
 [package]
 name = "askama_escape"
-version = "0.10.2"
+version = "0.10.3"
 description = "Optimized HTML escaping code, extracted from Askama"
 documentation = "https://docs.rs/askama_escape"
 keywords = ["html", "escaping"]
