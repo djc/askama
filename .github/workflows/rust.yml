@@ -47,7 +47,7 @@ jobs:
           override: true
       - run: |
           cargo test --package askama_actix --all-targets
-          cargo clippy --package askama_actix --all-targets -- -D warnings
+          cargo clippy --package askama_actix --all-targets
 
   Gotham:
     runs-on: ubuntu-latest
@@ -61,7 +61,7 @@ jobs:
           components: clippy
       - run: |
           cargo test --package askama_gotham --all-targets
-          cargo clippy --package askama_gotham --all-targets -- -D warnings
+          cargo clippy --package askama_gotham --all-targets
 
   Iron:
     runs-on: ubuntu-latest
@@ -75,7 +75,7 @@ jobs:
           components: clippy
       - run: |
           cargo test --package askama_iron --all-targets
-          cargo clippy --package askama_iron --all-targets -- -D warnings
+          cargo clippy --package askama_iron --all-targets
 
   Rocket:
     runs-on: ubuntu-latest
@@ -89,7 +89,7 @@ jobs:
           components: clippy
       - run: |
           cargo test --package askama_rocket --all-targets
-          cargo clippy --package askama_rocket --all-targets -- -D warnings
+          cargo clippy --package askama_rocket --all-targets
 
   Warp:
     runs-on: ubuntu-latest
@@ -103,7 +103,7 @@ jobs:
           components: clippy
       - run: |
           cargo test --package askama_warp --all-targets
-          cargo clippy --package askama_warp --all-targets -- -D warnings
+          cargo clippy --package askama_warp --all-targets
 
   Tide:
     runs-on: ubuntu-latest
@@ -117,7 +117,7 @@ jobs:
           components: clippy
       - run: |
           cargo test --package askama_tide --all-targets
-          cargo clippy --package askama_tide --all-targets -- -D warnings
+          cargo clippy --package askama_tide --all-targets
 
   Lint:
     runs-on: ubuntu-latest
@@ -131,4 +131,4 @@ jobs:
           components: rustfmt, clippy
       - run: |
           cargo fmt --all -- --check
-          cargo clippy --all-targets -- -D warnings
+          cargo clippy --all-targets
