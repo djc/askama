@@ -287,6 +287,39 @@ Escape &amp;lt;&amp;gt;&amp;amp;
 <p>Output:</p>
 <pre><code>5
 </code></pre>
+<h2 id="optional--feature-gated-filters"><a class="header" href="#optional--feature-gated-filters">Optional / feature gated filters</a></h2>
+<p>The following filters can be enabled by requesting the respective feature in the Cargo.toml
+<a href="https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html">dependencies section</a>, e.g.</p>
+<pre><code>[dependencies]
+askama = { version = &quot;0.11.0&quot;, features = &quot;serde-json&quot; }
+</code></pre>
+<h3 id="json--tojson"><a class="header" href="#json--tojson"><code>json</code> | <code>tojson</code></a></h3>
+<p>Enabling the <code>serde-json</code> feature will enable the use of the <code>json</code> filter.
+This will output formatted JSON for any value that implements the required
+<a href="https://docs.rs/serde/1.*/serde/trait.Serialize.html"><code>Serialize</code></a> trait.
+The generated string does not contain ampersands <code>&amp;</code>, chevrons <code>&lt; &gt;</code>, or apostrophes <code>'</code>.</p>
+<p>To use it in a <code>&lt;script&gt;</code> you can combine it with the safe filter.
+In HTML attributes, you can either use it in quotation marks <code>&quot;{{data|json}}&quot;</code> as is,
+or in apostrophes with the (optional) safe filter <code>'{{data|json|safe}}'</code>.
+In HTML texts the output of e.g. <code>&lt;pre&gt;{{data|json|safe}}&lt;/pre&gt;</code> is safe, too.</p>
+<pre><code>Good: &lt;li data-extra=&quot;{{data|json}}&quot;&gt;…&lt;/li&gt;
+Good: &lt;li data-extra='{{data|json|safe}}'&gt;…&lt;/li&gt;
+Good: &lt;pre&gt;{{data|json|safe}}&lt;/pre&gt;
+Good: &lt;script&gt;var data = {{data|json|safe}};&lt;/script&gt;
+
+Bad:  &lt;li data-extra=&quot;{{data|json|safe}}&quot;&gt;…&lt;/li&gt;
+Bad:  &lt;script&gt;var data = {{data|json}};&lt;/script&gt;
+Bad:  &lt;script&gt;var data = &quot;{{data|json|safe}}&quot;;&lt;/script&gt;
+
+Ugly: &lt;script&gt;var data = &quot;{{data|json}}&quot;;&lt;/script&gt;
+Ugly: &lt;script&gt;var data = '{{data|json|safe}}';&lt;/script&gt;
+</code></pre>
+<h3 id="yaml"><a class="header" href="#yaml"><code>yaml</code></a></h3>
+<p>Enabling the <code>serde-yaml</code> feature will enable the use of the <code>yaml</code> filter.
+This will output formatted YAML for any value that implements the required
+<a href="https://docs.rs/serde/1.*/serde/trait.Serialize.html"><code>Serialize</code></a> trait.</p>
+<pre><code class="language-jinja">{{ foo|yaml }}
+</code></pre>
 <h2 id="custom-filters"><a class="header" href="#custom-filters">Custom Filters</a></h2>
 <p>To define your own filters, simply have a module named filters in scope of the context deriving a <code>Template</code> impl.</p>
 <p>Note that in case of name collision, the built in filters take precedence.</p>
@@ -307,22 +340,6 @@ fn main() {
     assert_eq!(t.render().unwrap(), &quot;faa&quot;);
 }
 </code></pre></pre>
-<h2 id="the-json-filter"><a class="header" href="#the-json-filter">The <code>json</code> filter</a></h2>
-<p>Enabling the <code>serde-json</code> feature will enable the use of the <code>json</code> filter.
-This will output formatted JSON for any value that implements the required
-<code>Serialize</code> trait.</p>
-<pre><code class="language-jinja">{
-  &quot;foo&quot;: &quot;{{ foo }}&quot;,
-  &quot;bar&quot;: {{ bar|json }}
-}
-</code></pre>
-<p>For compatibility with Jinja, <code>tojson</code> can be used in place of <code>json</code>.</p>
-<h2 id="the-yaml-filter"><a class="header" href="#the-yaml-filter">The <code>yaml</code> filter</a></h2>
-<p>Enabling the <code>serde-yaml</code> feature will enable the use of the <code>yaml</code> filter.
-This will output formatted JSON for any value that implements the required
-<code>Serialize</code> trait.</p>
-<pre><code>{{ foo|yaml }}
-</code></pre>
 
                     </main>
 
