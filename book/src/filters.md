@@ -16,9 +16,37 @@ is passed to the next.
 Askama has a collection of built-in filters, documented below, but can also include custom filters. Additionally, the `json` and `yaml` filters are included in the built-in filters,
 but are disabled by default. Enable them with Cargo features (see below for more information).
 
+**Table of contents**
+
+* **[Built-in filters][#built-in-filters]:**  
+  [`abs`][#abs],
+  [`capitalize`][#capitalize],
+  [`center`][#center],
+  [`escape|e`][#escape],
+  [`filesizeformat`][#filesizeformat],
+  [`format`][#format],
+  [`indent`][#indent],
+  [`join`][#join],
+  [`linebreaks`][#linebreaks],
+  [`linebreaksbr`][#linebreaksbr],
+  [`lower|lowercase`][#lower],
+  [`safe`][#safe],
+  [`trim`][#trim],
+  [`truncate`][#truncate],
+  [`upper|uppercase`][#upper],
+  [`wordcount`][#wordcount]
+
+* **[Optional / feature gated filters][#optional-filters]:**  
+  [`json|tojson`][#json],
+  [`yaml`][#yaml]
+
+* **[Custom filters][#custom-filters]**
+
 ## Built-In Filters
+[#built-in-filters]: #built-in-filters
 
 ### abs
+[#abs]: #abs
 
 Returns the absolute value.
 
@@ -33,6 +61,7 @@ Output:
 ```
 
 ### capitalize
+[#capitalize]: #capitalize
 
 Capitalize a value. The first character will be uppercase, all others lowercase:
 
@@ -47,6 +76,7 @@ Hello
 ```
 
 ### center
+[#center]: #center
 
 Centers the value in a field of a given width:
 
@@ -60,6 +90,7 @@ Output:
 ```
 
 ### escape | e
+[#escape]: #escape--e
 
 Escapes HTML characters in strings:
 
@@ -96,6 +127,7 @@ Escape &lt;&gt;&amp;
 [`escape = "none"`]: creating_templates.html#the-template-attribute
 
 ### filesizeformat
+[#filesizeformat]: #filesizeformat
 
 Returns adequate string representation (in KB, ..) of number of bytes:
 
@@ -109,6 +141,7 @@ Output:
 ```
 
 ### format
+[#format]: #format
 
 Formats arguments according to the specified format.
 
@@ -121,6 +154,7 @@ All arguments are passed through to the `format!()` macro by the Askama code gen
 ```
 
 ### indent
+[#indent]: #indent
 
 Indent newlines with width spaces.
 
@@ -137,6 +171,7 @@ hello
 ```
 
 ### join
+[#join]: #join
 
 Joins iterable into a string separated by provided argument.
 
@@ -155,6 +190,7 @@ foo, bar, bazz
 ```
 
 ### linebreaks
+[#linebreaks]: #linebreaks
 
 Replaces line breaks in plain text with appropriate HTML.
 
@@ -171,6 +207,7 @@ Output:
 ```
 
 ### linebreaksbr
+[#linebreaksbr]: #linebreaksbr
 
 Converts all newlines in a piece of plain text to HTML line breaks.
 
@@ -185,6 +222,7 @@ hello<br />world<br /><br />from<br />askama
 ```
 
 ### paragraphbreaks
+[#paragraphbreaks]: #paragraphbreaks
 
 A new line followed by a blank line becomes `<p>`, but, unlike `linebreaks`, single new lines are ignored and no `<br/>` tags are generated.
 
@@ -203,6 +241,7 @@ Output:
 ```
 
 ### lower | lowercase
+[#lower]: #lower--lowercase
 
 Converts to lowercase.
 
@@ -217,6 +256,7 @@ hello
 ```
 
 ### safe
+[#safe]: #safe
 
 Marks a string (or other Display type) as safe. By default all strings are escaped according to the format.
 
@@ -231,6 +271,7 @@ Output:
 ```
 
 ### trim
+[#trim]: #trim
 
 Strip leading and trailing whitespace.
 
@@ -245,6 +286,7 @@ hello
 ```
 
 ### truncate
+[#truncate]: #truncate
 
 Limit string length, appends '...' if truncated.
 
@@ -260,6 +302,7 @@ he...
 ```
 
 ### upper | uppercase
+[#upper]: #upper--uppercase
 
 Converts to uppercase.
 
@@ -274,6 +317,7 @@ HELLO
 ```
 
 ### wordcount
+[#wordcount]: #wordcount
 
 Count the words in that string.
 
@@ -288,6 +332,7 @@ Output:
 ```
 
 ## Optional / feature gated filters
+[#optional-filters]: #optional--feature-gated-filters
 
 The following filters can be enabled by requesting the respective feature in the Cargo.toml
 [dependencies section](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html), e.g.
@@ -298,6 +343,7 @@ askama = { version = "0.11.0", features = "serde-json" }
 ```
 
 ### `json` | `tojson`
+[#json]: #json--tojson
 
 Enabling the `serde-json` feature will enable the use of the `json` filter.
 This will output formatted JSON for any value that implements the required
@@ -324,6 +370,7 @@ Ugly: <script>var data = '{{data|json|safe}}';</script>
 ```
 
 ### `yaml`
+[#yaml]: #yaml
 
 Enabling the `serde-yaml` feature will enable the use of the `yaml` filter.
 This will output formatted YAML for any value that implements the required
@@ -333,8 +380,8 @@ This will output formatted YAML for any value that implements the required
 {{ foo|yaml }}
 ```
 
-
 ## Custom Filters
+[#custom-filters]: #custom-filters
 
 To define your own filters, simply have a module named filters in scope of the context deriving a `Template` impl.
 
