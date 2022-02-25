@@ -4,6 +4,7 @@
 
 use std::fmt;
 
+pub use actix_web;
 use actix_web::body::BoxBody;
 use actix_web::http::header::HeaderValue;
 use actix_web::http::StatusCode;
