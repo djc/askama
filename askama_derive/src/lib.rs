@@ -18,7 +18,7 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
     match build_template(&ast) {
         Ok(source) => source.parse().unwrap(),
-        Err(e) => e.to_compile_error().into(),
+        Err(e) => e.into_compile_error().into(),
     }
 }
 
