@@ -5,9 +5,7 @@
 use askama_shared::heritage::{Context, Heritage};
 use askama_shared::input::{Print, Source, TemplateInput};
 use askama_shared::parser::{parse, Expr, Node};
-use askama_shared::{
-    generator, get_template_source, read_config_file, CompileError, Config, Integrations,
-};
+use askama_shared::{generator, get_template_source, read_config_file, CompileError, Config};
 use proc_macro::TokenStream;
 
 use std::collections::HashMap;
@@ -62,7 +60,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
         eprintln!("{:?}", parsed[input.path.as_path()]);
     }
 
-    let code = generator::generate(&input, &contexts, heritage.as_ref(), INTEGRATIONS)?;
+    let code = generator::generate(&input, &contexts, heritage.as_ref())?;
     if input.print == Print::Code || input.print == Print::All {
         eprintln!("{}", code);
     }
@@ -108,13 +106,3 @@ fn find_used_templates(
     }
     Ok(())
 }
-
-const INTEGRATIONS: Integrations = Integrations {
-    actix: cfg!(feature = "actix-web"),
-    axum: cfg!(feature = "axum"),
-    gotham: cfg!(feature = "gotham"),
-    mendes: cfg!(feature = "mendes"),
-    rocket: cfg!(feature = "rocket"),
-    tide: cfg!(feature = "tide"),
-    warp: cfg!(feature = "warp"),
-};

@@ -16,6 +16,14 @@ json = ["serde", "serde_json", "askama_escape/json"]
 markdown = ["comrak"]
 yaml = ["serde", "serde_yaml"]
 
+actix-web = []
+axum = []
+gotham = []
+mendes = []
+rocket = []
+tide = []
+warp = []
+
 [dependencies]
 askama_escape = { version = "0.10.3", path = "../askama_escape" }
 comrak = { version = "0.12", optional = true, default-features = false }

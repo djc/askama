@@ -1,10 +1,8 @@
-use super::{get_template_source, CompileError, Integrations};
+use super::{get_template_source, CompileError};
 use crate::filters;
 use crate::heritage::{Context, Heritage};
 use crate::input::{Source, TemplateInput};
 use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Ws};
-
-use proc_macro2::Span;
 
 use quote::{quote, ToTokens};
 
@@ -16,9 +14,8 @@ pub fn generate<S: std::hash::BuildHasher>(
     input: &TemplateInput<'_>,
     contexts: &HashMap<&Path, Context<'_>, S>,
     heritage: Option<&Heritage<'_>>,
-    integrations: Integrations,
 ) -> Result<String, CompileError> {
-    Generator::new(input, contexts, heritage, integrations, MapChain::new())
+    Generator::new(input, contexts, heritage, MapChain::new())
         .build(&contexts[input.path.as_path()])
 }
 
@@ -29,8 +26,6 @@ struct Generator<'a, S: std::hash::BuildHasher> {
     contexts: &'a HashMap<&'a Path, Context<'a>, S>,
     // The heritage contains references to blocks and their ancestry
     heritage: Option<&'a Heritage<'a>>,
-    // What integrations need to be generated
-    integrations: Integrations,
     // Variables accessible directly from the current scope (not redirected to context)
     locals: MapChain<'a, &'a str, LocalMeta>,
     // Suffix whitespace from the previous literal. Will be flushed to the
@@ -53,14 +48,12 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         input: &'n TemplateInput<'_>,
         contexts: &'n HashMap<&'n Path, Context<'n>, S>,
         heritage: Option<&'n Heritage<'_>>,
-        integrations: Integrations,
         locals: MapChain<'n, &'n str, LocalMeta>,
     ) -> Generator<'n, S> {
         Generator {
             input,
             contexts,
             heritage,
-            integrations,
             locals,
             next_ws: None,
             skip_ws: false,
@@ -72,13 +65,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
     fn child(&mut self) -> Generator<'_, S> {
         let locals = MapChain::with_parent(&self.locals);
-        Self::new(
-            self.input,
-            self.contexts,
-            self.heritage,
-            self.integrations,
-            locals,
-        )
+        Self::new(self.input, self.contexts, self.heritage, locals)
     }
 
     // Takes a Context and generates the relevant implementations.
@@ -93,27 +80,21 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         self.impl_template(ctx, &mut buf)?;
         self.impl_display(&mut buf)?;
 
-        if self.integrations.actix {
-            self.impl_actix_web_responder(&mut buf)?;
-        }
-        if self.integrations.axum {
-            self.impl_axum_into_response(&mut buf)?;
-        }
-        if self.integrations.gotham {
-            self.impl_gotham_into_response(&mut buf)?;
-        }
-        if self.integrations.mendes {
-            self.impl_mendes_responder(&mut buf)?;
-        }
-        if self.integrations.rocket {
-            self.impl_rocket_responder(&mut buf)?;
-        }
-        if self.integrations.tide {
-            self.impl_tide_integrations(&mut buf)?;
-        }
-        if self.integrations.warp {
-            self.impl_warp_reply(&mut buf)?;
-        }
+        #[cfg(feature = "actix-web")]
+        self.impl_actix_web_responder(&mut buf)?;
+        #[cfg(feature = "axum")]
+        self.impl_axum_into_response(&mut buf)?;
+        #[cfg(feature = "gotham")]
+        self.impl_gotham_into_response(&mut buf)?;
+        #[cfg(feature = "mendes")]
+        self.impl_mendes_responder(&mut buf)?;
+        #[cfg(feature = "rocket")]
+        self.impl_rocket_responder(&mut buf)?;
+        #[cfg(feature = "tide")]
+        self.impl_tide_integrations(&mut buf)?;
+        #[cfg(feature = "warp")]
+        self.impl_warp_reply(&mut buf)?;
+
         Ok(buf.buf)
     }
 
@@ -202,6 +183,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement Actix-web's `Responder`.
+    #[cfg(feature = "actix-web")]
     fn impl_actix_web_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama_actix::actix_web::Responder", None)?;
         buf.writeln("type Body = ::askama_actix::actix_web::body::BoxBody;")?;
@@ -216,6 +198,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement Axum's `IntoResponse`.
+    #[cfg(feature = "axum")]
     fn impl_axum_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama_axum::IntoResponse", None)?;
         buf.writeln("#[inline]")?;
@@ -230,6 +213,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement gotham's `IntoResponse`.
+    #[cfg(feature = "gotham")]
     fn impl_gotham_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama_gotham::IntoResponse", None)?;
         buf.writeln("#[inline]")?;
@@ -244,6 +228,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement mendes' `Responder`.
+    #[cfg(feature = "mendes")]
     fn impl_mendes_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         let param = syn::parse_str("A: ::mendes::Application").unwrap();
 
@@ -255,7 +240,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let mut where_clause = match where_clause {
             Some(clause) => clause.clone(),
             None => syn::WhereClause {
-                where_token: syn::Token![where](Span::call_site()),
+                where_token: syn::Token![where](proc_macro2::Span::call_site()),
                 predicates: syn::punctuated::Punctuated::new(),
             },
         };
@@ -293,8 +278,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement Rocket's `Responder`.
+    #[cfg(feature = "rocket")]
     fn impl_rocket_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let lifetime = syn::Lifetime::new("'askama", Span::call_site());
+        let lifetime = syn::Lifetime::new("'askama", proc_macro2::Span::call_site());
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
         self.write_header(
             buf,
@@ -315,6 +301,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         Ok(())
     }
 
+    #[cfg(feature = "tide")]
     fn impl_tide_integrations(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         let ext = self.input.extension().unwrap_or("txt");
 
@@ -340,6 +327,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("}\n}")
     }
 
+    #[cfg(feature = "warp")]
     fn impl_warp_reply(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama_warp::warp::reply::Reply", None)?;
         buf.writeln("#[inline]")?;

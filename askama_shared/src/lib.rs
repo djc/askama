@@ -274,17 +274,6 @@ pub fn get_template_source(tpl_path: &Path) -> std::result::Result<String, Compi
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct Integrations {
-    pub actix: bool,
-    pub axum: bool,
-    pub gotham: bool,
-    pub mendes: bool,
-    pub rocket: bool,
-    pub tide: bool,
-    pub warp: bool,
-}
-
 static CONFIG_FILE_NAME: &str = "askama.toml";
 static DEFAULT_SYNTAX_NAME: &str = "default";
 static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
