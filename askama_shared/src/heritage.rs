@@ -4,13 +4,13 @@ use std::path::{Path, PathBuf};
 use crate::parser::{Expr, Loop, Macro, Node};
 use crate::{CompileError, Config};
 
-pub struct Heritage<'a> {
-    pub root: &'a Context<'a>,
-    pub blocks: BlockAncestry<'a>,
+pub(crate) struct Heritage<'a> {
+    pub(crate) root: &'a Context<'a>,
+    pub(crate) blocks: BlockAncestry<'a>,
 }
 
 impl Heritage<'_> {
-    pub fn new<'n, S: std::hash::BuildHasher>(
+    pub(crate) fn new<'n, S: std::hash::BuildHasher>(
         mut ctx: &'n Context<'n>,
         contexts: &'n HashMap<&'n Path, Context<'n>, S>,
     ) -> Heritage<'n> {
@@ -33,16 +33,16 @@ impl Heritage<'_> {
 
 type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a Node<'a>)>>;
 
-pub struct Context<'a> {
-    pub nodes: &'a [Node<'a>],
-    pub extends: Option<PathBuf>,
-    pub blocks: HashMap<&'a str, &'a Node<'a>>,
-    pub macros: HashMap<&'a str, &'a Macro<'a>>,
-    pub imports: HashMap<&'a str, PathBuf>,
+pub(crate) struct Context<'a> {
+    pub(crate) nodes: &'a [Node<'a>],
+    pub(crate) extends: Option<PathBuf>,
+    pub(crate) blocks: HashMap<&'a str, &'a Node<'a>>,
+    pub(crate) macros: HashMap<&'a str, &'a Macro<'a>>,
+    pub(crate) imports: HashMap<&'a str, PathBuf>,
 }
 
 impl Context<'_> {
-    pub fn new<'n>(
+    pub(crate) fn new<'n>(
         config: &Config<'_>,
         path: &Path,
         nodes: &'n [Node<'n>],

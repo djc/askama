@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::{cmp, hash, mem, str};
 
-pub fn generate<S: std::hash::BuildHasher>(
+pub(crate) fn generate<S: std::hash::BuildHasher>(
     input: &TemplateInput<'_>,
     contexts: &HashMap<&Path, Context<'_>, S>,
     heritage: Option<&Heritage<'_>>,

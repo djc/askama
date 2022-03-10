@@ -6,17 +6,17 @@ use std::str::FromStr;
 use mime::Mime;
 use quote::ToTokens;
 
-pub struct TemplateInput<'a> {
-    pub ast: &'a syn::DeriveInput,
-    pub config: &'a Config<'a>,
-    pub syntax: &'a Syntax<'a>,
-    pub source: Source,
-    pub print: Print,
-    pub escaper: &'a str,
-    pub ext: Option<String>,
-    pub mime_type: String,
-    pub parent: Option<&'a syn::Type>,
-    pub path: PathBuf,
+pub(crate) struct TemplateInput<'a> {
+    pub(crate) ast: &'a syn::DeriveInput,
+    pub(crate) config: &'a Config<'a>,
+    pub(crate) syntax: &'a Syntax<'a>,
+    pub(crate) source: Source,
+    pub(crate) print: Print,
+    pub(crate) escaper: &'a str,
+    pub(crate) ext: Option<String>,
+    pub(crate) mime_type: String,
+    pub(crate) parent: Option<&'a syn::Type>,
+    pub(crate) path: PathBuf,
 }
 
 impl TemplateInput<'_> {
@@ -24,7 +24,7 @@ impl TemplateInput<'_> {
     /// mostly recovers the data for the `TemplateInput` fields from the
     /// `template()` attribute list fields; it also finds the of the `_parent`
     /// field, if any.
-    pub fn new<'n>(
+    pub(crate) fn new<'n>(
         ast: &'n syn::DeriveInput,
         config: &'n Config<'_>,
     ) -> Result<TemplateInput<'n>, CompileError> {
@@ -209,13 +209,13 @@ impl TemplateInput<'_> {
     }
 
     #[inline]
-    pub fn extension(&self) -> Option<&str> {
+    pub(crate) fn extension(&self) -> Option<&str> {
         ext_default_to_path(self.ext.as_deref(), &self.path)
     }
 }
 
 #[inline]
-pub fn ext_default_to_path<'a>(ext: Option<&'a str>, path: &'a Path) -> Option<&'a str> {
+fn ext_default_to_path<'a>(ext: Option<&'a str>, path: &'a Path) -> Option<&'a str> {
     ext.or_else(|| extension(path))
 }
 
@@ -233,13 +233,13 @@ fn extension(path: &Path) -> Option<&str> {
     }
 }
 
-pub enum Source {
+pub(crate) enum Source {
     Path(String),
     Source(String),
 }
 
 #[derive(PartialEq)]
-pub enum Print {
+pub(crate) enum Print {
     All,
     Ast,
     Code,
