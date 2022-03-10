@@ -14,5 +14,3 @@ proc-macro = true
 
 [dependencies]
 askama_shared = { version = "0.12.1", path = "../askama_shared", default-features = false }
-proc-macro2 = "1"
-syn = "1"
