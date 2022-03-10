@@ -21,26 +21,22 @@ mod derive;
 mod error;
 pub use crate::error::{Error, Result};
 pub mod filters;
-#[doc(hidden)]
-pub mod generator;
+mod generator;
 pub mod helpers;
-#[doc(hidden)]
-pub mod heritage;
-#[doc(hidden)]
-pub mod input;
-#[doc(hidden)]
-pub mod parser;
+mod heritage;
+mod input;
+mod parser;
 
 #[derive(Debug)]
-pub struct Config<'a> {
-    pub dirs: Vec<PathBuf>,
-    pub syntaxes: BTreeMap<String, Syntax<'a>>,
-    pub default_syntax: &'a str,
-    pub escapers: Vec<(HashSet<String>, String)>,
+struct Config<'a> {
+    dirs: Vec<PathBuf>,
+    syntaxes: BTreeMap<String, Syntax<'a>>,
+    default_syntax: &'a str,
+    escapers: Vec<(HashSet<String>, String)>,
 }
 
 impl Config<'_> {
-    pub fn new(s: &str) -> std::result::Result<Config<'_>, CompileError> {
+    fn new(s: &str) -> std::result::Result<Config<'_>, CompileError> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default_dirs = vec![root.join("templates")];
 
@@ -108,7 +104,7 @@ impl Config<'_> {
         })
     }
 
-    pub fn find_template(
+    fn find_template(
         &self,
         path: &str,
         start_at: Option<&Path>,
@@ -136,13 +132,13 @@ impl Config<'_> {
 }
 
 #[derive(Debug)]
-pub struct Syntax<'a> {
-    pub block_start: &'a str,
-    pub block_end: &'a str,
-    pub expr_start: &'a str,
-    pub expr_end: &'a str,
-    pub comment_start: &'a str,
-    pub comment_end: &'a str,
+struct Syntax<'a> {
+    block_start: &'a str,
+    block_end: &'a str,
+    expr_start: &'a str,
+    expr_end: &'a str,
+    comment_start: &'a str,
+    comment_end: &'a str,
 }
 
 impl Default for Syntax<'_> {
@@ -241,7 +237,7 @@ struct RawEscaper<'a> {
     extensions: Vec<&'a str>,
 }
 
-pub fn read_config_file() -> std::result::Result<String, CompileError> {
+fn read_config_file() -> std::result::Result<String, CompileError> {
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let filename = root.join(CONFIG_FILE_NAME);
     if filename.exists() {
@@ -260,7 +256,7 @@ where
 }
 
 #[allow(clippy::match_wild_err_arm)]
-pub fn get_template_source(tpl_path: &Path) -> std::result::Result<String, CompileError> {
+fn get_template_source(tpl_path: &Path) -> std::result::Result<String, CompileError> {
     match fs::read_to_string(tpl_path) {
         Err(_) => Err(format!(
             "unable to open template file '{}'",
@@ -285,20 +281,20 @@ static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
 ];
 
 #[derive(Debug, Clone)]
-pub struct CompileError {
+struct CompileError {
     msg: Cow<'static, str>,
     span: Span,
 }
 
 impl CompileError {
-    pub fn new<S: Into<Cow<'static, str>>>(s: S, span: Span) -> Self {
+    fn new<S: Into<Cow<'static, str>>>(s: S, span: Span) -> Self {
         Self {
             msg: s.into(),
             span,
         }
     }
 
-    pub fn into_compile_error(self) -> TokenStream {
+    fn into_compile_error(self) -> TokenStream {
         syn::Error::new(self.span, self.msg).to_compile_error()
     }
 }

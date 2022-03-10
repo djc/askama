@@ -133,9 +133,7 @@ impl<T: Template> DynTemplate for T {
     }
 }
 
-pub use crate::shared::filters;
-pub use crate::shared::helpers;
-pub use crate::shared::{read_config_file, Error, MarkupDisplay, Result};
+pub use crate::shared::{filters, helpers, Error, MarkupDisplay, Result};
 pub use askama_derive::*;
 
 #[deprecated(since = "0.11.1", note = "The only function in this mod is deprecated")]

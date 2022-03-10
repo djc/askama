@@ -9,6 +9,7 @@ use crate::parser::{parse, Expr, Node};
 use crate::{generator, get_template_source, read_config_file, CompileError, Config};
 
 /// The actual implementation for askama_derive::Template
+#[doc(hidden)]
 pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse2(input).unwrap();
     match build_template(&ast) {
