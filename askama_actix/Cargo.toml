@@ -1,6 +1,6 @@
 [package]
 name = "askama_actix"
-version = "0.13.0"
+version = "0.13.1"
 description = "Actix-Web integration for Askama templates"
 documentation = "https://docs.rs/askama"
 keywords = ["markup", "template", "jinja2", "html"]
@@ -14,8 +14,7 @@ edition = "2018"
 
 [dependencies]
 actix-web = { version = "4", default-features = false }
-askama = { version = "0.11.1", path = "../askama", default-features = false, features = ["with-actix-web"] }
-askama_shared = { version = "0.12.2", path = "../askama_shared" }
+askama = { version = "0.11.2", path = "../askama", default-features = false, features = ["with-actix-web"] }
 
 [dev-dependencies]
 actix-rt = { version = "2", default-features = false }
