@@ -13,11 +13,10 @@ use proc_macro2::{Span, TokenStream};
 #[cfg(feature = "serde")]
 use serde::Deserialize;
 
-pub use crate::derive::derive_template;
+pub use crate::generator::derive_template;
 pub use crate::input::extension_to_mime_type;
 pub use askama_escape::MarkupDisplay;
 
-mod derive;
 mod error;
 pub use crate::error::{Error, Result};
 pub mod filters;
