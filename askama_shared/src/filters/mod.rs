@@ -337,7 +337,7 @@ pub fn capitalize<T: fmt::Display>(s: T) -> Result<String> {
             replacement.push_str(&s[c.len_utf8()..].to_lowercase());
             Ok(replacement)
         }
-        _ => Ok(s)
+        _ => Ok(s),
     }
 }
 
