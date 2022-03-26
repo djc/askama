@@ -330,20 +330,14 @@ where
 
 /// Capitalize a value. The first character will be uppercase, all others lowercase.
 pub fn capitalize<T: fmt::Display>(s: T) -> Result<String> {
-    let mut s = s.to_string();
-
-    match s.get_mut(0..1).map(|s| {
-        s.make_ascii_uppercase();
-        &*s
-    }) {
-        None => Ok(s),
-        _ => {
-            s.get_mut(1..).map(|s| {
-                s.make_ascii_lowercase();
-                &*s
-            });
-            Ok(s)
+    let s = s.to_string();
+    match s.chars().next() {
+        Some(c) => {
+            let mut replacement: String = c.to_uppercase().collect();
+            replacement.push_str(&s[c.len_utf8()..].to_lowercase());
+            Ok(replacement)
         }
+        _ => Ok(s)
     }
 }
 
@@ -655,6 +649,9 @@ mod tests {
         assert_eq!(capitalize(&"").unwrap(), "".to_string());
         assert_eq!(capitalize(&"FoO").unwrap(), "Foo".to_string());
         assert_eq!(capitalize(&"foO BAR").unwrap(), "Foo bar".to_string());
+        assert_eq!(capitalize(&"äØÄÅÖ").unwrap(), "Äøäåö".to_string());
+        assert_eq!(capitalize(&"ß").unwrap(), "SS".to_string());
+        assert_eq!(capitalize(&"ßß").unwrap(), "SSß".to_string());
     }
 
     #[test]
