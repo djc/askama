@@ -41,14 +41,14 @@ pub enum Error {
 }
 
 impl std::error::Error for Error {
-    fn cause(&self) -> Option<&dyn std::error::Error> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match *self {
-            Error::Fmt(ref err) => err.source(),
+            Error::Fmt(ref err) => Some(err),
             Error::Custom(ref err) => Some(err.as_ref()),
             #[cfg(feature = "serde_json")]
-            Error::Json(ref err) => err.source(),
+            Error::Json(ref err) => Some(err),
             #[cfg(feature = "serde_yaml")]
-            Error::Yaml(ref err) => err.source(),
+            Error::Yaml(ref err) => Some(err),
         }
     }
 }
