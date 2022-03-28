@@ -29,7 +29,7 @@ mod parser;
 /// Main `Template` trait; implementations are generally derived
 ///
 /// If you need an object-safe template, use [`DynTemplate`].
-pub trait Template {
+pub trait Template: fmt::Display {
     /// Helper method which allocates a new `String` and renders into it
     fn render(&self) -> Result<String> {
         let mut buf = String::with_capacity(Self::SIZE_HINT);
@@ -89,6 +89,12 @@ impl<T: Template> DynTemplate for T {
 
     fn mime_type(&self) -> &'static str {
         Self::MIME_TYPE
+    }
+}
+
+impl fmt::Display for dyn DynTemplate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.dyn_render_into(f).map_err(|_| ::std::fmt::Error {})
     }
 }
 
@@ -603,10 +609,23 @@ mod tests {
             const MIME_TYPE: &'static str = "text/plain; charset=utf-8";
         }
 
+        impl fmt::Display for Test {
+            #[inline]
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                self.render_into(f).map_err(|_| fmt::Error {})
+            }
+        }
+
         fn render(t: &dyn DynTemplate) -> String {
             t.dyn_render().unwrap()
         }
 
-        assert_eq!(render(&Test), "test");
+        let test = &Test as &dyn DynTemplate;
+
+        assert_eq!(render(test), "test");
+
+        assert_eq!(test.to_string(), "test");
+
+        assert_eq!(format!("{}", test), "test");
     }
 }
