@@ -26,6 +26,72 @@ mod heritage;
 mod input;
 mod parser;
 
+/// Main `Template` trait; implementations are generally derived
+///
+/// If you need an object-safe template, use [`DynTemplate`].
+pub trait Template {
+    /// Helper method which allocates a new `String` and renders into it
+    fn render(&self) -> Result<String> {
+        let mut buf = String::with_capacity(Self::SIZE_HINT);
+        self.render_into(&mut buf)?;
+        Ok(buf)
+    }
+
+    /// Renders the template to the given `writer` buffer
+    fn render_into(&self, writer: &mut (impl std::fmt::Write + ?Sized)) -> Result<()>;
+
+    /// The template's extension, if provided
+    const EXTENSION: Option<&'static str>;
+
+    /// Provides a conservative estimate of the expanded length of the rendered template
+    const SIZE_HINT: usize;
+
+    /// The MIME type (Content-Type) of the data that gets rendered by this Template
+    const MIME_TYPE: &'static str;
+}
+
+/// Object-safe wrapper trait around [`Template`] implementers
+///
+/// This trades reduced performance (mostly due to writing into `dyn Write`) for object safety.
+pub trait DynTemplate {
+    /// Helper method which allocates a new `String` and renders into it
+    fn dyn_render(&self) -> Result<String>;
+
+    /// Renders the template to the given `writer` buffer
+    fn dyn_render_into(&self, writer: &mut dyn std::fmt::Write) -> Result<()>;
+
+    /// Helper function to inspect the template's extension
+    fn extension(&self) -> Option<&'static str>;
+
+    /// Provides a conservative estimate of the expanded length of the rendered template
+    fn size_hint(&self) -> usize;
+
+    /// The MIME type (Content-Type) of the data that gets rendered by this Template
+    fn mime_type(&self) -> &'static str;
+}
+
+impl<T: Template> DynTemplate for T {
+    fn dyn_render(&self) -> Result<String> {
+        <Self as Template>::render(self)
+    }
+
+    fn dyn_render_into(&self, writer: &mut dyn std::fmt::Write) -> Result<()> {
+        <Self as Template>::render_into(self, writer)
+    }
+
+    fn extension(&self) -> Option<&'static str> {
+        Self::EXTENSION
+    }
+
+    fn size_hint(&self) -> usize {
+        Self::SIZE_HINT
+    }
+
+    fn mime_type(&self) -> &'static str {
+        Self::MIME_TYPE
+    }
+}
+
 #[derive(Debug)]
 struct Config<'a> {
     dirs: Vec<PathBuf>,
@@ -520,5 +586,27 @@ mod tests {
                 (str_set(&["j2", "jinja", "jinja2"]), "::askama::Html".into()),
             ]
         );
+    }
+
+    #[test]
+    fn dyn_template() {
+        struct Test;
+        impl Template for Test {
+            fn render_into(&self, writer: &mut (impl std::fmt::Write + ?Sized)) -> Result<()> {
+                Ok(writer.write_str("test")?)
+            }
+
+            const EXTENSION: Option<&'static str> = Some("txt");
+
+            const SIZE_HINT: usize = 4;
+
+            const MIME_TYPE: &'static str = "text/plain; charset=utf-8";
+        }
+
+        fn render(t: &dyn DynTemplate) -> String {
+            t.dyn_render().unwrap()
+        }
+
+        assert_eq!(render(&Test), "test");
     }
 }
