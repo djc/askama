@@ -219,10 +219,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn impl_axum_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama_axum::IntoResponse", None)?;
         buf.writeln("#[inline]")?;
-        buf.writeln(
-            "fn into_response(self)\
-             -> ::askama_axum::Response<::askama_axum::BoxBody> {",
-        )?;
+        buf.writeln("fn into_response(self) -> ::askama_axum::Response {")?;
         let ext = self.input.extension().unwrap_or("txt");
         buf.writeln(&format!("::askama_axum::into_response(&self, {:?})", ext))?;
         buf.writeln("}")?;
