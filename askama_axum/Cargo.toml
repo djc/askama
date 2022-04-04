@@ -13,7 +13,7 @@ workspace = ".."
 readme = "README.md"
 
 [dependencies]
-askama = { version = "0.11.0", path = "../askama", default-features = false, features = ["with-axum", "mime", "mime_guess"] }
+askama = { version = "0.11", path = "../askama", default-features = false, features = ["with-axum", "mime", "mime_guess"] }
 axum-core = "0.2"
 http = "0.2"
 

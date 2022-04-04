@@ -12,7 +12,7 @@ workspace = ".."
 readme = "README.md"
 
 [dependencies]
-askama = { version = "0.11.0", path = "../askama", default-features = false, features = ["with-tide"] }
+askama = { version = "0.11", path = "../askama", default-features = false, features = ["with-tide"] }
 tide = { version = "0.16", default-features = false }
 
 [dev-dependencies]
