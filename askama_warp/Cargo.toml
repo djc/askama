@@ -10,10 +10,14 @@ repository = "https://github.com/djc/askama"
 license = "MIT OR Apache-2.0"
 workspace = ".."
 readme = "README.md"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-askama = { version = "0.11.0", path = "../askama", default-features = false, features = ["with-warp", "mime", "mime_guess"] }
+askama = { version = "0.11", path = "../askama", default-features = false, features = [
+    "with-warp",
+    "mime",
+    "mime_guess",
+] }
 warp = { version = "0.3", default-features = false }
 
 [dev-dependencies]

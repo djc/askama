@@ -13,7 +13,7 @@ readme = "README.md"
 edition = "2021"
 
 [dependencies]
-askama = { version = "0.11.0-beta.1", path = "../askama", default-features = false, features = [
+askama = { version = "0.11", path = "../askama", default-features = false, features = [
     "with-mendes",
     "mime",
     "mime_guess",

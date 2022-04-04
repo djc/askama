@@ -10,11 +10,13 @@ repository = "https://github.com/djc/askama"
 license = "MIT OR Apache-2.0"
 workspace = ".."
 readme = "README.md"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 actix-web = { version = "4", default-features = false }
-askama = { version = "0.11.2", path = "../askama", default-features = false, features = ["with-actix-web"] }
+askama = { version = "0.11", path = "../askama", default-features = false, features = [
+    "with-actix-web",
+] }
 
 [dev-dependencies]
 actix-rt = { version = "2", default-features = false }
