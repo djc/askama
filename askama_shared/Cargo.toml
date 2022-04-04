@@ -7,7 +7,7 @@ repository = "https://github.com/djc/askama"
 license = "MIT/Apache-2.0"
 workspace = ".."
 readme = "README.md"
-edition = "2018"
+edition = "2021"
 
 [features]
 default = ["config", "humansize", "num-traits", "percent-encoding"]
@@ -42,4 +42,11 @@ toml = { version = "0.5", optional = true }
 percent-encoding = { version = "2.1.0", optional = true }
 
 [package.metadata.docs.rs]
-features = ["config", "humansize", "num-traits", "json", "yaml", "percent-encoding"]
+features = [
+    "config",
+    "humansize",
+    "num-traits",
+    "json",
+    "yaml",
+    "percent-encoding",
+]

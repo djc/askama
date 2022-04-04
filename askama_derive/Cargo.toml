@@ -7,10 +7,19 @@ repository = "https://github.com/djc/askama"
 license = "MIT/Apache-2.0"
 workspace = ".."
 readme = "README.md"
-edition = "2018"
+edition = "2021"
 
 [lib]
 proc-macro = true
+
+[features]
+with-actix-web = ["askama_shared/actix-web"]
+with-axum = ["askama_shared/axum"]
+with-gotham = ["askama_shared/gotham"]
+with-mendes = ["askama_shared/mendes"]
+with-rocket = ["askama_shared/rocket"]
+with-tide = ["askama_shared/tide"]
+with-warp = ["askama_shared/warp"]
 
 [dependencies]
 askama_shared = { version = "0.13.0", path = "../askama_shared", default-features = false }

@@ -3,19 +3,26 @@
 #![deny(unreachable_pub)]
 
 pub use askama::*;
-pub use axum_core::response::{IntoResponse, Response};
+use axum_core::body;
+pub use axum_core::body::BoxBody;
+pub use axum_core::response::IntoResponse;
+pub use http::Response;
 use http::StatusCode;
+use http_body::{Empty, Full};
 
-pub fn into_response<T: Template>(t: &T, _ext: &str) -> Response {
+pub fn into_response<T: Template>(t: &T, _ext: &str) -> Response<BoxBody> {
     match t.render() {
-        Ok(body) => {
-            let headers = [(
+        Ok(body) => Response::builder()
+            .status(StatusCode::OK)
+            .header(
                 http::header::CONTENT_TYPE,
                 http::HeaderValue::from_static(T::MIME_TYPE),
-            )];
-
-            (headers, body).into_response()
-        }
-        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            )
+            .body(body::boxed(Full::from(body)))
+            .unwrap(),
+        Err(_) => Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(body::boxed(Empty::new()))
+            .unwrap(),
     }
 }

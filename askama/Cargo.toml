@@ -10,7 +10,7 @@ repository = "https://github.com/djc/askama"
 license = "MIT OR Apache-2.0"
 workspace = ".."
 readme = "../README.md"
-edition = "2018"
+edition = "2021"
 
 [badges]
 maintenance = { status = "actively-developed" }
@@ -24,13 +24,13 @@ urlencode = ["askama_shared/percent-encoding"]
 serde-json = ["askama_shared/json"]
 serde-yaml = ["askama_shared/yaml"]
 num-traits = ["askama_shared/num-traits"]
-with-actix-web = ["askama_shared/actix-web"]
-with-axum = ["askama_shared/axum"]
-with-gotham = ["askama_shared/gotham"]
-with-mendes = ["askama_shared/mendes"]
-with-rocket = ["askama_shared/rocket"]
-with-tide = ["askama_shared/tide"]
-with-warp = ["askama_shared/warp"]
+with-actix-web = ["askama_derive/with-actix-web"]
+with-axum = ["askama_derive/with-axum"]
+with-gotham = ["askama_derive/with-gotham"]
+with-mendes = ["askama_derive/with-mendes"]
+with-rocket = ["askama_derive/with-rocket"]
+with-tide = ["askama_derive/with-tide"]
+with-warp = ["askama_derive/with-warp"]
 
 # deprecated
 mime = []

@@ -292,7 +292,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("#[inline]")?;
         buf.writeln(
             "fn into_response(self)\
-             -> ::askama_axum::Response {",
+             -> ::askama_axum::Response<::askama_axum::BoxBody> {",
         )?;
         let ext = self.input.extension().unwrap_or("txt");
         buf.writeln(&format!("::askama_axum::into_response(&self, {:?})", ext))?;
@@ -343,7 +343,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln(
             format!(
                 "{} {} for {} {} {{",
-                quote!(impl#impl_generics),
+                quote!(impl #impl_generics),
                 "::mendes::application::IntoResponse<A>",
                 self.input.ast.ident,
                 quote!(#orig_ty_generics #where_clause),
@@ -445,7 +445,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln(
             format!(
                 "{} {} for {}{} {{",
-                quote!(impl#impl_generics),
+                quote!(impl #impl_generics),
                 target,
                 self.input.ast.ident,
                 quote!(#orig_ty_generics #where_clause),
