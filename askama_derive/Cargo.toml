@@ -13,6 +13,13 @@ edition = "2021"
 proc-macro = true
 
 [features]
+config = ["askama_shared/config"]
+humansize = ["askama_shared/humansize"]
+markdown = ["askama_shared/markdown"]
+urlencode = ["askama_shared/percent-encoding"]
+serde-json = ["askama_shared/json"]
+serde-yaml = ["askama_shared/yaml"]
+num-traits = ["askama_shared/num-traits"]
 with-actix-web = ["askama_shared/actix-web"]
 with-axum = ["askama_shared/axum"]
 with-gotham = ["askama_shared/gotham"]
