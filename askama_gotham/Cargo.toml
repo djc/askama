@@ -13,7 +13,7 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-askama = { version = "0.11.0", path = "../askama", default-features = false, features = ["with-gotham", "mime", "mime_guess"] }
+askama = { version = "0.11.2", path = "../askama", default-features = false, features = ["with-gotham", "mime", "mime_guess"] }
 gotham = { version = "0.7", default-features = false }
 
 [dev-dependencies]
