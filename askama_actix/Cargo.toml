@@ -14,7 +14,7 @@ edition = "2018"
 
 [dependencies]
 actix-web = { version = "4", default-features = false }
-askama = { version = "0.11", path = "../askama", default-features = false, features = ["with-actix-web"] }
+askama = { version = "0.11.2", path = "../askama", default-features = false, features = ["with-actix-web"] }
 
 [dev-dependencies]
 actix-rt = { version = "2", default-features = false }
