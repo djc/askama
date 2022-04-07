@@ -60,8 +60,14 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
         eprintln!("{:?}", parsed[input.path.as_path()]);
     }
 
-    let code = Generator::new(&input, &contexts, heritage.as_ref(), MapChain::new())
-        .build(&contexts[input.path.as_path()])?;
+    let code = Generator::new(
+        &input,
+        &contexts,
+        heritage.as_ref(),
+        MapChain::new(),
+        config.suppress_whitespace,
+    )
+    .build(&contexts[input.path.as_path()])?;
     if input.print == Print::Code || input.print == Print::All {
         eprintln!("{}", code);
     }
@@ -129,6 +135,8 @@ struct Generator<'a, S: std::hash::BuildHasher> {
     buf_writable: Vec<Writable<'a>>,
     // Counter for write! hash named arguments
     named: usize,
+    // If set to `true`, the whitespace characters will be removed by default unless `+` is used.
+    suppress_whitespace: bool,
 }
 
 impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
@@ -137,6 +145,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         contexts: &'n HashMap<&'n Path, Context<'n>, S>,
         heritage: Option<&'n Heritage<'_>>,
         locals: MapChain<'n, &'n str, LocalMeta>,
+        suppress_whitespace: bool,
     ) -> Generator<'n, S> {
         Generator {
             input,
@@ -148,12 +157,19 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             super_block: None,
             buf_writable: vec![],
             named: 0,
+            suppress_whitespace,
         }
     }
 
     fn child(&mut self) -> Generator<'_, S> {
         let locals = MapChain::with_parent(&self.locals);
-        Self::new(self.input, self.contexts, self.heritage, locals)
+        Self::new(
+            self.input,
+            self.contexts,
+            self.heritage,
+            locals,
+            self.suppress_whitespace,
+        )
     }
 
     // Takes a Context and generates the relevant implementations.
@@ -1688,7 +1704,13 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     // prefix whitespace suppressor from the given argument, flush that whitespace.
     // In either case, `next_ws` is reset to `None` (no trailing whitespace).
     fn flush_ws(&mut self, ws: Ws) {
-        if self.next_ws.is_some() && !ws.0 {
+        if self.next_ws.is_none() {
+            return;
+        }
+
+        // If `suppress_whitespace` is enabled, we keep the whitespace characters only if there is
+        // a `+` character.
+        if self.suppress_whitespace == ws.0 {
             let val = self.next_ws.unwrap();
             if !val.is_empty() {
                 self.buf_writable.push(Writable::Lit(val));
@@ -1701,7 +1723,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     // argument, to determine whether to suppress leading whitespace from the
     // next literal.
     fn prepare_ws(&mut self, ws: Ws) {
-        self.skip_ws = ws.1;
+        self.skip_ws = self.suppress_whitespace != ws.1;
     }
 }
 

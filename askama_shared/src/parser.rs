@@ -129,6 +129,9 @@ pub(crate) enum Target<'a> {
     Path(Vec<&'a str>),
 }
 
+/// First field is "minus sign was used on the left part of the item".
+///
+/// Second field is "minus/plus sign was used on the right part of the item".
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Ws(pub(crate) bool, pub(crate) bool);
 

@@ -118,6 +118,7 @@ struct Config<'a> {
     syntaxes: BTreeMap<String, Syntax<'a>>,
     default_syntax: &'a str,
     escapers: Vec<(HashSet<String>, String)>,
+    suppress_whitespace: bool,
 }
 
 impl Config<'_> {
@@ -134,17 +135,19 @@ impl Config<'_> {
             RawConfig::from_toml_str(s)?
         };
 
-        let (dirs, default_syntax) = match raw.general {
+        let (dirs, default_syntax, suppress_whitespace) = match raw.general {
             Some(General {
                 dirs,
                 default_syntax,
+                suppress_whitespace,
             }) => (
                 dirs.map_or(default_dirs, |v| {
                     v.into_iter().map(|dir| root.join(dir)).collect()
                 }),
                 default_syntax.unwrap_or(DEFAULT_SYNTAX_NAME),
+                suppress_whitespace.unwrap_or(false),
             ),
-            None => (default_dirs, DEFAULT_SYNTAX_NAME),
+            None => (default_dirs, DEFAULT_SYNTAX_NAME, false),
         };
 
         if let Some(raw_syntaxes) = raw.syntax {
@@ -186,6 +189,7 @@ impl Config<'_> {
             syntaxes,
             default_syntax,
             escapers,
+            suppress_whitespace,
         })
     }
 
@@ -303,6 +307,7 @@ struct General<'a> {
     #[cfg_attr(feature = "serde", serde(borrow))]
     dirs: Option<Vec<&'a str>>,
     default_syntax: Option<&'a str>,
+    suppress_whitespace: Option<bool>,
 }
 
 #[cfg_attr(feature = "serde", derive(Deserialize))]
@@ -645,5 +650,17 @@ mod tests {
         let mut vec = Vec::new();
         test.dyn_write_into(&mut vec).unwrap();
         assert_eq!(vec, vec![b't', b'e', b's', b't']);
+    }
+
+    #[test]
+    fn test_suppress_whitespace_parsing() {
+        let config = Config::new(
+            r#"
+            [general]
+            suppress_whitespace = true
+            "#,
+        )
+        .unwrap();
+        assert!(config.suppress_whitespace);
     }
 }
