@@ -11,7 +11,34 @@ This example file demonstrates the default configuration:
 [general]
 # Directories to search for templates, relative to the crate root.
 dirs = ["templates"]
+# Unless you add a `-` in a block, whitespace won't be trimmed.
+suppress_whitespace = false
 ```
+
+In the default configuration, you can use the `-` operator to indicate that
+whitespace should be suppressed before or after a block. For example:
+
+```jinja
+<div>
+
+
+{%- if something %}
+Hello
+(% endif %}
+```
+
+In the template above, only the whitespace between `<div>` and `{%-` will be
+suppressed. If you enable `suppress_whitespace`, whitespace characters before
+and after each block will be suppressed by default. To preserve the whitespace
+characters, you can use the `+` operator:
+
+```jinja
+{% if something +%}
+Hello
+(%+ endif %}
+```
+
+In this example, `Hello` will be surrounded with newline characters.
 
 Here is an example that defines two custom syntaxes:
 
