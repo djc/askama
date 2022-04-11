@@ -1,6 +1,6 @@
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
-use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Ws};
+use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
 use crate::{filters, get_template_source, read_config_file, CompileError, Config};
 
 use proc_macro2::TokenStream;
@@ -238,7 +238,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             self.handle(ctx, ctx.nodes, buf, AstLevel::Top)
         }?;
 
-        self.flush_ws(Ws(false, false));
+        self.flush_ws(Ws(None, None));
         buf.writeln("::askama::Result::Ok(())")?;
         buf.writeln("}")?;
 
@@ -1700,6 +1700,14 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         self.prepare_ws(ws);
     }
 
+    fn should_trim_ws(&self, ws: Option<Whitespace>) -> bool {
+        match ws {
+            Some(Whitespace::Trim) => true,
+            Some(Whitespace::Preserve) => false,
+            None => self.suppress_whitespace,
+        }
+    }
+
     // If the previous literal left some trailing whitespace in `next_ws` and the
     // prefix whitespace suppressor from the given argument, flush that whitespace.
     // In either case, `next_ws` is reset to `None` (no trailing whitespace).
@@ -1710,7 +1718,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         // If `suppress_whitespace` is enabled, we keep the whitespace characters only if there is
         // a `+` character.
-        if self.suppress_whitespace == ws.0 {
+        if !self.should_trim_ws(ws.0) {
             let val = self.next_ws.unwrap();
             if !val.is_empty() {
                 self.buf_writable.push(Writable::Lit(val));
@@ -1723,7 +1731,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     // argument, to determine whether to suppress leading whitespace from the
     // next literal.
     fn prepare_ws(&mut self, ws: Ws) {
-        self.skip_ws = self.suppress_whitespace != ws.1;
+        self.skip_ws = self.should_trim_ws(ws.1);
     }
 }
 
