@@ -29,7 +29,7 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 /// value as passed to the `template()` attribute.
 fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     let template_args = TemplateArgs::new(ast)?;
-    let config_toml = read_config_file()?;
+    let config_toml = read_config_file(&template_args.config_path)?;
     let config = Config::new(&config_toml)?;
     let input = TemplateInput::new(ast, &config, template_args)?;
     let source: String = match input.source {
@@ -82,6 +82,7 @@ pub(crate) struct TemplateArgs {
     pub(crate) escaping: Option<String>,
     pub(crate) ext: Option<String>,
     pub(crate) syntax: Option<String>,
+    pub(crate) config_path: Option<String>,
 }
 
 impl TemplateArgs {
@@ -173,6 +174,12 @@ impl TemplateArgs {
                     args.syntax = Some(s.value())
                 } else {
                     return Err("syntax value must be string literal".into());
+                }
+            } else if ident == "config" {
+                if let syn::Lit::Str(ref s) = pair.lit {
+                    args.config_path = Some(s.value())
+                } else {
+                    return Err("config value must be string literal".into());
                 }
             } else {
                 return Err(format!("unsupported attribute key {:?} found", ident).into());

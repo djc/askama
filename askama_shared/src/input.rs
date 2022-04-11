@@ -35,6 +35,7 @@ impl TemplateInput<'_> {
             escaping,
             ext,
             syntax,
+            ..
         } = args;
 
         // Validate the `source` and `ext` value together, since they are
