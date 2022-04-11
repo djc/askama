@@ -327,12 +327,18 @@ struct RawEscaper<'a> {
     extensions: Vec<&'a str>,
 }
 
-fn read_config_file() -> std::result::Result<String, CompileError> {
+fn read_config_file(config_path: &Option<String>) -> std::result::Result<String, CompileError> {
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let filename = root.join(CONFIG_FILE_NAME);
+    let filename = match config_path {
+        Some(config_path) => root.join(config_path),
+        None => root.join(CONFIG_FILE_NAME),
+    };
+
     if filename.exists() {
         fs::read_to_string(&filename)
             .map_err(|_| format!("unable to read {:?}", filename.to_str().unwrap()).into())
+    } else if config_path.is_some() {
+        Err(format!("`{}` does not exist", root.display()).into())
     } else {
         Ok("".to_string())
     }
