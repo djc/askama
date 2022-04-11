@@ -129,11 +129,27 @@ pub(crate) enum Target<'a> {
     Path(Vec<&'a str>),
 }
 
-/// First field is "minus sign was used on the left part of the item".
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum Whitespace {
+    Preserve,
+    Trim,
+}
+
+impl From<char> for Whitespace {
+    fn from(c: char) -> Self {
+        match c {
+            '+' => Self::Preserve,
+            '-' => Self::Trim,
+            _ => panic!("unsupported `Whitespace` conversion"),
+        }
+    }
+}
+
+/// First field is "minus/plus sign was used on the left part of the item".
 ///
 /// Second field is "minus/plus sign was used on the right part of the item".
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct Ws(pub(crate) bool, pub(crate) bool);
+pub(crate) struct Ws(pub(crate) Option<Whitespace>, pub(crate) Option<Whitespace>);
 
 pub(crate) type Cond<'a> = (Ws, Option<CondTest<'a>>, Vec<Node<'a>>);
 
@@ -660,6 +676,10 @@ expr_prec_layer!(expr_compare, expr_bor, "==", "!=", ">=", ">", "<=", "<");
 expr_prec_layer!(expr_and, expr_compare, "&&");
 expr_prec_layer!(expr_or, expr_and, "||");
 
+fn expr_handle_ws(i: &str) -> IResult<&str, Whitespace> {
+    alt((char('-'), char('+')))(i).map(|(s, r)| (s, Whitespace::from(r)))
+}
+
 fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
     let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(expr_or))(i);
     alt((
@@ -679,31 +699,31 @@ fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
 fn expr_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
         |i| tag_expr_start(i, s),
-        cut(tuple((opt(char('-')), ws(expr_any), opt(char('-')), |i| {
-            tag_expr_end(i, s)
-        }))),
+        cut(tuple((
+            opt(expr_handle_ws),
+            ws(expr_any),
+            opt(expr_handle_ws),
+            |i| tag_expr_end(i, s),
+        ))),
     ));
     let (i, (_, (pws, expr, nws, _))) = p(i)?;
-    Ok((i, Node::Expr(Ws(pws.is_some(), nws.is_some()), expr)))
+    Ok((i, Node::Expr(Ws(pws, nws), expr)))
 }
 
 fn block_call(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
-        opt(char('-')),
+        opt(expr_handle_ws),
         ws(tag("call")),
         cut(tuple((
             opt(tuple((ws(identifier), ws(tag("::"))))),
             ws(identifier),
             ws(arguments),
-            opt(char('-')),
+            opt(expr_handle_ws),
         ))),
     ));
     let (i, (pws, _, (scope, name, args, nws))) = p(i)?;
     let scope = scope.map(|(scope, _)| scope);
-    Ok((
-        i,
-        Node::Call(Ws(pws.is_some(), nws.is_some()), scope, name, args),
-    ))
+    Ok((i, Node::Call(Ws(pws, nws), scope, name, args)))
 }
 
 fn cond_if(i: &str) -> IResult<&str, CondTest<'_>> {
@@ -725,86 +745,83 @@ fn cond_if(i: &str) -> IResult<&str, CondTest<'_>> {
 fn cond_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Cond<'a>> {
     let mut p = tuple((
         |i| tag_block_start(i, s),
-        opt(char('-')),
+        opt(expr_handle_ws),
         ws(tag("else")),
         cut(tuple((
             opt(cond_if),
-            opt(char('-')),
+            opt(expr_handle_ws),
             |i| tag_block_end(i, s),
             cut(|i| parse_template(i, s)),
         ))),
     ));
     let (i, (_, pws, _, (cond, nws, _, block))) = p(i)?;
-    Ok((i, (Ws(pws.is_some(), nws.is_some()), cond, block)))
+    Ok((i, (Ws(pws, nws), cond, block)))
 }
 
 fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
-        opt(char('-')),
+        opt(expr_handle_ws),
         cond_if,
         cut(tuple((
-            opt(char('-')),
+            opt(expr_handle_ws),
             |i| tag_block_end(i, s),
             cut(tuple((
                 |i| parse_template(i, s),
                 many0(|i| cond_block(i, s)),
                 cut(tuple((
                     |i| tag_block_start(i, s),
-                    opt(char('-')),
+                    opt(expr_handle_ws),
                     ws(tag("endif")),
-                    opt(char('-')),
+                    opt(expr_handle_ws),
                 ))),
             ))),
         ))),
     ));
     let (i, (pws1, cond, (nws1, _, (block, elifs, (_, pws2, _, nws2))))) = p(i)?;
 
-    let mut res = vec![(Ws(pws1.is_some(), nws1.is_some()), Some(cond), block)];
+    let mut res = vec![(Ws(pws1, nws1), Some(cond), block)];
     res.extend(elifs);
-    Ok((i, Node::Cond(res, Ws(pws2.is_some(), nws2.is_some()))))
+    Ok((i, Node::Cond(res, Ws(pws2, nws2))))
 }
 
 fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
     let mut p = tuple((
         |i| tag_block_start(i, s),
-        opt(char('-')),
+        opt(expr_handle_ws),
         ws(tag("else")),
         cut(tuple((
-            opt(char('-')),
+            opt(expr_handle_ws),
             |i| tag_block_end(i, s),
             cut(|i| parse_template(i, s)),
         ))),
     ));
     let (i, (_, pws, _, (nws, _, block))) = p(i)?;
-    Ok((
-        i,
-        (Ws(pws.is_some(), nws.is_some()), Target::Name("_"), block),
-    ))
+    Ok((i, (Ws(pws, nws), Target::Name("_"), block)))
 }
 
 fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
     let mut p = tuple((
         |i| tag_block_start(i, s),
-        opt(char('-')),
+        opt(expr_handle_ws),
         ws(tag("when")),
         cut(tuple((
             ws(target),
-            opt(char('-')),
+            opt(expr_handle_ws),
             |i| tag_block_end(i, s),
             cut(|i| parse_template(i, s)),
         ))),
     ));
     let (i, (_, pws, _, (target, nws, _, block))) = p(i)?;
-    Ok((i, (Ws(pws.is_some(), nws.is_some()), target, block)))
+    Ok((i, (Ws(pws, nws), target, block)))
 }
 
 fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
-        opt(char('-')),
+        opt(expr_handle_ws),
         ws(tag("match")),
         cut(tuple((
             ws(expr_any),
-            opt(char('-')),
+            opt(expr_handle_ws),
             |i| tag_block_end(i, s),
             cut(tuple((
                 ws(many0(ws(value((), |i| block_comment(i, s))))),
@@ -813,9 +830,9 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
                     opt(|i| match_else_block(i, s)),
                     cut(tuple((
                         ws(|i| tag_block_start(i, s)),
-                        opt(char('-')),
+                        opt(expr_handle_ws),
                         ws(tag("endmatch")),
-                        opt(char('-')),
+                        opt(expr_handle_ws),
                     ))),
                 ))),
             ))),
@@ -828,25 +845,17 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         arms.push(arm);
     }
 
-    Ok((
-        i,
-        Node::Match(
-            Ws(pws1.is_some(), nws1.is_some()),
-            expr,
-            arms,
-            Ws(pws2.is_some(), nws2.is_some()),
-        ),
-    ))
+    Ok((i, Node::Match(Ws(pws1, nws1), expr, arms, Ws(pws2, nws2))))
 }
 
 fn block_let(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
-        opt(char('-')),
+        opt(expr_handle_ws),
         ws(alt((tag("let"), tag("set")))),
         cut(tuple((
             ws(target),
             opt(tuple((ws(char('=')), ws(expr_any)))),
-            opt(char('-')),
+            opt(expr_handle_ws),
         ))),
     ));
     let (i, (pws, _, (var, val, nws))) = p(i)?;
@@ -854,9 +863,9 @@ fn block_let(i: &str) -> IResult<&str, Node<'_>> {
     Ok((
         i,
         if let Some((_, val)) = val {
-            Node::Let(Ws(pws.is_some(), nws.is_some()), var, val)
+            Node::Let(Ws(pws, nws), var, val)
         } else {
-            Node::LetDecl(Ws(pws.is_some(), nws.is_some()), var)
+            Node::LetDecl(Ws(pws, nws), var)
         },
     ))
 }
@@ -874,20 +883,20 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         let mut p = preceded(
             ws(tag("else")),
             cut(tuple((
-                opt(tag("-")),
+                opt(expr_handle_ws),
                 delimited(
                     |i| tag_block_end(i, s),
                     |i| parse_template(i, s),
                     |i| tag_block_start(i, s),
                 ),
-                opt(tag("-")),
+                opt(expr_handle_ws),
             ))),
         );
         let (i, (pws, nodes, nws)) = p(i)?;
-        Ok((i, (pws.is_some(), nodes, nws.is_some())))
+        Ok((i, (pws, nodes, nws)))
     };
     let mut p = tuple((
-        opt(char('-')),
+        opt(expr_handle_ws),
         ws(tag("for")),
         cut(tuple((
             ws(target),
@@ -895,16 +904,16 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             cut(tuple((
                 ws(expr_any),
                 opt(if_cond),
-                opt(char('-')),
+                opt(expr_handle_ws),
                 |i| tag_block_end(i, s),
                 cut(tuple((
                     |i| parse_loop_content(i, s),
                     cut(tuple((
                         |i| tag_block_start(i, s),
-                        opt(char('-')),
+                        opt(expr_handle_ws),
                         opt(else_block),
                         ws(tag("endfor")),
-                        opt(char('-')),
+                        opt(expr_handle_ws),
                     ))),
                 ))),
             ))),
@@ -916,14 +925,14 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     Ok((
         i,
         Node::Loop(Loop {
-            ws1: Ws(pws1.is_some(), nws1.is_some()),
+            ws1: Ws(pws1, nws1),
             var,
             iter,
             cond,
             body,
-            ws2: Ws(pws2.is_some(), nws3),
+            ws2: Ws(pws2, nws3),
             else_block,
-            ws3: Ws(pws3, nws2.is_some()),
+            ws3: Ws(pws3, nws2),
         }),
     ))
 }
@@ -935,9 +944,9 @@ fn block_extends(i: &str) -> IResult<&str, Node<'_>> {
 
 fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut start = tuple((
-        opt(char('-')),
+        opt(expr_handle_ws),
         ws(tag("block")),
-        cut(tuple((ws(identifier), opt(char('-')), |i| {
+        cut(tuple((ws(identifier), opt(expr_handle_ws), |i| {
             tag_block_end(i, s)
         }))),
     ));
@@ -947,67 +956,59 @@ fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         |i| parse_template(i, s),
         cut(tuple((
             |i| tag_block_start(i, s),
-            opt(char('-')),
+            opt(expr_handle_ws),
             ws(tag("endblock")),
-            cut(tuple((opt(ws(tag(name))), opt(char('-'))))),
+            cut(tuple((opt(ws(tag(name))), opt(expr_handle_ws)))),
         ))),
     )));
     let (i, (contents, (_, pws2, _, (_, nws2)))) = end(i)?;
 
     Ok((
         i,
-        Node::BlockDef(
-            Ws(pws1.is_some(), nws1.is_some()),
-            name,
-            contents,
-            Ws(pws2.is_some(), nws2.is_some()),
-        ),
+        Node::BlockDef(Ws(pws1, nws1), name, contents, Ws(pws2, nws2)),
     ))
 }
 
 fn block_include(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
-        opt(char('-')),
+        opt(expr_handle_ws),
         ws(tag("include")),
-        cut(pair(ws(str_lit), opt(char('-')))),
+        cut(pair(ws(str_lit), opt(expr_handle_ws))),
     ));
     let (i, (pws, _, (name, nws))) = p(i)?;
-    Ok((i, Node::Include(Ws(pws.is_some(), nws.is_some()), name)))
+    Ok((i, Node::Include(Ws(pws, nws), name)))
 }
 
 fn block_import(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
-        opt(char('-')),
+        opt(expr_handle_ws),
         ws(tag("import")),
         cut(tuple((
             ws(str_lit),
             ws(tag("as")),
-            cut(pair(ws(identifier), opt(char('-')))),
+            cut(pair(ws(identifier), opt(expr_handle_ws))),
         ))),
     ));
     let (i, (pws, _, (name, _, (scope, nws)))) = p(i)?;
-    Ok((
-        i,
-        Node::Import(Ws(pws.is_some(), nws.is_some()), name, scope),
-    ))
+    Ok((i, Node::Import(Ws(pws, nws), name, scope)))
 }
 
 fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
-        opt(char('-')),
+        opt(expr_handle_ws),
         ws(tag("macro")),
         cut(tuple((
             ws(identifier),
             ws(parameters),
-            opt(char('-')),
+            opt(expr_handle_ws),
             |i| tag_block_end(i, s),
             cut(tuple((
                 |i| parse_template(i, s),
                 cut(tuple((
                     |i| tag_block_start(i, s),
-                    opt(char('-')),
+                    opt(expr_handle_ws),
                     ws(tag("endmacro")),
-                    opt(char('-')),
+                    opt(expr_handle_ws),
                 ))),
             ))),
         ))),
@@ -1021,10 +1022,10 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         Node::Macro(
             name,
             Macro {
-                ws1: Ws(pws1.is_some(), nws1.is_some()),
+                ws1: Ws(pws1, nws1),
                 args: params,
                 nodes: contents,
-                ws2: Ws(pws2.is_some(), nws2.is_some()),
+                ws2: Ws(pws2, nws2),
             },
         ),
     ))
@@ -1033,17 +1034,17 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 fn block_raw<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let endraw = tuple((
         |i| tag_block_start(i, s),
-        opt(char('-')),
+        opt(expr_handle_ws),
         ws(tag("endraw")),
-        opt(char('-')),
+        opt(expr_handle_ws),
         peek(|i| tag_block_end(i, s)),
     ));
 
     let mut p = tuple((
-        opt(char('-')),
+        opt(expr_handle_ws),
         ws(tag("raw")),
         cut(tuple((
-            opt(char('-')),
+            opt(expr_handle_ws),
             |i| tag_block_end(i, s),
             consumed(skip_till(endraw)),
         ))),
@@ -1054,27 +1055,31 @@ fn block_raw<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         Node::Lit(lws, val, rws) => (lws, val, rws),
         _ => unreachable!(),
     };
-    let ws1 = Ws(pws1.is_some(), nws1.is_some());
-    let ws2 = Ws(pws2.is_some(), nws2.is_some());
+    let ws1 = Ws(pws1, nws1);
+    let ws2 = Ws(pws2, nws2);
     Ok((i, Node::Raw(ws1, lws, val, rws, ws2)))
 }
 
 fn break_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
-    let mut p = tuple((opt(char('-')), ws(tag("break")), opt(char('-'))));
+    let mut p = tuple((opt(expr_handle_ws), ws(tag("break")), opt(expr_handle_ws)));
     let (j, (pws, _, nws)) = p(i)?;
     if s.loop_depth.get() == 0 {
         return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
     }
-    Ok((j, Node::Break(Ws(pws.is_some(), nws.is_some()))))
+    Ok((j, Node::Break(Ws(pws, nws))))
 }
 
 fn continue_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
-    let mut p = tuple((opt(char('-')), ws(tag("continue")), opt(char('-'))));
+    let mut p = tuple((
+        opt(expr_handle_ws),
+        ws(tag("continue")),
+        opt(expr_handle_ws),
+    ));
     let (j, (pws, _, nws)) = p(i)?;
     if s.loop_depth.get() == 0 {
         return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
     }
-    Ok((j, Node::Continue(Ws(pws.is_some(), nws.is_some()))))
+    Ok((j, Node::Continue(Ws(pws, nws))))
 }
 
 fn block_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
@@ -1123,13 +1128,20 @@ fn block_comment<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
         |i| tag_comment_start(i, s),
         cut(tuple((
-            opt(char('-')),
+            opt(expr_handle_ws),
             |i| block_comment_body(i, s),
             |i| tag_comment_end(i, s),
         ))),
     ));
     let (i, (_, (pws, tail, _))) = p(i)?;
-    Ok((i, Node::Comment(Ws(pws.is_some(), tail.ends_with('-')))))
+    let nws = if tail.ends_with('-') {
+        Some(Whitespace::Trim)
+    } else if tail.ends_with('+') {
+        Some(Whitespace::Preserve)
+    } else {
+        None
+    };
+    Ok((i, Node::Comment(Ws(pws, nws))))
 }
 
 fn parse_template<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {
@@ -1205,7 +1217,7 @@ pub(crate) fn parse<'a>(
 
 #[cfg(test)]
 mod tests {
-    use super::{Expr, Node, Ws};
+    use super::{Expr, Node, Whitespace, Ws};
     use crate::Syntax;
 
     fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
@@ -1242,29 +1254,23 @@ mod tests {
         let syntax = Syntax::default();
         assert_eq!(
             super::parse("{{ strvar|e }}", &syntax).unwrap(),
-            vec![Node::Expr(
-                Ws(false, false),
-                Filter("e", vec![Var("strvar")]),
-            )],
+            vec![Node::Expr(Ws(None, None), Filter("e", vec![Var("strvar")]),)],
         );
         assert_eq!(
             super::parse("{{ 2|abs }}", &syntax).unwrap(),
-            vec![Node::Expr(
-                Ws(false, false),
-                Filter("abs", vec![NumLit("2")]),
-            )],
+            vec![Node::Expr(Ws(None, None), Filter("abs", vec![NumLit("2")]),)],
         );
         assert_eq!(
             super::parse("{{ -2|abs }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Filter("abs", vec![Unary("-", NumLit("2").into())]),
             )],
         );
         assert_eq!(
             super::parse("{{ (1 - 2)|abs }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Filter(
                     "abs",
                     vec![Group(
@@ -1280,11 +1286,11 @@ mod tests {
         let syntax = Syntax::default();
         assert_eq!(
             super::parse("{{ 2 }}", &syntax).unwrap(),
-            vec![Node::Expr(Ws(false, false), Expr::NumLit("2"),)],
+            vec![Node::Expr(Ws(None, None), Expr::NumLit("2"),)],
         );
         assert_eq!(
             super::parse("{{ 2.5 }}", &syntax).unwrap(),
-            vec![Node::Expr(Ws(false, false), Expr::NumLit("2.5"),)],
+            vec![Node::Expr(Ws(None, None), Expr::NumLit("2.5"),)],
         );
     }
 
@@ -1294,16 +1300,16 @@ mod tests {
 
         assert_eq!(
             super::parse("{{ foo }}", &s).unwrap(),
-            vec![Node::Expr(Ws(false, false), Expr::Var("foo"))],
+            vec![Node::Expr(Ws(None, None), Expr::Var("foo"))],
         );
         assert_eq!(
             super::parse("{{ foo_bar }}", &s).unwrap(),
-            vec![Node::Expr(Ws(false, false), Expr::Var("foo_bar"))],
+            vec![Node::Expr(Ws(None, None), Expr::Var("foo_bar"))],
         );
 
         assert_eq!(
             super::parse("{{ none }}", &s).unwrap(),
-            vec![Node::Expr(Ws(false, false), Expr::Var("none"))],
+            vec![Node::Expr(Ws(None, None), Expr::Var("none"))],
         );
     }
 
@@ -1313,16 +1319,16 @@ mod tests {
 
         assert_eq!(
             super::parse("{{ FOO }}", &s).unwrap(),
-            vec![Node::Expr(Ws(false, false), Expr::Path(vec!["FOO"]))],
+            vec![Node::Expr(Ws(None, None), Expr::Path(vec!["FOO"]))],
         );
         assert_eq!(
             super::parse("{{ FOO_BAR }}", &s).unwrap(),
-            vec![Node::Expr(Ws(false, false), Expr::Path(vec!["FOO_BAR"]))],
+            vec![Node::Expr(Ws(None, None), Expr::Path(vec!["FOO_BAR"]))],
         );
 
         assert_eq!(
             super::parse("{{ NONE }}", &s).unwrap(),
-            vec![Node::Expr(Ws(false, false), Expr::Path(vec!["NONE"]))],
+            vec![Node::Expr(Ws(None, None), Expr::Path(vec!["NONE"]))],
         );
     }
 
@@ -1332,12 +1338,12 @@ mod tests {
 
         assert_eq!(
             super::parse("{{ None }}", &s).unwrap(),
-            vec![Node::Expr(Ws(false, false), Expr::Path(vec!["None"]))],
+            vec![Node::Expr(Ws(None, None), Expr::Path(vec!["None"]))],
         );
         assert_eq!(
             super::parse("{{ Some(123) }}", &s).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Expr::Call(
                     Box::new(Expr::Path(vec!["Some"])),
                     vec![Expr::NumLit("123")]
@@ -1348,14 +1354,14 @@ mod tests {
         assert_eq!(
             super::parse("{{ Ok(123) }}", &s).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Expr::Call(Box::new(Expr::Path(vec!["Ok"])), vec![Expr::NumLit("123")]),
             )],
         );
         assert_eq!(
             super::parse("{{ Err(123) }}", &s).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Expr::Call(Box::new(Expr::Path(vec!["Err"])), vec![Expr::NumLit("123")]),
             )],
         );
@@ -1366,7 +1372,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ function(\"123\", 3) }}", &Syntax::default()).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Expr::Call(
                     Box::new(Expr::Var("function")),
                     vec![Expr::StrLit("123"), Expr::NumLit("3")]
@@ -1382,14 +1388,14 @@ mod tests {
         assert_eq!(
             super::parse("{{ Option::None }}", &s).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Expr::Path(vec!["Option", "None"])
             )],
         );
         assert_eq!(
             super::parse("{{ Option::Some(123) }}", &s).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Expr::Call(
                     Box::new(Expr::Path(vec!["Option", "Some"])),
                     vec![Expr::NumLit("123")],
@@ -1400,7 +1406,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ self::function(\"123\", 3) }}", &s).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Expr::Call(
                     Box::new(Expr::Path(vec!["self", "function"])),
                     vec![Expr::StrLit("123"), Expr::NumLit("3")],
@@ -1415,7 +1421,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ std::string::String::new() }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Expr::Call(
                     Box::new(Expr::Path(vec!["std", "string", "String", "new"])),
                     vec![]
@@ -1425,7 +1431,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ ::std::string::String::new() }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Expr::Call(
                     Box::new(Expr::Path(vec!["", "std", "string", "String", "new"])),
                     vec![]
@@ -1452,7 +1458,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ a + b == c }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 BinOp(
                     "==",
                     BinOp("+", Var("a").into(), Var("b").into()).into(),
@@ -1463,7 +1469,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ a + b * c - d / e }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 BinOp(
                     "-",
                     BinOp(
@@ -1479,7 +1485,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ a * (b + c) / -d }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 BinOp(
                     "/",
                     BinOp(
@@ -1495,7 +1501,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ a || b && c || d && e }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 BinOp(
                     "||",
                     BinOp(
@@ -1517,7 +1523,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ a + b + c }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 BinOp(
                     "+",
                     BinOp("+", Var("a").into(), Var("b").into()).into(),
@@ -1528,7 +1534,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ a * b * c }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 BinOp(
                     "*",
                     BinOp("*", Var("a").into(), Var("b").into()).into(),
@@ -1539,7 +1545,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ a && b && c }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 BinOp(
                     "&&",
                     BinOp("&&", Var("a").into(), Var("b").into()).into(),
@@ -1550,7 +1556,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ a + b - c + d }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 BinOp(
                     "+",
                     BinOp(
@@ -1566,7 +1572,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ a == b != c > d > e == f }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 BinOp(
                     "==",
                     BinOp(
@@ -1598,7 +1604,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ a[b](c) }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Call(
                     Box::new(Index(Box::new(Var("a")), Box::new(Var("b")))),
                     vec![Var("c")],
@@ -1608,7 +1614,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ (a + b)(c) }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Call(
                     Box::new(Group(Box::new(BinOp(
                         "+",
@@ -1622,7 +1628,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ a + b(c) }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 BinOp(
                     "+",
                     Box::new(Var("a")),
@@ -1633,7 +1639,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ (-a)(b) }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Call(
                     Box::new(Group(Box::new(Unary("-", Box::new(Var("a")))))),
                     vec![Var("b")],
@@ -1643,7 +1649,7 @@ mod tests {
         assert_eq!(
             super::parse("{{ -a(b) }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Unary("-", Box::new(Call(Box::new(Var("a")), vec![Var("b")])),),
             )],
         );
@@ -1655,32 +1661,70 @@ mod tests {
 
         assert_eq!(
             super::parse("{##}", s).unwrap(),
-            vec![Node::Comment(Ws(false, false))],
+            vec![Node::Comment(Ws(None, None))],
         );
         assert_eq!(
             super::parse("{#- #}", s).unwrap(),
-            vec![Node::Comment(Ws(true, false))],
+            vec![Node::Comment(Ws(Some(Whitespace::Trim), None))],
         );
         assert_eq!(
             super::parse("{# -#}", s).unwrap(),
-            vec![Node::Comment(Ws(false, true))],
+            vec![Node::Comment(Ws(None, Some(Whitespace::Trim)))],
         );
         assert_eq!(
             super::parse("{#--#}", s).unwrap(),
-            vec![Node::Comment(Ws(true, true))],
+            vec![Node::Comment(Ws(
+                Some(Whitespace::Trim),
+                Some(Whitespace::Trim)
+            ))],
         );
-
         assert_eq!(
             super::parse("{#- foo\n bar -#}", s).unwrap(),
-            vec![Node::Comment(Ws(true, true))],
+            vec![Node::Comment(Ws(
+                Some(Whitespace::Trim),
+                Some(Whitespace::Trim)
+            ))],
         );
         assert_eq!(
             super::parse("{#- foo\n {#- bar\n -#} baz -#}", s).unwrap(),
-            vec![Node::Comment(Ws(true, true))],
+            vec![Node::Comment(Ws(
+                Some(Whitespace::Trim),
+                Some(Whitespace::Trim)
+            ))],
         );
         assert_eq!(
+            super::parse("{#+ #}", s).unwrap(),
+            vec![Node::Comment(Ws(Some(Whitespace::Preserve), None))],
+        );
+        assert_eq!(
+            super::parse("{# +#}", s).unwrap(),
+            vec![Node::Comment(Ws(None, Some(Whitespace::Preserve)))],
+        );
+        assert_eq!(
+            super::parse("{#++#}", s).unwrap(),
+            vec![Node::Comment(Ws(
+                Some(Whitespace::Preserve),
+                Some(Whitespace::Preserve)
+            ))],
+        );
+        assert_eq!(
+            super::parse("{#+ foo\n bar +#}", s).unwrap(),
+            vec![Node::Comment(Ws(
+                Some(Whitespace::Preserve),
+                Some(Whitespace::Preserve)
+            ))],
+        );
+        assert_eq!(
+            super::parse("{#+ foo\n {#+ bar\n +#} baz -+#}", s).unwrap(),
+            vec![Node::Comment(Ws(
+                Some(Whitespace::Preserve),
+                Some(Whitespace::Preserve)
+            ))],
+        );
+
+        assert_eq!(
             super::parse("{# foo {# bar #} {# {# baz #} qux #} #}", s).unwrap(),
-            vec![Node::Comment(Ws(false, false))],
+            vec![Node::Comment(Ws(None, None))],
         );
     }
 
@@ -1690,74 +1734,74 @@ mod tests {
         let syntax = Syntax::default();
         assert_eq!(
             super::parse("{{ () }}", &syntax).unwrap(),
-            vec![Node::Expr(Ws(false, false), Tuple(vec![]),)],
+            vec![Node::Expr(Ws(None, None), Tuple(vec![]),)],
         );
         assert_eq!(
             super::parse("{{ (1) }}", &syntax).unwrap(),
-            vec![Node::Expr(Ws(false, false), Group(Box::new(NumLit("1"))),)],
+            vec![Node::Expr(Ws(None, None), Group(Box::new(NumLit("1"))),)],
         );
         assert_eq!(
             super::parse("{{ (1,) }}", &syntax).unwrap(),
-            vec![Node::Expr(Ws(false, false), Tuple(vec![NumLit("1")]),)],
+            vec![Node::Expr(Ws(None, None), Tuple(vec![NumLit("1")]),)],
         );
         assert_eq!(
             super::parse("{{ (1, ) }}", &syntax).unwrap(),
-            vec![Node::Expr(Ws(false, false), Tuple(vec![NumLit("1")]),)],
+            vec![Node::Expr(Ws(None, None), Tuple(vec![NumLit("1")]),)],
         );
         assert_eq!(
             super::parse("{{ (1 ,) }}", &syntax).unwrap(),
-            vec![Node::Expr(Ws(false, false), Tuple(vec![NumLit("1")]),)],
+            vec![Node::Expr(Ws(None, None), Tuple(vec![NumLit("1")]),)],
         );
         assert_eq!(
             super::parse("{{ (1 , ) }}", &syntax).unwrap(),
-            vec![Node::Expr(Ws(false, false), Tuple(vec![NumLit("1")]),)],
+            vec![Node::Expr(Ws(None, None), Tuple(vec![NumLit("1")]),)],
         );
         assert_eq!(
             super::parse("{{ (1, 2) }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Tuple(vec![NumLit("1"), NumLit("2")]),
             )],
         );
         assert_eq!(
             super::parse("{{ (1, 2,) }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Tuple(vec![NumLit("1"), NumLit("2")]),
             )],
         );
         assert_eq!(
             super::parse("{{ (1, 2, 3) }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Tuple(vec![NumLit("1"), NumLit("2"), NumLit("3")]),
             )],
         );
         assert_eq!(
             super::parse("{{ ()|abs }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Filter("abs", vec![Tuple(vec![])]),
             )],
         );
         assert_eq!(
             super::parse("{{ () | abs }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 BinOp("|", Box::new(Tuple(vec![])), Box::new(Var("abs"))),
             )],
         );
         assert_eq!(
             super::parse("{{ (1)|abs }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Filter("abs", vec![Group(Box::new(NumLit("1")))]),
             )],
         );
         assert_eq!(
             super::parse("{{ (1) | abs }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 BinOp(
                     "|",
                     Box::new(Group(Box::new(NumLit("1")))),
@@ -1768,14 +1812,14 @@ mod tests {
         assert_eq!(
             super::parse("{{ (1,)|abs }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Filter("abs", vec![Tuple(vec![NumLit("1")])]),
             )],
         );
         assert_eq!(
             super::parse("{{ (1,) | abs }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 BinOp(
                     "|",
                     Box::new(Tuple(vec![NumLit("1")])),
@@ -1786,14 +1830,14 @@ mod tests {
         assert_eq!(
             super::parse("{{ (1, 2)|abs }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 Filter("abs", vec![Tuple(vec![NumLit("1"), NumLit("2")])]),
             )],
         );
         assert_eq!(
             super::parse("{{ (1, 2) | abs }}", &syntax).unwrap(),
             vec![Node::Expr(
-                Ws(false, false),
+                Ws(None, None),
                 BinOp(
                     "|",
                     Box::new(Tuple(vec![NumLit("1"), NumLit("2")])),
