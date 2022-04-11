@@ -1,10 +1,10 @@
+use crate::generator::TemplateArgs;
 use crate::{CompileError, Config, Syntax};
 
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use mime::Mime;
-use quote::ToTokens;
 
 pub(crate) struct TemplateInput<'a> {
     pub(crate) ast: &'a syn::DeriveInput,
@@ -27,103 +27,15 @@ impl TemplateInput<'_> {
     pub(crate) fn new<'n>(
         ast: &'n syn::DeriveInput,
         config: &'n Config<'_>,
+        args: TemplateArgs,
     ) -> Result<TemplateInput<'n>, CompileError> {
-        // Check that an attribute called `template()` exists once and that it is
-        // the proper type (list).
-        let mut template_args = None;
-        for attr in &ast.attrs {
-            let ident = match attr.path.get_ident() {
-                Some(ident) => ident,
-                None => continue,
-            };
-
-            if ident == "template" {
-                if template_args.is_some() {
-                    return Err("duplicated 'template' attribute".into());
-                }
-
-                match attr.parse_meta() {
-                    Ok(syn::Meta::List(syn::MetaList { nested, .. })) => {
-                        template_args = Some(nested);
-                    }
-                    Ok(_) => return Err("'template' attribute must be a list".into()),
-                    Err(e) => return Err(format!("unable to parse attribute: {}", e).into()),
-                }
-            }
-        }
-        let template_args =
-            template_args.ok_or_else(|| CompileError::from("no attribute 'template' found"))?;
-
-        // Loop over the meta attributes and find everything that we
-        // understand. Return a CompileError if something is not right.
-        // `source` contains an enum that can represent `path` or `source`.
-        let mut source = None;
-        let mut print = Print::None;
-        let mut escaping = None;
-        let mut ext = None;
-        let mut syntax = None;
-        for item in template_args {
-            let pair = match item {
-                syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
-                _ => {
-                    return Err(format!(
-                        "unsupported attribute argument {:?}",
-                        item.to_token_stream()
-                    )
-                    .into())
-                }
-            };
-            let ident = match pair.path.get_ident() {
-                Some(ident) => ident,
-                None => unreachable!("not possible in syn::Meta::NameValue(…)"),
-            };
-
-            if ident == "path" {
-                if let syn::Lit::Str(ref s) = pair.lit {
-                    if source.is_some() {
-                        return Err("must specify 'source' or 'path', not both".into());
-                    }
-                    source = Some(Source::Path(s.value()));
-                } else {
-                    return Err("template path must be string literal".into());
-                }
-            } else if ident == "source" {
-                if let syn::Lit::Str(ref s) = pair.lit {
-                    if source.is_some() {
-                        return Err("must specify 'source' or 'path', not both".into());
-                    }
-                    source = Some(Source::Source(s.value()));
-                } else {
-                    return Err("template source must be string literal".into());
-                }
-            } else if ident == "print" {
-                if let syn::Lit::Str(ref s) = pair.lit {
-                    print = s.value().parse()?;
-                } else {
-                    return Err("print value must be string literal".into());
-                }
-            } else if ident == "escape" {
-                if let syn::Lit::Str(ref s) = pair.lit {
-                    escaping = Some(s.value());
-                } else {
-                    return Err("escape value must be string literal".into());
-                }
-            } else if ident == "ext" {
-                if let syn::Lit::Str(ref s) = pair.lit {
-                    ext = Some(s.value());
-                } else {
-                    return Err("ext value must be string literal".into());
-                }
-            } else if ident == "syntax" {
-                if let syn::Lit::Str(ref s) = pair.lit {
-                    syntax = Some(s.value())
-                } else {
-                    return Err("syntax value must be string literal".into());
-                }
-            } else {
-                return Err(format!("unsupported attribute key {:?} found", ident).into());
-            }
-        }
+        let TemplateArgs {
+            source,
+            print,
+            escaping,
+            ext,
+            syntax,
+        } = args;
 
         // Validate the `source` and `ext` value together, since they are
         // related. In case `source` was used instead of `path`, the value
@@ -258,6 +170,12 @@ impl FromStr for Print {
             "none" => None,
             v => return Err(format!("invalid value for print option: {}", v,).into()),
         })
+    }
+}
+
+impl Default for Print {
+    fn default() -> Self {
+        Self::None
     }
 }
 
