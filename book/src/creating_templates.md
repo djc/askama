@@ -84,10 +84,17 @@ recognized:
   struct HelloTemplate<'a> { ... }
   ```
 * `syntax` (as `syntax = "foo"`): set the syntax name for a parser defined
-  in the configuration file. The default syntax , "default",  is the one
+  in the configuration file. The default syntax , "default", is the one
   provided by Askama.
   ```rust
   #[derive(Template)]
   #[template(path = "hello.html", syntax = "foo")]
+  struct HelloTemplate<'a> { ... }
+  ```
+* `config` (as `config = "config_file_path"`): set the path for the config file
+  to be used. The path is interpreted as relative to your crate root.
+  ```rust
+  #[derive(Template)]
+  #[template(path = "hello.html", config = "config.toml")]
   struct HelloTemplate<'a> { ... }
   ```
