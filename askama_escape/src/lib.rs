@@ -107,40 +107,31 @@ where
 
 pub struct Html;
 
-macro_rules! escaping_body {
-    ($start:ident, $i:ident, $fmt:ident, $bytes:ident, $quote:expr) => {{
-        if $start < $i {
-            $fmt.write_str(unsafe { str::from_utf8_unchecked(&$bytes[$start..$i]) })?;
-        }
-        $fmt.write_str($quote)?;
-        $start = $i + 1;
-    }};
-}
-
 impl Escaper for Html {
     fn write_escaped<W>(&self, mut fmt: W, string: &str) -> fmt::Result
     where
         W: Write,
     {
-        let bytes = string.as_bytes();
-        let mut start = 0;
-        for (i, b) in bytes.iter().enumerate() {
-            if b.wrapping_sub(b'"') <= FLAG {
-                match *b {
-                    b'<' => escaping_body!(start, i, fmt, bytes, "&lt;"),
-                    b'>' => escaping_body!(start, i, fmt, bytes, "&gt;"),
-                    b'&' => escaping_body!(start, i, fmt, bytes, "&amp;"),
-                    b'"' => escaping_body!(start, i, fmt, bytes, "&quot;"),
-                    b'\'' => escaping_body!(start, i, fmt, bytes, "&#x27;"),
-                    _ => (),
-                }
+        let mut last = 0;
+        for (index, byte) in string.bytes().enumerate() {
+            macro_rules! go {
+                ($expr:expr) => {{
+                    fmt.write_str(&string[last..index])?;
+                    fmt.write_str($expr)?;
+                    last = index + 1;
+                }};
+            }
+
+            match byte {
+                b'<' => go!("&lt;"),
+                b'>' => go!("&gt;"),
+                b'&' => go!("&amp;"),
+                b'"' => go!("&quot;"),
+                b'\'' => go!("&#x27;"),
+                _ => {}
             }
         }
-        if start < bytes.len() {
-            fmt.write_str(unsafe { str::from_utf8_unchecked(&bytes[start..]) })
-        } else {
-            Ok(())
-        }
+        fmt.write_str(&string[last..])
     }
 }
 
@@ -170,8 +161,6 @@ pub trait Escaper {
         W: Write;
 }
 
-const FLAG: u8 = b'>' - b'"';
-
 /// Escape chevrons, ampersand and apostrophes for use in JSON
 #[cfg(feature = "json")]
 #[derive(Debug, Clone, Default)]
@@ -191,30 +180,25 @@ impl JsonEscapeBuffer {
 #[cfg(feature = "json")]
 impl std::io::Write for JsonEscapeBuffer {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-        macro_rules! push_esc_sequence {
-            ($start:ident, $i:ident, $self:ident, $bytes:ident, $quote:expr) => {{
-                if $start < $i {
-                    $self.0.extend_from_slice(&$bytes[$start..$i]);
-                }
-                $self.0.extend_from_slice($quote);
-                $start = $i + 1;
-            }};
-        }
+        let mut last = 0;
+        for (index, byte) in bytes.iter().enumerate() {
+            macro_rules! go {
+                ($expr:expr) => {{
+                    self.0.extend(&bytes[last..index]);
+                    self.0.extend($expr);
+                    last = index + 1;
+                }};
+            }
 
-        self.0.reserve(bytes.len());
-        let mut start = 0;
-        for (i, b) in bytes.iter().enumerate() {
-            match *b {
-                b'&' => push_esc_sequence!(start, i, self, bytes, br#"\u0026"#),
-                b'\'' => push_esc_sequence!(start, i, self, bytes, br#"\u0027"#),
-                b'<' => push_esc_sequence!(start, i, self, bytes, br#"\u003c"#),
-                b'>' => push_esc_sequence!(start, i, self, bytes, br#"\u003e"#),
-                _ => (),
+            match byte {
+                b'&' => go!(br#"\u0026"#),
+                b'\'' => go!(br#"\u0027"#),
+                b'<' => go!(br#"\u003c"#),
+                b'>' => go!(br#"\u003e"#),
+                _ => {}
             }
         }
-        if start < bytes.len() {
-            self.0.extend_from_slice(&bytes[start..]);
-        }
+        self.0.extend(&bytes[last..]);
         Ok(bytes.len())
     }
 
