@@ -1725,6 +1725,35 @@ mod tests {
                 Some(Whitespace::Preserve)
             ))],
         );
+        assert_eq!(
+            super::parse("{#~ #}", s).unwrap(),
+            vec![Node::Comment(Ws(Some(Whitespace::Minimize), None))],
+        );
+        assert_eq!(
+            super::parse("{# ~#}", s).unwrap(),
+            vec![Node::Comment(Ws(None, Some(Whitespace::Minimize)))],
+        );
+        assert_eq!(
+            super::parse("{#~~#}", s).unwrap(),
+            vec![Node::Comment(Ws(
+                Some(Whitespace::Minimize),
+                Some(Whitespace::Minimize)
+            ))],
+        );
+        assert_eq!(
+            super::parse("{#~ foo\n bar ~#}", s).unwrap(),
+            vec![Node::Comment(Ws(
+                Some(Whitespace::Minimize),
+                Some(Whitespace::Minimize)
+            ))],
+        );
+        assert_eq!(
+            super::parse("{#~ foo\n {#~ bar\n ~#} baz -~#}", s).unwrap(),
+            vec![Node::Comment(Ws(
+                Some(Whitespace::Minimize),
+                Some(Whitespace::Minimize)
+            ))],
+        );
 
         assert_eq!(
             super::parse("{# foo {# bar #} {# {# baz #} qux #} #}", s).unwrap(),
