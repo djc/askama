@@ -1,2 +1,2 @@
 [general]
-suppress_whitespace = true
+whitespace = "suppress"
