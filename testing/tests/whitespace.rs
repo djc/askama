@@ -41,3 +41,46 @@ fn test_extra_whitespace() {
     template.nested_1.nested_2.hash.insert("key", "value");
     assert_eq!(template.render().unwrap(), "\n0\n0\n0\n0\n\n\n\n0\n0\n0\n0\n0\n\na0\na1\nvalue\n\n\n\n\n\n[\n  &quot;a0&quot;,\n  &quot;a1&quot;,\n  &quot;a2&quot;,\n  &quot;a3&quot;\n]\n[\n  &quot;a0&quot;,\n  &quot;a1&quot;,\n  &quot;a2&quot;,\n  &quot;a3&quot;\n][\n  &quot;a0&quot;,\n  &quot;a1&quot;,\n  &quot;a2&quot;,\n  &quot;a3&quot;\n]\n[\n  &quot;a1&quot;\n][\n  &quot;a1&quot;\n]\n[\n  &quot;a1&quot;,\n  &quot;a2&quot;\n][\n  &quot;a1&quot;,\n  &quot;a2&quot;\n]\n[\n  &quot;a1&quot;\n][\n  &quot;a1&quot;\n]1-1-1\n3333 3\n2222 2\n0000 0\n3333 3\n\ntruefalse\nfalsefalsefalse\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
 }
+
+macro_rules! test_template_minimize {
+    ($source:literal, $rendered:expr) => {{
+        #[derive(Template)]
+        #[template(source = $source, ext = "txt", config = "test_minimize.toml")]
+        struct CondWs;
+
+        assert_eq!(CondWs.render().unwrap(), $rendered);
+    }};
+}
+
+macro_rules! test_template {
+    ($source:literal, $rendered:expr) => {{
+        #[derive(Template)]
+        #[template(source = $source, ext = "txt")]
+        struct CondWs;
+
+        assert_eq!(CondWs.render().unwrap(), $rendered);
+    }};
+}
+
+#[test]
+fn test_minimize_whitespace() {
+    test_template_minimize!(
+        "\n1\r\n{%  if true  %}\n\n2\r\n\r\n{%  endif  %} 3\r\n\r\n\r\n",
+        "\n1\n\n2\n 3"
+    );
+    test_template_minimize!(
+        "\n1\r\n{%+  if true  %}\n\n2\r\n\r\n{%  endif  %} 3\r\n\r\n\r\n",
+        "\n1\r\n\n2\n 3"
+    );
+    test_template_minimize!(
+        "\n1\r\n{%-  if true  %}\n\n2\r\n\r\n{%  endif  %} 3\r\n\r\n\r\n",
+        "\n1\n2\n 3"
+    );
+    test_template_minimize!(" \n1 \n{%  if true  %} 2 {%  endif  %}3 ", " \n1\n 2 3");
+
+    test_template!(
+        "\n1\r\n{%~  if true  ~%}\n\n2\r\n\r\n{%~  endif  ~%} 3\r\n\r\n\r\n",
+        "\n1\n\n2\n 3"
+    );
+    test_template!(" \n1 \n{%~  if true  ~%} 2 {%~  endif  ~%}3 ", " \n1\n 2 3");
+}
