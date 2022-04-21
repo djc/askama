@@ -12,7 +12,7 @@ This example file demonstrates the default configuration:
 # Directories to search for templates, relative to the crate root.
 dirs = ["templates"]
 # Unless you add a `-` in a block, whitespace won't be trimmed.
-suppress_whitespace = false
+whitespace = "preserve"
 ```
 
 In the default configuration, you can use the `-` operator to indicate that
@@ -28,7 +28,7 @@ Hello
 ```
 
 In the template above, only the whitespace between `<div>` and `{%-` will be
-suppressed. If you enable `suppress_whitespace`, whitespace characters before
+suppressed. If you set `whitespace` to `"suppress"`, whitespace characters before
 and after each block will be suppressed by default. To preserve the whitespace
 characters, you can use the `+` operator:
 
