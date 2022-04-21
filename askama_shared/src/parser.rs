@@ -133,6 +133,7 @@ pub(crate) enum Target<'a> {
 pub(crate) enum Whitespace {
     Preserve,
     Trim,
+    Minimize,
 }
 
 impl From<char> for Whitespace {
@@ -140,6 +141,7 @@ impl From<char> for Whitespace {
         match c {
             '+' => Self::Preserve,
             '-' => Self::Trim,
+            '~' => Self::Minimize,
             _ => panic!("unsupported `Whitespace` conversion"),
         }
     }
@@ -677,7 +679,7 @@ expr_prec_layer!(expr_and, expr_compare, "&&");
 expr_prec_layer!(expr_or, expr_and, "||");
 
 fn expr_handle_ws(i: &str) -> IResult<&str, Whitespace> {
-    alt((char('-'), char('+')))(i).map(|(s, r)| (s, Whitespace::from(r)))
+    alt((char('-'), char('+'), char('~')))(i).map(|(s, r)| (s, Whitespace::from(r)))
 }
 
 fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
@@ -1138,6 +1140,8 @@ fn block_comment<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         Some(Whitespace::Trim)
     } else if tail.ends_with('+') {
         Some(Whitespace::Preserve)
+    } else if tail.ends_with('~') {
+        Some(Whitespace::Minimize)
     } else {
         None
     };
