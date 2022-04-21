@@ -1830,7 +1830,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
     fn should_trim_ws(&self, ws: Option<Whitespace>) -> WhitespaceHandling {
         match ws {
-            Some(Whitespace::Trim) => WhitespaceHandling::Suppress,
+            Some(Whitespace::Suppress) => WhitespaceHandling::Suppress,
             Some(Whitespace::Preserve) => WhitespaceHandling::Preserve,
             Some(Whitespace::Minimize) => WhitespaceHandling::Minimize,
             None => self.whitespace,

@@ -132,7 +132,7 @@ pub(crate) enum Target<'a> {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum Whitespace {
     Preserve,
-    Trim,
+    Suppress,
     Minimize,
 }
 
@@ -140,7 +140,7 @@ impl From<char> for Whitespace {
     fn from(c: char) -> Self {
         match c {
             '+' => Self::Preserve,
-            '-' => Self::Trim,
+            '-' => Self::Suppress,
             '~' => Self::Minimize,
             _ => panic!("unsupported `Whitespace` conversion"),
         }
@@ -1137,7 +1137,7 @@ fn block_comment<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     ));
     let (i, (_, (pws, tail, _))) = p(i)?;
     let nws = if tail.ends_with('-') {
-        Some(Whitespace::Trim)
+        Some(Whitespace::Suppress)
     } else if tail.ends_with('+') {
         Some(Whitespace::Preserve)
     } else if tail.ends_with('~') {
@@ -1669,31 +1669,31 @@ mod tests {
         );
         assert_eq!(
             super::parse("{#- #}", s).unwrap(),
-            vec![Node::Comment(Ws(Some(Whitespace::Trim), None))],
+            vec![Node::Comment(Ws(Some(Whitespace::Suppress), None))],
         );
         assert_eq!(
             super::parse("{# -#}", s).unwrap(),
-            vec![Node::Comment(Ws(None, Some(Whitespace::Trim)))],
+            vec![Node::Comment(Ws(None, Some(Whitespace::Suppress)))],
         );
         assert_eq!(
             super::parse("{#--#}", s).unwrap(),
             vec![Node::Comment(Ws(
-                Some(Whitespace::Trim),
-                Some(Whitespace::Trim)
+                Some(Whitespace::Suppress),
+                Some(Whitespace::Suppress)
             ))],
         );
         assert_eq!(
             super::parse("{#- foo\n bar -#}", s).unwrap(),
             vec![Node::Comment(Ws(
-                Some(Whitespace::Trim),
-                Some(Whitespace::Trim)
+                Some(Whitespace::Suppress),
+                Some(Whitespace::Suppress)
             ))],
         );
         assert_eq!(
             super::parse("{#- foo\n {#- bar\n -#} baz -#}", s).unwrap(),
             vec![Node::Comment(Ws(
-                Some(Whitespace::Trim),
-                Some(Whitespace::Trim)
+                Some(Whitespace::Suppress),
+                Some(Whitespace::Suppress)
             ))],
         );
         assert_eq!(
