@@ -246,7 +246,7 @@ struct Generator<'a, S: std::hash::BuildHasher> {
     next_ws: Option<&'a str>,
     // Whitespace suppression from the previous non-literal. Will be used to
     // determine whether to flush prefix whitespace from the next literal.
-    skip_ws: bool,
+    skip_ws: WhitespaceHandling,
     // If currently in a block, this will contain the name of a potential parent block
     super_block: Option<(&'a str, usize)>,
     // buffer for writable
@@ -272,7 +272,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             heritage,
             locals,
             next_ws: None,
-            skip_ws: false,
+            skip_ws: WhitespaceHandling::Preserve,
             super_block: None,
             buf_writable: vec![],
             named: 0,
@@ -1230,13 +1230,22 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     fn visit_lit(&mut self, lws: &'a str, val: &'a str, rws: &'a str) {
         assert!(self.next_ws.is_none());
         if !lws.is_empty() {
-            if self.skip_ws {
-                self.skip_ws = false;
-            } else if val.is_empty() {
-                assert!(rws.is_empty());
-                self.next_ws = Some(lws);
-            } else {
-                self.buf_writable.push(Writable::Lit(lws));
+            match self.skip_ws {
+                WhitespaceHandling::Suppress => {
+                    self.skip_ws = WhitespaceHandling::Preserve;
+                }
+                _ if val.is_empty() => {
+                    assert!(rws.is_empty());
+                    self.next_ws = Some(lws);
+                }
+                WhitespaceHandling::Preserve => self.buf_writable.push(Writable::Lit(lws)),
+                WhitespaceHandling::Minimize => {
+                    self.buf_writable
+                        .push(Writable::Lit(match lws.contains('\n') {
+                            true => "\n",
+                            false => " ",
+                        }))
+                }
             }
         }
 
@@ -1819,11 +1828,12 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         self.prepare_ws(ws);
     }
 
-    fn should_trim_ws(&self, ws: Option<Whitespace>) -> bool {
+    fn should_trim_ws(&self, ws: Option<Whitespace>) -> WhitespaceHandling {
         match ws {
-            Some(Whitespace::Trim) => true,
-            Some(Whitespace::Preserve) => false,
-            None => self.whitespace == WhitespaceHandling::Suppress,
+            Some(Whitespace::Trim) => WhitespaceHandling::Suppress,
+            Some(Whitespace::Preserve) => WhitespaceHandling::Preserve,
+            Some(Whitespace::Minimize) => WhitespaceHandling::Minimize,
+            None => self.whitespace,
         }
     }
 
@@ -1837,11 +1847,24 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         // If `whitespace` is set to `suppress`, we keep the whitespace characters only if there is
         // a `+` character.
-        if !self.should_trim_ws(ws.0) {
-            let val = self.next_ws.unwrap();
-            if !val.is_empty() {
-                self.buf_writable.push(Writable::Lit(val));
+        match self.should_trim_ws(ws.0) {
+            WhitespaceHandling::Preserve => {
+                let val = self.next_ws.unwrap();
+                if !val.is_empty() {
+                    self.buf_writable.push(Writable::Lit(val));
+                }
             }
+            WhitespaceHandling::Minimize => {
+                let val = self.next_ws.unwrap();
+                if !val.is_empty() {
+                    self.buf_writable
+                        .push(Writable::Lit(match val.contains('\n') {
+                            true => "\n",
+                            false => " ",
+                        }));
+                }
+            }
+            WhitespaceHandling::Suppress => {}
         }
         self.next_ws = None;
     }

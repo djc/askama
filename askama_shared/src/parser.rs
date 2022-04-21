@@ -1447,12 +1447,12 @@ mod tests {
     #[test]
     fn change_delimiters_parse_filter() {
         let syntax = Syntax {
-            expr_start: "{~",
-            expr_end: "~}",
+            expr_start: "{=",
+            expr_end: "=}",
             ..Syntax::default()
         };
 
-        super::parse("{~ strvar|e ~}", &syntax).unwrap();
+        super::parse("{= strvar|e =}", &syntax).unwrap();
     }
 
     #[test]
