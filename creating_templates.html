@@ -243,13 +243,25 @@ struct HelloTemplate&lt;'a&gt; { ... }
 </li>
 <li>
 <p><code>syntax</code> (as <code>syntax = &quot;foo&quot;</code>): set the syntax name for a parser defined
-in the configuration file. The default syntax , &quot;default&quot;,  is the one
+in the configuration file. The default syntax , &quot;default&quot;, is the one
 provided by Askama.</p>
 <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
 #[template(path = &quot;hello.html&quot;, syntax = &quot;foo&quot;)]
+struct HelloTemplate&lt;'a&gt; { ... }
+<span class="boring">}
+</span></code></pre></pre>
+</li>
+<li>
+<p><code>config</code> (as <code>config = &quot;config_file_path&quot;</code>): set the path for the config file
+to be used. The path is interpreted as relative to your crate root.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Template)]
+#[template(path = &quot;hello.html&quot;, config = &quot;config.toml&quot;)]
 struct HelloTemplate&lt;'a&gt; { ... }
 <span class="boring">}
 </span></code></pre></pre>

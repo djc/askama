@@ -310,13 +310,25 @@ struct HelloTemplate&lt;'a&gt; { ... }
 </li>
 <li>
 <p><code>syntax</code> (as <code>syntax = &quot;foo&quot;</code>): set the syntax name for a parser defined
-in the configuration file. The default syntax , &quot;default&quot;,  is the one
+in the configuration file. The default syntax , &quot;default&quot;, is the one
 provided by Askama.</p>
 <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
 #[template(path = &quot;hello.html&quot;, syntax = &quot;foo&quot;)]
+struct HelloTemplate&lt;'a&gt; { ... }
+<span class="boring">}
+</span></code></pre></pre>
+</li>
+<li>
+<p><code>config</code> (as <code>config = &quot;config_file_path&quot;</code>): set the path for the config file
+to be used. The path is interpreted as relative to your crate root.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Template)]
+#[template(path = &quot;hello.html&quot;, config = &quot;config.toml&quot;)]
 struct HelloTemplate&lt;'a&gt; { ... }
 <span class="boring">}
 </span></code></pre></pre>
@@ -378,7 +390,27 @@ custom syntax configuration and escaper configuration.</p>
 <pre><code class="language-toml">[general]
 # Directories to search for templates, relative to the crate root.
 dirs = [&quot;templates&quot;]
+# Unless you add a `-` in a block, whitespace won't be trimmed.
+suppress_whitespace = false
 </code></pre>
+<p>In the default configuration, you can use the <code>-</code> operator to indicate that
+whitespace should be suppressed before or after a block. For example:</p>
+<pre><code class="language-jinja">&lt;div&gt;
+
+
+{%- if something %}
+Hello
+(% endif %}
+</code></pre>
+<p>In the template above, only the whitespace between <code>&lt;div&gt;</code> and <code>{%-</code> will be
+suppressed. If you enable <code>suppress_whitespace</code>, whitespace characters before
+and after each block will be suppressed by default. To preserve the whitespace
+characters, you can use the <code>+</code> operator:</p>
+<pre><code class="language-jinja">{% if something +%}
+Hello
+(%+ endif %}
+</code></pre>
+<p>In this example, <code>Hello</code> will be surrounded with newline characters.</p>
 <p>Here is an example that defines two custom syntaxes:</p>
 <pre><code class="language-toml">[general]
 default_syntax = &quot;foo&quot;
