@@ -705,5 +705,14 @@ mod tests {
         )
         .unwrap();
         assert_eq!(config.whitespace, WhitespaceHandling::Preserve);
+
+        let config = Config::new(
+            r#"
+            [general]
+            whitespace = "minimize"
+            "#,
+        )
+        .unwrap();
+        assert_eq!(config.whitespace, WhitespaceHandling::Minimize);
     }
 }
