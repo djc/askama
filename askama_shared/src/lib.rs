@@ -314,6 +314,10 @@ pub(crate) enum WhitespaceHandling {
     Preserve,
     /// It'll remove all the whitespace characters before and after the jinja block.
     Suppress,
+    /// It'll remove all the whitespace characters except one before and after the jinja blocks.
+    /// If there is a newline character, the preserved character in the trimmed characters, it will
+    /// the one preserved.
+    Minimize,
 }
 
 impl Default for WhitespaceHandling {
