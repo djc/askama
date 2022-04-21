@@ -1,7 +1,9 @@
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
 use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
-use crate::{filters, get_template_source, read_config_file, CompileError, Config};
+use crate::{
+    filters, get_template_source, read_config_file, CompileError, Config, WhitespaceHandling,
+};
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -66,7 +68,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
         &contexts,
         heritage.as_ref(),
         MapChain::new(),
-        config.suppress_whitespace,
+        config.whitespace,
     )
     .build(&contexts[input.path.as_path()])?;
     if input.print == Print::Code || input.print == Print::All {
@@ -251,8 +253,9 @@ struct Generator<'a, S: std::hash::BuildHasher> {
     buf_writable: Vec<Writable<'a>>,
     // Counter for write! hash named arguments
     named: usize,
-    // If set to `true`, the whitespace characters will be removed by default unless `+` is used.
-    suppress_whitespace: bool,
+    // If set to `suppress`, the whitespace characters will be removed by default unless `+` is
+    // used.
+    whitespace: WhitespaceHandling,
 }
 
 impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
@@ -261,7 +264,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         contexts: &'n HashMap<&'n Path, Context<'n>, S>,
         heritage: Option<&'n Heritage<'_>>,
         locals: MapChain<'n, &'n str, LocalMeta>,
-        suppress_whitespace: bool,
+        whitespace: WhitespaceHandling,
     ) -> Generator<'n, S> {
         Generator {
             input,
@@ -273,7 +276,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             super_block: None,
             buf_writable: vec![],
             named: 0,
-            suppress_whitespace,
+            whitespace,
         }
     }
 
@@ -284,7 +287,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             self.contexts,
             self.heritage,
             locals,
-            self.suppress_whitespace,
+            self.whitespace,
         )
     }
 
@@ -1820,7 +1823,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         match ws {
             Some(Whitespace::Trim) => true,
             Some(Whitespace::Preserve) => false,
-            None => self.suppress_whitespace,
+            None => self.whitespace == WhitespaceHandling::Suppress,
         }
     }
 
@@ -1832,7 +1835,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             return;
         }
 
-        // If `suppress_whitespace` is enabled, we keep the whitespace characters only if there is
+        // If `whitespace` is set to `suppress`, we keep the whitespace characters only if there is
         // a `+` character.
         if !self.should_trim_ws(ws.0) {
             let val = self.next_ws.unwrap();

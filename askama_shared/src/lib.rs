@@ -118,7 +118,7 @@ struct Config<'a> {
     syntaxes: BTreeMap<String, Syntax<'a>>,
     default_syntax: &'a str,
     escapers: Vec<(HashSet<String>, String)>,
-    suppress_whitespace: bool,
+    whitespace: WhitespaceHandling,
 }
 
 impl Config<'_> {
@@ -135,19 +135,23 @@ impl Config<'_> {
             RawConfig::from_toml_str(s)?
         };
 
-        let (dirs, default_syntax, suppress_whitespace) = match raw.general {
+        let (dirs, default_syntax, whitespace) = match raw.general {
             Some(General {
                 dirs,
                 default_syntax,
-                suppress_whitespace,
+                whitespace,
             }) => (
                 dirs.map_or(default_dirs, |v| {
                     v.into_iter().map(|dir| root.join(dir)).collect()
                 }),
                 default_syntax.unwrap_or(DEFAULT_SYNTAX_NAME),
-                suppress_whitespace.unwrap_or(false),
+                whitespace,
             ),
-            None => (default_dirs, DEFAULT_SYNTAX_NAME, false),
+            None => (
+                default_dirs,
+                DEFAULT_SYNTAX_NAME,
+                WhitespaceHandling::default(),
+            ),
         };
 
         if let Some(raw_syntaxes) = raw.syntax {
@@ -189,7 +193,7 @@ impl Config<'_> {
             syntaxes,
             default_syntax,
             escapers,
-            suppress_whitespace,
+            whitespace,
         })
     }
 
@@ -302,12 +306,29 @@ impl RawConfig<'_> {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "serde", derive(Deserialize))]
+#[cfg_attr(feature = "serde", serde(field_identifier, rename_all = "lowercase"))]
+pub(crate) enum WhitespaceHandling {
+    /// The default behaviour. It will leave the whitespace characters "as is".
+    Preserve,
+    /// It'll remove all the whitespace characters before and after the jinja block.
+    Suppress,
+}
+
+impl Default for WhitespaceHandling {
+    fn default() -> Self {
+        WhitespaceHandling::Preserve
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 struct General<'a> {
     #[cfg_attr(feature = "serde", serde(borrow))]
     dirs: Option<Vec<&'a str>>,
     default_syntax: Option<&'a str>,
-    suppress_whitespace: Option<bool>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    whitespace: WhitespaceHandling,
 }
 
 #[cfg_attr(feature = "serde", derive(Deserialize))]
@@ -659,14 +680,26 @@ mod tests {
     }
 
     #[test]
-    fn test_suppress_whitespace_parsing() {
+    fn test_whitespace_parsing() {
         let config = Config::new(
             r#"
             [general]
-            suppress_whitespace = true
+            whitespace = "suppress"
             "#,
         )
         .unwrap();
-        assert!(config.suppress_whitespace);
+        assert_eq!(config.whitespace, WhitespaceHandling::Suppress);
+
+        let config = Config::new(r#""#).unwrap();
+        assert_eq!(config.whitespace, WhitespaceHandling::Preserve);
+
+        let config = Config::new(
+            r#"
+            [general]
+            whitespace = "preserve"
+            "#,
+        )
+        .unwrap();
+        assert_eq!(config.whitespace, WhitespaceHandling::Preserve);
     }
 }
