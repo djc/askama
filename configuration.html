@@ -144,7 +144,7 @@ custom syntax configuration and escaper configuration.</p>
 # Directories to search for templates, relative to the crate root.
 dirs = [&quot;templates&quot;]
 # Unless you add a `-` in a block, whitespace won't be trimmed.
-suppress_whitespace = false
+whitespace = &quot;preserve&quot;
 </code></pre>
 <p>In the default configuration, you can use the <code>-</code> operator to indicate that
 whitespace should be suppressed before or after a block. For example:</p>
@@ -156,7 +156,7 @@ Hello
 (% endif %}
 </code></pre>
 <p>In the template above, only the whitespace between <code>&lt;div&gt;</code> and <code>{%-</code> will be
-suppressed. If you enable <code>suppress_whitespace</code>, whitespace characters before
+suppressed. If you set <code>whitespace</code> to <code>&quot;suppress&quot;</code>, whitespace characters before
 and after each block will be suppressed by default. To preserve the whitespace
 characters, you can use the <code>+</code> operator:</p>
 <pre><code class="language-jinja">{% if something +%}
