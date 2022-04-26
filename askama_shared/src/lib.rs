@@ -281,8 +281,72 @@ impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
             return Err(format!("bad delimiters block_start: {}, comment_start: {}, expr_start: {}, needs one of the two characters in common", syntax.block_start, syntax.comment_start, syntax.expr_start).into());
         }
 
+        check_all_syntaxes(&default, &raw)?;
+
         Ok(syntax)
     }
+}
+
+fn check_if_syntax_exists(
+    default: &Syntax<'_>,
+    entry: &Option<&str>,
+    name: &str,
+) -> std::result::Result<(), CompileError> {
+    if let Some(e) = entry {
+        let fields = &[
+            default.block_start,
+            default.block_end,
+            default.expr_start,
+            default.expr_end,
+            default.comment_start,
+            default.comment_end,
+        ];
+        for field in fields {
+            if field == e {
+                return Err(format!("`{}` (in `{}`) syntax already exists", e, name).into());
+            }
+        }
+    }
+    Ok(())
+}
+
+fn check_all_syntaxes(
+    default: &Syntax<'_>,
+    raw: &RawSyntax<'_>,
+) -> std::result::Result<(), CompileError> {
+    check_if_syntax_exists(default, &raw.block_start, "block_start")?;
+    check_if_syntax_exists(default, &raw.block_end, "block_end")?;
+    check_if_syntax_exists(default, &raw.expr_start, "expr_start")?;
+    check_if_syntax_exists(default, &raw.expr_end, "expr_end")?;
+    check_if_syntax_exists(default, &raw.comment_start, "comment_start")?;
+    check_if_syntax_exists(default, &raw.comment_end, "comment_end")?;
+
+    let entries = &[
+        (&raw.block_start, "block_start"),
+        (&raw.block_end, "block_end"),
+        (&raw.expr_start, "expr_start"),
+        (&raw.expr_end, "expr_end"),
+        (&raw.comment_start, "comment_start"),
+        (&raw.comment_end, "comment_end"),
+    ];
+    let entries: Vec<(&str, &str)> = entries
+        .iter()
+        .filter_map(|(field, field_name)| field.as_ref().map(|f| (*f, *field_name)))
+        .collect();
+    for (pos, (field, field_name)) in entries.iter().enumerate() {
+        if let Some((_, name)) = entries
+            .iter()
+            .skip(pos + 1)
+            .find(|(value, _)| value == field)
+        {
+            return Err(format!(
+                "`{}` (in `{}`) is the same as `{}`",
+                field, name, field_name,
+            )
+            .into());
+        }
+    }
+    Ok(())
 }
 
 #[cfg_attr(feature = "serde", derive(Deserialize))]
@@ -582,6 +646,106 @@ mod tests {
         assert_eq!(bar.expr_end, default_syntax.expr_end);
         assert_eq!(bar.comment_start, default_syntax.comment_start);
         assert_eq!(bar.comment_end, default_syntax.comment_end);
+    }
+
+    #[cfg(feature = "config")]
+    #[test]
+    fn check_invalid_syntax() {
+        macro_rules! check_syntax {
+            ($kind:literal, $syntax:literal) => {{
+                let raw_config = format!(
+                    r#"
+                    syntax = [{{ name = "foo", {} = "{}" }}]
+
+                    [general]
+                    default_syntax = "foo"
+                    "#,
+                    $kind, $syntax
+                );
+
+                if let Err(e) = Config::new(&raw_config) {
+                    assert_eq!(
+                        e.to_string(),
+                        format!("`{}` (in `{}`) syntax already exists", $syntax, $kind)
+                    );
+                } else {
+                    panic!("`{}` as {} wasn't supposed to work!", $syntax, $kind);
+                }
+            }};
+        }
+
+        check_syntax!("block_start", "{%");
+        check_syntax!("block_end", "%}");
+        check_syntax!("comment_start", "{#");
+        check_syntax!("comment_end", "#}");
+        check_syntax!("expr_start", "{{");
+        check_syntax!("expr_end", "}}");
+    }
+
+    #[cfg(feature = "config")]
+    #[test]
+    fn check_duplicated_syntax() {
+        macro_rules! check_syntax {
+            ($kind:literal, $kind2:literal, $syntax:literal, $err:literal) => {{
+                let raw_config = format!(
+                    r#"
+                    syntax = [{{ name = "foo", {kind} = "{syntax}", {kind2} = "{syntax}" }}]
+
+                    [general]
+                    default_syntax = "foo"
+                    "#,
+                    kind = $kind,
+                    kind2 = $kind2,
+                    syntax = $syntax,
+                );
+
+                if let Err(e) = Config::new(&raw_config) {
+                    assert_eq!(e.to_string().as_str(), $err);
+                } else {
+                    panic!(
+                        "`{}` as {} and as {} wasn't supposed to work!",
+                        $syntax, $kind, $kind2
+                    );
+                }
+            }};
+        }
+
+        check_syntax!(
+            "block_start",
+            "comment_start",
+            "{&",
+            "`{&` (in `comment_start`) is the same as `block_start`"
+        );
+        check_syntax!(
+            "block_end",
+            "comment_end",
+            "&}",
+            "`&}` (in `comment_end`) is the same as `block_end`"
+        );
+        check_syntax!(
+            "comment_start",
+            "expr_start",
+            "{&",
+            "`{&` (in `comment_start`) is the same as `expr_start`"
+        );
+        check_syntax!(
+            "comment_end",
+            "expr_end",
+            "&}",
+            "`&}` (in `comment_end`) is the same as `expr_end`"
+        );
+        check_syntax!(
+            "expr_start",
+            "block_start",
+            "{&",
+            "`{&` (in `expr_start`) is the same as `block_start`"
+        );
+        check_syntax!(
+            "expr_end",
+            "block_end",
+            "&}",
+            "`&}` (in `expr_end`) is the same as `block_end`"
+        );
     }
 
     #[cfg(feature = "toml")]
