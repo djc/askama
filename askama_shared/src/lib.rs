@@ -275,8 +275,8 @@ impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
         let be = syntax.block_start.as_bytes()[1];
         let cs = syntax.comment_start.as_bytes()[0];
         let ce = syntax.comment_start.as_bytes()[1];
-        let es = syntax.block_start.as_bytes()[0];
-        let ee = syntax.block_start.as_bytes()[1];
+        let es = syntax.expr_start.as_bytes()[0];
+        let ee = syntax.expr_start.as_bytes()[1];
         if !((bs == cs && bs == es) || (be == ce && be == ee)) {
             return Err(format!("bad delimiters block_start: {}, comment_start: {}, expr_start: {}, needs one of the two characters in common", syntax.block_start, syntax.comment_start, syntax.expr_start).into());
         }
