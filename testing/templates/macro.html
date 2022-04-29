@@ -11,3 +11,15 @@
 {%- call thrice(s) -%}
 
 3
+
+{%- macro twice(param) -%}
+
+{{ param }} {{ param }}
+
+{%- endmacro twice -%}
+
+4
+
+{%- call twice(s) -%}
+
+5

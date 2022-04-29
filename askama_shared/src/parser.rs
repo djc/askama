@@ -996,7 +996,7 @@ fn block_import(i: &str) -> IResult<&str, Node<'_>> {
 }
 
 fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
-    let mut p = tuple((
+    let mut start = tuple((
         opt(expr_handle_ws),
         ws(tag("macro")),
         cut(tuple((
@@ -1004,19 +1004,21 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             ws(parameters),
             opt(expr_handle_ws),
             |i| tag_block_end(i, s),
-            cut(tuple((
-                |i| parse_template(i, s),
-                cut(tuple((
-                    |i| tag_block_start(i, s),
-                    opt(expr_handle_ws),
-                    ws(tag("endmacro")),
-                    opt(expr_handle_ws),
-                ))),
-            ))),
         ))),
     ));
+    let (i, (pws1, _, (name, params, nws1, _))) = start(i)?;
 
-    let (i, (pws1, _, (name, params, nws1, _, (contents, (_, pws2, _, nws2))))) = p(i)?;
+    let mut end = cut(tuple((
+        |i| parse_template(i, s),
+        cut(tuple((
+            |i| tag_block_start(i, s),
+            opt(expr_handle_ws),
+            ws(tag("endmacro")),
+            cut(tuple((opt(ws(tag(name))), opt(expr_handle_ws)))),
+        ))),
+    )));
+    let (i, (contents, (_, pws2, _, (_, nws2)))) = end(i)?;
+
     assert_ne!(name, "super", "invalid macro name 'super'");
 
     Ok((
