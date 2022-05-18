@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use crate::config::Config;
 use crate::parser::{Expr, Loop, Macro, Node};
-use crate::{CompileError, Config};
+use crate::CompileError;
 
 pub(crate) struct Heritage<'a> {
     pub(crate) root: &'a Context<'a>,
