@@ -5,7 +5,7 @@
 //! For more information, read the [book](https://djc.github.io/askama/filters.html).
 #![allow(clippy::trivially_copy_pass_by_ref)]
 
-use std::fmt;
+use std::fmt::{self, Write};
 
 #[cfg(feature = "serde_json")]
 mod json;
@@ -313,7 +313,7 @@ where
             rv.push_str(separator);
         }
 
-        rv.push_str(&format!("{}", item));
+        write!(rv, "{}", item)?;
     }
 
     Ok(rv)
