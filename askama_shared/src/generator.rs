@@ -1,9 +1,8 @@
+use crate::config::{get_template_source, read_config_file, Config, WhitespaceHandling};
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
 use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
-use crate::{
-    filters, get_template_source, read_config_file, CompileError, Config, WhitespaceHandling,
-};
+use crate::{filters, CompileError};
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};

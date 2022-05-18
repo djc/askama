@@ -10,7 +10,8 @@ use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{self, error_position, AsChar, IResult, InputTakeAtPosition};
 
-use crate::{CompileError, Syntax};
+use crate::config::Syntax;
+use crate::CompileError;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Node<'a> {
@@ -1224,7 +1225,7 @@ pub(crate) fn parse<'a>(
 #[cfg(test)]
 mod tests {
     use super::{Expr, Node, Whitespace, Ws};
-    use crate::Syntax;
+    use crate::config::Syntax;
 
     fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
         match super::split_ws_parts(s) {
