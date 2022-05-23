@@ -152,7 +152,7 @@ pub(crate) enum Source {
     Source(String),
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub(crate) enum Print {
     All,
     Ast,

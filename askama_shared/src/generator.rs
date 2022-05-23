@@ -2049,7 +2049,7 @@ fn median(sizes: &mut [usize]) -> usize {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 enum AstLevel {
     Top,
     Block,

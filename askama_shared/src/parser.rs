@@ -130,7 +130,7 @@ pub(crate) enum Target<'a> {
     Path(Vec<&'a str>),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Whitespace {
     Preserve,
     Suppress,
@@ -151,7 +151,7 @@ impl From<char> for Whitespace {
 /// First field is "minus/plus sign was used on the left part of the item".
 ///
 /// Second field is "minus/plus sign was used on the right part of the item".
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Ws(pub(crate) Option<Whitespace>, pub(crate) Option<Whitespace>);
 
 pub(crate) type Cond<'a> = (Ws, Option<CondTest<'a>>, Vec<Node<'a>>);
