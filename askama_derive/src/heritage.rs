@@ -1,5 +1,6 @@
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+
+use indexmap::IndexMap;
 
 use crate::config::Config;
 use crate::parser::{Expr, Loop, Macro, Node};
@@ -11,9 +12,9 @@ pub(crate) struct Heritage<'a> {
 }
 
 impl Heritage<'_> {
-    pub(crate) fn new<'n, S: std::hash::BuildHasher>(
+    pub(crate) fn new<'n>(
         mut ctx: &'n Context<'n>,
-        contexts: &'n HashMap<&'n Path, Context<'n>, S>,
+        contexts: &'n IndexMap<&'n Path, Context<'n>>,
     ) -> Heritage<'n> {
         let mut blocks: BlockAncestry<'n> = ctx
             .blocks
@@ -32,14 +33,30 @@ impl Heritage<'_> {
     }
 }
 
-type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a Node<'a>)>>;
+type BlockAncestry<'a> = IndexMap<&'a str, Vec<(&'a Context<'a>, &'a Node<'a>)>>;
 
 pub(crate) struct Context<'a> {
     pub(crate) nodes: &'a [Node<'a>],
     pub(crate) extends: Option<PathBuf>,
-    pub(crate) blocks: HashMap<&'a str, &'a Node<'a>>,
-    pub(crate) macros: HashMap<&'a str, &'a Macro<'a>>,
-    pub(crate) imports: HashMap<&'a str, PathBuf>,
+    pub(crate) blocks: IndexMap<&'a str, &'a Node<'a>>,
+    pub(crate) macros: IndexMap<&'a str, &'a Macro<'a>>,
+    pub(crate) imports: IndexMap<&'a str, PathBuf>,
+}
+
+impl<'a> std::hash::Hash for Context<'a> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.nodes.hash(state);
+        self.extends.hash(state);
+        for kv in self.blocks.iter() {
+            kv.hash(state);
+        }
+        for kv in self.macros.iter() {
+            kv.hash(state);
+        }
+        for kv in self.imports.iter() {
+            kv.hash(state);
+        }
+    }
 }
 
 impl Context<'_> {
@@ -50,8 +67,8 @@ impl Context<'_> {
     ) -> Result<Context<'n>, CompileError> {
         let mut extends = None;
         let mut blocks = Vec::new();
-        let mut macros = HashMap::new();
-        let mut imports = HashMap::new();
+        let mut macros = IndexMap::new();
+        let mut imports = IndexMap::new();
         let mut nested = vec![nodes];
         let mut top = true;
 
@@ -104,7 +121,7 @@ impl Context<'_> {
             top = false;
         }
 
-        let blocks: HashMap<_, _> = blocks
+        let blocks: IndexMap<_, _> = blocks
             .iter()
             .map(|def| {
                 if let Node::BlockDef(_, name, _, _) = def {

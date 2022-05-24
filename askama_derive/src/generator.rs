@@ -4,19 +4,37 @@ use crate::input::{Print, Source, TemplateInput};
 use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
 use crate::CompileError;
 
+use base64::{encode_config, URL_SAFE_NO_PAD};
+use blake2::{Blake2s256, Digest};
+use indexmap::map::{Entry, IndexMap};
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 
-use std::collections::HashMap;
+use std::hash::Hash;
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::{cmp, hash, mem, str};
+use std::{cmp, fs, hash, mem, str};
 
 /// The actual implementation for askama_derive::Template
 pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
     match build_template(&ast) {
-        Ok(source) => source.parse().unwrap(),
+        Ok(stream) => stream,
         Err(e) => e.into_compile_error(),
+    }
+}
+
+#[derive(Default)]
+struct BlakeHash(Blake2s256);
+
+impl hash::Hasher for BlakeHash {
+    fn finish(&self) -> u64 {
+        0
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        self.0.update(&bytes.len().to_ne_bytes());
+        self.0.update(bytes);
     }
 }
 
@@ -27,7 +45,7 @@ pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
 /// parsed, and the parse tree is fed to the code generator. Will print
 /// the parse tree and/or generated source according to the `print` key's
 /// value as passed to the `template()` attribute.
-fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
+fn build_template(ast: &syn::DeriveInput) -> Result<TokenStream, CompileError> {
     let template_args = TemplateArgs::new(ast)?;
     let config_toml = read_config_file(&template_args.config_path)?;
     let config = Config::new(&config_toml)?;
@@ -37,17 +55,77 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
         Source::Path(_) => get_template_source(&input.path)?,
     };
 
-    let mut sources = HashMap::new();
+    let mut sources = IndexMap::new();
     find_used_templates(&input, &mut sources, source)?;
 
-    let mut parsed = HashMap::new();
+    let mut parsed = IndexMap::new();
     for (path, src) in &sources {
         parsed.insert(path.as_path(), parse(src, input.syntax)?);
     }
 
-    let mut contexts = HashMap::new();
+    let mut contexts = IndexMap::new();
     for (path, nodes) in &parsed {
         contexts.insert(*path, Context::new(input.config, path, nodes)?);
+    }
+
+    let filename = &{
+        let mut hash = BlakeHash::default();
+        macro_rules! features {
+            ($($feature:literal)*) => {
+                $(
+                    #[cfg(feature = $feature)]
+                    $feature.hash(&mut hash);
+                )*
+            };
+        }
+        features! {
+            "config"
+            "humansize"
+            "markdown"
+            "urlencode"
+            "serde-json"
+            "serde-yaml"
+            "num-traits"
+            "with-actix-web"
+            "with-axum"
+            "with-gotham"
+            "with-mendes"
+            "with-rocket"
+            "with-tide"
+            "with-warp"
+        };
+
+        ast.hash(&mut hash);
+        for kv in &contexts {
+            kv.hash(&mut hash);
+        }
+        let mut filename = encode_config(&hash.0.finalize(), URL_SAFE_NO_PAD);
+        filename.push_str(".rs");
+        AsRef::<Path>::as_ref(&env!("ASKAMA_DERIVE_OUTDIR")).join(filename)
+    };
+    let result = {
+        let filename = filename.to_str().unwrap();
+        quote! {
+            const _: () = ::core::include!(#filename);
+        }
+        .into()
+    };
+
+    let mut tempfile = fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(filename)
+        .map_err(|err| {
+            CompileError::from(format!("could not open temp file {:?}: {}", filename, err))
+        })?;
+    let tempfile_length = tempfile
+        .metadata()
+        .map_err(|err| {
+            CompileError::from(format!("could not query temp file {:?}: {}", filename, err))
+        })?
+        .len();
+    if tempfile_length > 32 {
+        return Ok(result);
     }
 
     let ctx = &contexts[input.path.as_path()];
@@ -72,7 +150,22 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     if input.print == Print::Code || input.print == Print::All {
         eprintln!("{}", code);
     }
-    Ok(code)
+
+    if let Err(err) = tempfile.set_len(0) {
+        return Err(CompileError::from(format!(
+            "could not clear temp file {:?}: {}",
+            filename, err,
+        )));
+    }
+    if let Err(err) = tempfile.write_all(code.as_bytes()) {
+        let _ = tempfile.set_len(0);
+        return Err(CompileError::from(format!(
+            "could not write temp file {:?}: {}",
+            filename, err,
+        )));
+    }
+
+    Ok(result)
 }
 
 #[derive(Default)]
@@ -192,7 +285,7 @@ impl TemplateArgs {
 
 fn find_used_templates(
     input: &TemplateInput<'_>,
-    map: &mut HashMap<PathBuf, String>,
+    map: &mut IndexMap<PathBuf, String>,
     source: String,
 ) -> Result<(), CompileError> {
     let mut dependency_graph = Vec::new();
@@ -229,11 +322,12 @@ fn find_used_templates(
     }
     Ok(())
 }
-struct Generator<'a, S: std::hash::BuildHasher> {
+
+struct Generator<'a> {
     // The template input state: original struct AST and attributes
     input: &'a TemplateInput<'a>,
     // All contexts, keyed by the package-relative template path
-    contexts: &'a HashMap<&'a Path, Context<'a>, S>,
+    contexts: &'a IndexMap<&'a Path, Context<'a>>,
     // The heritage contains references to blocks and their ancestry
     heritage: Option<&'a Heritage<'a>>,
     // Variables accessible directly from the current scope (not redirected to context)
@@ -256,14 +350,14 @@ struct Generator<'a, S: std::hash::BuildHasher> {
     whitespace: WhitespaceHandling,
 }
 
-impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
+impl<'a> Generator<'a> {
     fn new<'n>(
         input: &'n TemplateInput<'_>,
-        contexts: &'n HashMap<&'n Path, Context<'n>, S>,
+        contexts: &'n IndexMap<&'n Path, Context<'n>>,
         heritage: Option<&'n Heritage<'_>>,
         locals: MapChain<'n, &'n str, LocalMeta>,
         whitespace: WhitespaceHandling,
-    ) -> Generator<'n, S> {
+    ) -> Generator<'n> {
         Generator {
             input,
             contexts,
@@ -278,7 +372,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         }
     }
 
-    fn child(&mut self) -> Generator<'_, S> {
+    fn child(&mut self) -> Generator<'_> {
         let locals = MapChain::with_parent(&self.locals);
         Self::new(
             self.input,
@@ -292,6 +386,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     // Takes a Context and generates the relevant implementations.
     fn build(mut self, ctx: &'a Context<'_>) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
+        buf.writeln("{")?;
+
         if !ctx.blocks.is_empty() {
             if let Some(parent) = self.input.parent {
                 self.deref_to_parent(&mut buf, parent)?;
@@ -316,6 +412,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         #[cfg(feature = "with-warp")]
         self.impl_warp_reply(&mut buf)?;
 
+        buf.writeln("}")?;
         Ok(buf.buf)
     }
 
@@ -575,6 +672,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         }
         let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
         let (impl_generics, _, where_clause) = generics.split_for_impl();
+
+        buf.writeln("#[allow(warnings)]")?;
+        buf.writeln("#[allow(clippy::warnings)]")?;
         buf.writeln(
             format!(
                 "{} {} for {}{} {{",
@@ -1173,7 +1273,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let mut size_hint = 0;
         let mut buf_format = Buffer::new(0);
         let mut buf_expr = Buffer::new(buf.indent + 1);
-        let mut expr_cache = HashMap::with_capacity(self.buf_writable.len());
+        let mut expr_cache = IndexMap::with_capacity(self.buf_writable.len());
         for s in mem::take(&mut self.buf_writable) {
             match s {
                 Writable::Lit(s) => {
@@ -1192,7 +1292,6 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                         ),
                     };
 
-                    use std::collections::hash_map::Entry;
                     let id = match expr_cache.entry(expression.clone()) {
                         Entry::Occupied(e) => *e.get(),
                         Entry::Vacant(e) => {
@@ -1961,7 +2060,7 @@ where
     K: cmp::Eq + hash::Hash,
 {
     parent: Option<&'a MapChain<'a, K, V>>,
-    scopes: Vec<HashMap<K, V>>,
+    scopes: Vec<IndexMap<K, V>>,
 }
 
 impl<'a, K: 'a, V: 'a> MapChain<'a, K, V>
@@ -1971,14 +2070,14 @@ where
     fn new() -> MapChain<'a, K, V> {
         MapChain {
             parent: None,
-            scopes: vec![HashMap::new()],
+            scopes: vec![IndexMap::new()],
         }
     }
 
     fn with_parent<'p>(parent: &'p MapChain<'_, K, V>) -> MapChain<'p, K, V> {
         MapChain {
             parent: Some(parent),
-            scopes: vec![HashMap::new()],
+            scopes: vec![IndexMap::new()],
         }
     }
 
@@ -2014,7 +2113,7 @@ where
     }
 
     fn push(&mut self) {
-        self.scopes.push(HashMap::new());
+        self.scopes.push(IndexMap::new());
     }
 
     fn pop(&mut self) {

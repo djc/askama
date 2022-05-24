@@ -13,7 +13,7 @@ use nom::{self, error_position, AsChar, IResult, InputTakeAtPosition};
 use crate::config::Syntax;
 use crate::CompileError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Hash)]
 pub(crate) enum Node<'a> {
     Lit(&'a str, &'a str, &'a str),
     Comment(Ws),
@@ -34,7 +34,7 @@ pub(crate) enum Node<'a> {
     Continue(Ws),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Hash)]
 pub(crate) struct Loop<'a> {
     pub(crate) ws1: Ws,
     pub(crate) var: Target<'a>,
@@ -46,7 +46,7 @@ pub(crate) struct Loop<'a> {
     pub(crate) ws3: Ws,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Hash)]
 pub(crate) enum Expr<'a> {
     BoolLit(&'a str),
     NumLit(&'a str),
@@ -110,7 +110,7 @@ impl Expr<'_> {
 
 pub(crate) type When<'a> = (Ws, Target<'a>, Vec<Node<'a>>);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Hash)]
 pub(crate) struct Macro<'a> {
     pub(crate) ws1: Ws,
     pub(crate) args: Vec<&'a str>,
@@ -118,7 +118,7 @@ pub(crate) struct Macro<'a> {
     pub(crate) ws2: Ws,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Hash)]
 pub(crate) enum Target<'a> {
     Name(&'a str),
     Tuple(Vec<&'a str>, Vec<Target<'a>>),
@@ -130,7 +130,7 @@ pub(crate) enum Target<'a> {
     Path(Vec<&'a str>),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Hash)]
 pub(crate) enum Whitespace {
     Preserve,
     Suppress,
@@ -151,12 +151,12 @@ impl From<char> for Whitespace {
 /// First field is "minus/plus sign was used on the left part of the item".
 ///
 /// Second field is "minus/plus sign was used on the right part of the item".
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Hash)]
 pub(crate) struct Ws(pub(crate) Option<Whitespace>, pub(crate) Option<Whitespace>);
 
 pub(crate) type Cond<'a> = (Ws, Option<CondTest<'a>>, Vec<Node<'a>>);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Hash)]
 pub(crate) struct CondTest<'a> {
     pub(crate) target: Option<Target<'a>>,
     pub(crate) expr: Expr<'a>,
