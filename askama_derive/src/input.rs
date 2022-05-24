@@ -181,8 +181,7 @@ impl Default for Print {
     }
 }
 
-#[doc(hidden)]
-pub fn extension_to_mime_type(ext: &str) -> Mime {
+pub(crate) fn extension_to_mime_type(ext: &str) -> Mime {
     let basic_type = mime_guess::from_ext(ext).first_or_octet_stream();
     for (simple, utf_8) in &TEXT_TYPES {
         if &basic_type == simple {

@@ -3,23 +3,14 @@
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
-use std::borrow::Cow;
 use std::fmt;
 
-pub use crate::generator::derive_template;
-pub use crate::input::extension_to_mime_type;
 pub use askama_escape::MarkupDisplay;
-use proc_macro2::{Span, TokenStream};
 
-mod config;
 mod error;
 pub use crate::error::{Error, Result};
 pub mod filters;
-mod generator;
 pub mod helpers;
-mod heritage;
-mod input;
-mod parser;
 
 /// Main `Template` trait; implementations are generally derived
 ///
@@ -104,48 +95,6 @@ impl<T: Template> DynTemplate for T {
 impl fmt::Display for dyn DynTemplate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.dyn_render_into(f).map_err(|_| ::std::fmt::Error {})
-    }
-}
-
-#[derive(Debug, Clone)]
-struct CompileError {
-    msg: Cow<'static, str>,
-    span: Span,
-}
-
-impl CompileError {
-    fn new<S: Into<Cow<'static, str>>>(s: S, span: Span) -> Self {
-        Self {
-            msg: s.into(),
-            span,
-        }
-    }
-
-    fn into_compile_error(self) -> TokenStream {
-        syn::Error::new(self.span, self.msg).to_compile_error()
-    }
-}
-
-impl std::error::Error for CompileError {}
-
-impl fmt::Display for CompileError {
-    #[inline]
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.write_str(&self.msg)
-    }
-}
-
-impl From<&'static str> for CompileError {
-    #[inline]
-    fn from(s: &'static str) -> Self {
-        Self::new(s, Span::call_site())
-    }
-}
-
-impl From<String> for CompileError {
-    #[inline]
-    fn from(s: String) -> Self {
-        Self::new(s, Span::call_site())
     }
 }
 
