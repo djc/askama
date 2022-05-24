@@ -20,3 +20,13 @@ askama = { version = "0.11.2", path = "../askama", default-features = false, fea
 actix-rt = { version = "2", default-features = false }
 actix-test = "=0.1.0-beta.13"
 bytes = { version = "1" }
+
+[features]
+default = ["askama/default"]
+config = ["askama/config"]
+humansize = ["askama/humansize"]
+markdown = ["askama/markdown"]
+num-traits = ["askama/num-traits"]
+serde-json = ["askama/serde-json"]
+serde-yaml = ["askama/serde-yaml"]
+urlencode = ["askama/urlencode"]

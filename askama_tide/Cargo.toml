@@ -17,3 +17,13 @@ tide = { version = "0.16", default-features = false }
 
 [dev-dependencies]
 async-std = { version = "1.6.5", features = ["attributes"] }
+
+[features]
+default = ["askama/default"]
+config = ["askama/config"]
+humansize = ["askama/humansize"]
+markdown = ["askama/markdown"]
+num-traits = ["askama/num-traits"]
+serde-json = ["askama/serde-json"]
+serde-yaml = ["askama/serde-yaml"]
+urlencode = ["askama/urlencode"]

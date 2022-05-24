@@ -15,3 +15,13 @@ edition = "2018"
 [dependencies]
 askama = { version = "0.11.2", path = "../askama", default-features = false, features = ["with-rocket", "mime", "mime_guess"] }
 rocket = { version = "0.4", default-features = false }
+
+[features]
+default = ["askama/default"]
+config = ["askama/config"]
+humansize = ["askama/humansize"]
+markdown = ["askama/markdown"]
+num-traits = ["askama/num-traits"]
+serde-json = ["askama/serde-json"]
+serde-yaml = ["askama/serde-yaml"]
+urlencode = ["askama/urlencode"]
