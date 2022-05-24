@@ -19,3 +19,13 @@ warp = { version = "0.3", default-features = false }
 [dev-dependencies]
 tokio-test = "0.4"
 tokio = { version = "1", features = ["macros"] }
+
+[features]
+default = ["askama/default"]
+config = ["askama/config"]
+humansize = ["askama/humansize"]
+markdown = ["askama/markdown"]
+num-traits = ["askama/num-traits"]
+serde-json = ["askama/serde-json"]
+serde-yaml = ["askama/serde-yaml"]
+urlencode = ["askama/urlencode"]

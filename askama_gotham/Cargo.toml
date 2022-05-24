@@ -20,3 +20,13 @@ gotham = { version = "0.7", default-features = false }
 gotham = { version = "0.7", features = ["testing"] }
 hyper = "0.14"
 mime = "0.3"
+
+[features]
+default = ["askama/default"]
+config = ["askama/config"]
+humansize = ["askama/humansize"]
+markdown = ["askama/markdown"]
+num-traits = ["askama/num-traits"]
+serde-json = ["askama/serde-json"]
+serde-yaml = ["askama/serde-yaml"]
+urlencode = ["askama/urlencode"]

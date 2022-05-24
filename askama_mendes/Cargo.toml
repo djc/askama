@@ -20,3 +20,13 @@ mendes = "0.0.64"
 async-trait = "0.1.51"
 hyper = "0.14.15"
 tokio = { version = "1.12", features = ["macros", "rt-multi-thread"] }
+
+[features]
+default = ["askama/default"]
+config = ["askama/config"]
+humansize = ["askama/humansize"]
+markdown = ["askama/markdown"]
+num-traits = ["askama/num-traits"]
+serde-json = ["askama/serde-json"]
+serde-yaml = ["askama/serde-yaml"]
+urlencode = ["askama/urlencode"]
