@@ -13,20 +13,27 @@ edition = "2018"
 proc-macro = true
 
 [features]
-config = ["askama_shared/config"]
-humansize = ["askama_shared/humansize"]
-markdown = ["askama_shared/markdown"]
-urlencode = ["askama_shared/percent-encoding"]
-serde-json = ["askama_shared/json"]
-serde-yaml = ["askama_shared/yaml"]
-num-traits = ["askama_shared/num-traits"]
-with-actix-web = ["askama_shared/actix-web"]
-with-axum = ["askama_shared/axum"]
-with-gotham = ["askama_shared/gotham"]
-with-mendes = ["askama_shared/mendes"]
-with-rocket = ["askama_shared/rocket"]
-with-tide = ["askama_shared/tide"]
-with-warp = ["askama_shared/warp"]
+config = ["serde", "toml"]
+humansize = []
+markdown = []
+urlencode = []
+serde-json = []
+serde-yaml = []
+num-traits = []
+with-actix-web = []
+with-axum = []
+with-gotham = []
+with-mendes = []
+with-rocket = []
+with-tide = []
+with-warp = []
 
 [dependencies]
-askama_shared = { version = "0.13.0", path = "../askama_shared", default-features = false }
+mime = "0.3"
+mime_guess = "2"
+nom = "7"
+proc-macro2 = "1"
+quote = "1"
+serde = { version = "1.0", optional = true, features = ["derive"] }
+syn = "1"
+toml = { version = "0.5", optional = true }

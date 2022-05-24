@@ -63,18 +63,11 @@
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
-pub use askama_derive::*;
+pub use askama_derive::Template;
 pub use askama_escape::{Html, Text};
 pub use askama_shared::{
     self as shared, filters, helpers, DynTemplate, Error, MarkupDisplay, Result, Template,
 };
-
-#[deprecated(since = "0.11.1", note = "The only function in this mod is deprecated")]
-pub mod mime {
-    #[cfg(all(feature = "mime_guess", feature = "mime"))]
-    #[deprecated(since = "0.11.1", note = "Use Template::MIME_TYPE instead")]
-    pub use crate::shared::extension_to_mime_type;
-}
 
 /// Old build script helper to rebuild crates if contained templates have changed
 ///

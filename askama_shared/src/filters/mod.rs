@@ -43,42 +43,6 @@ const URLENCODE_STRICT_SET: &AsciiSet = &NON_ALPHANUMERIC
 // Same as URLENCODE_STRICT_SET, but preserves forward slashes for encoding paths
 const URLENCODE_SET: &AsciiSet = &URLENCODE_STRICT_SET.remove(b'/');
 
-// This is used by the code generator to decide whether a named filter is part of
-// Askama or should refer to a local `filters` module. It should contain all the
-// filters shipped with Askama, even the optional ones (since optional inclusion
-// in the const vector based on features seems impossible right now).
-pub const BUILT_IN_FILTERS: &[&str] = &[
-    "abs",
-    "capitalize",
-    "center",
-    "e",
-    "escape",
-    "filesizeformat",
-    "fmt",
-    "format",
-    "indent",
-    "into_f64",
-    "into_isize",
-    "join",
-    "linebreaks",
-    "linebreaksbr",
-    "paragraphbreaks",
-    "lower",
-    "lowercase",
-    "safe",
-    "trim",
-    "truncate",
-    "upper",
-    "uppercase",
-    "urlencode",
-    "urlencode_strict",
-    "wordcount",
-    // optional features, reserve the names anyway:
-    "json",
-    "markdown",
-    "yaml",
-];
-
 /// Marks a string (or other `Display` type) as safe
 ///
 /// Use this is you want to allow markup in an expression, or if you know

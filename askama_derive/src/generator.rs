@@ -2,9 +2,9 @@ use crate::config::{get_template_source, read_config_file, Config, WhitespaceHan
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
 use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
-use crate::{filters, CompileError};
+use crate::CompileError;
 
-use proc_macro2::TokenStream;
+use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 
 use std::collections::HashMap;
@@ -12,9 +12,8 @@ use std::path::{Path, PathBuf};
 use std::{cmp, hash, mem, str};
 
 /// The actual implementation for askama_derive::Template
-#[doc(hidden)]
-pub fn derive_template(input: TokenStream) -> TokenStream {
-    let ast: syn::DeriveInput = syn::parse2(input).unwrap();
+pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
+    let ast: syn::DeriveInput = syn::parse(input).unwrap();
     match build_template(&ast) {
         Ok(source) => source.parse().unwrap(),
         Err(e) => e.into_compile_error(),
@@ -302,19 +301,19 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         self.impl_template(ctx, &mut buf)?;
         self.impl_display(&mut buf)?;
 
-        #[cfg(feature = "actix-web")]
+        #[cfg(feature = "with-actix-web")]
         self.impl_actix_web_responder(&mut buf)?;
-        #[cfg(feature = "axum")]
+        #[cfg(feature = "with-axum")]
         self.impl_axum_into_response(&mut buf)?;
-        #[cfg(feature = "gotham")]
+        #[cfg(feature = "with-gotham")]
         self.impl_gotham_into_response(&mut buf)?;
-        #[cfg(feature = "mendes")]
+        #[cfg(feature = "with-mendes")]
         self.impl_mendes_responder(&mut buf)?;
-        #[cfg(feature = "rocket")]
+        #[cfg(feature = "with-rocket")]
         self.impl_rocket_responder(&mut buf)?;
-        #[cfg(feature = "tide")]
+        #[cfg(feature = "with-tide")]
         self.impl_tide_integrations(&mut buf)?;
-        #[cfg(feature = "warp")]
+        #[cfg(feature = "with-warp")]
         self.impl_warp_reply(&mut buf)?;
 
         Ok(buf.buf)
@@ -405,7 +404,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement Actix-web's `Responder`.
-    #[cfg(feature = "actix-web")]
+    #[cfg(feature = "with-actix-web")]
     fn impl_actix_web_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama_actix::actix_web::Responder", None)?;
         buf.writeln("type Body = ::askama_actix::actix_web::body::BoxBody;")?;
@@ -420,7 +419,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement Axum's `IntoResponse`.
-    #[cfg(feature = "axum")]
+    #[cfg(feature = "with-axum")]
     fn impl_axum_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama_axum::IntoResponse", None)?;
         buf.writeln("#[inline]")?;
@@ -435,7 +434,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement gotham's `IntoResponse`.
-    #[cfg(feature = "gotham")]
+    #[cfg(feature = "with-gotham")]
     fn impl_gotham_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama_gotham::IntoResponse", None)?;
         buf.writeln("#[inline]")?;
@@ -450,7 +449,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement mendes' `Responder`.
-    #[cfg(feature = "mendes")]
+    #[cfg(feature = "with-mendes")]
     fn impl_mendes_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         let param = syn::parse_str("A: ::mendes::Application").unwrap();
 
@@ -500,7 +499,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     // Implement Rocket's `Responder`.
-    #[cfg(feature = "rocket")]
+    #[cfg(feature = "with-rocket")]
     fn impl_rocket_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         let lifetime = syn::Lifetime::new("'askama", proc_macro2::Span::call_site());
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
@@ -523,7 +522,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         Ok(())
     }
 
-    #[cfg(feature = "tide")]
+    #[cfg(feature = "with-tide")]
     fn impl_tide_integrations(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         let ext = self.input.extension().unwrap_or("txt");
 
@@ -549,7 +548,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("}\n}")
     }
 
-    #[cfg(feature = "warp")]
+    #[cfg(feature = "with-warp")]
     fn impl_warp_reply(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama_warp::warp::reply::Reply", None)?;
         buf.writeln("#[inline]")?;
@@ -1381,11 +1380,11 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             name = "json";
         }
 
-        #[cfg(not(feature = "json"))]
+        #[cfg(not(feature = "serde-json"))]
         if name == "json" {
             return Err("the `json` filter requires the `serde-json` feature to be enabled".into());
         }
-        #[cfg(not(feature = "yaml"))]
+        #[cfg(not(feature = "serde-yaml"))]
         if name == "yaml" {
             return Err("the `yaml` filter requires the `serde-yaml` feature to be enabled".into());
         }
@@ -1396,7 +1395,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 "::askama::filters::{}({}, ",
                 name, self.input.escaper
             ));
-        } else if filters::BUILT_IN_FILTERS.contains(&name) {
+        } else if crate::BUILT_IN_FILTERS.contains(&name) {
             buf.write(&format!("::askama::filters::{}(", name));
         } else {
             buf.write(&format!("filters::{}(", name));
