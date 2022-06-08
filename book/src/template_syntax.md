@@ -390,3 +390,11 @@ You can then call it later with `{% call name(args) %}`
 
 {% call heading(s) %}
 ```
+
+You can place templates in a separate file and use it in your templates by using `{% import %}`
+
+```
+{%- import "macro.html" as scope -%}
+
+{% call scope::heading(s) %}
+```
