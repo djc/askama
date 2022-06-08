@@ -7,23 +7,23 @@
 
 use std::fmt::{self, Write};
 
-#[cfg(feature = "serde_json")]
+#[cfg(feature = "serde-json")]
 mod json;
-#[cfg(feature = "serde_json")]
+#[cfg(feature = "serde-json")]
 pub use self::json::json;
 
-#[cfg(feature = "serde_yaml")]
+#[cfg(feature = "serde-yaml")]
 mod yaml;
-#[cfg(feature = "serde_yaml")]
+#[cfg(feature = "serde-yaml")]
 pub use self::yaml::yaml;
 
 #[allow(unused_imports)]
 use crate::error::Error::Fmt;
 use askama_escape::{Escaper, MarkupDisplay};
 #[cfg(feature = "humansize")]
-use humansize::{file_size_opts, FileSize};
+use dep_humansize::{file_size_opts, FileSize};
 #[cfg(feature = "num-traits")]
-use num_traits::{cast::NumCast, Signed};
+use dep_num_traits::{cast::NumCast, Signed};
 #[cfg(feature = "percent-encoding")]
 use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 
