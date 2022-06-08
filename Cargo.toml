@@ -8,7 +8,6 @@ members = [
     "askama_escape",
     "askama_mendes",
     "askama_rocket",
-    "askama_shared",
     "askama_tide",
     "askama_warp",
     "testing",
@@ -18,6 +17,5 @@ default-members = [
     "askama",
     "askama_derive",
     "askama_escape",
-    "askama_shared",
     "testing",
 ]
