@@ -442,6 +442,11 @@ struct Item&lt;'a&gt; {
 
 {% call heading(s) %}
 </code></pre>
+<p>You can place templates in a separate file and use it in your templates by using <code>{% import %}</code></p>
+<pre><code>{%- import &quot;macro.html&quot; as scope -%}
+
+{% call scope::heading(s) %}
+</code></pre>
 
                     </main>
 

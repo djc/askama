@@ -773,6 +773,11 @@ struct Item&lt;'a&gt; {
 
 {% call heading(s) %}
 </code></pre>
+<p>You can place templates in a separate file and use it in your templates by using <code>{% import %}</code></p>
+<pre><code>{%- import &quot;macro.html&quot; as scope -%}
+
+{% call scope::heading(s) %}
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="filters-1"><a class="header" href="#filters-1">Filters</a></h1>
 <p>Values such as those obtained from variables can be post-processed
 using <strong>filters</strong>.
