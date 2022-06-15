@@ -229,11 +229,12 @@ fn find_used_templates(
     }
     Ok(())
 }
-struct Generator<'a, S: std::hash::BuildHasher> {
+
+struct Generator<'a> {
     // The template input state: original struct AST and attributes
     input: &'a TemplateInput<'a>,
     // All contexts, keyed by the package-relative template path
-    contexts: &'a HashMap<&'a Path, Context<'a>, S>,
+    contexts: &'a HashMap<&'a Path, Context<'a>>,
     // The heritage contains references to blocks and their ancestry
     heritage: Option<&'a Heritage<'a>>,
     // Variables accessible directly from the current scope (not redirected to context)
@@ -256,14 +257,14 @@ struct Generator<'a, S: std::hash::BuildHasher> {
     whitespace: WhitespaceHandling,
 }
 
-impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
+impl<'a> Generator<'a> {
     fn new<'n>(
         input: &'n TemplateInput<'_>,
-        contexts: &'n HashMap<&'n Path, Context<'n>, S>,
+        contexts: &'n HashMap<&'n Path, Context<'n>>,
         heritage: Option<&'n Heritage<'_>>,
         locals: MapChain<'n, &'n str, LocalMeta>,
         whitespace: WhitespaceHandling,
-    ) -> Generator<'n, S> {
+    ) -> Generator<'n> {
         Generator {
             input,
             contexts,
@@ -278,7 +279,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         }
     }
 
-    fn child(&mut self) -> Generator<'_, S> {
+    fn child(&mut self) -> Generator<'_> {
         let locals = MapChain::with_parent(&self.locals);
         Self::new(
             self.input,
