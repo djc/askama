@@ -1985,10 +1985,9 @@ where
     /// Iterates the scopes in reverse and returns `Some(LocalMeta)`
     /// from the first scope where `key` exists.
     fn get(&self, key: &K) -> Option<&V> {
-        let scopes = self.scopes.iter().rev();
+        let mut scopes = self.scopes.iter().rev();
         scopes
-            .filter_map(|set| set.get(key))
-            .next()
+            .find_map(|set| set.get(key))
             .or_else(|| self.parent.and_then(|set| set.get(key)))
     }
 
