@@ -249,7 +249,7 @@ struct RawEscaper<'a> {
 }
 
 pub(crate) fn read_config_file(
-    config_path: &Option<String>,
+    config_path: Option<&str>,
 ) -> std::result::Result<String, CompileError> {
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let filename = match config_path {

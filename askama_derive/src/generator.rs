@@ -29,7 +29,7 @@ pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
 /// value as passed to the `template()` attribute.
 fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     let template_args = TemplateArgs::new(ast)?;
-    let config_toml = read_config_file(&template_args.config_path)?;
+    let config_toml = read_config_file(template_args.config_path.as_deref())?;
     let config = Config::new(&config_toml)?;
     let input = TemplateInput::new(ast, &config, template_args)?;
     let source: String = match input.source {
@@ -1286,7 +1286,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             Expr::Filter(name, ref args) => self.visit_filter(buf, name, args)?,
             Expr::Unary(op, ref inner) => self.visit_unary(buf, op, inner)?,
             Expr::BinOp(op, ref left, ref right) => self.visit_binop(buf, op, left, right)?,
-            Expr::Range(op, ref left, ref right) => self.visit_range(buf, op, left, right)?,
+            Expr::Range(op, ref left, ref right) => {
+                self.visit_range(buf, op, left.as_deref(), right.as_deref())?
+            }
             Expr::Group(ref inner) => self.visit_group(buf, inner)?,
             Expr::Call(ref obj, ref args) => self.visit_call(buf, obj, args)?,
             Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
@@ -1638,8 +1640,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         buf: &mut Buffer,
         op: &str,
-        left: &Option<Box<Expr<'_>>>,
-        right: &Option<Box<Expr<'_>>>,
+        left: Option<&Expr<'_>>,
+        right: Option<&Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
         if let Some(left) = left {
             self.visit_expr(buf, left)?;
