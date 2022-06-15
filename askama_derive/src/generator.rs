@@ -2048,22 +2048,18 @@ fn median(sizes: &mut [usize]) -> usize {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 enum AstLevel {
     Top,
     Block,
     Nested,
 }
 
-impl Copy for AstLevel {}
-
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 enum DisplayWrap {
     Wrapped,
     Unwrapped,
 }
-
-impl Copy for DisplayWrap {}
 
 #[derive(Debug)]
 enum Writable<'a> {
