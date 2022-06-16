@@ -6,7 +6,7 @@ inputs:
     default: ubuntu-latest
     required: false
   toolchain:
-    description: Pass-through to tailchain on actions-rs
+    description: Pass-through to toolchain on actions-rs
     default: stable
     required: false
   components:
