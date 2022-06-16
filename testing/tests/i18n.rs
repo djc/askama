@@ -3,7 +3,7 @@
 #![cfg(feature = "with-i18n")]
 #![allow(unused)]
 */
-
+#![cfg(feature = "localization")]
 use askama::init_translation;
 use askama::Template;
 
