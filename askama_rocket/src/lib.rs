@@ -14,6 +14,6 @@ pub fn respond<T: Template>(t: &T, _ext: &str) -> Result<'static> {
     let rsp = t.render().map_err(|_| Status::InternalServerError)?;
     Response::build()
         .header(Header::new("content-type", T::MIME_TYPE))
-        .sized_body(Cursor::new(rsp))
+        .sized_body(rsp.len(), Cursor::new(rsp))
         .ok()
 }

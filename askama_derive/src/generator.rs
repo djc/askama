@@ -506,7 +506,7 @@ impl<'a> Generator<'a> {
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
         self.write_header(
             buf,
-            "::askama_rocket::Responder<'askama>",
+            "::askama_rocket::Responder<'askama, 'askama>",
             Some(vec![param]),
         )?;
 
