@@ -2,11 +2,16 @@ name: Setup Rust Environment
 
 inputs:
   os:
+    description: Runner Type for generating hash-key
     default: ubuntu-latest
+    required: false
   toolchain:
+    description: Pass-through to tailchain on actions-rs
     default: stable
+    required: false
   components:
-
+    description: Pass-through to components on actions-rs
+    required: false
 
 runs:
   using: composite
@@ -26,4 +31,4 @@ runs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
-        key: ${{ inputs.os }}-${{ steps.toolchain-install.outputs.rustc_hash }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ inputs.os }}-${{ steps.toolchain-install.outputs.rustc_hash }}-cargo-${{ hashFiles('**/Cargo.lock') }}a
