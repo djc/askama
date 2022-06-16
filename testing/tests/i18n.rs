@@ -19,7 +19,7 @@ init_translation! {
 #[derive(Template)]
 #[template(path = "i18n_invalid.html")]
 struct UsesI18nInvalid<'a> {
-    #[localizer]
+    #[locale]
     loc: MyLocalizer,
     name: &'a str,
 }
@@ -27,7 +27,7 @@ struct UsesI18nInvalid<'a> {
 #[derive(Template)]
 #[template(path = "i18n.html")]
 struct UsesI18n<'a> {
-    #[localizer]
+    #[locale]
     loc: MyLocalizer,
     name: &'a str,
     hours: f64,
@@ -35,7 +35,7 @@ struct UsesI18n<'a> {
 #[derive(Template)]
 #[template(path = "i18n_no_args.html")]
 struct UsesNoArgsI18n<'a> {
-    #[localizer]
+    #[locale]
     loc: MyLocalizer,
     test: &'a str,
 }
