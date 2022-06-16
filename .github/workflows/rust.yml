@@ -24,10 +24,15 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
+        id: toolchain-install
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           override: true
+      - uses: ./.github/actions/setup
+        with:
+          os: ${{ runner.os }}
+          rusthash: ${{ steps.toolchain-install.outputs.rustc_hash }}
       - uses: actions-rs/cargo@v1
         with:
           command: build
@@ -41,10 +46,15 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
+        id: toolchain-install
         with:
           profile: minimal
           toolchain: stable
           override: true
+      - uses: ./.github/actions/setup
+        with:
+          os: ${{ runner.os }}
+          rusthash: ${{ steps.toolchain-install.outputs.rustc_hash }}
       - run: cargo test --package askama_actix --all-targets
       - run: cargo clippy --package askama_actix --all-targets -- -D warnings
 
