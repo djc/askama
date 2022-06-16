@@ -31,4 +31,4 @@ runs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
-        key: ${{ inputs.os }}-${{ steps.toolchain-install.outputs.rustc_hash }}-cargo-${{ hashFiles('**/Cargo.lock') }}a
+        key: ${{ inputs.os }}-${{ steps.toolchain-install.outputs.rustc_hash }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/Cargo.toml') }}
