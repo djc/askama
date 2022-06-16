@@ -3,13 +3,21 @@ name: Setup Rust Environment
 inputs:
   os:
     default: ubuntu-latest
-  rusthash:
-    description: Unique hash from toolchain action
-    required: true
+  toolchain:
+    default: stable
+  components:
+
 
 runs:
   using: composite
   steps:
+    - uses: actions-rs/toolchain@v1
+      id: toolchain-install
+      with:
+        profile: minimal
+        override: true
+        toolchain: ${{ inputs.toolchain }}
+        components: ${{ inputs.components }}  
     - uses: actions/cache@v3
       with:
         path: |
@@ -18,4 +26,4 @@ runs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
-        key: ${{ inputs.os }}-${{ inputs.rusthash }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ inputs.os }}-${{ steps.toolchain-install.outputs.rustc_hash }}-cargo-${{ hashFiles('**/Cargo.lock') }}
