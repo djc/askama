@@ -4,15 +4,18 @@ inputs:
   os:
     default: ubuntu-latest
   rusthash:
+    description: Unique hash from toolchain action
     required: true
 
-steps:
-  - uses: actions/cache@v3
-    with:
-      path: |
-        ~/.cargo/bin/
-        ~/.cargo/registry/index/
-        ~/.cargo/registry/cache/
-        ~/.cargo/git/db/
-        target/
-      key: ${{ inputs.os }}-${{ inputs.rusthash }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ inputs.os }}-${{ inputs.rusthash }}-cargo-${{ hashFiles('**/Cargo.lock') }}
