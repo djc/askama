@@ -1279,7 +1279,46 @@ mod tests {
     fn test_invalid_block() {
         super::parse("{% extend \"blah\" %}", &Syntax::default()).unwrap();
     }
-
+    #[test]
+    fn test_parse_localize() {
+        assert_eq!(
+            super::parse("{{ localize(a, v: 32 + 7) }}", &Syntax::default()).unwrap(),
+            vec![Node::Expr(
+                Ws(None, None),
+                Expr::Localize(
+                    "a",
+                    None,
+                    vec![(
+                        "v",
+                        Expr::BinOp("+", Expr::NumLit("32").into(), Expr::NumLit("7").into())
+                    )]
+                )
+            )]
+        );
+    }
+    #[test]
+    fn test_parse_nested_localize() {
+        assert_eq!(
+            super::parse("{{ localize(a, v: localize(a, 2) ) }}", &Syntax::default()).unwrap(),
+            vec![Node::Expr(
+                Ws(None, None),
+                Expr::Localize(
+                    "a",
+                    None,
+                    vec![(
+                        "v",
+                        Expr::Localize(
+                        "a",
+                        None,
+                        vec![(
+                            "",
+                        Expr::StrLit("2"))
+                        ]
+                    ))]
+                )
+            )]
+        );
+    }
     #[test]
     fn test_parse_filter() {
         use Expr::*;
