@@ -66,6 +66,7 @@ pub(crate) enum Expr<'a> {
     Call(Box<Expr<'a>>, Vec<Expr<'a>>),
     RustMacro(&'a str, &'a str),
     Try(Box<Expr<'a>>),
+    Localize(&'a str, Option<&'a str>, Vec<(&'a str, Expr<'a>)>),
 }
 
 impl Expr<'_> {
@@ -668,7 +669,28 @@ macro_rules! expr_prec_layer {
         }
     }
 }
-
+fn localize(i: &str) -> IResult<&str, Expr<'_>> {
+    let (tail, (_, _, message, attribute, args, _)) = tuple((
+        tag("localize"),
+        ws(tag("(")),
+        identifier,
+        opt(tuple((ws(tag(".")), identifier))),
+        opt(tuple((
+            ws(tag(",")),
+            separated_list0(ws(tag(",")), tuple((identifier, ws(tag(":")), expr_any))),
+        ))),
+        ws(tag(")")),
+    ))(i)?;
+    Ok((
+        tail,
+        Expr::Localize(
+            message,
+            attribute.map(|(_, a)| a),
+            args.map(|(_, args)| args.into_iter().map(|(k, _, v)| (k, v)).collect())
+                .unwrap_or_default(),
+        ),
+    ))
+}
 expr_prec_layer!(expr_muldivmod, expr_filtered, "*", "/", "%");
 expr_prec_layer!(expr_addsub, expr_muldivmod, "+", "-");
 expr_prec_layer!(expr_shifts, expr_addsub, ">>", "<<");
@@ -682,10 +704,13 @@ expr_prec_layer!(expr_or, expr_and, "||");
 fn expr_handle_ws(i: &str) -> IResult<&str, Whitespace> {
     alt((char('-'), char('+'), char('~')))(i).map(|(s, r)| (s, Whitespace::from(r)))
 }
-
 fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
     let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(expr_or))(i);
     alt((
+        map(localize, |expr| match expr {
+            Expr::Localize(_, _, _) => expr,
+            _ => panic!("localize failed: {:?}", expr),
+        }),
         map(range_right, |(op, right)| {
             Expr::Range(op, None, right.map(Box::new))
         }),
