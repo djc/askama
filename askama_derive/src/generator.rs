@@ -7,7 +7,9 @@ use crate::CompileError;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
+#[cfg(feature = "localization")]
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::{cmp, hash, mem, str};
 
@@ -254,6 +256,7 @@ struct Generator<'a, S: std::hash::BuildHasher> {
     // If set to `suppress`, the whitespace characters will be removed by default unless `+` is
     // used.
     whitespace: WhitespaceHandling,
+    #[cfg(feature = "localization")]
     // Messages used with localize()
     localized_messages: BTreeSet<String>,
 }
@@ -277,6 +280,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             buf_writable: vec![],
             named: 0,
             whitespace,
+            #[cfg(feature = "localization")]
             localized_messages: BTreeSet::new(),
         }
     }
@@ -1295,12 +1299,14 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
             Expr::Try(ref expr) => self.visit_try(buf, expr.as_ref())?,
             Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
+            #[cfg(feature = "localization")]
             Expr::Localize(message, attribute, ref args) => {
                 self.visit_localize(buf, message, attribute, args)?
             }
         })
     }
 
+    #[cfg(feature = "localization")]
     fn visit_localize(
         &mut self,
         buf: &mut Buffer,

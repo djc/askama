@@ -18,6 +18,7 @@ pub(crate) struct TemplateInput<'a> {
     pub(crate) mime_type: String,
     pub(crate) parent: Option<&'a syn::Type>,
     pub(crate) path: PathBuf,
+    #[cfg(feature = "localization")]
     pub(crate) localizer: Option<(syn::Ident, &'a syn::Type)>,
 }
 
@@ -66,6 +67,7 @@ impl TemplateInput<'_> {
                         .iter()
                         .find(|f| f.ident.as_ref().filter(|name| *name == "_parent").is_some())
                         .map(|f| &f.ty),
+                    #[cfg(feature = "localization")]
                     {
                         let localizers: Vec<_> = named
                             .iter()
@@ -87,7 +89,31 @@ impl TemplateInput<'_> {
             }
             _ => (None, None),
         };
-
+        #[cfg(feature = "localization")]
+        let localizer = match ast.data {
+            syn::Data::Struct(syn::DataStruct {
+                fields: syn::Fields::Named(ref fields),
+                ..
+            }) => {
+                let named = &fields.named;
+                let localizers: Vec<_> = named
+                    .iter()
+                    .filter(|f| f.ident.is_some())
+                    .flat_map(|f| {
+                        f.attrs
+                            .iter()
+                            .filter(|a| a.path.is_ident("localizer"))
+                            .map(move |_| (f.ident.to_owned().unwrap(), &f.ty))
+                    })
+                    .collect();
+                if localizers.len() > 1 {
+                    panic!("Can't have multiple localizers for a single template!");
+                } else {
+                    localizers.get(0).map(|l| l.to_owned())
+                }
+            },
+            _ => (None, None),
+        };
         if parent.is_some() {
             eprint!(
                 "   --> in struct {}\n   = use of deprecated field '_parent'\n",
@@ -142,6 +168,7 @@ impl TemplateInput<'_> {
             mime_type,
             parent,
             path,
+            #[cfg(feature = "localization")]
             localizer
         })
     }

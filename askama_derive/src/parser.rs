@@ -66,6 +66,7 @@ pub(crate) enum Expr<'a> {
     Call(Box<Expr<'a>>, Vec<Expr<'a>>),
     RustMacro(&'a str, &'a str),
     Try(Box<Expr<'a>>),
+    #[cfg(feature = "localization")]
     Localize(&'a str, Option<&'a str>, Vec<(&'a str, Expr<'a>)>),
 }
 
@@ -669,6 +670,7 @@ macro_rules! expr_prec_layer {
         }
     }
 }
+#[cfg(feature = "localization")]
 fn localize(i: &str) -> IResult<&str, Expr<'_>> {
     let (tail, (_, _, message, attribute, args, _)) = tuple((
         tag("localize"),
@@ -706,7 +708,8 @@ fn expr_handle_ws(i: &str) -> IResult<&str, Whitespace> {
 }
 fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
     let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(expr_or))(i);
-    alt((
+    alt((        
+        #[cfg(feature = "localization")]
         map(localize, |expr| match expr {
             Expr::Localize(_, _, _) => expr,
             _ => panic!("localize failed: {:?}", expr),
@@ -1279,6 +1282,7 @@ mod tests {
     fn test_invalid_block() {
         super::parse("{% extend \"blah\" %}", &Syntax::default()).unwrap();
     }
+    #[cfg(feature = "localization")]
     #[test]
     fn test_parse_localize() {
         assert_eq!(
@@ -1296,6 +1300,7 @@ mod tests {
             )]
         );
     }
+    #[cfg(feature = "localization")]
     #[test]
     fn test_parse_nested_localize() {
         assert_eq!(
