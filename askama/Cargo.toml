@@ -31,6 +31,7 @@ with-mendes = ["askama_derive/with-mendes"]
 with-rocket = ["askama_derive/with-rocket"]
 with-tide = ["askama_derive/with-tide"]
 with-warp = ["askama_derive/with-warp"]
+localization = ["dep:luent-templates","dep:unic-langid"]
 
 # deprecated
 mime = []

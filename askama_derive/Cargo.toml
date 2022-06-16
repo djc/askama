@@ -27,6 +27,7 @@ with-mendes = []
 with-rocket = []
 with-tide = []
 with-warp = []
+localization = []
 
 [dependencies]
 mime = "0.3"

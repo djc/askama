@@ -10,6 +10,7 @@ publish = false
 default = ["serde-json", "markdown"]
 serde-json = ["serde_json", "askama/serde-json"]
 markdown = ["comrak", "askama/markdown"]
+localization = ["dep:luent-templates","dep:unic-langid"]
 
 [dependencies]
 askama = { path = "../askama", version = "0.11.0-beta.1" }
