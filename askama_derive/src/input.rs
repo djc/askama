@@ -52,44 +52,21 @@ impl TemplateInput<'_> {
                 return Err("must include 'ext' attribute when using 'source' attribute".into())
             }
         };
-
         // Check to see if a `_parent` field was defined on the context
         // struct, and store the type for it for use in the code generator.
-        // Also gets the localizer if there is one defined via #[locale]
-        let (parent, localizer) = match ast.data {
+        let parent = match ast.data {
             syn::Data::Struct(syn::DataStruct {
                 fields: syn::Fields::Named(ref fields),
                 ..
-            }) => {
-                let named = &fields.named;
-                (
-                    named
-                        .iter()
-                        .find(|f| f.ident.as_ref().filter(|name| *name == "_parent").is_some())
-                        .map(|f| &f.ty),
-                    #[cfg(feature = "localization")]
-                    {
-                        let localizers: Vec<_> = named
-                            .iter()
-                            .filter(|f| f.ident.is_some())
-                            .flat_map(|f| {
-                                f.attrs
-                                    .iter()
-                                    .filter(|a| a.path.is_ident("localizer"))
-                                    .map(move |_| (f.ident.to_owned().unwrap(), &f.ty))
-                            })
-                            .collect();
-                        if localizers.len() > 1 {
-                            panic!("Can't have multiple localizers for a single template!");
-                        } else {
-                            localizers.get(0).map(|l| l.to_owned())
-                        }
-                    },
-                )
-            }
-            _ => (None, None),
+            }) => fields
+                .named
+                .iter()
+                .find(|f| f.ident.as_ref().filter(|name| *name == "_parent").is_some())
+                .map(|f| &f.ty),
+            _ => None,
         };
         #[cfg(feature = "localization")]
+        // if enabled, it tries to get th localizer
         let localizer = match ast.data {
             syn::Data::Struct(syn::DataStruct {
                 fields: syn::Fields::Named(ref fields),
@@ -102,7 +79,7 @@ impl TemplateInput<'_> {
                     .flat_map(|f| {
                         f.attrs
                             .iter()
-                            .filter(|a| a.path.is_ident("localizer"))
+                            .filter(|a| a.path.is_ident("locale"))
                             .map(move |_| (f.ident.to_owned().unwrap(), &f.ty))
                     })
                     .collect();
@@ -112,7 +89,7 @@ impl TemplateInput<'_> {
                     localizers.get(0).map(|l| l.to_owned())
                 }
             },
-            _ => (None, None),
+            _ => None,
         };
         if parent.is_some() {
             eprint!(
