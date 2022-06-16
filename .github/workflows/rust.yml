@@ -52,7 +52,7 @@ jobs:
           toolchain: stable
           override: true
       - uses: ./.github/actions/setup
-        with:remove default
+        with:
           rusthash: ${{ steps.toolchain-install.outputs.rustc_hash }}
       - run: cargo test --package askama_actix --all-targets
       - run: cargo clippy --package askama_actix --all-targets -- -D warnings
