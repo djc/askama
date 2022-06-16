@@ -501,6 +501,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "config")]
     #[test]
     fn test_whitespace_parsing() {
         let config = Config::new(
