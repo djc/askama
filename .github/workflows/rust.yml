@@ -23,10 +23,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
       - uses: ./.github/actions/setup
         with:
-          os: ${{ runner.os }}
+          os: ${{ matrix.os }}
           toolchain: ${{ matrix.rust }}
       - uses: actions-rs/cargo@v1
         with:
