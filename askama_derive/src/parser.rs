@@ -1304,7 +1304,7 @@ mod tests {
     #[test]
     fn test_parse_nested_localize() {
         assert_eq!(
-            super::parse("{{ localize(a, v: localize(a, 2) ) }}", &Syntax::default()).unwrap(),
+            super::parse("{{ localize(a, v: localize(a, v: 32 + 7) ) }}", &Syntax::default()).unwrap(),
             vec![Node::Expr(
                 Ws(None, None),
                 Expr::Localize(
@@ -1316,9 +1316,9 @@ mod tests {
                         "a",
                         None,
                         vec![(
-                            "",
-                        Expr::StrLit("2"))
-                        ]
+                            "v",
+                            Expr::BinOp("+", Expr::NumLit("32").into(), Expr::NumLit("7").into())
+                        )]
                     ))]
                 )
             )]
