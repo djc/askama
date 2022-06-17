@@ -32,7 +32,6 @@ struct UsesI18n<'a> {
 struct UsesNoArgsI18n<'a> {
     #[locale]
     loc: Locale<'a>,
-    test: &'a str,
 }
 
 #[test]
@@ -66,8 +65,7 @@ fn unknown_language() {
 #[test]
 fn no_args() {
     let template = UsesNoArgsI18n {
-        loc: Locale::new(unic_langid::langid!("es-MX"), &LOCALES),
-        test: ""
+        loc: Locale::new(unic_langid::langid!("en-US"), &LOCALES),
     };
     assert_eq!(
         template.render().unwrap(),
