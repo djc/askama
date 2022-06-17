@@ -2,11 +2,11 @@ use std::cell::Cell;
 use std::str;
 
 use nom::branch::alt;
-use nom::bytes::complete::{escaped, is_not, tag, take_till, take_until};
+use nom::bytes::complete::{escaped, is_not, tag, take_till, take_until, take};
 use nom::character::complete::{anychar, char, digit1};
-use nom::combinator::{complete, consumed, cut, eof, map, not, opt, peek, recognize, value};
+use nom::combinator::{complete, consumed, cut, eof, map, not, opt, peek, recognize, value, fail};
 use nom::error::{Error, ErrorKind};
-use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
+use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1, many_till};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{self, error_position, AsChar, IResult, InputTakeAtPosition};
 
@@ -671,11 +671,22 @@ macro_rules! expr_prec_layer {
     }
 }
 #[cfg(feature = "localization")]
+fn quoted_ident(input: &str) -> IResult<&str, &str> {
+    // Match "
+    let (remaining, _) = tag("\"")(input)?;
+    let (remaining, (inner, _)) = many_till(take(1u32), tag("\""))(remaining)?;
+
+    // Extract inner range
+    let length = inner.len();
+    println!("{}", &input[1 .. length+1]);
+    Ok((remaining, &input[1 .. length+1]))
+}
+#[cfg(feature = "localization")]
 fn localize(i: &str) -> IResult<&str, Expr<'_>> {
-    let (tail, (_, _, message, attribute, args, _)) = tuple((
+    let (tail, (_, _,message, attribute, args, _)) = tuple((
         tag("localize"),
         ws(tag("(")),
-        identifier,
+        quoted_ident,
         opt(tuple((ws(tag(".")), identifier))),
         opt(tuple((
             ws(tag(",")),
@@ -714,6 +725,8 @@ fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
             Expr::Localize(_, _, _) => expr,
             _ => panic!("localize failed: {:?}", expr),
         }),
+        #[cfg(not(feature = "localization"))]
+        fail,
         map(range_right, |(op, right)| {
             Expr::Range(op, None, right.map(Box::new))
         }),
@@ -1286,7 +1299,7 @@ mod tests {
     #[test]
     fn test_parse_localize() {
         assert_eq!(
-            super::parse("{{ localize(a, v: 32 + 7) }}", &Syntax::default()).unwrap(),
+            super::parse(r#"{{ localize("a", v: 32 + 7) }}"#, &Syntax::default()).unwrap(),
             vec![Node::Expr(
                 Ws(None, None),
                 Expr::Localize(
@@ -1305,7 +1318,7 @@ mod tests {
     fn test_parse_nested_localize() {
         assert_eq!(
             super::parse(
-                "{{ localize(a, v: localize(a, v: 32 + 7) ) }}",
+                r#"{{ localize("a", v: localize("a", v: 32 + 7) ) }}"#,
                 &Syntax::default()
             )
             .unwrap(),
