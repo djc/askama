@@ -683,7 +683,7 @@ fn quoted_ident(input: &str) -> IResult<&str, &str> {
 }
 #[cfg(feature = "localization")]
 fn localize(i: &str) -> IResult<&str, Expr<'_>> {
-    let (tail, (_, _,message, attribute, args, _)) = cut(tuple((
+    let (tail, (_, _,message, attribute, args, _)) = tuple((
         tag("localize"),
         ws(tag("(")),
         quoted_ident,
@@ -693,7 +693,7 @@ fn localize(i: &str) -> IResult<&str, Expr<'_>> {
             separated_list0(ws(tag(",")), tuple((identifier, ws(tag(":")), expr_any))),
         ))),
         ws(tag(")")),
-    )))(i)?;
+    ))(i)?;
     Ok((
         tail,
         Expr::Localize(
