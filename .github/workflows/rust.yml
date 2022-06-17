@@ -42,6 +42,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           key: actix-web
+          components: clippy
       - run: cargo test --package askama_actix --all-targets
       - run: cargo clippy --package askama_actix --all-targets -- -D warnings
 
