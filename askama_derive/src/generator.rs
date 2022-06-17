@@ -1345,7 +1345,7 @@ impl<'a> Generator<'a> {
                 buf.write(", ");
             }
             buf.write(&format!(
-                "(\"{}\".to_string(), ({}).into())",
+                "(\"{}\", ({}).into())",
                 name,
                 self.visit_expr_root(value)?
             ));
