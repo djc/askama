@@ -66,7 +66,7 @@ impl TemplateInput<'_> {
             _ => None,
         };
         #[cfg(feature = "localization")]
-        // if enabled, it tries to get th localizer
+        // if enabled, it tries to get the localizer
         let localizer = match ast.data {
             syn::Data::Struct(syn::DataStruct {
                 fields: syn::Fields::Named(ref fields),
