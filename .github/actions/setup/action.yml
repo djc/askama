@@ -1,10 +1,9 @@
 name: Setup Rust Environment
 
 inputs:
-  os:
-    description: Runner Type for generating hash-key
-    default: ubuntu-latest
-    required: false
+  key:
+    description: Cache key
+    required: true
   toolchain:
     description: Pass-through to toolchain on actions-rs
     default: stable
@@ -26,9 +25,12 @@ runs:
     - uses: actions/cache@v3
       with:
         path: |
-          ~/.cargo/bin/
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
-        key: ${{ inputs.os }}-${{ steps.toolchain-install.outputs.rustc_hash }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/Cargo.toml') }}
+        key: ${{ inputs.key }}-${{ runner.os }}-${{ inputs.toolchain }}-${{ steps.toolchain-install.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+        restore-keys: |
+          ${{ inputs.key }}-${{ runner.os }}-${{ inputs.toolchain }}-${{ steps.toolchain-install.outputs.rustc_hash }}-
+          ${{ inputs.key }}-${{ runner.os }}-${{ inputs.toolchain }}-
+          
