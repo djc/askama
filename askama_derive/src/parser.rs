@@ -678,7 +678,6 @@ fn quoted_ident(input: &str) -> IResult<&str, &str> {
 
     // Extract inner range
     let length = inner.len();
-    println!("{}", &input[1 .. length+1]);
     Ok((remaining, &input[1 .. length+1]))
 }
 #[cfg(feature = "localization")]
