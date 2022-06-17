@@ -23,11 +23,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/setup
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
+          key: test-${{ matrix.os }}-${{ matrix.rust }}
       - uses: actions-rs/cargo@v1
         with:
           command: build
@@ -40,11 +39,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/setup
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          key: actix-web
+          components: clippy
       - run: cargo test --package askama_actix --all-targets
       - run: cargo clippy --package askama_actix --all-targets -- -D warnings
 
@@ -52,11 +50,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/setup
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          key: axum
           components: clippy
       - run: cargo test --package askama_axum --all-targets
       - run: cargo clippy --package askama_axum --all-targets -- -D warnings
@@ -65,11 +61,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/setup
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          key: gotham
           components: clippy
       - run: cargo test --package askama_gotham --all-targets
       - run: cargo clippy --package askama_gotham --all-targets -- -D warnings
@@ -78,11 +72,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/setup
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          key: rocket
           components: clippy
       - run: cargo test --package askama_rocket --all-targets
       - run: cargo clippy --package askama_rocket --all-targets -- -D warnings
@@ -91,11 +83,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/setup
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          key: warp
           components: clippy
       - run: cargo test --package askama_warp --all-targets
       - run: cargo clippy --package askama_warp --all-targets -- -D warnings
@@ -104,11 +94,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/setup
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          key: tide
           components: clippy
       - run: cargo test --package askama_tide --all-targets
       - run: cargo clippy --package askama_tide --all-targets -- -D warnings
@@ -117,11 +105,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/setup
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          key: mendes
           components: clippy
       - run: cargo test --package askama_mendes --all-targets
       - run: cargo clippy --package askama_mendes --all-targets -- -D warnings
@@ -130,11 +116,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/setup
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          key: lint
           components: rustfmt, clippy
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all-targets -- -D warnings

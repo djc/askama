@@ -1,0 +1,35 @@
+name: Setup Rust Environment
+
+inputs:
+  key:
+    description: Cache key
+    required: true
+  toolchain:
+    description: Pass-through to toolchain on actions-rs
+    default: stable
+    required: false
+  components:
+    description: Pass-through to components on actions-rs
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - uses: actions-rs/toolchain@v1
+      id: toolchain-install
+      with:
+        profile: minimal
+        override: true
+        toolchain: ${{ inputs.toolchain }}
+        components: ${{ inputs.components }}  
+    - uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ inputs.key }}-${{ runner.os }}-${{ inputs.toolchain }}-${{ steps.toolchain-install.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+        restore-keys: |
+          ${{ inputs.key }}-${{ runner.os }}-${{ inputs.toolchain }}-${{ steps.toolchain-install.outputs.rustc_hash }}-
+          ${{ inputs.key }}-${{ runner.os }}-${{ inputs.toolchain }}-
