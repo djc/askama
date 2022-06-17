@@ -1,7 +1,9 @@
 #![cfg(feature = "localization")]
+
 use askama::Locale;
 use askama::Template;
 use fluent_templates::static_loader;
+
 static_loader! {
     static LOCALES = {
         locales: "i18n-basic",
@@ -11,6 +13,7 @@ static_loader! {
         customise: |bundle| bundle.set_use_isolating(false),
     };
 }
+
 #[derive(Template)]
 #[template(path = "i18n_invalid.html")]
 struct UsesI18nInvalid<'a> {
@@ -27,12 +30,14 @@ struct UsesI18n<'a> {
     name: &'a str,
     hours: f64,
 }
+
 #[derive(Template)]
 #[template(path = "i18n_no_args.html")]
 struct UsesNoArgsI18n<'a> {
     #[locale]
     loc: Locale<'a>,
 }
+
 #[derive(Template)]
 #[template(path = "i18n_broken.html")]
 struct InvalidI18n<'a> {

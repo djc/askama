@@ -71,6 +71,11 @@ use std::fmt;
 
 pub use askama_derive::Template;
 pub use askama_escape::{Html, MarkupDisplay, Text};
+#[cfg(feature = "localization")]
+#[doc(hidden)]
+pub use fluent_templates::fluent_bundle::FluentValue;
+#[cfg(feature = "localization")]
+use fluent_templates::{Loader, StaticLoader};
 
 #[doc(hidden)]
 pub use crate as shared;
@@ -220,28 +225,30 @@ mod tests {
 pub fn rerun_if_templates_changed() {}
 
 #[cfg(feature = "localization")]
-use fluent_templates::Loader;
-#[cfg(feature = "localization")]
 pub struct Locale<'a> {
-    loader: &'a fluent_templates::StaticLoader,
+    loader: &'a StaticLoader,
     language: unic_langid::LanguageIdentifier,
 }
+
 #[cfg(feature = "localization")]
-impl<'a> Locale<'a> {
-    pub fn new(
-        language: unic_langid::LanguageIdentifier,
-        templates: &'static fluent_templates::StaticLoader,
-    ) -> Locale<'a> {
-        Self {
-            loader: templates,
-            language,
-        }
+impl Locale<'_> {
+    pub fn new(language: unic_langid::LanguageIdentifier, loader: &'static StaticLoader) -> Self {
+        Self { loader, language }
     }
-    pub fn translate(
+
+    pub fn translate<'a>(
         &self,
         text_id: &str,
-        args: &std::collections::HashMap<&str, fluent_templates::fluent_bundle::FluentValue<'_>>,
+        args: impl IntoIterator<Item = (&'a str, FluentValue<'a>)>,
     ) -> String {
-        self.loader.lookup_with_args(&self.language, text_id, args)
+        use std::collections::HashMap;
+        use std::iter::FromIterator;
+
+        let args = HashMap::<&str, FluentValue<'_>>::from_iter(args);
+        let args = match args.is_empty() {
+            true => None,
+            false => Some(&args),
+        };
+        self.loader.lookup_complete(&self.language, text_id, args)
     }
 }
