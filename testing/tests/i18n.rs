@@ -36,6 +36,7 @@ struct UsesNoArgsI18n<'a> {
 #[derive(Template)]
 #[template(path = "i18n_broken.html")]
 struct InvalidI18n<'a> {
+    #[locale]
     loc: Locale<'a>,
     car_color: &'a str,
 }
