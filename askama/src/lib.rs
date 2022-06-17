@@ -222,26 +222,26 @@ pub fn rerun_if_templates_changed() {}
 #[cfg(feature = "localization")]
 use fluent_templates::Loader;
 #[cfg(feature = "localization")]
-pub struct Locale<'a>{
+pub struct Locale<'a> {
     loader: &'a fluent_templates::StaticLoader,
     language: unic_langid::LanguageIdentifier,
 }
 #[cfg(feature = "localization")]
 impl<'a> Locale<'a> {
-    pub fn new(language: unic_langid::LanguageIdentifier, templates:  &'static fluent_templates::StaticLoader) -> Locale<'a> {
-        
-    Self { 
-        loader: templates,
-        language,
+    pub fn new(
+        language: unic_langid::LanguageIdentifier,
+        templates: &'static fluent_templates::StaticLoader,
+    ) -> Locale<'a> {
+        Self {
+            loader: templates,
+            language,
         }
     }
     pub fn translate(
         &self,
         text_id: &str,
-        args:
-            &std::collections::HashMap<String, fluent_templates::fluent_bundle::FluentValue<'_>>,
+        args: &std::collections::HashMap<String, fluent_templates::fluent_bundle::FluentValue<'_>>,
     ) -> String {
         self.loader.lookup_with_args(&self.language, text_id, args)
     }
-
 }

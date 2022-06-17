@@ -708,7 +708,7 @@ fn expr_handle_ws(i: &str) -> IResult<&str, Whitespace> {
 }
 fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
     let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(expr_or))(i);
-    alt((        
+    alt((
         #[cfg(feature = "localization")]
         map(localize, |expr| match expr {
             Expr::Localize(_, _, _) => expr,
@@ -1304,7 +1304,11 @@ mod tests {
     #[test]
     fn test_parse_nested_localize() {
         assert_eq!(
-            super::parse("{{ localize(a, v: localize(a, v: 32 + 7) ) }}", &Syntax::default()).unwrap(),
+            super::parse(
+                "{{ localize(a, v: localize(a, v: 32 + 7) ) }}",
+                &Syntax::default()
+            )
+            .unwrap(),
             vec![Node::Expr(
                 Ws(None, None),
                 Expr::Localize(
@@ -1313,13 +1317,18 @@ mod tests {
                     vec![(
                         "v",
                         Expr::Localize(
-                        "a",
-                        None,
-                        vec![(
-                            "v",
-                            Expr::BinOp("+", Expr::NumLit("32").into(), Expr::NumLit("7").into())
-                        )]
-                    ))]
+                            "a",
+                            None,
+                            vec![(
+                                "v",
+                                Expr::BinOp(
+                                    "+",
+                                    Expr::NumLit("32").into(),
+                                    Expr::NumLit("7").into()
+                                )
+                            )]
+                        )
+                    )]
                 )
             )]
         );

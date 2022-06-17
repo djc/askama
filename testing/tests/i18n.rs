@@ -1,6 +1,6 @@
 #![cfg(feature = "localization")]
-use askama::Template;
 use askama::Locale;
+use askama::Template;
 use fluent_templates::static_loader;
 static_loader! {
     static LOCALES = {
@@ -36,9 +36,8 @@ struct UsesNoArgsI18n<'a> {
 #[derive(Template)]
 #[template(path = "i18n_broken.html")]
 struct InvalidI18n<'a> {
-    #[locale]
     loc: Locale<'a>,
-    car_color: &'a str
+    car_color: &'a str,
 }
 
 #[test]
@@ -74,17 +73,17 @@ fn no_args() {
     let template = UsesNoArgsI18n {
         loc: Locale::new(unic_langid::langid!("en-US"), &LOCALES),
     };
-    assert_eq!(
-        template.render().unwrap(),
-        r#"<h3>This is a test</h3>"#
-    )
+    assert_eq!(template.render().unwrap(), r#"<h3>This is a test</h3>"#)
 }
 
 #[test]
 fn invalid_tags_language() {
     let template = InvalidI18n {
         loc: Locale::new(unic_langid::langid!("nl-BE"), &LOCALES),
-        car_color: "Red"
+        car_color: "Red",
     };
-    assert_eq!(template.render().unwrap(), r#"<h1>Unknown localization car</h1>"#); // Should panic here
+    assert_eq!(
+        template.render().unwrap(),
+        r#"<h1>Unknown localization car</h1>"#
+    );
 }

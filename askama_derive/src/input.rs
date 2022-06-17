@@ -88,7 +88,7 @@ impl TemplateInput<'_> {
                 } else {
                     localizers.get(0).map(|l| l.to_owned())
                 }
-            },
+            }
             _ => None,
         };
         if parent.is_some() {
@@ -146,7 +146,7 @@ impl TemplateInput<'_> {
             parent,
             path,
             #[cfg(feature = "localization")]
-            localizer
+            localizer,
         })
     }
 

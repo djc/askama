@@ -14,7 +14,7 @@ mod heritage;
 mod input;
 mod parser;
 
-#[proc_macro_derive(Template, attributes(template,locale))]
+#[proc_macro_derive(Template, attributes(template, locale))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
     generator::derive_template(input)
 }

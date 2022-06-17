@@ -7,9 +7,9 @@ use crate::CompileError;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 
-use std::collections::HashMap;
 #[cfg(feature = "localization")]
 use std::collections::BTreeSet;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::{cmp, hash, mem, str};
 
@@ -1354,7 +1354,6 @@ impl<'a> Generator<'a> {
 
         Ok(DisplayWrap::Unwrapped)
     }
-
 
     fn visit_try(
         &mut self,
