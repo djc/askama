@@ -31,7 +31,7 @@ pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
 /// value as passed to the `template()` attribute.
 fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     let template_args = TemplateArgs::new(ast)?;
-    let config_toml = read_config_file(&template_args.config_path)?;
+    let config_toml = read_config_file(template_args.config_path.as_deref())?;
     let config = Config::new(&config_toml)?;
     let input = TemplateInput::new(ast, &config, template_args)?;
     let source: String = match input.source {
@@ -231,11 +231,12 @@ fn find_used_templates(
     }
     Ok(())
 }
-struct Generator<'a, S: std::hash::BuildHasher> {
+
+struct Generator<'a> {
     // The template input state: original struct AST and attributes
     input: &'a TemplateInput<'a>,
     // All contexts, keyed by the package-relative template path
-    contexts: &'a HashMap<&'a Path, Context<'a>, S>,
+    contexts: &'a HashMap<&'a Path, Context<'a>>,
     // The heritage contains references to blocks and their ancestry
     heritage: Option<&'a Heritage<'a>>,
     // Variables accessible directly from the current scope (not redirected to context)
@@ -261,14 +262,14 @@ struct Generator<'a, S: std::hash::BuildHasher> {
     localized_messages: BTreeSet<String>,
 }
 
-impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
+impl<'a> Generator<'a> {
     fn new<'n>(
         input: &'n TemplateInput<'_>,
-        contexts: &'n HashMap<&'n Path, Context<'n>, S>,
+        contexts: &'n HashMap<&'n Path, Context<'n>>,
         heritage: Option<&'n Heritage<'_>>,
         locals: MapChain<'n, &'n str, LocalMeta>,
         whitespace: WhitespaceHandling,
-    ) -> Generator<'n, S> {
+    ) -> Generator<'n> {
         Generator {
             input,
             contexts,
@@ -285,7 +286,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         }
     }
 
-    fn child(&mut self) -> Generator<'_, S> {
+    fn child(&mut self) -> Generator<'_> {
         let locals = MapChain::with_parent(&self.locals);
         Self::new(
             self.input,
@@ -512,7 +513,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
         self.write_header(
             buf,
-            "::askama_rocket::Responder<'askama>",
+            "::askama_rocket::Responder<'askama, 'askama>",
             Some(vec![param]),
         )?;
 
@@ -1293,7 +1294,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             Expr::Filter(name, ref args) => self.visit_filter(buf, name, args)?,
             Expr::Unary(op, ref inner) => self.visit_unary(buf, op, inner)?,
             Expr::BinOp(op, ref left, ref right) => self.visit_binop(buf, op, left, right)?,
-            Expr::Range(op, ref left, ref right) => self.visit_range(buf, op, left, right)?,
+            Expr::Range(op, ref left, ref right) => {
+                self.visit_range(buf, op, left.as_deref(), right.as_deref())?
+            }
             Expr::Group(ref inner) => self.visit_group(buf, inner)?,
             Expr::Call(ref obj, ref args) => self.visit_call(buf, obj, args)?,
             Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
@@ -1705,8 +1708,8 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         &mut self,
         buf: &mut Buffer,
         op: &str,
-        left: &Option<Box<Expr<'_>>>,
-        right: &Option<Box<Expr<'_>>>,
+        left: Option<&Expr<'_>>,
+        right: Option<&Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
         if let Some(left) = left {
             self.visit_expr(buf, left)?;
@@ -2052,10 +2055,9 @@ where
     /// Iterates the scopes in reverse and returns `Some(LocalMeta)`
     /// from the first scope where `key` exists.
     fn get(&self, key: &K) -> Option<&V> {
-        let scopes = self.scopes.iter().rev();
+        let mut scopes = self.scopes.iter().rev();
         scopes
-            .filter_map(|set| set.get(key))
-            .next()
+            .find_map(|set| set.get(key))
             .or_else(|| self.parent.and_then(|set| set.get(key)))
     }
 
@@ -2115,22 +2117,18 @@ fn median(sizes: &mut [usize]) -> usize {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 enum AstLevel {
     Top,
     Block,
     Nested,
 }
 
-impl Copy for AstLevel {}
-
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 enum DisplayWrap {
     Wrapped,
     Unwrapped,
 }
-
-impl Copy for DisplayWrap {}
 
 #[derive(Debug)]
 enum Writable<'a> {

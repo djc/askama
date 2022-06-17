@@ -11,9 +11,9 @@ pub(crate) struct Heritage<'a> {
 }
 
 impl Heritage<'_> {
-    pub(crate) fn new<'n, S: std::hash::BuildHasher>(
+    pub(crate) fn new<'n>(
         mut ctx: &'n Context<'n>,
-        contexts: &'n HashMap<&'n Path, Context<'n>, S>,
+        contexts: &'n HashMap<&'n Path, Context<'n>>,
     ) -> Heritage<'n> {
         let mut blocks: BlockAncestry<'n> = ctx
             .blocks
