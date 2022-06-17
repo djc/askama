@@ -240,7 +240,7 @@ impl<'a> Locale<'a> {
     pub fn translate(
         &self,
         text_id: &str,
-        args: &std::collections::HashMap<String, fluent_templates::fluent_bundle::FluentValue<'_>>,
+        args: &std::collections::HashMap<&str, fluent_templates::fluent_bundle::FluentValue<'_>>,
     ) -> String {
         self.loader.lookup_with_args(&self.language, text_id, args)
     }
