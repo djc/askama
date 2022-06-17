@@ -33,6 +33,13 @@ struct UsesNoArgsI18n<'a> {
     #[locale]
     loc: Locale<'a>,
 }
+#[derive(Template)]
+#[template(path = "i18n_broken.html")]
+struct InvalidI18n<'a> {
+    #[locale]
+    loc: Locale<'a>,
+    car_color: &'a str
+}
 
 #[test]
 fn existing_language() {
@@ -49,7 +56,7 @@ fn existing_language() {
 }
 
 #[test]
-fn unknown_language() {
+fn fallback_language() {
     let template = UsesI18n {
         loc: Locale::new(unic_langid::langid!("nl-BE"), &LOCALES),
         name: "Hilda",
@@ -71,4 +78,13 @@ fn no_args() {
         template.render().unwrap(),
         r#"<h3>This is a test</h3>"#
     )
+}
+
+#[test]
+fn invalid_tags_language() {
+    let template = InvalidI18n {
+        loc: Locale::new(unic_langid::langid!("nl-BE"), &LOCALES),
+        car_color: "Red"
+    };
+    assert_eq!(template.render().unwrap(), r#"<h1>Unknown localization car</h1>"#); // Should panic here
 }
