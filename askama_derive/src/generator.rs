@@ -7,8 +7,6 @@ use crate::CompileError;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 
-#[cfg(feature = "localization")]
-use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::{cmp, hash, mem, str};
@@ -257,9 +255,6 @@ struct Generator<'a> {
     // If set to `suppress`, the whitespace characters will be removed by default unless `+` is
     // used.
     whitespace: WhitespaceHandling,
-    #[cfg(feature = "localization")]
-    // Messages used with localize()
-    localized_messages: BTreeSet<String>,
 }
 
 impl<'a> Generator<'a> {
@@ -281,8 +276,6 @@ impl<'a> Generator<'a> {
             buf_writable: vec![],
             named: 0,
             whitespace,
-            #[cfg(feature = "localization")]
-            localized_messages: BTreeSet::new(),
         }
     }
 
@@ -1302,55 +1295,35 @@ impl<'a> Generator<'a> {
             Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
             Expr::Try(ref expr) => self.visit_try(buf, expr.as_ref())?,
             Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
-            #[cfg(feature = "localization")]
-            Expr::Localize(message, attribute, ref args) => {
-                self.visit_localize(buf, message, attribute, args)?
-            }
+            Expr::Localize(ref message, ref args) => self.visit_localize(buf, message, args)?,
         })
     }
 
-    #[cfg(feature = "localization")]
     fn visit_localize(
         &mut self,
         buf: &mut Buffer,
-        message: &str,
-        attribute: Option<&str>,
+        message: &Expr<'_>,
         args: &[(&str, Expr<'_>)],
     ) -> Result<DisplayWrap, CompileError> {
-        let localizer = self.input.localizer.as_ref().expect(
-            "A template struct must have a member with the `#[locale]` \
-             attribute that implements `askama::Localize` to enable calling the localize() filter",
-        );
-
-        let mut message = message.to_string();
-        if let Some(attribute) = attribute {
-            message.push_str(".");
-            message.push_str(attribute);
-        }
-
-        assert!(
-            message.chars().find(|c| *c == '"').is_none(),
-            "message ids with quotes in them break the generator, please remove"
-        );
-
-        self.localized_messages.insert(message.clone());
+        let localizer =
+            self.input.localizer.as_deref().ok_or(
+                "You have to annotate a field with #[locale] to use the localize() function.",
+            )?;
 
         buf.write(&format!(
-            "self.{}.translate(\"{}\", &std::iter::FromIterator::from_iter(vec![",
-            localizer.0, message
+            "self.{}.translate(",
+            normalize_identifier(localizer)
         ));
-
-        for (i, (name, value)) in args.iter().enumerate() {
-            if i > 0 {
-                buf.write(", ");
-            }
-            buf.write(&format!(
-                "(\"{}\", ({}).into())",
-                name,
-                self.visit_expr_root(value)?
-            ));
+        self.visit_expr(buf, message)?;
+        buf.writeln(", [")?;
+        buf.indent();
+        for (k, v) in args {
+            buf.write(&format!("({:?}, ::askama::FluentValue::from(", k));
+            self.visit_expr(buf, v)?;
+            buf.writeln(")),")?;
         }
-        buf.write("]))");
+        buf.dedent()?;
+        buf.write("])");
 
         Ok(DisplayWrap::Unwrapped)
     }

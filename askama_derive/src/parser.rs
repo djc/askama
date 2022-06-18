@@ -2,11 +2,11 @@ use std::cell::Cell;
 use std::str;
 
 use nom::branch::alt;
-use nom::bytes::complete::{escaped, is_not, tag, take_till, take_until, take};
+use nom::bytes::complete::{escaped, is_not, tag, take_till, take_until};
 use nom::character::complete::{anychar, char, digit1};
-use nom::combinator::{complete, consumed, cut, eof, map, not, opt, peek, recognize, value, fail};
+use nom::combinator::{complete, consumed, cut, eof, map, not, opt, peek, recognize, value};
 use nom::error::{Error, ErrorKind};
-use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1, many_till};
+use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{self, error_position, AsChar, IResult, InputTakeAtPosition};
 
@@ -66,8 +66,7 @@ pub(crate) enum Expr<'a> {
     Call(Box<Expr<'a>>, Vec<Expr<'a>>),
     RustMacro(&'a str, &'a str),
     Try(Box<Expr<'a>>),
-    #[cfg(feature = "localization")]
-    Localize(&'a str, Option<&'a str>, Vec<(&'a str, Expr<'a>)>),
+    Localize(Box<Expr<'a>>, Vec<(&'a str, Expr<'a>)>),
 }
 
 impl Expr<'_> {
@@ -670,39 +669,38 @@ macro_rules! expr_prec_layer {
         }
     }
 }
-#[cfg(feature = "localization")]
-fn quoted_ident(input: &str) -> IResult<&str, &str> {
-    // Match "
-    let (remaining, _) = tag("\"")(input)?;
-    let (remaining, (inner, _)) = many_till(take(1u32), tag("\""))(remaining)?;
 
-    // Extract inner range
-    let length = inner.len();
-    Ok((remaining, &input[1 .. length+1]))
+fn expr_localize_args(mut i: &str) -> IResult<&str, Vec<(&str, Expr<'_>)>> {
+    let mut args = Vec::<(&str, Expr<'_>)>::new();
+
+    let mut p = opt(tuple((ws(tag(",")), identifier, ws(tag(":")), expr_any)));
+    while let (j, Some((_, k, _, v))) = p(i)? {
+        if args.iter().any(|&(a, _)| a == k) {
+            eprintln!("Duplicated key: {:?}", k);
+            return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
+        }
+
+        args.push((k, v));
+        i = j;
+    }
+
+    let (i, _) = opt(tag(","))(i)?;
+    Ok((i, args))
 }
-#[cfg(feature = "localization")]
-fn localize(i: &str) -> IResult<&str, Expr<'_>> {
-    let (tail, (_, _,message, attribute, args, _)) = tuple((
-        tag("localize"),
-        ws(tag("(")),
-        quoted_ident,
-        opt(tuple((ws(tag(".")), identifier))),
-        opt(tuple((
-            ws(tag(",")),
-            separated_list0(ws(tag(",")), tuple((identifier, ws(tag(":")), expr_any))),
-        ))),
-        ws(tag(")")),
-    ))(i)?;
-    Ok((
-        tail,
-        Expr::Localize(
-            message,
-            attribute.map(|(_, a)| a),
-            args.map(|(_, args)| args.into_iter().map(|(k, _, v)| (k, v)).collect())
-                .unwrap_or_default(),
-        ),
-    ))
+
+fn expr_localize(i: &str) -> IResult<&str, Expr<'_>> {
+    let (i, _) = pair(tag("localize"), ws(tag("(")))(i)?;
+    if cfg!(feature = "localization") {
+        cut(map(
+            tuple((expr_any, expr_localize_args, ws(tag(")")))),
+            |(text_id, args, _)| Expr::Localize(text_id.into(), args),
+        ))(i)
+    } else {
+        eprintln!(r#"Please activate the "localization" to use localize()."#);
+        Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)))
+    }
 }
+
 expr_prec_layer!(expr_muldivmod, expr_filtered, "*", "/", "%");
 expr_prec_layer!(expr_addsub, expr_muldivmod, "+", "-");
 expr_prec_layer!(expr_shifts, expr_addsub, ">>", "<<");
@@ -716,16 +714,11 @@ expr_prec_layer!(expr_or, expr_and, "||");
 fn expr_handle_ws(i: &str) -> IResult<&str, Whitespace> {
     alt((char('-'), char('+'), char('~')))(i).map(|(s, r)| (s, Whitespace::from(r)))
 }
+
 fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
     let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(expr_or))(i);
     alt((
-        #[cfg(feature = "localization")]
-        map(localize, |expr| match expr {
-            Expr::Localize(_, _, _) => expr,
-            _ => panic!("localize failed: {:?}", expr),
-        }),
-        #[cfg(not(feature = "localization"))]
-        fail,
+        expr_localize,
         map(range_right, |(op, right)| {
             Expr::Range(op, None, right.map(Box::new))
         }),
@@ -1294,57 +1287,78 @@ mod tests {
     fn test_invalid_block() {
         super::parse("{% extend \"blah\" %}", &Syntax::default()).unwrap();
     }
+
     #[cfg(feature = "localization")]
     #[test]
     fn test_parse_localize() {
+        macro_rules! map {
+            ($($k:expr => $v:expr),* $(,)?) => {{
+                use std::iter::{Iterator, IntoIterator};
+                Iterator::collect(IntoIterator::into_iter([$(($k, $v),)*]))
+            }};
+        }
+
         assert_eq!(
             super::parse(r#"{{ localize("a", v: 32 + 7) }}"#, &Syntax::default()).unwrap(),
             vec![Node::Expr(
                 Ws(None, None),
                 Expr::Localize(
-                    "a",
-                    None,
-                    vec![(
-                        "v",
-                        Expr::BinOp("+", Expr::NumLit("32").into(), Expr::NumLit("7").into())
-                    )]
+                    Expr::StrLit("a").into(),
+                    map!(
+                        "v" => {
+                            Expr::BinOp("+", Expr::NumLit("32").into(), Expr::NumLit("7").into())
+                        }
+                    ),
                 )
-            )]
+            )],
         );
-    }
-    #[cfg(feature = "localization")]
-    #[test]
-    fn test_parse_nested_localize() {
+
         assert_eq!(
             super::parse(
-                r#"{{ localize("a", v: localize("a", v: 32 + 7) ) }}"#,
-                &Syntax::default()
+                r#"{{ localize("a", b: "b", c: "c", d: "d") }}"#,
+                &Syntax::default(),
             )
             .unwrap(),
             vec![Node::Expr(
                 Ws(None, None),
                 Expr::Localize(
-                    "a",
-                    None,
-                    vec![(
-                        "v",
-                        Expr::Localize(
-                            "a",
-                            None,
-                            vec![(
-                                "v",
-                                Expr::BinOp(
+                    Expr::StrLit("a").into(),
+                    map!(
+                        "b" => Expr::StrLit("b"),
+                        "c" => Expr::StrLit("c"),
+                        "d" => Expr::StrLit("d"),
+                    ),
+                )
+            )],
+        );
+
+        assert_eq!(
+            super::parse(
+                r#"{{ localize("a", v: localize("a", v: 32 + 7) ) }}"#,
+                &Syntax::default(),
+            )
+            .unwrap(),
+            vec![Node::Expr(
+                Ws(None, None),
+                Expr::Localize(
+                    Expr::StrLit("a").into(),
+                    map!(
+                        "v" => Expr::Localize(
+                            Expr::StrLit("a").into(),
+                            map!(
+                                "v" => Expr::BinOp(
                                     "+",
                                     Expr::NumLit("32").into(),
-                                    Expr::NumLit("7").into()
-                                )
-                            )]
-                        )
-                    )]
-                )
-            )]
+                                    Expr::NumLit("7").into(),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            )],
         );
     }
+
     #[test]
     fn test_parse_filter() {
         use Expr::*;

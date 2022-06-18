@@ -18,8 +18,7 @@ pub(crate) struct TemplateInput<'a> {
     pub(crate) mime_type: String,
     pub(crate) parent: Option<&'a syn::Type>,
     pub(crate) path: PathBuf,
-    #[cfg(feature = "localization")]
-    pub(crate) localizer: Option<(syn::Ident, &'a syn::Type)>,
+    pub(crate) localizer: Option<String>,
 }
 
 impl TemplateInput<'_> {
@@ -65,32 +64,38 @@ impl TemplateInput<'_> {
                 .map(|f| &f.ty),
             _ => None,
         };
-        #[cfg(feature = "localization")]
-        // if enabled, it tries to get the localizer
+
         let localizer = match ast.data {
             syn::Data::Struct(syn::DataStruct {
                 fields: syn::Fields::Named(ref fields),
                 ..
             }) => {
-                let named = &fields.named;
-                let localizers: Vec<_> = named
-                    .iter()
-                    .filter(|f| f.ident.is_some())
-                    .flat_map(|f| {
-                        f.attrs
-                            .iter()
-                            .filter(|a| a.path.is_ident("locale"))
-                            .map(move |_| (f.ident.to_owned().unwrap(), &f.ty))
-                    })
-                    .collect();
-                if localizers.len() > 1 {
-                    panic!("Can't have multiple localizers for a single template!");
-                } else {
-                    localizers.get(0).map(|l| l.to_owned())
+                let mut localizers =
+                    fields
+                        .named
+                        .iter()
+                        .filter(|&f| f.ident.is_some())
+                        .flat_map(
+                            |f| match f.attrs.iter().any(|a| a.path.is_ident("locale")) {
+                                true => Some(f.ident.as_ref()?.to_string()),
+                                false => None,
+                            },
+                        );
+                match localizers.next() {
+                    Some(localizer) => {
+                        if !cfg!(feature = "localization") {
+                            return Err("You have to active the \"localization\" feature to use #[locale] on fields.".into());
+                        } else if localizers.next().is_some() {
+                            return Err("You cannot mark more than one field as #[locale].".into());
+                        }
+                        Some(localizer)
+                    }
+                    None => None,
                 }
             }
             _ => None,
         };
+
         if parent.is_some() {
             eprint!(
                 "   --> in struct {}\n   = use of deprecated field '_parent'\n",
