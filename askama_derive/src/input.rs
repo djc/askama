@@ -84,7 +84,7 @@ impl TemplateInput<'_> {
                 match localizers.next() {
                     Some(localizer) => {
                         if !cfg!(feature = "localization") {
-                            return Err("You have to active the \"localization\" feature to use #[locale] on fields.".into());
+                            return Err("You have to activate the \"localization\" feature to use #[locale].".into());
                         } else if localizers.next().is_some() {
                             return Err("You cannot mark more than one field as #[locale].".into());
                         }
