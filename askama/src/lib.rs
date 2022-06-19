@@ -59,7 +59,7 @@
 //!   in the configuration file. The default syntax , "default",  is the one
 //!   provided by Askama.
 
-#![cfg_attr(not(feature = "localization"), forbid(unsafe))]
+#![cfg_attr(not(feature = "localization"), forbid(unsafe_code))]
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
