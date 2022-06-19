@@ -19,7 +19,7 @@ maintenance = { status = "actively-developed" }
 default = ["config", "humansize", "num-traits", "urlencode"]
 config = ["askama_derive/config"]
 humansize = ["askama_derive/humansize", "dep_humansize"]
-localization = ["askama_derive/localization", "fluent-templates", "unic-langid"]
+localization = ["askama_derive/localization", "fluent-templates", "parking_lot", "unic-langid"]
 markdown = ["askama_derive/markdown", "comrak"]
 num-traits = ["askama_derive/num-traits", "dep_num_traits"]
 serde-json = ["askama_derive/serde-json", "askama_escape/json", "serde", "serde_json"]
@@ -43,12 +43,13 @@ askama_escape = { version = "0.10.3", path = "../askama_escape" }
 comrak = { version = "0.13", optional = true, default-features = false }
 dep_humansize = { package = "humansize", version = "1.1.0", optional = true }
 dep_num_traits = { package = "num-traits", version = "0.2.6", optional = true }
-fluent-templates = { version = "0.7.1", optional = true, default-features = false }
+fluent-templates = { version = "0.7.1", optional = true }
+parking_lot = { version = "0.12.1", optional = true }
 percent-encoding = { version = "2.1.0", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 serde_json = { version = "1.0", optional = true }
 serde_yaml = { version = "0.8", optional = true }
-unic-langid = { version=  "0.9.0", optional = true}
+unic-langid = { version = "0.9.0", optional = true }
 
 [package.metadata.docs.rs]
 features = ["config", "humansize", "num-traits", "serde-json", "serde-yaml"]

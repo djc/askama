@@ -66,6 +66,7 @@ pub(crate) enum Expr<'a> {
     Call(Box<Expr<'a>>, Vec<Expr<'a>>),
     RustMacro(&'a str, &'a str),
     Try(Box<Expr<'a>>),
+    #[cfg(feature = "localization")]
     Localize(Box<Expr<'a>>, Vec<(&'a str, Expr<'a>)>),
 }
 
@@ -688,17 +689,48 @@ fn expr_localize_args(mut i: &str) -> IResult<&str, Vec<(&str, Expr<'_>)>> {
     Ok((i, args))
 }
 
+#[cfg(not(feature = "localization"))]
 fn expr_localize(i: &str) -> IResult<&str, Expr<'_>> {
     let (i, _) = pair(tag("localize"), ws(tag("(")))(i)?;
-    if cfg!(feature = "localization") {
-        cut(map(
-            tuple((expr_any, expr_localize_args, ws(tag(")")))),
-            |(text_id, args, _)| Expr::Localize(text_id.into(), args),
-        ))(i)
-    } else {
-        eprintln!(r#"Please activate the "localization" to use localize()."#);
-        Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)))
+    eprintln!(r#"Activate the "localization" feature to use {{ localize() }}."#);
+    Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)))
+}
+
+#[cfg(feature = "localization")]
+fn expr_localize(i: &str) -> IResult<&str, Expr<'_>> {
+    let (j, (_, _, (text_id, args, _))) = tuple((
+        tag("localize"),
+        ws(tag("(")),
+        cut(tuple((expr_any, expr_localize_args, ws(tag(")"))))),
+    ))(i)?;
+
+    if let Expr::StrLit(text_id) = text_id {
+        let mut msg_args = match crate::i18n::arguments_of(text_id) {
+            Ok(args) => args,
+            Err(err) => {
+                eprintln!("{}", err.msg);
+                return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
+            }
+        };
+        for &(call_arg, _) in &args {
+            if !msg_args.remove(call_arg) {
+                eprintln!(
+                    "Fluent template {:?} does not contain argument {:?}",
+                    text_id, call_arg,
+                );
+                return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
+            }
+        }
+        if !msg_args.is_empty() {
+            eprintln!(
+                "Missing argument(s) {:?} to fluent template {:?}",
+                msg_args, text_id,
+            );
+            return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
+        }
     }
+
+    Ok((j, Expr::Localize(text_id.into(), args)))
 }
 
 expr_prec_layer!(expr_muldivmod, expr_filtered, "*", "/", "%");
