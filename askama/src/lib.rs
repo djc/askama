@@ -66,20 +66,21 @@
 mod error;
 pub mod filters;
 pub mod helpers;
+#[cfg(feature = "localization")]
+mod i18n;
 
 use std::fmt;
 
 pub use askama_derive::{localization, Template};
 pub use askama_escape::{Html, MarkupDisplay, Text};
 #[cfg(feature = "localization")]
-#[doc(hidden)]
-pub use fluent_templates::{self, fluent_bundle::FluentValue};
-#[cfg(feature = "localization")]
-use fluent_templates::{Loader, StaticLoader};
+pub use fluent_templates::{self, fluent_bundle::FluentValue, fs::langid, LanguageIdentifier};
 
 #[doc(hidden)]
 pub use crate as shared;
 pub use crate::error::{Error, Result};
+#[cfg(feature = "localization")]
+pub use crate::i18n::{Locale, Unlazy};
 
 /// Main `Template` trait; implementations are generally derived
 ///
@@ -223,86 +224,3 @@ mod tests {
     note = "file-level dependency tracking is handled automatically without build script"
 )]
 pub fn rerun_if_templates_changed() {}
-
-#[cfg(feature = "localization")]
-pub struct Locale<'a> {
-    loader: &'a StaticLoader,
-    language: unic_langid::LanguageIdentifier,
-}
-
-#[cfg(feature = "localization")]
-impl Locale<'_> {
-    pub fn new(language: unic_langid::LanguageIdentifier, loader: &'static StaticLoader) -> Self {
-        Self { loader, language }
-    }
-
-    pub fn translate<'a>(
-        &self,
-        text_id: &str,
-        args: impl IntoIterator<Item = (&'a str, FluentValue<'a>)>,
-    ) -> String {
-        use std::collections::HashMap;
-        use std::iter::FromIterator;
-
-        let args = HashMap::<&str, FluentValue<'_>>::from_iter(args);
-        let args = match args.is_empty() {
-            true => None,
-            false => Some(&args),
-        };
-        self.loader.lookup_complete(&self.language, text_id, args)
-    }
-}
-#[cfg(feature = "localization")]
-/// Similar to OnceCell, but it has an additional take() function, which can only be used once,
-/// and only if the instance was never dereferenced.
-///
-/// The struct is only meant to be used by the [`localization!()`] macro.
-/// Concurrent access will deliberately panic.
-///
-/// Rationale: StaticLoader cannot be cloned.
-#[doc(hidden)]
-pub struct Unlazy<T>(parking_lot::Mutex<UnlazyEnum<T>>);
-#[cfg(feature = "localization")]
-enum UnlazyEnum<T> {
-    Generator(Option<fn() -> T>),
-    Value(Box<T>),
-}
-#[cfg(feature = "localization")]
-impl<T> Unlazy<T> {
-    pub const fn new(f: fn() -> T) -> Self {
-        Self(parking_lot::const_mutex(UnlazyEnum::Generator(Some(f))))
-    }
-
-    pub fn take(&self) -> T {
-        let f = match &mut *self.0.try_lock().unwrap() {
-            UnlazyEnum::Generator(f) => f.take(),
-            _ => None,
-        };
-        f.unwrap()()
-    }
-}
-#[cfg(feature = "localization")]
-impl<T> std::ops::Deref for Unlazy<T>
-where
-    Self: 'static,
-{
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        let data = &mut *self.0.try_lock().unwrap();
-        let value: &T = match data {
-            UnlazyEnum::Generator(f) => {
-                *data = UnlazyEnum::Value(Box::new(f.take().unwrap()()));
-                match data {
-                    UnlazyEnum::Value(value) => value,
-                    _ => unreachable!(),
-                }
-            }
-            UnlazyEnum::Value(value) => value,
-        };
-
-        // SAFETY: This transmutation is safe because once a value is assigned,
-        //         it won't be unassigned again, and Self has static lifetime.
-        unsafe { std::mem::transmute(value) }
-    }
-}

@@ -1,7 +1,6 @@
 #![cfg(feature = "localization")]
 
-use askama::Locale;
-use askama::Template;
+use askama::{langid, Locale, Template};
 
 askama::localization!(LOCALES);
 
@@ -44,7 +43,7 @@ struct InvalidI18n<'a> {
 #[test]
 fn existing_language() {
     let template = UsesI18n {
-        loc: Locale::new(unic_langid::langid!("es-MX"), &LOCALES),
+        loc: Locale::new(langid!("es-MX"), &LOCALES),
         name: "Hilda",
         hours: 300072.3,
     };
@@ -58,7 +57,7 @@ fn existing_language() {
 #[test]
 fn fallback_language() {
     let template = UsesI18n {
-        loc: Locale::new(unic_langid::langid!("nl-BE"), &LOCALES),
+        loc: Locale::new(langid!("nl-BE"), &LOCALES),
         name: "Hilda",
         hours: 300072.3,
     };
@@ -72,7 +71,7 @@ fn fallback_language() {
 #[test]
 fn no_args() {
     let template = UsesNoArgsI18n {
-        loc: Locale::new(unic_langid::langid!("en-US"), &LOCALES),
+        loc: Locale::new(langid!("en-US"), &LOCALES),
     };
     assert_eq!(template.render().unwrap(), r#"<h3>This is a test</h3>"#)
 }
@@ -81,7 +80,7 @@ fn no_args() {
 #[test]
 fn invalid_tags_language() {
     let template = InvalidI18n {
-        loc: Locale::new(unic_langid::langid!("nl-BE"), &LOCALES),
+        loc: Locale::new(langid!("nl-BE"), &LOCALES),
         car_color: "Red",
     };
     assert_eq!(
