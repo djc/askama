@@ -53,12 +53,12 @@ impl Parse for Variable {
         Ok(Variable { vis, name })
     }
 }
-
+type PathResources = Vec<(PathBuf, Resource<String>)>;
 struct Configuration {
     pub(crate) fallback: LanguageIdentifier,
     pub(crate) use_isolating: bool,
     pub(crate) core_locales: Option<(PathBuf, Resource<String>)>,
-    pub(crate) locales: Vec<(LanguageIdentifier, Vec<(PathBuf, Resource<String>)>)>,
+    pub(crate) locales: Vec<(LanguageIdentifier,PathResources)>,
     pub(crate) fallbacks: &'static HashMap<LanguageIdentifier, Vec<LanguageIdentifier>>,
     pub(crate) assets_dir: PathBuf,
 }
@@ -103,7 +103,7 @@ fn read_resource(path: PathBuf) -> Result<(PathBuf, Resource<String>), String> {
 
 fn read_lang_dir(
     entry: Result<DirEntry, std::io::Error>,
-) -> Result<Option<(LanguageIdentifier, Vec<(PathBuf, Resource<String>)>)>, String> {
+) -> Result<Option<(LanguageIdentifier, PathResources)>, String> {
     let entry = match entry {
         Ok(entry) => entry,
         Err(_) => return Ok(None),
