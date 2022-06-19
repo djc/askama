@@ -2,18 +2,10 @@
 
 use askama::Locale;
 use askama::Template;
-use fluent_templates::static_loader;
 
-static_loader! {
-    static LOCALES = {
-        locales: "i18n-basic",
-        fallback_language: "en-US",
-        // Removes unicode isolating marks around arguments, you typically
-        // should only set to false when testing.
-        customise: |bundle| bundle.set_use_isolating(false),
-    };
-}
+askama::localization!(LOCALES);
 
+/*
 #[derive(Template)]
 #[template(path = "i18n_invalid.html")]
 struct UsesI18nInvalid<'a> {
@@ -21,6 +13,7 @@ struct UsesI18nInvalid<'a> {
     loc: Locale<'a>,
     name: &'a str,
 }
+*/
 
 #[derive(Template)]
 #[template(path = "i18n.html")]
@@ -38,6 +31,7 @@ struct UsesNoArgsI18n<'a> {
     loc: Locale<'a>,
 }
 
+/*
 #[derive(Template)]
 #[template(path = "i18n_broken.html")]
 struct InvalidI18n<'a> {
@@ -45,6 +39,7 @@ struct InvalidI18n<'a> {
     loc: Locale<'a>,
     car_color: &'a str,
 }
+*/
 
 #[test]
 fn existing_language() {
@@ -82,6 +77,7 @@ fn no_args() {
     assert_eq!(template.render().unwrap(), r#"<h3>This is a test</h3>"#)
 }
 
+/*
 #[test]
 fn invalid_tags_language() {
     let template = InvalidI18n {
@@ -93,3 +89,4 @@ fn invalid_tags_language() {
         r#"<h1>Unknown localization car</h1>"#
     );
 }
+*/

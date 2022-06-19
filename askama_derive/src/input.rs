@@ -18,6 +18,7 @@ pub(crate) struct TemplateInput<'a> {
     pub(crate) mime_type: String,
     pub(crate) parent: Option<&'a syn::Type>,
     pub(crate) path: PathBuf,
+    #[cfg(feature = "localization")]
     pub(crate) localizer: Option<String>,
 }
 
@@ -95,6 +96,8 @@ impl TemplateInput<'_> {
             }
             _ => None,
         };
+        #[cfg(not(feature = "localization"))]
+        drop(localizer);
 
         if parent.is_some() {
             eprint!(
