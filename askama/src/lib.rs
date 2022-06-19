@@ -252,7 +252,7 @@ impl Locale<'_> {
         self.loader.lookup_complete(&self.language, text_id, args)
     }
 }
-
+#[cfg(feature = "localization")]
 /// Similar to OnceCell, but it has an additional take() function, which can only be used once,
 /// and only if the instance was never dereferenced.
 ///
@@ -262,12 +262,12 @@ impl Locale<'_> {
 /// Rationale: StaticLoader cannot be cloned.
 #[doc(hidden)]
 pub struct Unlazy<T>(parking_lot::Mutex<UnlazyEnum<T>>);
-
+#[cfg(feature = "localization")]
 enum UnlazyEnum<T> {
     Generator(Option<fn() -> T>),
     Value(Box<T>),
 }
-
+#[cfg(feature = "localization")]
 impl<T> Unlazy<T> {
     pub const fn new(f: fn() -> T) -> Self {
         Self(parking_lot::const_mutex(UnlazyEnum::Generator(Some(f))))
@@ -281,7 +281,7 @@ impl<T> Unlazy<T> {
         f.unwrap()()
     }
 }
-
+#[cfg(feature = "localization")]
 impl<T> std::ops::Deref for Unlazy<T>
 where
     Self: 'static,

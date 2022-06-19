@@ -153,6 +153,7 @@ impl TemplateInput<'_> {
             mime_type,
             parent,
             path,
+            #[cfg(feature = "localization")]
             localizer,
         })
     }

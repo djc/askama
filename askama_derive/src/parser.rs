@@ -670,7 +670,7 @@ macro_rules! expr_prec_layer {
         }
     }
 }
-
+#[cfg(feature = "localization")]
 fn expr_localize_args(mut i: &str) -> IResult<&str, Vec<(&str, Expr<'_>)>> {
     let mut args = Vec::<(&str, Expr<'_>)>::new();
 
