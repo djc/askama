@@ -11,6 +11,7 @@ use fluent_syntax::ast::{
 use fluent_syntax::parser::parse_runtime;
 use fluent_templates::lazy_static::lazy_static;
 use fluent_templates::loader::build_fallbacks;
+use fluent_templates::LanguageIdentifier;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote_spanned;
@@ -19,9 +20,10 @@ use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::{parse2, Visibility};
 use toml::from_str;
-use unic_langid::LanguageIdentifier;
 
 use crate::CompileError;
+
+type FileResource = (PathBuf, Resource<String>);
 
 macro_rules! mk_static {
     ($(let $ident:ident: $ty:ty = $expr:expr;)*) => {
@@ -53,12 +55,12 @@ impl Parse for Variable {
         Ok(Variable { vis, name })
     }
 }
-type PathResources = Vec<(PathBuf, Resource<String>)>;
+
 struct Configuration {
     pub(crate) fallback: LanguageIdentifier,
     pub(crate) use_isolating: bool,
-    pub(crate) core_locales: Option<(PathBuf, Resource<String>)>,
-    pub(crate) locales: Vec<(LanguageIdentifier,PathResources)>,
+    pub(crate) core_locales: Option<FileResource>,
+    pub(crate) locales: Vec<(LanguageIdentifier, Vec<FileResource>)>,
     pub(crate) fallbacks: &'static HashMap<LanguageIdentifier, Vec<LanguageIdentifier>>,
     pub(crate) assets_dir: PathBuf,
 }
@@ -85,7 +87,7 @@ fn format_err(path: &Path, err: impl Display) -> String {
     format!("error processing {:?}: {}", path, err)
 }
 
-fn read_resource(path: PathBuf) -> Result<(PathBuf, Resource<String>), String> {
+fn read_resource(path: PathBuf) -> Result<FileResource, String> {
     let mut buf = String::new();
     OpenOptions::new()
         .read(true)
@@ -103,7 +105,7 @@ fn read_resource(path: PathBuf) -> Result<(PathBuf, Resource<String>), String> {
 
 fn read_lang_dir(
     entry: Result<DirEntry, std::io::Error>,
-) -> Result<Option<(LanguageIdentifier, PathResources)>, String> {
+) -> Result<Option<(LanguageIdentifier, Vec<FileResource>)>, String> {
     let entry = match entry {
         Ok(entry) => entry,
         Err(_) => return Ok(None),
@@ -122,22 +124,13 @@ fn read_lang_dir(
         Ok(dir_iter) => dir_iter,
         Err(_) => return Ok(None),
     };
+
     let mut resources = vec![];
-    for entry in dir_iter {
-        match entry {
-            Ok(entry) => {
-                let path = entry.path();
-                if entry
-                    .path()
-                    .to_str()
-                    .map(|s| s.ends_with(".ftl"))
-                    .unwrap_or(false)
-                {
-                    resources.push(read_resource(path)?);
-                };
-            }
-            Err(_) => continue,
-        }
+    for entry in dir_iter.flatten() {
+        let path = entry.path();
+        if path.to_str().map(|s| s.ends_with(".ftl")).unwrap_or(false) {
+            resources.push(read_resource(path)?);
+        };
     }
     if resources.is_empty() {
         return Ok(None);
@@ -310,10 +303,7 @@ pub(crate) fn arguments_of(text_id: &str) -> Result<HashSet<&'static str>, Compi
             fluent_syntax::ast::Entry::Message(entry) => Some(entry),
             _ => None,
         })
-        .find_map(|entry| match entry.id.name == text_id {
-            true => Some(entry),
-            false => None,
-        })
+        .find(|entry| entry.id.name == text_id)
         .ok_or_else(|| CompileError::from(format!("text_id {:?} not found", text_id)))?;
 
     let keys = entry

@@ -15,7 +15,7 @@ proc-macro = true
 [features]
 config = ["serde", "toml"]
 humansize = []
-localization = ["config", "fluent-syntax", "fluent-templates", "unic-langid"]
+localization = ["fluent-syntax", "fluent-templates", "serde", "toml"]
 markdown = []
 num-traits = []
 serde-json = []
@@ -40,4 +40,3 @@ quote = "1"
 serde = { version = "1.0", optional = true, features = ["derive"] }
 syn = "1"
 toml = { version = "0.5", optional = true }
-unic-langid = { version = "0.9.0", optional = true }

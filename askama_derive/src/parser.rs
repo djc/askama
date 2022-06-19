@@ -670,24 +670,6 @@ macro_rules! expr_prec_layer {
         }
     }
 }
-#[cfg(feature = "localization")]
-fn expr_localize_args(mut i: &str) -> IResult<&str, Vec<(&str, Expr<'_>)>> {
-    let mut args = Vec::<(&str, Expr<'_>)>::new();
-
-    let mut p = opt(tuple((ws(tag(",")), identifier, ws(tag(":")), expr_any)));
-    while let (j, Some((_, k, _, v))) = p(i)? {
-        if args.iter().any(|&(a, _)| a == k) {
-            eprintln!("Duplicated key: {:?}", k);
-            return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
-        }
-
-        args.push((k, v));
-        i = j;
-    }
-
-    let (i, _) = opt(tag(","))(i)?;
-    Ok((i, args))
-}
 
 #[cfg(not(feature = "localization"))]
 fn expr_localize(i: &str) -> IResult<&str, Expr<'_>> {
@@ -698,10 +680,28 @@ fn expr_localize(i: &str) -> IResult<&str, Expr<'_>> {
 
 #[cfg(feature = "localization")]
 fn expr_localize(i: &str) -> IResult<&str, Expr<'_>> {
+    fn localize_args(mut i: &str) -> IResult<&str, Vec<(&str, Expr<'_>)>> {
+        let mut args = Vec::<(&str, Expr<'_>)>::new();
+
+        let mut p = opt(tuple((ws(tag(",")), identifier, ws(tag(":")), expr_any)));
+        while let (j, Some((_, k, _, v))) = p(i)? {
+            if args.iter().any(|&(a, _)| a == k) {
+                eprintln!("Duplicated key: {:?}", k);
+                return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
+            }
+
+            args.push((k, v));
+            i = j;
+        }
+
+        let (i, _) = opt(tag(","))(i)?;
+        Ok((i, args))
+    }
+
     let (j, (_, _, (text_id, args, _))) = tuple((
         tag("localize"),
         ws(tag("(")),
-        cut(tuple((expr_any, expr_localize_args, ws(tag(")"))))),
+        cut(tuple((expr_any, localize_args, ws(tag(")"))))),
     ))(i)?;
 
     if let Expr::StrLit(text_id) = text_id {
@@ -1331,11 +1331,11 @@ mod tests {
         }
 
         assert_eq!(
-            super::parse(r#"{{ localize("a", v: 32 + 7) }}"#, &Syntax::default()).unwrap(),
+            super::parse(r#"{{ localize(1, v: 32 + 7) }}"#, &Syntax::default()).unwrap(),
             vec![Node::Expr(
                 Ws(None, None),
                 Expr::Localize(
-                    Expr::StrLit("a").into(),
+                    Expr::NumLit("1").into(),
                     map!(
                         "v" => {
                             Expr::BinOp("+", Expr::NumLit("32").into(), Expr::NumLit("7").into())
@@ -1347,14 +1347,14 @@ mod tests {
 
         assert_eq!(
             super::parse(
-                r#"{{ localize("a", b: "b", c: "c", d: "d") }}"#,
+                r#"{{ localize(1, b: "b", c: "c", d: "d") }}"#,
                 &Syntax::default(),
             )
             .unwrap(),
             vec![Node::Expr(
                 Ws(None, None),
                 Expr::Localize(
-                    Expr::StrLit("a").into(),
+                    Expr::NumLit("1").into(),
                     map!(
                         "b" => Expr::StrLit("b"),
                         "c" => Expr::StrLit("c"),
@@ -1366,17 +1366,17 @@ mod tests {
 
         assert_eq!(
             super::parse(
-                r#"{{ localize("a", v: localize("a", v: 32 + 7) ) }}"#,
+                r#"{{ localize(1, v: localize(2, v: 32 + 7) ) }}"#,
                 &Syntax::default(),
             )
             .unwrap(),
             vec![Node::Expr(
                 Ws(None, None),
                 Expr::Localize(
-                    Expr::StrLit("a").into(),
+                    Expr::NumLit("1").into(),
                     map!(
                         "v" => Expr::Localize(
-                            Expr::StrLit("a").into(),
+                            Expr::NumLit("2").into(),
                             map!(
                                 "v" => Expr::BinOp(
                                     "+",
