@@ -124,16 +124,19 @@ fn read_lang_dir(
     };
     let mut resources = vec![];
     for entry in dir_iter {
-        if let Ok(entry) = entry {
-            let path = entry.path();
-            if entry
-                .path()
-                .to_str()
-                .map(|s| s.ends_with(".ftl"))
-                .unwrap_or(false)
-            {
-                resources.push(read_resource(path)?);
-            };
+        match entry {
+            Ok(entry) => {
+                let path = entry.path();
+                if entry
+                    .path()
+                    .to_str()
+                    .map(|s| s.ends_with(".ftl"))
+                    .unwrap_or(false)
+                {
+                    resources.push(read_resource(path)?);
+                };
+            }
+            Err(_) => continue,
         }
     }
     if resources.is_empty() {
@@ -171,8 +174,7 @@ fn read_configuration() -> Result<Configuration, String> {
             return Err(format!(
                 "not a valid LanguageIdentifier {:?} for fallback_language: {}",
                 err, fallback,
-            )
-            .into())
+            ))
         }
     };
 
@@ -215,7 +217,7 @@ fn read_configuration() -> Result<Configuration, String> {
     mk_static! {
         let locales_: Vec<LanguageIdentifier> = locales.iter().map(|(l, _)| l.clone()).collect();
         let fallbacks: HashMap<LanguageIdentifier, Vec<LanguageIdentifier>> = build_fallbacks(
-            &locales_,
+            locales_,
         );
     };
 
