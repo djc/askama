@@ -18,123 +18,41 @@ jobs:
             rust: beta
           - os: windows-latest
             rust: beta
-
     runs-on: ${{ matrix.os }}
-
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/setup
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --all-targets
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
+          key: test-${{ matrix.os }}-${{ matrix.rust }}
+      - run: cargo build --all-targets
+      - run: cargo test
 
-  Actix-Web:
+  Package:
+    strategy:
+      matrix:
+        package: [
+          askama, askama_derive, testing,
+          askama_actix, askama_axum, askama_escape, askama_gotham,
+          askama_mendes, askama_rocket, askama_tide, askama_warp,
+        ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/setup
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - run: cargo test --package askama_actix --all-targets
-      - run: cargo clippy --package askama_actix --all-targets -- -D warnings
-
-  Axum:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          key: ${{ matrix.package }}
           components: clippy
-      - run: cargo test --package askama_axum --all-targets
-      - run: cargo clippy --package askama_axum --all-targets -- -D warnings
-
-  Gotham:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: clippy
-      - run: cargo test --package askama_gotham --all-targets
-      - run: cargo clippy --package askama_gotham --all-targets -- -D warnings
-
-  Rocket:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: clippy
-      - run: cargo test --package askama_rocket --all-targets
-      - run: cargo clippy --package askama_rocket --all-targets -- -D warnings
-
-  Warp:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: clippy
-      - run: cargo test --package askama_warp --all-targets
-      - run: cargo clippy --package askama_warp --all-targets -- -D warnings
-
-  Tide:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: clippy
-      - run: cargo test --package askama_tide --all-targets
-      - run: cargo clippy --package askama_tide --all-targets -- -D warnings
-
-  Mendes:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: clippy
-      - run: cargo test --package askama_mendes --all-targets
-      - run: cargo clippy --package askama_mendes --all-targets -- -D warnings
+      - run: cd ${{ matrix.package }} && cargo test --all-targets
+      - run: cd ${{ matrix.package }} && cargo clippy --all-targets -- -D warnings
 
   Lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/setup
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          key: lint
           components: rustfmt, clippy
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all-targets -- -D warnings
