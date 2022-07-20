@@ -375,8 +375,7 @@ will in turn evaluate the expression and yield <code>self</code> again.</p>
 <p>Using expressions, it is possible to delegate rendering part of a template to another template.
 This makes it possible to inject modular template sections into other templates and facilitates
 testing and reuse.</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use askama::Template;
 #[derive(Template)]
@@ -414,8 +413,7 @@ A Comment
 use a plain loop. If that is not doable, call <code>.render()</code>
 directly by using an expression as shown below.
 Including self does not work, see #105 and #220 .</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use askama::Template;
 

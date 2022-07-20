@@ -212,8 +212,7 @@ The template file's extension may be used to provide content type hints.</p>
 The <a href="template_syntax.html">template syntax</a> is very similar to <a href="http://jinja.pocoo.org/">Jinja</a>,
 as well as Jinja-derivatives like <a href="http://twig.sensiolabs.org/">Twig</a> or
 <a href="https://github.com/Keats/tera">Tera</a>.</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)] // this will generate the code...
 #[template(path = &quot;hello.html&quot;)] // using the template in this path, relative
@@ -239,8 +238,7 @@ The file name extension is used to infer an escape mode (see below). In
 web framework integrations, the path's extension may also be used to
 infer the content type of the resulting response.
 Cannot be used together with <code>source</code>.</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
 #[template(path = &quot;hello.html&quot;)]
@@ -254,8 +252,7 @@ This can be useful for test cases or short templates. The generated path
 is undefined, which generally makes it impossible to refer to this
 template from other templates. If <code>source</code> is specified, <code>ext</code> must also
 be specified (see below). Cannot be used together with <code>path</code>.</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
 #[template(source = &quot;Hello {{ name }}&quot;)]
@@ -270,8 +267,7 @@ struct HelloTemplate&lt;'a&gt; {
 extension. This is used to infer an escape mode (see below), and some
 web framework integrations use it to determine the content type.
 Cannot be used together with <code>path</code>.</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
 #[template(source = &quot;Hello {{ name }}&quot;, ext = &quot;txt&quot;)]
@@ -286,8 +282,7 @@ struct HelloTemplate&lt;'a&gt; {
 (<code>none</code>), the parsed syntax tree (<code>ast</code>), the generated code (<code>code</code>)
 or <code>all</code> for both. The requested data will be printed to stdout at
 compile time.</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
 #[template(path = &quot;hello.html&quot;, print = &quot;all&quot;)]
@@ -299,8 +294,7 @@ struct HelloTemplate&lt;'a&gt; { ... }
 <p><code>escape</code> (as <code>escape = &quot;none&quot;</code>): override the template's extension used for
 the purpose of determining the escaper for this template. See the section
 on configuring custom escapers for more information.</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
 #[template(path = &quot;hello.html&quot;, escape = &quot;none&quot;)]
@@ -312,8 +306,7 @@ struct HelloTemplate&lt;'a&gt; { ... }
 <p><code>syntax</code> (as <code>syntax = &quot;foo&quot;</code>): set the syntax name for a parser defined
 in the configuration file. The default syntax , &quot;default&quot;, is the one
 provided by Askama.</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
 #[template(path = &quot;hello.html&quot;, syntax = &quot;foo&quot;)]
@@ -324,8 +317,7 @@ struct HelloTemplate&lt;'a&gt; { ... }
 <li>
 <p><code>config</code> (as <code>config = &quot;config_file_path&quot;</code>): set the path for the config file
 to be used. The path is interpreted as relative to your crate root.</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
 #[template(path = &quot;hello.html&quot;, config = &quot;config.toml&quot;)]
@@ -337,8 +329,7 @@ struct HelloTemplate&lt;'a&gt; { ... }
 <div style="break-before: page; page-break-before: always;"></div><h1 id="debugging-and-troubleshooting"><a class="header" href="#debugging-and-troubleshooting">Debugging and Troubleshooting</a></h1>
 <p>You can view the parse tree for a template as well as the generated code by
 changing the <code>template</code> attribute item list for the template struct:</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
 #[template(path = &quot;hello.html&quot;, print = &quot;all&quot;)]
@@ -358,8 +349,7 @@ struct HelloTemplate&lt;'a&gt; { ... }
 Lit(&quot;&quot;, &quot;!&quot;, &quot;\n&quot;)]
 </code></pre>
 <p>The generated code looks like this:</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>impl &lt; 'a &gt; ::askama::Template for HelloTemplate&lt; 'a &gt; {
     fn render_into(&amp;self, writer: &amp;mut ::std::fmt::Write) -&gt; ::askama::Result&lt;()&gt; {
@@ -706,8 +696,7 @@ will in turn evaluate the expression and yield <code>self</code> again.</p>
 <p>Using expressions, it is possible to delegate rendering part of a template to another template.
 This makes it possible to inject modular template sections into other templates and facilitates
 testing and reuse.</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use askama::Template;
 #[derive(Template)]
@@ -745,8 +734,7 @@ A Comment
 use a plain loop. If that is not doable, call <code>.render()</code>
 directly by using an expression as shown below.
 Including self does not work, see #105 and #220 .</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use askama::Template;
 
@@ -991,7 +979,7 @@ Ugly: &lt;script&gt;var data = '{{data|json|safe}}';&lt;/script&gt;
 </code></pre>
 <h3 id="markdown"><a class="header" href="#markdown"><code>markdown</code></a></h3>
 <p>Enabling the <code>markdown</code> feature will enable the use of the <code>markdown</code> filter.
-This will render a value using a <a href="https://docs.rs/comrak/0.12.*/comrak/">GitHub flavored CommonMark</a> syntax.
+This will render a value using a <a href="https://docs.rs/comrak/0.14.*/comrak/">GitHub flavored CommonMark</a> syntax.
 By default the extensions “autolink”, “strikethrough”, “tagfilter”, and “table” are enabled.
 Any raw HTML gets escaped.</p>
 <pre><code class="language-jinja">{{ &quot;**&lt;i&gt;Hello&lt;/i&gt;, world!**&quot;|markdown }}

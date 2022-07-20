@@ -137,8 +137,7 @@
                         <h1 id="debugging-and-troubleshooting"><a class="header" href="#debugging-and-troubleshooting">Debugging and Troubleshooting</a></h1>
 <p>You can view the parse tree for a template as well as the generated code by
 changing the <code>template</code> attribute item list for the template struct:</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
 #[template(path = &quot;hello.html&quot;, print = &quot;all&quot;)]
@@ -158,8 +157,7 @@ struct HelloTemplate&lt;'a&gt; { ... }
 Lit(&quot;&quot;, &quot;!&quot;, &quot;\n&quot;)]
 </code></pre>
 <p>The generated code looks like this:</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>impl &lt; 'a &gt; ::askama::Template for HelloTemplate&lt; 'a &gt; {
     fn render_into(&amp;self, writer: &amp;mut ::std::fmt::Write) -&gt; ::askama::Result&lt;()&gt; {
