@@ -16,15 +16,13 @@ pub(crate) struct TemplateInput<'a> {
     pub(crate) escaper: &'a str,
     pub(crate) ext: Option<String>,
     pub(crate) mime_type: String,
-    pub(crate) parent: Option<&'a syn::Type>,
     pub(crate) path: PathBuf,
 }
 
 impl TemplateInput<'_> {
     /// Extract the template metadata from the `DeriveInput` structure. This
     /// mostly recovers the data for the `TemplateInput` fields from the
-    /// `template()` attribute list fields; it also finds the of the `_parent`
-    /// field, if any.
+    /// `template()` attribute list fields.
     pub(crate) fn new<'n>(
         ast: &'n syn::DeriveInput,
         config: &'n Config<'_>,
@@ -50,27 +48,6 @@ impl TemplateInput<'_> {
                 return Err("must include 'ext' attribute when using 'source' attribute".into())
             }
         };
-
-        // Check to see if a `_parent` field was defined on the context
-        // struct, and store the type for it for use in the code generator.
-        let parent = match ast.data {
-            syn::Data::Struct(syn::DataStruct {
-                fields: syn::Fields::Named(ref fields),
-                ..
-            }) => fields
-                .named
-                .iter()
-                .find(|f| f.ident.as_ref().filter(|name| *name == "_parent").is_some())
-                .map(|f| &f.ty),
-            _ => None,
-        };
-
-        if parent.is_some() {
-            eprint!(
-                "   --> in struct {}\n   = use of deprecated field '_parent'\n",
-                ast.ident
-            );
-        }
 
         // Validate syntax
         let syntax = syntax.map_or_else(
@@ -117,7 +94,6 @@ impl TemplateInput<'_> {
             escaper,
             ext,
             mime_type,
-            parent,
             path,
         })
     }
