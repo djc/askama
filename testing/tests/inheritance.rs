@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use askama::Template;
 
 #[derive(Template)]
@@ -9,7 +11,15 @@ struct BaseTemplate<'a> {
 #[derive(Template)]
 #[template(path = "child.html")]
 struct ChildTemplate<'a> {
-    _parent: BaseTemplate<'a>,
+    _parent: &'a BaseTemplate<'a>,
+}
+
+impl<'a> Deref for ChildTemplate<'a> {
+    type Target = BaseTemplate<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        self._parent
+    }
 }
 
 #[test]
@@ -21,7 +31,7 @@ fn test_use_base_directly() {
 #[test]
 fn test_simple_extends() {
     let t = ChildTemplate {
-        _parent: BaseTemplate { title: "Bar" },
+        _parent: &BaseTemplate { title: "Bar" },
     };
     assert_eq!(
         t.render().unwrap(),
@@ -43,6 +53,7 @@ fn test_empty_child() {
 
 pub mod parent {
     use askama::Template;
+
     #[derive(Template)]
     #[template(path = "base.html")]
     pub struct BaseTemplate<'a> {
@@ -53,17 +64,26 @@ pub mod parent {
 pub mod child {
     use super::parent::*;
     use askama::Template;
+
     #[derive(Template)]
     #[template(path = "child.html")]
     pub struct ChildTemplate<'a> {
-        pub _parent: BaseTemplate<'a>,
+        pub _parent: &'a BaseTemplate<'a>,
+    }
+
+    impl<'a> std::ops::Deref for ChildTemplate<'a> {
+        type Target = BaseTemplate<'a>;
+
+        fn deref(&self) -> &Self::Target {
+            self._parent
+        }
     }
 }
 
 #[test]
 fn test_different_module() {
     let t = child::ChildTemplate {
-        _parent: parent::BaseTemplate { title: "a" },
+        _parent: &parent::BaseTemplate { title: "a" },
     };
     assert_eq!(
         t.render().unwrap(),
@@ -79,6 +99,14 @@ struct NestedBaseTemplate {}
 #[template(path = "nested-child.html")]
 struct NestedChildTemplate {
     _parent: NestedBaseTemplate,
+}
+
+impl Deref for NestedChildTemplate {
+    type Target = NestedBaseTemplate;
+
+    fn deref(&self) -> &Self::Target {
+        &self._parent
+    }
 }
 
 #[test]
@@ -107,6 +135,14 @@ struct DeepMidTemplate {
 struct DeepKidTemplate {
     _parent: DeepMidTemplate,
     item: String,
+}
+
+impl Deref for DeepKidTemplate {
+    type Target = DeepMidTemplate;
+
+    fn deref(&self) -> &Self::Target {
+        &self._parent
+    }
 }
 
 #[test]

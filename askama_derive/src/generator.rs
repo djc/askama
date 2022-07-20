@@ -293,11 +293,6 @@ impl<'a> Generator<'a> {
     // Takes a Context and generates the relevant implementations.
     fn build(mut self, ctx: &'a Context<'_>) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
-        if !ctx.blocks.is_empty() {
-            if let Some(parent) = self.input.parent {
-                self.deref_to_parent(&mut buf, parent)?;
-            }
-        };
 
         self.impl_template(ctx, &mut buf)?;
         self.impl_display(&mut buf)?;
@@ -374,24 +369,6 @@ impl<'a> Generator<'a> {
 
         buf.writeln("}")?;
         Ok(())
-    }
-
-    // Implement `Deref<Parent>` for an inheriting context struct.
-    fn deref_to_parent(
-        &mut self,
-        buf: &mut Buffer,
-        parent_type: &syn::Type,
-    ) -> Result<(), CompileError> {
-        self.write_header(buf, "::std::ops::Deref", None)?;
-        buf.writeln(&format!(
-            "type Target = {};",
-            parent_type.into_token_stream()
-        ))?;
-        buf.writeln("#[inline]")?;
-        buf.writeln("fn deref(&self) -> &Self::Target {")?;
-        buf.writeln("&self._parent")?;
-        buf.writeln("}")?;
-        buf.writeln("}")
     }
 
     // Implement `Display` for the given context struct.
