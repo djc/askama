@@ -1,0 +1,33 @@
+[package]
+name = "askama_hyper"
+version = "0.1.0"
+description = "Hyper integration for Askama templates"
+documentation = "https://docs.rs/askama"
+keywords = ["markup", "template", "jinja2", "html"]
+categories = ["template-engine"]
+homepage = "https://github.com/djc/askama"
+repository = "https://github.com/djc/askama"
+license = "MIT OR Apache-2.0"
+workspace = ".."
+readme = "README.md"
+edition = "2018"
+
+[dependencies]
+askama = { version = "0.11.2", path = "../askama", default-features = false, features = ["with-hyper"] }
+hyper = { version = "0.14", default-features = false }
+
+[dev-dependencies]
+hyper = { version = "0.14", features = ["client"] }
+mime = "0.3"
+routerify = "3"
+tokio = { version = "1", default-features = false, features = ["net", "macros", "rt"] }
+
+[features]
+default = ["askama/default"]
+config = ["askama/config"]
+humansize = ["askama/humansize"]
+markdown = ["askama/markdown"]
+num-traits = ["askama/num-traits"]
+serde-json = ["askama/serde-json"]
+serde-yaml = ["askama/serde-yaml"]
+urlencode = ["askama/urlencode"]

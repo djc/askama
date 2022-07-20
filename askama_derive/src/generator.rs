@@ -308,6 +308,8 @@ impl<'a> Generator<'a> {
         self.impl_axum_into_response(&mut buf)?;
         #[cfg(feature = "with-gotham")]
         self.impl_gotham_into_response(&mut buf)?;
+        #[cfg(feature = "with-hyper")]
+        self.impl_hyper_into_response(&mut buf)?;
         #[cfg(feature = "with-mendes")]
         self.impl_mendes_responder(&mut buf)?;
         #[cfg(feature = "with-rocket")]
@@ -445,6 +447,31 @@ impl<'a> Generator<'a> {
         )?;
         let ext = self.input.extension().unwrap_or("txt");
         buf.writeln(&format!("::askama_gotham::respond(&self, {:?})", ext))?;
+        buf.writeln("}")?;
+        buf.writeln("}")
+    }
+
+    // Implement `From<Template> for hyper::Response<Body>`.
+    #[cfg(feature = "with-hyper")]
+    fn impl_hyper_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+        let (impl_generics, orig_ty_generics, where_clause) =
+            self.input.ast.generics.split_for_impl();
+        let ident = &self.input.ast.ident;
+        buf.writeln(&format!(
+            "{} {{",
+            quote!(
+                impl #impl_generics ::core::convert::From<&#ident #orig_ty_generics>
+                for ::askama_hyper::hyper::Response<::askama_hyper::hyper::Body>
+                #where_clause
+            )
+        ))?;
+        buf.writeln("#[inline]")?;
+        buf.writeln(&format!(
+            "{} {{",
+            quote!(fn from(value: &#ident #orig_ty_generics) -> Self)
+        ))?;
+        let ext = self.input.extension().unwrap_or("txt");
+        buf.writeln(&format!("::askama_hyper::respond(value, {:?})", ext))?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
