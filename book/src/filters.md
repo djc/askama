@@ -374,7 +374,7 @@ Ugly: <script>var data = '{{data|json|safe}}';</script>
 [#markdown]: #markdown
 
 Enabling the `markdown` feature will enable the use of the `markdown` filter.
-This will render a value using a [GitHub flavored CommonMark](https://docs.rs/comrak/0.12.*/comrak/) syntax.
+This will render a value using a [GitHub flavored CommonMark](https://docs.rs/comrak/0.14.*/comrak/) syntax.
 By default the extensions “autolink”, “strikethrough”, “tagfilter”, and “table” are enabled.
 Any raw HTML gets escaped.
 

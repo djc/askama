@@ -351,7 +351,7 @@ where
 {
     use comrak::{
         markdown_to_html, ComrakExtensionOptions, ComrakOptions, ComrakParseOptions,
-        ComrakRenderOptions,
+        ComrakRenderOptions, ListStyleType,
     };
 
     const DEFAULT_OPTIONS: ComrakOptions = ComrakOptions {
@@ -380,6 +380,7 @@ where
             hardbreaks: false,
             github_pre_lang: false,
             width: 0,
+            list_style: ListStyleType::Dash,
         },
     };
 
