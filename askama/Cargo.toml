@@ -28,6 +28,7 @@ urlencode = ["askama_derive/urlencode", "percent-encoding"]
 with-actix-web = ["askama_derive/with-actix-web"]
 with-axum = ["askama_derive/with-axum"]
 with-gotham = ["askama_derive/with-gotham"]
+with-hyper = ["askama_derive/with-hyper"]
 with-mendes = ["askama_derive/with-mendes"]
 with-rocket = ["askama_derive/with-rocket"]
 with-tide = ["askama_derive/with-tide"]
@@ -40,7 +41,7 @@ mime_guess = []
 [dependencies]
 askama_derive = { version = "0.12.0", path = "../askama_derive" }
 askama_escape = { version = "0.10.3", path = "../askama_escape" }
-comrak = { version = "0.13", optional = true, default-features = false }
+comrak = { version = "0.14", optional = true, default-features = false }
 dep_humansize = { package = "humansize", version = "1.1.0", optional = true }
 dep_num_traits = { package = "num-traits", version = "0.2.6", optional = true }
 fluent-templates = { version = "0.7.1", optional = true }

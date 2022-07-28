@@ -293,11 +293,6 @@ impl<'a> Generator<'a> {
     // Takes a Context and generates the relevant implementations.
     fn build(mut self, ctx: &'a Context<'_>) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
-        if !ctx.blocks.is_empty() {
-            if let Some(parent) = self.input.parent {
-                self.deref_to_parent(&mut buf, parent)?;
-            }
-        };
 
         self.impl_template(ctx, &mut buf)?;
         self.impl_display(&mut buf)?;
@@ -308,6 +303,8 @@ impl<'a> Generator<'a> {
         self.impl_axum_into_response(&mut buf)?;
         #[cfg(feature = "with-gotham")]
         self.impl_gotham_into_response(&mut buf)?;
+        #[cfg(feature = "with-hyper")]
+        self.impl_hyper_into_response(&mut buf)?;
         #[cfg(feature = "with-mendes")]
         self.impl_mendes_responder(&mut buf)?;
         #[cfg(feature = "with-rocket")]
@@ -376,24 +373,6 @@ impl<'a> Generator<'a> {
         Ok(())
     }
 
-    // Implement `Deref<Parent>` for an inheriting context struct.
-    fn deref_to_parent(
-        &mut self,
-        buf: &mut Buffer,
-        parent_type: &syn::Type,
-    ) -> Result<(), CompileError> {
-        self.write_header(buf, "::std::ops::Deref", None)?;
-        buf.writeln(&format!(
-            "type Target = {};",
-            parent_type.into_token_stream()
-        ))?;
-        buf.writeln("#[inline]")?;
-        buf.writeln("fn deref(&self) -> &Self::Target {")?;
-        buf.writeln("&self._parent")?;
-        buf.writeln("}")?;
-        buf.writeln("}")
-    }
-
     // Implement `Display` for the given context struct.
     fn impl_display(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::std::fmt::Display", None)?;
@@ -445,6 +424,31 @@ impl<'a> Generator<'a> {
         )?;
         let ext = self.input.extension().unwrap_or("txt");
         buf.writeln(&format!("::askama_gotham::respond(&self, {:?})", ext))?;
+        buf.writeln("}")?;
+        buf.writeln("}")
+    }
+
+    // Implement `From<Template> for hyper::Response<Body>`.
+    #[cfg(feature = "with-hyper")]
+    fn impl_hyper_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+        let (impl_generics, orig_ty_generics, where_clause) =
+            self.input.ast.generics.split_for_impl();
+        let ident = &self.input.ast.ident;
+        buf.writeln(&format!(
+            "{} {{",
+            quote!(
+                impl #impl_generics ::core::convert::From<&#ident #orig_ty_generics>
+                for ::askama_hyper::hyper::Response<::askama_hyper::hyper::Body>
+                #where_clause
+            )
+        ))?;
+        buf.writeln("#[inline]")?;
+        buf.writeln(&format!(
+            "{} {{",
+            quote!(fn from(value: &#ident #orig_ty_generics) -> Self)
+        ))?;
+        let ext = self.input.extension().unwrap_or("txt");
+        buf.writeln(&format!("::askama_hyper::respond(value, {:?})", ext))?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
