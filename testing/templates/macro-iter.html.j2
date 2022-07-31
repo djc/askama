@@ -1,0 +1,16 @@
+{%- macro list(list) -%}
+<ul>
+	{%- for item in list %}
+	<li>{{item}}</li>
+	{%- endfor %}
+</ul>
+<ol>
+	{%- for item in list %}
+	<li>{{item}}</li>
+	{%- endfor %}
+</ol>
+{%- endmacro -%}
+
+{%- for foo in foos %}
+{% call list(foo.list) %}
+{%- endfor %}

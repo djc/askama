@@ -1,4 +1,5 @@
 use askama::Template;
+use std::collections::BTreeSet;
 
 #[derive(Template)]
 #[template(path = "macro.html")]
@@ -72,4 +73,14 @@ struct StrCmpTemplate;
 fn str_cmp() {
     let t = StrCmpTemplate;
     assert_eq!(t.render().unwrap(), "AfooBotherCneitherD");
+}
+
+#[derive(Template)]
+#[template(path = "macro-iter.html.j2")]
+struct MacroIterTemplate {
+    foos: Vec<Foo>,
+}
+
+struct Foo {
+    list: BTreeSet<String>,
 }
