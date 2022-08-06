@@ -2034,7 +2034,7 @@ impl MapChain<'_, &str, LocalMeta> {
         let name = normalize_identifier(name);
         self.get(&name).map(|meta| match &meta.refs {
             Some(expr) => expr.clone(),
-            None => name.to_string(),
+            None => format!("&{name}"),
         })
     }
 
