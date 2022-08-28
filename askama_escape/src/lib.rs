@@ -105,6 +105,7 @@ where
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct Html;
 
 impl Escaper for Html {
@@ -135,6 +136,7 @@ impl Escaper for Html {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct Text;
 
 impl Escaper for Text {

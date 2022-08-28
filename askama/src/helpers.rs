@@ -1,4 +1,7 @@
+use std::fmt;
 use std::iter::{Enumerate, Peekable};
+
+use askama_escape::MarkupDisplay;
 
 pub struct TemplateLoop<I>
 where
@@ -45,4 +48,61 @@ pub struct LoopItem {
     pub index: usize,
     pub first: bool,
     pub last: bool,
+}
+
+pub trait MarkupDisplayWrap {
+    type Result: fmt::Display;
+
+    fn askama_new_unsafe(self) -> Self::Result;
+}
+
+impl<'a, E, T> MarkupDisplayWrap for &'a (&'a T, E)
+where
+    E: askama_escape::Escaper + Copy,
+    T: fmt::Display,
+{
+    type Result = MarkupDisplay<E, &'a T>;
+
+    #[inline]
+    fn askama_new_unsafe(self) -> Self::Result {
+        MarkupDisplay::new_unsafe(self.0, self.1)
+    }
+}
+
+impl<'a, E, T> MarkupDisplayWrap for (&'a Option<T>, E)
+where
+    E: askama_escape::Escaper + Copy,
+    T: fmt::Display,
+{
+    type Result = OptionMarkupDisplay<'a, E, T>;
+
+    #[inline]
+    fn askama_new_unsafe(self) -> Self::Result {
+        OptionMarkupDisplay {
+            value: self.0.as_ref(),
+            escaper: self.1,
+        }
+    }
+}
+
+pub struct OptionMarkupDisplay<'a, E, T>
+where
+    E: askama_escape::Escaper + Copy,
+    T: fmt::Display,
+{
+    value: Option<&'a T>,
+    escaper: E,
+}
+
+impl<'a, E, T> fmt::Display for OptionMarkupDisplay<'a, E, T>
+where
+    E: askama_escape::Escaper + Copy,
+    T: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.value {
+            Some(value) => MarkupDisplay::new_unsafe(value, self.escaper).fmt(f),
+            None => Ok(()),
+        }
+    }
 }

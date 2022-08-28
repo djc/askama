@@ -461,3 +461,18 @@ fn test_define_string_var() {
     let template = DefineStringVar;
     assert_eq!(template.render().unwrap(), "");
 }
+
+#[derive(askama::Template)]
+#[template(source = "<{{ s }}>", ext = "html")]
+struct OptionalValues<'a> {
+    s: Option<&'a str>,
+}
+
+#[test]
+fn test_optional_values() {
+    let template = OptionalValues { s: Some("&") };
+    assert_eq!(template.render().unwrap(), "<&amp;>");
+
+    let template = OptionalValues { s: None };
+    assert_eq!(template.render().unwrap(), "<>");
+}

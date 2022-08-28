@@ -328,6 +328,7 @@ impl<'a> Generator<'a> {
             "fn render_into(&self, writer: &mut (impl ::std::fmt::Write + ?Sized)) -> \
              ::askama::Result<()> {",
         )?;
+        buf.writeln("use ::askama::helpers::MarkupDisplayWrap as _;")?;
 
         // Make sure the compiler understands that the generated code depends on the template files.
         for path in self.contexts.keys() {
@@ -1192,8 +1193,8 @@ impl<'a> Generator<'a> {
                     let expression = match wrapped {
                         Wrapped => expr_buf.buf,
                         Unwrapped => format!(
-                            "::askama::MarkupDisplay::new_unsafe(&({}), {})",
-                            expr_buf.buf, self.input.escaper
+                            "(&(&({}), {})).askama_new_unsafe()",
+                            expr_buf.buf, self.input.escaper,
                         ),
                     };
 
