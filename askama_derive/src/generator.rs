@@ -7,7 +7,7 @@ use crate::CompileError;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 
-use std::collections::HashMap;
+use std::collections::hash_map::{Entry, HashMap};
 use std::path::{Path, PathBuf};
 use std::{cmp, hash, mem, str};
 
@@ -1196,11 +1196,9 @@ impl<'a> Generator<'a> {
                             expr_buf.buf, self.input.escaper
                         ),
                     };
-                    let is_cacheable = !matches!(s, Expr::Call(..));
 
-                    use std::collections::hash_map::Entry;
                     let id = match expr_cache.entry(expression.clone()) {
-                        Entry::Occupied(e) if is_cacheable => *e.get(),
+                        Entry::Occupied(e) if s.is_cachable() => *e.get(),
                         e => {
                             let id = self.named;
                             self.named += 1;
