@@ -106,6 +106,39 @@ impl Expr<'_> {
             _ => false,
         }
     }
+
+    /// Returns `true` if the outcome of this expression may be used multiple times in the same
+    /// `write!()` call, without evaluating the expression again, i.e. the expression should be
+    /// side-effect free.
+    pub(crate) fn is_cachable(&self) -> bool {
+        match self {
+            // Literals are the definition of pure:
+            Expr::BoolLit(_) => true,
+            Expr::NumLit(_) => true,
+            Expr::StrLit(_) => true,
+            Expr::CharLit(_) => true,
+            // fmt::Display should have no effects:
+            Expr::Var(_) => true,
+            Expr::Path(_) => true,
+            // Check recursively:
+            Expr::Array(args) => args.iter().all(|arg| arg.is_cachable()),
+            Expr::Attr(lhs, _) => lhs.is_cachable(),
+            Expr::Index(lhs, rhs) => lhs.is_cachable() && rhs.is_cachable(),
+            Expr::Filter(_, args) => args.iter().all(|arg| arg.is_cachable()),
+            Expr::Unary(_, arg) => arg.is_cachable(),
+            Expr::BinOp(_, lhs, rhs) => lhs.is_cachable() && rhs.is_cachable(),
+            Expr::Range(_, lhs, rhs) => {
+                lhs.as_ref().map_or(true, |v| v.is_cachable())
+                    && rhs.as_ref().map_or(true, |v| v.is_cachable())
+            }
+            Expr::Group(arg) => arg.is_cachable(),
+            Expr::Tuple(args) => args.iter().all(|arg| arg.is_cachable()),
+            // We have too little information to tell if the expression is pure:
+            Expr::Call(_, _) => false,
+            Expr::RustMacro(_, _) => false,
+            Expr::Try(_) => false,
+        }
+    }
 }
 
 pub(crate) type When<'a> = (Ws, Target<'a>, Vec<Node<'a>>);
