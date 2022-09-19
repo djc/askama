@@ -21,7 +21,7 @@ pub use self::yaml::yaml;
 use crate::error::Error::Fmt;
 use askama_escape::{Escaper, MarkupDisplay};
 #[cfg(feature = "humansize")]
-use dep_humansize::{file_size_opts, FileSize};
+use dep_humansize::{format_size_i, ToF64, DECIMAL};
 #[cfg(feature = "num-traits")]
 use dep_num_traits::{cast::NumCast, Signed};
 #[cfg(feature = "percent-encoding")]
@@ -74,9 +74,8 @@ where
 
 #[cfg(feature = "humansize")]
 /// Returns adequate string representation (in KB, ..) of number of bytes
-pub fn filesizeformat<B: FileSize>(b: &B) -> Result<String> {
-    b.file_size(file_size_opts::DECIMAL)
-        .map_err(|_| Fmt(fmt::Error))
+pub fn filesizeformat(b: &(impl ToF64 + Copy)) -> Result<String> {
+    Ok(format_size_i(*b, DECIMAL))
 }
 
 #[cfg(feature = "percent-encoding")]
@@ -399,9 +398,9 @@ mod tests {
     fn test_filesizeformat() {
         assert_eq!(filesizeformat(&0).unwrap(), "0 B");
         assert_eq!(filesizeformat(&999u64).unwrap(), "999 B");
-        assert_eq!(filesizeformat(&1000i32).unwrap(), "1 KB");
-        assert_eq!(filesizeformat(&1023).unwrap(), "1.02 KB");
-        assert_eq!(filesizeformat(&1024usize).unwrap(), "1.02 KB");
+        assert_eq!(filesizeformat(&1000i32).unwrap(), "1 kB");
+        assert_eq!(filesizeformat(&1023).unwrap(), "1.02 kB");
+        assert_eq!(filesizeformat(&1024usize).unwrap(), "1.02 kB");
     }
 
     #[cfg(feature = "percent-encoding")]
