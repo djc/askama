@@ -1207,7 +1207,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 .config
                 .escapers
                 .iter()
-                .find_map(|(escapers, escaper)| escapers.contains(name).then(|| escaper))
+                .find_map(|(escapers, escaper)| escapers.contains(name).then_some(escaper))
                 .ok_or_else(|| CompileError::from("invalid escaper for escape filter"))?,
             None => self.input.escaper,
         };
