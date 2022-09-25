@@ -3,4 +3,4 @@ authors = ["djc", "cetra3"]
 language = "en"
 multilingual = false
 src = "src"
-title = "Askama"
+title = "Askama (0.11.x)"
