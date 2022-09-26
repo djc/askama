@@ -445,8 +445,7 @@ impl<'a> Generator<'a> {
             "{} {{",
             quote!(fn from(value: &#ident #orig_ty_generics) -> Self)
         ))?;
-        let ext = self.input.extension().unwrap_or("txt");
-        buf.writeln(&format!("::askama_hyper::respond(value, {:?})", ext))?;
+        buf.writeln("::askama_hyper::respond(value)")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }

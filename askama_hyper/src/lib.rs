@@ -7,7 +7,7 @@ pub use askama::*;
 pub use hyper;
 use hyper::{header, Body, Response, StatusCode};
 
-pub fn try_respond<T: Template>(t: &T, _ext: &str) -> Result<Response<Body>> {
+pub fn try_respond<T: Template>(t: &T) -> Result<Response<Body>> {
     Response::builder()
         .status(StatusCode::OK)
         .header(
@@ -18,8 +18,8 @@ pub fn try_respond<T: Template>(t: &T, _ext: &str) -> Result<Response<Body>> {
         .map_err(|err| Error::Custom(Box::new(err)))
 }
 
-pub fn respond<T: Template>(t: &T, _ext: &str) -> Response<Body> {
-    match try_respond(t, _ext) {
+pub fn respond<T: Template>(t: &T) -> Response<Body> {
+    match try_respond(t) {
         Ok(response) => response,
         Err(_) => Response::builder()
             .status(StatusCode::INTERNAL_SERVER_ERROR)
