@@ -1313,7 +1313,7 @@ impl<'a> Generator<'a> {
     ) -> Result<DisplayWrap, CompileError> {
         let localizer =
             self.input.localizer.as_deref().ok_or(
-                "You have to annotate a field with #[locale] to use the localize() function.",
+                "You need to annotate a field with #[locale] to use the localize() function.",
             )?;
 
         buf.write(&format!(

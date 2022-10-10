@@ -71,7 +71,7 @@ impl TemplateInput<'_> {
                     Some(localizer) => {
                         if !cfg!(feature = "i18n") {
                             return Err(
-                                "You have to activate the \"i18n\" feature to use #[locale]."
+                                "You need to activate the \"i18n\" feature to use #[locale]."
                                     .into(),
                             );
                         } else if localizers.next().is_some() {
