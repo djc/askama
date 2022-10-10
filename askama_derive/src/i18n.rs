@@ -260,19 +260,19 @@ pub(crate) fn load(input: TokenStream) -> Result<TokenStream, CompileError> {
     let ts = quote_spanned! {
         span =>
         #vis static #name:
-            ::fluent_templates::once_cell::sync::Lazy::<
-                ::fluent_templates::StaticLoader
-            > = ::fluent_templates::once_cell::sync::Lazy::new(|| {
+            ::askama::i18n::fluent_templates::once_cell::sync::Lazy::<
+            ::askama::i18n::fluent_templates::StaticLoader
+            > = ::askama::i18n::fluent_templates::once_cell::sync::Lazy::new(|| {
                 mod fluent_templates {
                     // RATIONALE: the user might not use fluent_templates directly.
-                    pub use ::fluent_templates::*;
+                    pub use ::askama::i18n::fluent_templates::*;
                     pub mod once_cell {
                         pub mod sync {
                             pub use ::askama::i18n::Unlazy as Lazy;
                         }
                     }
                 }
-                ::fluent_templates::static_loader! {
+                ::askama::i18n::fluent_templates::static_loader! {
                     pub static LOCALES = {
                         locales: #assets_dir,
                         fallback_language: #fallback,

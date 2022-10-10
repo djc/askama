@@ -8,14 +8,13 @@ publish = false
 
 [features]
 default = ["serde-json", "markdown", "i18n"]
-i18n = ["askama/i18n", "fluent-templates"]
+i18n = ["askama/i18n"]
 markdown = ["comrak", "askama/markdown"]
 serde-json = ["serde_json", "askama/serde-json"]
 
 [dependencies]
 askama = { path = "../askama", version = "0.11.0-beta.1" }
 comrak = { version = "0.14", default-features = false, optional = true }
-fluent-templates = { version = "0.7.1", optional = true, default-features = false }
 serde_json = { version = "1.0", optional = true }
 
 [dev-dependencies]
