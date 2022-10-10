@@ -47,7 +47,7 @@ impl TemplateInput<'_> {
             (&Source::Path(ref path), _) => config.find_template(path, None)?,
             (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
             (&Source::Source(_), None) => {
-                return Err("must include 'ext' attribute when using 'source' attribute".into())           
+                return Err("must include 'ext' attribute when using 'source' attribute".into())
             }
         };
 
