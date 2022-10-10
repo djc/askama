@@ -1,8 +1,9 @@
 #![cfg(feature = "i18n")]
 
-use askama::{langid, Locale, Template};
+use askama::i18n::{langid, Locale};
+use askama::Template;
 
-askama::i18n_load!(LOCALES);
+askama::i18n::load!(LOCALES);
 
 #[derive(Template)]
 #[template(path = "i18n.html")]

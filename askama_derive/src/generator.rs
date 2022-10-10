@@ -1324,7 +1324,7 @@ impl<'a> Generator<'a> {
         buf.writeln(", [")?;
         buf.indent();
         for (k, v) in args {
-            buf.write(&format!("({:?}, ::askama::FluentValue::from(", k));
+            buf.write(&format!("({:?}, ::askama::i18n::FluentValue::from(", k));
             self.visit_expr(buf, v)?;
             buf.writeln(")),")?;
         }

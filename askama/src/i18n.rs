@@ -1,8 +1,13 @@
 use std::collections::HashMap;
 use std::iter::FromIterator;
 
-use fluent_templates::fluent_bundle::FluentValue;
-use fluent_templates::{LanguageIdentifier, Loader, StaticLoader};
+/// Re-export conventiently as `askama::i18n::load!()`.
+/// Proc-macro crates can only export macros from their root namespace.
+#[doc(hidden)]
+pub use askama_derive::i18n_load as load;
+
+pub use fluent_templates::{self, fluent_bundle::FluentValue, fs::langid, LanguageIdentifier};
+use fluent_templates::{Loader, StaticLoader};
 use parking_lot::const_mutex;
 
 pub struct Locale<'a> {

@@ -234,7 +234,7 @@ fn get_i18n_config() -> Result<&'static Configuration, CompileError> {
     }
 }
 
-pub(crate) fn derive(input: TokenStream) -> Result<TokenStream, CompileError> {
+pub(crate) fn load(input: TokenStream) -> Result<TokenStream, CompileError> {
     let configuration = get_i18n_config()?;
 
     let input: TokenStream2 = input.into();
@@ -260,19 +260,19 @@ pub(crate) fn derive(input: TokenStream) -> Result<TokenStream, CompileError> {
     let ts = quote_spanned! {
         span =>
         #vis static #name:
-            ::askama::fluent_templates::once_cell::sync::Lazy::<
-                ::askama::fluent_templates::StaticLoader
-            > = ::askama::fluent_templates::once_cell::sync::Lazy::new(|| {
+            ::fluent_templates::once_cell::sync::Lazy::<
+                ::fluent_templates::StaticLoader
+            > = ::fluent_templates::once_cell::sync::Lazy::new(|| {
                 mod fluent_templates {
                     // RATIONALE: the user might not use fluent_templates directly.
-                    pub use ::askama::fluent_templates::*;
+                    pub use ::fluent_templates::*;
                     pub mod once_cell {
                         pub mod sync {
-                            pub use ::askama::Unlazy as Lazy;
+                            pub use ::askama::i18n::Unlazy as Lazy;
                         }
                     }
                 }
-                ::askama::fluent_templates::static_loader! {
+                ::fluent_templates::static_loader! {
                     pub static LOCALES = {
                         locales: #assets_dir,
                         fallback_language: #fallback,

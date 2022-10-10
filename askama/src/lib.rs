@@ -67,20 +67,16 @@ mod error;
 pub mod filters;
 pub mod helpers;
 #[cfg(feature = "i18n")]
-mod i18n;
+pub mod i18n;
 
 use std::fmt;
 
-pub use askama_derive::{i18n_load, Template};
+pub use askama_derive::Template;
 pub use askama_escape::{Html, MarkupDisplay, Text};
-#[cfg(feature = "i18n")]
-pub use fluent_templates::{self, fluent_bundle::FluentValue, fs::langid, LanguageIdentifier};
 
 #[doc(hidden)]
 pub use crate as shared;
 pub use crate::error::{Error, Result};
-#[cfg(feature = "i18n")]
-pub use crate::i18n::{Locale, Unlazy};
 
 /// Main `Template` trait; implementations are generally derived
 ///

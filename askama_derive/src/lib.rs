@@ -24,7 +24,7 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn i18n_load(_input: TokenStream) -> TokenStream {
     #[cfg(feature = "i18n")]
-    match i18n::derive(_input) {
+    match i18n::load(_input) {
         Ok(ts) => ts,
         Err(err) => err.into_compile_error(),
     }
