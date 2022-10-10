@@ -24,7 +24,7 @@ impl Locale<'_> {
         &self,
         text_id: &str,
         args: impl IntoIterator<Item = (&'a str, FluentValue<'a>)>,
-    ) -> String {
+    ) -> Option<String> {
         let args = HashMap::<&str, FluentValue<'_>>::from_iter(args);
         let args = match args.is_empty() {
             true => None,

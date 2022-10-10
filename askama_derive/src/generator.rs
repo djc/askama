@@ -1329,7 +1329,8 @@ impl<'a> Generator<'a> {
             buf.writeln(")),")?;
         }
         buf.dedent()?;
-        buf.write("])");
+        // Safe to unwrap, as `message` is checked at compile time.
+        buf.write("]).unwrap()");
 
         Ok(DisplayWrap::Unwrapped)
     }
