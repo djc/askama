@@ -1,9 +1,49 @@
+//! Module for compile time checked localization
+//!
+//! # Example:
+//!
+//! [Fluent Translation List](https://projectfluent.org/) resource file `i18n/es-MX/basic.ftl`:
+//!
+//! ```ftl
+//! greeting = ¡Hola, { $name }!
+//! ```
+//!
+//! Askama HTML template `templates/example.html`:
+//!
+//! ```html
+//! <h1>{{ localize("greeting", name: name) }}</h1>
+//! ```
+//!
+//! Rust usage:
+//! ```ignore
+//! use askama::i18n::{langid, Locale};
+//! use askama::Template;
+//!
+//! askama::i18n::load!(LOCALES);
+//!
+//! #[derive(Template)]
+//! #[template(path = "example.html")]
+//! struct UsesI18n<'a> {
+//!     #[locale]
+//!     loc: Locale<'a>,
+//!     name: &'a str,
+//! }
+//!
+//! let template = UsesI18n {
+//!     loc: Locale::new(langid!("es-MX"), &LOCALES),
+//!     name: "Hilda",
+//! };
+//!
+//! // "<h1>¡Hola, Hilda!</h1>"
+//! template.render().unwrap();
+//! ```
+
 use std::collections::HashMap;
 use std::iter::FromIterator;
 
-/// Re-export conventiently as `askama::i18n::load!()`.
-/// Proc-macro crates can only export macros from their root namespace.
-#[doc(hidden)]
+// Re-export conventiently as `askama::i18n::load!()`.
+// Proc-macro crates can only export macros from their root namespace.
+/// Load locales at compile time. See example above for usage.
 pub use askama_derive::i18n_load as load;
 
 pub use fluent_templates::{self, fluent_bundle::FluentValue, fs::langid, LanguageIdentifier};
