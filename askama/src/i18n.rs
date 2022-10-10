@@ -32,7 +32,7 @@ impl Locale<'_> {
 /// Similar to OnceCell, but it has an additional take() function, which can only be used once,
 /// and only if the instance was never dereferenced.
 ///
-/// The struct is only meant to be used by the [`localization!()`] macro.
+/// The struct is only meant to be used by the [`i18n_load!()`] macro.
 /// Concurrent access will deliberately panic.
 ///
 /// Rationale: StaticLoader cannot be cloned.

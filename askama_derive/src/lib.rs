@@ -22,7 +22,7 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-pub fn localization(_input: TokenStream) -> TokenStream {
+pub fn i18n_load(_input: TokenStream) -> TokenStream {
     #[cfg(feature = "i18n")]
     match i18n::derive(_input) {
         Ok(ts) => ts,
@@ -30,7 +30,7 @@ pub fn localization(_input: TokenStream) -> TokenStream {
     }
 
     #[cfg(not(feature = "i18n"))]
-    CompileError::from(r#"Activate the "i18n" feature to use localization!()."#).into_compile_error()
+    CompileError::from(r#"Activate the "i18n" feature to use i18n_load!()."#).into_compile_error()
 }
 
 #[derive(Debug, Clone)]

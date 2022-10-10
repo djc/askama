@@ -2,7 +2,7 @@
 
 use askama::{langid, Locale, Template};
 
-askama::localization!(LOCALES);
+askama::i18n_load!(LOCALES);
 
 #[derive(Template)]
 #[template(path = "i18n.html")]

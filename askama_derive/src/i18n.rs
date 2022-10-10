@@ -241,7 +241,7 @@ pub(crate) fn derive(input: TokenStream) -> Result<TokenStream, CompileError> {
     let span = input.span();
     let variable: Variable = match parse2(input) {
         Ok(variable) => variable,
-        Err(err) => return Err(format!("could not parse localize!(…): {}", err).into()),
+        Err(err) => return Err(format!("could not parse i18n_load!(…): {}", err).into()),
     };
 
     let vis = variable.vis;

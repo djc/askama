@@ -71,7 +71,7 @@ mod i18n;
 
 use std::fmt;
 
-pub use askama_derive::{localization, Template};
+pub use askama_derive::{i18n_load, Template};
 pub use askama_escape::{Html, MarkupDisplay, Text};
 #[cfg(feature = "i18n")]
 pub use fluent_templates::{self, fluent_bundle::FluentValue, fs::langid, LanguageIdentifier};
