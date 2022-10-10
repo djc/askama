@@ -66,7 +66,7 @@ pub(crate) enum Expr<'a> {
     Call(Box<Expr<'a>>, Vec<Expr<'a>>),
     RustMacro(&'a str, &'a str),
     Try(Box<Expr<'a>>),
-    #[cfg(feature = "localization")]
+    #[cfg(feature = "i18n")]
     Localize(Box<Expr<'a>>, Vec<(&'a str, Expr<'a>)>),
 }
 
@@ -671,14 +671,14 @@ macro_rules! expr_prec_layer {
     }
 }
 
-#[cfg(not(feature = "localization"))]
+#[cfg(not(feature = "i18n"))]
 fn expr_localize(i: &str) -> IResult<&str, Expr<'_>> {
     let (i, _) = pair(tag("localize"), ws(tag("(")))(i)?;
-    eprintln!(r#"Activate the "localization" feature to use {{ localize() }}."#);
+    eprintln!(r#"Activate the "i18n" feature to use {{ localize() }}."#);
     Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)))
 }
 
-#[cfg(feature = "localization")]
+#[cfg(feature = "i18n")]
 fn expr_localize(i: &str) -> IResult<&str, Expr<'_>> {
     fn localize_args(mut i: &str) -> IResult<&str, Vec<(&str, Expr<'_>)>> {
         let mut args = Vec::<(&str, Expr<'_>)>::new();
@@ -1320,7 +1320,7 @@ mod tests {
         super::parse("{% extend \"blah\" %}", &Syntax::default()).unwrap();
     }
 
-    #[cfg(feature = "localization")]
+    #[cfg(feature = "i18n")]
     #[test]
     fn test_parse_localize() {
         macro_rules! map {

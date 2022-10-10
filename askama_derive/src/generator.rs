@@ -1299,12 +1299,12 @@ impl<'a> Generator<'a> {
             Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
             Expr::Try(ref expr) => self.visit_try(buf, expr.as_ref())?,
             Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
-            #[cfg(feature = "localization")]
+            #[cfg(feature = "i18n")]
             Expr::Localize(ref message, ref args) => self.visit_localize(buf, message, args)?,
         })
     }
 
-    #[cfg(feature = "localization")]
+    #[cfg(feature = "i18n")]
     fn visit_localize(
         &mut self,
         buf: &mut Buffer,

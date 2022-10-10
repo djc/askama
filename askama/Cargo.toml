@@ -19,7 +19,7 @@ maintenance = { status = "actively-developed" }
 default = ["config", "humansize", "num-traits", "urlencode"]
 config = ["askama_derive/config"]
 humansize = ["askama_derive/humansize", "dep_humansize"]
-localization = ["askama_derive/localization", "fluent-templates", "parking_lot"]
+i18n = ["askama_derive/i18n", "fluent-templates", "parking_lot"]
 markdown = ["askama_derive/markdown", "comrak"]
 num-traits = ["askama_derive/num-traits", "dep_num_traits"]
 serde-json = ["askama_derive/serde-json", "askama_escape/json", "serde", "serde_json"]

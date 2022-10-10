@@ -1,4 +1,4 @@
-#![cfg_attr(not(feature = "localization"), forbid(unsafe_code))]
+#![cfg_attr(not(feature = "i18n"), forbid(unsafe_code))]
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
@@ -11,7 +11,7 @@ use proc_macro2::Span;
 mod config;
 mod generator;
 mod heritage;
-#[cfg(feature = "localization")]
+#[cfg(feature = "i18n")]
 mod i18n;
 mod input;
 mod parser;
@@ -23,15 +23,14 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn localization(_input: TokenStream) -> TokenStream {
-    #[cfg(feature = "localization")]
+    #[cfg(feature = "i18n")]
     match i18n::derive(_input) {
         Ok(ts) => ts,
         Err(err) => err.into_compile_error(),
     }
 
-    #[cfg(not(feature = "localization"))]
-    CompileError::from(r#"Activate the "localization" feature to use localization!()."#)
-        .into_compile_error()
+    #[cfg(not(feature = "i18n"))]
+    CompileError::from(r#"Activate the "i18n" feature to use localization!()."#).into_compile_error()
 }
 
 #[derive(Debug, Clone)]

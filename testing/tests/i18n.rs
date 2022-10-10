@@ -1,4 +1,4 @@
-#![cfg(feature = "localization")]
+#![cfg(feature = "i18n")]
 
 use askama::{langid, Locale, Template};
 
