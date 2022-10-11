@@ -59,28 +59,24 @@
 //!   in the configuration file. The default syntax , "default",  is the one
 //!   provided by Askama.
 
-#![cfg_attr(not(feature = "localization"), forbid(unsafe_code))]
+#![cfg_attr(not(feature = "i18n"), forbid(unsafe_code))]
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
 mod error;
 pub mod filters;
 pub mod helpers;
-#[cfg(feature = "localization")]
-mod i18n;
+#[cfg(feature = "i18n")]
+pub mod i18n;
 
 use std::fmt;
 
-pub use askama_derive::{localization, Template};
+pub use askama_derive::Template;
 pub use askama_escape::{Html, MarkupDisplay, Text};
-#[cfg(feature = "localization")]
-pub use fluent_templates::{self, fluent_bundle::FluentValue, fs::langid, LanguageIdentifier};
 
 #[doc(hidden)]
 pub use crate as shared;
 pub use crate::error::{Error, Result};
-#[cfg(feature = "localization")]
-pub use crate::i18n::{Locale, Unlazy};
 
 /// Main `Template` trait; implementations are generally derived
 ///

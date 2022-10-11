@@ -1,18 +1,9 @@
-#![cfg(feature = "localization")]
+#![cfg(feature = "i18n")]
 
-use askama::{langid, Locale, Template};
+use askama::i18n::{langid, Locale};
+use askama::Template;
 
-askama::localization!(LOCALES);
-
-/*
-#[derive(Template)]
-#[template(path = "i18n_invalid.html")]
-struct UsesI18nInvalid<'a> {
-    #[locale]
-    loc: Locale<'a>,
-    name: &'a str,
-}
-*/
+askama::i18n::load!(LOCALES);
 
 #[derive(Template)]
 #[template(path = "i18n.html")]
@@ -29,16 +20,6 @@ struct UsesNoArgsI18n<'a> {
     #[locale]
     loc: Locale<'a>,
 }
-
-/*
-#[derive(Template)]
-#[template(path = "i18n_broken.html")]
-struct InvalidI18n<'a> {
-    #[locale]
-    loc: Locale<'a>,
-    car_color: &'a str,
-}
-*/
 
 #[test]
 fn existing_language() {
@@ -75,17 +56,3 @@ fn no_args() {
     };
     assert_eq!(template.render().unwrap(), r#"<h3>This is a test</h3>"#)
 }
-
-/*
-#[test]
-fn invalid_tags_language() {
-    let template = InvalidI18n {
-        loc: Locale::new(langid!("nl-BE"), &LOCALES),
-        car_color: "Red",
-    };
-    assert_eq!(
-        template.render().unwrap(),
-        r#"<h1>Unknown localization car</h1>"#
-    );
-}
-*/

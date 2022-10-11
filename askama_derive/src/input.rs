@@ -17,7 +17,7 @@ pub(crate) struct TemplateInput<'a> {
     pub(crate) ext: Option<String>,
     pub(crate) mime_type: String,
     pub(crate) path: PathBuf,
-    #[cfg(feature = "localization")]
+    #[cfg(feature = "i18n")]
     pub(crate) localizer: Option<String>,
 }
 
@@ -47,7 +47,7 @@ impl TemplateInput<'_> {
             (&Source::Path(ref path), _) => config.find_template(path, None)?,
             (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
             (&Source::Source(_), None) => {
-                return Err("must include 'ext' attribute when using 'source' attribute".into())           
+                return Err("must include 'ext' attribute when using 'source' attribute".into())
             }
         };
 
@@ -69,8 +69,11 @@ impl TemplateInput<'_> {
                         );
                 match localizers.next() {
                     Some(localizer) => {
-                        if !cfg!(feature = "localization") {
-                            return Err("You have to activate the \"localization\" feature to use #[locale].".into());
+                        if !cfg!(feature = "i18n") {
+                            return Err(
+                                "You need to activate the \"i18n\" feature to use #[locale]."
+                                    .into(),
+                            );
                         } else if localizers.next().is_some() {
                             return Err("You cannot mark more than one field as #[locale].".into());
                         }
@@ -81,7 +84,7 @@ impl TemplateInput<'_> {
             }
             _ => None,
         };
-        #[cfg(not(feature = "localization"))]
+        #[cfg(not(feature = "i18n"))]
         drop(localizer);
 
         // Validate syntax
@@ -130,7 +133,7 @@ impl TemplateInput<'_> {
             ext,
             mime_type,
             path,
-            #[cfg(feature = "localization")]
+            #[cfg(feature = "i18n")]
             localizer,
         })
     }

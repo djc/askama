@@ -1,8 +1,53 @@
+//! Module for compile time checked localization
+//!
+//! # Example:
+//!
+//! [Fluent Translation List](https://projectfluent.org/) resource file `i18n/es-MX/basic.ftl`:
+//!
+//! ```ftl
+//! greeting = ¡Hola, { $name }!
+//! ```
+//!
+//! Askama HTML template `templates/example.html`:
+//!
+//! ```html
+//! <h1>{{ localize("greeting", name: name) }}</h1>
+//! ```
+//!
+//! Rust usage:
+//! ```ignore
+//! use askama::i18n::{langid, Locale};
+//! use askama::Template;
+//!
+//! askama::i18n::load!(LOCALES);
+//!
+//! #[derive(Template)]
+//! #[template(path = "example.html")]
+//! struct UsesI18n<'a> {
+//!     #[locale]
+//!     loc: Locale<'a>,
+//!     name: &'a str,
+//! }
+//!
+//! let template = UsesI18n {
+//!     loc: Locale::new(langid!("es-MX"), &LOCALES),
+//!     name: "Hilda",
+//! };
+//!
+//! // "<h1>¡Hola, Hilda!</h1>"
+//! template.render().unwrap();
+//! ```
+
 use std::collections::HashMap;
 use std::iter::FromIterator;
 
-use fluent_templates::fluent_bundle::FluentValue;
-use fluent_templates::{LanguageIdentifier, Loader, StaticLoader};
+// Re-export conventiently as `askama::i18n::load!()`.
+// Proc-macro crates can only export macros from their root namespace.
+/// Load locales at compile time. See example above for usage.
+pub use askama_derive::i18n_load as load;
+
+pub use fluent_templates::{self, fluent_bundle::FluentValue, fs::langid, LanguageIdentifier};
+use fluent_templates::{Loader, StaticLoader};
 use parking_lot::const_mutex;
 
 pub struct Locale<'a> {
@@ -19,7 +64,7 @@ impl Locale<'_> {
         &self,
         text_id: &str,
         args: impl IntoIterator<Item = (&'a str, FluentValue<'a>)>,
-    ) -> String {
+    ) -> Option<String> {
         let args = HashMap::<&str, FluentValue<'_>>::from_iter(args);
         let args = match args.is_empty() {
             true => None,
@@ -32,7 +77,7 @@ impl Locale<'_> {
 /// Similar to OnceCell, but it has an additional take() function, which can only be used once,
 /// and only if the instance was never dereferenced.
 ///
-/// The struct is only meant to be used by the [`localization!()`] macro.
+/// The struct is only meant to be used by the [`i18n_load!()`] macro.
 /// Concurrent access will deliberately panic.
 ///
 /// Rationale: StaticLoader cannot be cloned.

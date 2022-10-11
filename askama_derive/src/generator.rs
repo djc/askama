@@ -1299,12 +1299,12 @@ impl<'a> Generator<'a> {
             Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
             Expr::Try(ref expr) => self.visit_try(buf, expr.as_ref())?,
             Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
-            #[cfg(feature = "localization")]
+            #[cfg(feature = "i18n")]
             Expr::Localize(ref message, ref args) => self.visit_localize(buf, message, args)?,
         })
     }
 
-    #[cfg(feature = "localization")]
+    #[cfg(feature = "i18n")]
     fn visit_localize(
         &mut self,
         buf: &mut Buffer,
@@ -1313,7 +1313,7 @@ impl<'a> Generator<'a> {
     ) -> Result<DisplayWrap, CompileError> {
         let localizer =
             self.input.localizer.as_deref().ok_or(
-                "You have to annotate a field with #[locale] to use the localize() function.",
+                "You need to annotate a field with #[locale] to use the localize() function.",
             )?;
 
         buf.write(&format!(
@@ -1324,12 +1324,13 @@ impl<'a> Generator<'a> {
         buf.writeln(", [")?;
         buf.indent();
         for (k, v) in args {
-            buf.write(&format!("({:?}, ::askama::FluentValue::from(", k));
+            buf.write(&format!("({:?}, ::askama::i18n::FluentValue::from(", k));
             self.visit_expr(buf, v)?;
             buf.writeln(")),")?;
         }
         buf.dedent()?;
-        buf.write("])");
+        // Safe to unwrap, as `message` is checked at compile time.
+        buf.write("]).unwrap()");
 
         Ok(DisplayWrap::Unwrapped)
     }

@@ -7,8 +7,8 @@ edition = "2018"
 publish = false
 
 [features]
-default = ["serde-json", "markdown", "localization"]
-localization = ["askama/localization"]
+default = ["serde-json", "markdown", "i18n"]
+i18n = ["askama/i18n"]
 markdown = ["comrak", "askama/markdown"]
 serde-json = ["serde_json", "askama/serde-json"]
 

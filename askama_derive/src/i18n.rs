@@ -234,14 +234,14 @@ fn get_i18n_config() -> Result<&'static Configuration, CompileError> {
     }
 }
 
-pub(crate) fn derive(input: TokenStream) -> Result<TokenStream, CompileError> {
+pub(crate) fn load(input: TokenStream) -> Result<TokenStream, CompileError> {
     let configuration = get_i18n_config()?;
 
     let input: TokenStream2 = input.into();
     let span = input.span();
     let variable: Variable = match parse2(input) {
         Ok(variable) => variable,
-        Err(err) => return Err(format!("could not parse localize!(…): {}", err).into()),
+        Err(err) => return Err(format!("could not parse i18n_load!(…): {}", err).into()),
     };
 
     let vis = variable.vis;
@@ -260,19 +260,19 @@ pub(crate) fn derive(input: TokenStream) -> Result<TokenStream, CompileError> {
     let ts = quote_spanned! {
         span =>
         #vis static #name:
-            ::askama::fluent_templates::once_cell::sync::Lazy::<
-                ::askama::fluent_templates::StaticLoader
-            > = ::askama::fluent_templates::once_cell::sync::Lazy::new(|| {
+            ::askama::i18n::fluent_templates::once_cell::sync::Lazy::<
+            ::askama::i18n::fluent_templates::StaticLoader
+            > = ::askama::i18n::fluent_templates::once_cell::sync::Lazy::new(|| {
                 mod fluent_templates {
                     // RATIONALE: the user might not use fluent_templates directly.
-                    pub use ::askama::fluent_templates::*;
+                    pub use ::askama::i18n::fluent_templates::*;
                     pub mod once_cell {
                         pub mod sync {
-                            pub use ::askama::Unlazy as Lazy;
+                            pub use ::askama::i18n::Unlazy as Lazy;
                         }
                     }
                 }
-                ::askama::fluent_templates::static_loader! {
+                ::askama::i18n::fluent_templates::static_loader! {
                     pub static LOCALES = {
                         locales: #assets_dir,
                         fallback_language: #fallback,
