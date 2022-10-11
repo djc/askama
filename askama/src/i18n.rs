@@ -23,13 +23,13 @@
 //!
 //! #[derive(Template)]
 //! #[template(path = "example.html")]
-//! struct UsesI18n<'a> {
+//! struct ExampleTemplate<'a> {
 //!     #[locale]
 //!     loc: Locale<'a>,
 //!     name: &'a str,
 //! }
 //!
-//! let template = UsesI18n {
+//! let template = ExampleTemplate {
 //!     loc: Locale::new(langid!("es-MX"), &LOCALES),
 //!     name: "Hilda",
 //! };
