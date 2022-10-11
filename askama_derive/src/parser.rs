@@ -135,6 +135,9 @@ impl Expr<'_> {
             }
             Expr::Group(arg) => arg.is_cachable(),
             Expr::Tuple(args) => args.iter().all(|arg| arg.is_cachable()),
+            Expr::Localize(text_id, args) => {
+                text_id.is_cachable() && args.iter().all(|(_, arg)| arg.is_cachable())
+            }
             // We have too little information to tell if the expression is pure:
             Expr::Call(_, _) => false,
             Expr::RustMacro(_, _) => false,
