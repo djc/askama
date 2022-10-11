@@ -22,13 +22,13 @@ mod tests {
 
     #[test]
     fn test_yaml() {
-        assert_eq!(yaml(Html, true).unwrap().to_string(), "---\ntrue");
-        assert_eq!(yaml(Html, "foo").unwrap().to_string(), "---\nfoo");
-        assert_eq!(yaml(Html, &true).unwrap().to_string(), "---\ntrue");
-        assert_eq!(yaml(Html, &"foo").unwrap().to_string(), "---\nfoo");
+        assert_eq!(yaml(Html, true).unwrap().to_string(), "true\n");
+        assert_eq!(yaml(Html, "foo").unwrap().to_string(), "foo\n");
+        assert_eq!(yaml(Html, &true).unwrap().to_string(), "true\n");
+        assert_eq!(yaml(Html, &"foo").unwrap().to_string(), "foo\n");
         assert_eq!(
             yaml(Html, &vec!["foo", "bar"]).unwrap().to_string(),
-            "---\n- foo\n- bar"
+            "- foo\n- bar\n"
         );
     }
 }

@@ -9,12 +9,7 @@ use mendes::http::Response;
 
 pub use askama::*;
 
-pub fn into_response<A, T>(
-    app: &A,
-    req: &Parts,
-    t: &T,
-    _ext: Option<&str>,
-) -> Response<A::ResponseBody>
+pub fn into_response<A, T>(app: &A, req: &Parts, t: &T) -> Response<A::ResponseBody>
 where
     A: Application,
     T: Template,

@@ -9,7 +9,7 @@ use gotham::hyper::header;
 pub use gotham::hyper::{Body, Response, StatusCode};
 pub use gotham::state::State;
 
-pub fn respond<T: Template>(t: &T, _ext: &str) -> Response<Body> {
+pub fn respond<T: Template>(t: &T) -> Response<Body> {
     match t.render() {
         Ok(body) => Response::builder()
             .status(StatusCode::OK)

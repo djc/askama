@@ -10,7 +10,7 @@ pub use rocket::request::Request;
 use rocket::response::Response;
 pub use rocket::response::{Responder, Result};
 
-pub fn respond<T: Template>(t: &T, _ext: &str) -> Result<'static> {
+pub fn respond<T: Template>(t: &T) -> Result<'static> {
     let rsp = t.render().map_err(|_| Status::InternalServerError)?;
     Response::build()
         .header(Header::new("content-type", T::MIME_TYPE))
