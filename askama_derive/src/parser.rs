@@ -135,6 +135,7 @@ impl Expr<'_> {
             }
             Expr::Group(arg) => arg.is_cachable(),
             Expr::Tuple(args) => args.iter().all(|arg| arg.is_cachable()),
+            #[cfg(feature = "i18n")]
             Expr::Localize(msg_id, args) => {
                 msg_id.is_cachable() && args.iter().all(|(_, arg)| arg.is_cachable())
             }
