@@ -135,8 +135,8 @@ impl Expr<'_> {
             }
             Expr::Group(arg) => arg.is_cachable(),
             Expr::Tuple(args) => args.iter().all(|arg| arg.is_cachable()),
-            Expr::Localize(text_id, args) => {
-                text_id.is_cachable() && args.iter().all(|(_, arg)| arg.is_cachable())
+            Expr::Localize(msg_id, args) => {
+                msg_id.is_cachable() && args.iter().all(|(_, arg)| arg.is_cachable())
             }
             // We have too little information to tell if the expression is pure:
             Expr::Call(_, _) => false,
@@ -734,14 +734,14 @@ fn expr_localize(i: &str) -> IResult<&str, Expr<'_>> {
         Ok((i, args))
     }
 
-    let (j, (_, _, (text_id, args, _))) = tuple((
+    let (j, (_, _, (msg_id, args, _))) = tuple((
         tag("localize"),
         ws(tag("(")),
         cut(tuple((expr_any, localize_args, ws(tag(")"))))),
     ))(i)?;
 
-    if let Expr::StrLit(text_id) = text_id {
-        let mut msg_args = match crate::i18n::arguments_of(text_id) {
+    if let Expr::StrLit(msg_id) = msg_id {
+        let mut msg_args = match crate::i18n::arguments_of(msg_id) {
             Ok(args) => args,
             Err(err) => {
                 eprintln!("{}", err.msg);
@@ -752,7 +752,7 @@ fn expr_localize(i: &str) -> IResult<&str, Expr<'_>> {
             if !msg_args.remove(call_arg) {
                 eprintln!(
                     "Fluent template {:?} does not contain argument {:?}",
-                    text_id, call_arg,
+                    msg_id, call_arg,
                 );
                 return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
             }
@@ -760,13 +760,13 @@ fn expr_localize(i: &str) -> IResult<&str, Expr<'_>> {
         if !msg_args.is_empty() {
             eprintln!(
                 "Missing argument(s) {:?} to fluent template {:?}",
-                msg_args, text_id,
+                msg_args, msg_id,
             );
             return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
         }
     }
 
-    Ok((j, Expr::Localize(text_id.into(), args)))
+    Ok((j, Expr::Localize(msg_id.into(), args)))
 }
 
 expr_prec_layer!(expr_muldivmod, expr_filtered, "*", "/", "%");

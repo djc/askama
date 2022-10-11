@@ -62,7 +62,7 @@ impl Locale<'_> {
 
     pub fn translate<'a>(
         &self,
-        text_id: &str,
+        msg_id: &str,
         args: impl IntoIterator<Item = (&'a str, FluentValue<'a>)>,
     ) -> Option<String> {
         let args = HashMap::<&str, FluentValue<'_>>::from_iter(args);
@@ -70,7 +70,7 @@ impl Locale<'_> {
             true => None,
             false => Some(&args),
         };
-        self.loader.lookup_complete(&self.language, text_id, args)
+        self.loader.lookup_complete(&self.language, msg_id, args)
     }
 }
 

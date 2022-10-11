@@ -286,7 +286,7 @@ pub(crate) fn load(input: TokenStream) -> Result<TokenStream, CompileError> {
     Ok(ts.into())
 }
 
-pub(crate) fn arguments_of(text_id: &str) -> Result<HashSet<&'static str>, CompileError> {
+pub(crate) fn arguments_of(msg_id: &str) -> Result<HashSet<&'static str>, CompileError> {
     let config = get_i18n_config()?;
     let entry = config.fallbacks[&config.fallback]
         .iter()
@@ -303,8 +303,8 @@ pub(crate) fn arguments_of(text_id: &str) -> Result<HashSet<&'static str>, Compi
             fluent_syntax::ast::Entry::Message(entry) => Some(entry),
             _ => None,
         })
-        .find(|entry| entry.id.name == text_id)
-        .ok_or_else(|| CompileError::from(format!("text_id {:?} not found", text_id)))?;
+        .find(|entry| entry.id.name == msg_id)
+        .ok_or_else(|| CompileError::from(format!("msg_id {:?} not found", msg_id)))?;
 
     let keys = entry
         .value

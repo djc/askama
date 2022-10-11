@@ -1292,7 +1292,7 @@ impl<'a> Generator<'a> {
             Expr::Try(ref expr) => self.visit_try(buf, expr.as_ref())?,
             Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
             #[cfg(feature = "i18n")]
-            Expr::Localize(ref message, ref args) => self.visit_localize(buf, message, args)?,
+            Expr::Localize(ref msg_id, ref args) => self.visit_localize(buf, msg_id, args)?,
         })
     }
 
@@ -1300,7 +1300,7 @@ impl<'a> Generator<'a> {
     fn visit_localize(
         &mut self,
         buf: &mut Buffer,
-        message: &Expr<'_>,
+        msg_id: &Expr<'_>,
         args: &[(&str, Expr<'_>)],
     ) -> Result<DisplayWrap, CompileError> {
         let localizer =
@@ -1312,7 +1312,7 @@ impl<'a> Generator<'a> {
             "self.{}.translate(",
             normalize_identifier(localizer)
         ));
-        self.visit_expr(buf, message)?;
+        self.visit_expr(buf, msg_id)?;
         buf.writeln(", [")?;
         buf.indent();
         for (k, v) in args {
@@ -1321,7 +1321,7 @@ impl<'a> Generator<'a> {
             buf.writeln(")),")?;
         }
         buf.dedent()?;
-        // Safe to unwrap, as `message` is checked at compile time.
+        // Safe to unwrap, as `msg_id` is checked at compile time.
         buf.write("]).unwrap()");
 
         Ok(DisplayWrap::Unwrapped)
