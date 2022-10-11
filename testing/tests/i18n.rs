@@ -22,7 +22,7 @@ struct UsesNoArgsI18n<'a> {
 }
 
 #[test]
-fn existing_language() {
+fn test_existing_language() {
     let template = UsesI18n {
         loc: Locale::new(langid!("es-MX"), &LOCALES),
         name: "Hilda",
@@ -36,7 +36,7 @@ fn existing_language() {
 }
 
 #[test]
-fn fallback_language() {
+fn test_fallback_language() {
     let template = UsesI18n {
         loc: Locale::new(langid!("nl-BE"), &LOCALES),
         name: "Hilda",
@@ -50,7 +50,7 @@ fn fallback_language() {
 }
 
 #[test]
-fn no_args() {
+fn test_no_args() {
     let template = UsesNoArgsI18n {
         loc: Locale::new(langid!("en-US"), &LOCALES),
     };
