@@ -340,7 +340,7 @@ The following filters can be enabled by requesting the respective feature in the
 
 ```
 [dependencies]
-askama = { version = "0.11.0", features = "serde-json" }
+askama = { version = "0.11.2", features = "serde-json" }
 ```
 
 ### `json` | `tojson`
