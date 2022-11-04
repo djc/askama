@@ -1,4 +1,4 @@
-#![allow(clippy::blacklisted_name)]
+#![allow(clippy::disallowed_names)]
 
 #[cfg(feature = "serde-json")]
 #[macro_use]
