@@ -59,11 +59,14 @@ where
     Ok(MarkupDisplay::new_safe(v, e))
 }
 
-/// Escapes `&`, `<` and `>` in strings
+/// Escapes strings according to the escape mode.
 ///
 /// Askama will automatically insert the first (`Escaper`) argument,
 /// so this filter only takes a single argument of any type that implements
 /// `Display`.
+///
+/// It is possible to optionally specify an escaper other than the default for
+/// the template's extension, like `{{ val|escape("txt") }}`.
 pub fn escape<E, T>(e: E, v: T) -> Result<MarkupDisplay<E, T>>
 where
     E: Escaper,
