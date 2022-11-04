@@ -163,7 +163,7 @@ impl fmt::Display for dyn DynTemplate {
 }
 
 #[cfg(test)]
-#[allow(clippy::blacklisted_name)]
+#[allow(clippy::disallowed_names)]
 mod tests {
     use std::fmt;
 

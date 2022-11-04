@@ -411,61 +411,61 @@ mod tests {
     fn test_urlencoding() {
         // Unreserved (https://tools.ietf.org/html/rfc3986.html#section-2.3)
         // alpha / digit
-        assert_eq!(urlencode(&"AZaz09").unwrap(), "AZaz09");
-        assert_eq!(urlencode_strict(&"AZaz09").unwrap(), "AZaz09");
+        assert_eq!(urlencode("AZaz09").unwrap(), "AZaz09");
+        assert_eq!(urlencode_strict("AZaz09").unwrap(), "AZaz09");
         // other
-        assert_eq!(urlencode(&"_.-~").unwrap(), "_.-~");
-        assert_eq!(urlencode_strict(&"_.-~").unwrap(), "_.-~");
+        assert_eq!(urlencode("_.-~").unwrap(), "_.-~");
+        assert_eq!(urlencode_strict("_.-~").unwrap(), "_.-~");
 
         // Reserved (https://tools.ietf.org/html/rfc3986.html#section-2.2)
         // gen-delims
-        assert_eq!(urlencode(&":/?#[]@").unwrap(), "%3A/%3F%23%5B%5D%40");
+        assert_eq!(urlencode(":/?#[]@").unwrap(), "%3A/%3F%23%5B%5D%40");
         assert_eq!(
-            urlencode_strict(&":/?#[]@").unwrap(),
+            urlencode_strict(":/?#[]@").unwrap(),
             "%3A%2F%3F%23%5B%5D%40"
         );
         // sub-delims
         assert_eq!(
-            urlencode(&"!$&'()*+,;=").unwrap(),
+            urlencode("!$&'()*+,;=").unwrap(),
             "%21%24%26%27%28%29%2A%2B%2C%3B%3D"
         );
         assert_eq!(
-            urlencode_strict(&"!$&'()*+,;=").unwrap(),
+            urlencode_strict("!$&'()*+,;=").unwrap(),
             "%21%24%26%27%28%29%2A%2B%2C%3B%3D"
         );
 
         // Other
         assert_eq!(
-            urlencode(&"žŠďŤňĚáÉóŮ").unwrap(),
+            urlencode("žŠďŤňĚáÉóŮ").unwrap(),
             "%C5%BE%C5%A0%C4%8F%C5%A4%C5%88%C4%9A%C3%A1%C3%89%C3%B3%C5%AE"
         );
         assert_eq!(
-            urlencode_strict(&"žŠďŤňĚáÉóŮ").unwrap(),
+            urlencode_strict("žŠďŤňĚáÉóŮ").unwrap(),
             "%C5%BE%C5%A0%C4%8F%C5%A4%C5%88%C4%9A%C3%A1%C3%89%C3%B3%C5%AE"
         );
 
         // Ferris
-        assert_eq!(urlencode(&"🦀").unwrap(), "%F0%9F%A6%80");
-        assert_eq!(urlencode_strict(&"🦀").unwrap(), "%F0%9F%A6%80");
+        assert_eq!(urlencode("🦀").unwrap(), "%F0%9F%A6%80");
+        assert_eq!(urlencode_strict("🦀").unwrap(), "%F0%9F%A6%80");
     }
 
     #[test]
     fn test_linebreaks() {
         assert_eq!(
-            linebreaks(&"Foo\nBar Baz").unwrap(),
+            linebreaks("Foo\nBar Baz").unwrap(),
             "<p>Foo<br/>Bar Baz</p>"
         );
         assert_eq!(
-            linebreaks(&"Foo\nBar\n\nBaz").unwrap(),
+            linebreaks("Foo\nBar\n\nBaz").unwrap(),
             "<p>Foo<br/>Bar</p><p>Baz</p>"
         );
     }
 
     #[test]
     fn test_linebreaksbr() {
-        assert_eq!(linebreaksbr(&"Foo\nBar").unwrap(), "Foo<br/>Bar");
+        assert_eq!(linebreaksbr("Foo\nBar").unwrap(), "Foo<br/>Bar");
         assert_eq!(
-            linebreaksbr(&"Foo\nBar\n\nBaz").unwrap(),
+            linebreaksbr("Foo\nBar\n\nBaz").unwrap(),
             "Foo<br/>Bar<br/><br/>Baz"
         );
     }
@@ -473,72 +473,72 @@ mod tests {
     #[test]
     fn test_paragraphbreaks() {
         assert_eq!(
-            paragraphbreaks(&"Foo\nBar Baz").unwrap(),
+            paragraphbreaks("Foo\nBar Baz").unwrap(),
             "<p>Foo\nBar Baz</p>"
         );
         assert_eq!(
-            paragraphbreaks(&"Foo\nBar\n\nBaz").unwrap(),
+            paragraphbreaks("Foo\nBar\n\nBaz").unwrap(),
             "<p>Foo\nBar</p><p>Baz</p>"
         );
         assert_eq!(
-            paragraphbreaks(&"Foo\n\n\n\n\nBar\n\nBaz").unwrap(),
+            paragraphbreaks("Foo\n\n\n\n\nBar\n\nBaz").unwrap(),
             "<p>Foo</p><p>\nBar</p><p>Baz</p>"
         );
     }
 
     #[test]
     fn test_lower() {
-        assert_eq!(lower(&"Foo").unwrap(), "foo");
-        assert_eq!(lower(&"FOO").unwrap(), "foo");
-        assert_eq!(lower(&"FooBar").unwrap(), "foobar");
-        assert_eq!(lower(&"foo").unwrap(), "foo");
+        assert_eq!(lower("Foo").unwrap(), "foo");
+        assert_eq!(lower("FOO").unwrap(), "foo");
+        assert_eq!(lower("FooBar").unwrap(), "foobar");
+        assert_eq!(lower("foo").unwrap(), "foo");
     }
 
     #[test]
     fn test_upper() {
-        assert_eq!(upper(&"Foo").unwrap(), "FOO");
-        assert_eq!(upper(&"FOO").unwrap(), "FOO");
-        assert_eq!(upper(&"FooBar").unwrap(), "FOOBAR");
-        assert_eq!(upper(&"foo").unwrap(), "FOO");
+        assert_eq!(upper("Foo").unwrap(), "FOO");
+        assert_eq!(upper("FOO").unwrap(), "FOO");
+        assert_eq!(upper("FooBar").unwrap(), "FOOBAR");
+        assert_eq!(upper("foo").unwrap(), "FOO");
     }
 
     #[test]
     fn test_trim() {
-        assert_eq!(trim(&" Hello\tworld\t").unwrap(), "Hello\tworld");
+        assert_eq!(trim(" Hello\tworld\t").unwrap(), "Hello\tworld");
     }
 
     #[test]
     fn test_truncate() {
-        assert_eq!(truncate(&"hello", 2).unwrap(), "he...");
+        assert_eq!(truncate("hello", 2).unwrap(), "he...");
         let a = String::from("您好");
         assert_eq!(a.len(), 6);
         assert_eq!(String::from("您").len(), 3);
-        assert_eq!(truncate(&"您好", 1).unwrap(), "您...");
-        assert_eq!(truncate(&"您好", 2).unwrap(), "您...");
-        assert_eq!(truncate(&"您好", 3).unwrap(), "您...");
-        assert_eq!(truncate(&"您好", 4).unwrap(), "您好...");
-        assert_eq!(truncate(&"您好", 6).unwrap(), "您好");
-        assert_eq!(truncate(&"您好", 7).unwrap(), "您好");
+        assert_eq!(truncate("您好", 1).unwrap(), "您...");
+        assert_eq!(truncate("您好", 2).unwrap(), "您...");
+        assert_eq!(truncate("您好", 3).unwrap(), "您...");
+        assert_eq!(truncate("您好", 4).unwrap(), "您好...");
+        assert_eq!(truncate("您好", 6).unwrap(), "您好");
+        assert_eq!(truncate("您好", 7).unwrap(), "您好");
         let s = String::from("🤚a🤚");
         assert_eq!(s.len(), 9);
         assert_eq!(String::from("🤚").len(), 4);
-        assert_eq!(truncate(&"🤚a🤚", 1).unwrap(), "🤚...");
-        assert_eq!(truncate(&"🤚a🤚", 2).unwrap(), "🤚...");
-        assert_eq!(truncate(&"🤚a🤚", 3).unwrap(), "🤚...");
-        assert_eq!(truncate(&"🤚a🤚", 4).unwrap(), "🤚...");
-        assert_eq!(truncate(&"🤚a🤚", 5).unwrap(), "🤚a...");
-        assert_eq!(truncate(&"🤚a🤚", 6).unwrap(), "🤚a🤚...");
-        assert_eq!(truncate(&"🤚a🤚", 9).unwrap(), "🤚a🤚");
-        assert_eq!(truncate(&"🤚a🤚", 10).unwrap(), "🤚a🤚");
+        assert_eq!(truncate("🤚a🤚", 1).unwrap(), "🤚...");
+        assert_eq!(truncate("🤚a🤚", 2).unwrap(), "🤚...");
+        assert_eq!(truncate("🤚a🤚", 3).unwrap(), "🤚...");
+        assert_eq!(truncate("🤚a🤚", 4).unwrap(), "🤚...");
+        assert_eq!(truncate("🤚a🤚", 5).unwrap(), "🤚a...");
+        assert_eq!(truncate("🤚a🤚", 6).unwrap(), "🤚a🤚...");
+        assert_eq!(truncate("🤚a🤚", 9).unwrap(), "🤚a🤚");
+        assert_eq!(truncate("🤚a🤚", 10).unwrap(), "🤚a🤚");
     }
 
     #[test]
     fn test_indent() {
-        assert_eq!(indent(&"hello", 2).unwrap(), "hello");
-        assert_eq!(indent(&"hello\n", 2).unwrap(), "hello\n");
-        assert_eq!(indent(&"hello\nfoo", 2).unwrap(), "hello\n  foo");
+        assert_eq!(indent("hello", 2).unwrap(), "hello");
+        assert_eq!(indent("hello\n", 2).unwrap(), "hello\n");
+        assert_eq!(indent("hello\nfoo", 2).unwrap(), "hello\n  foo");
         assert_eq!(
-            indent(&"hello\nfoo\n bar", 4).unwrap(),
+            indent("hello\nfoo\n bar", 4).unwrap(),
             "hello\n    foo\n     bar"
         );
     }
@@ -610,15 +610,15 @@ mod tests {
 
     #[test]
     fn test_capitalize() {
-        assert_eq!(capitalize(&"foo").unwrap(), "Foo".to_string());
-        assert_eq!(capitalize(&"f").unwrap(), "F".to_string());
-        assert_eq!(capitalize(&"fO").unwrap(), "Fo".to_string());
-        assert_eq!(capitalize(&"").unwrap(), "".to_string());
-        assert_eq!(capitalize(&"FoO").unwrap(), "Foo".to_string());
-        assert_eq!(capitalize(&"foO BAR").unwrap(), "Foo bar".to_string());
-        assert_eq!(capitalize(&"äØÄÅÖ").unwrap(), "Äøäåö".to_string());
-        assert_eq!(capitalize(&"ß").unwrap(), "SS".to_string());
-        assert_eq!(capitalize(&"ßß").unwrap(), "SSß".to_string());
+        assert_eq!(capitalize("foo").unwrap(), "Foo".to_string());
+        assert_eq!(capitalize("f").unwrap(), "F".to_string());
+        assert_eq!(capitalize("fO").unwrap(), "Fo".to_string());
+        assert_eq!(capitalize("").unwrap(), "".to_string());
+        assert_eq!(capitalize("FoO").unwrap(), "Foo".to_string());
+        assert_eq!(capitalize("foO BAR").unwrap(), "Foo bar".to_string());
+        assert_eq!(capitalize("äØÄÅÖ").unwrap(), "Äøäåö".to_string());
+        assert_eq!(capitalize("ß").unwrap(), "SS".to_string());
+        assert_eq!(capitalize("ßß").unwrap(), "SSß".to_string());
     }
 
     #[test]
@@ -631,9 +631,9 @@ mod tests {
 
     #[test]
     fn test_wordcount() {
-        assert_eq!(wordcount(&"").unwrap(), 0);
-        assert_eq!(wordcount(&" \n\t").unwrap(), 0);
-        assert_eq!(wordcount(&"foo").unwrap(), 1);
-        assert_eq!(wordcount(&"foo bar").unwrap(), 2);
+        assert_eq!(wordcount("").unwrap(), 0);
+        assert_eq!(wordcount(" \n\t").unwrap(), 0);
+        assert_eq!(wordcount("foo").unwrap(), 1);
+        assert_eq!(wordcount("foo bar").unwrap(), 2);
     }
 }
