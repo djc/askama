@@ -1,4 +1,4 @@
-use crate::config::{get_template_source, read_config_file, Config, WhitespaceHandling};
+use crate::config::{get_template_source, Config, WhitespaceHandling};
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
 use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
@@ -30,8 +30,7 @@ pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
 /// value as passed to the `template()` attribute.
 fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     let template_args = TemplateArgs::new(ast)?;
-    let config_toml = read_config_file(template_args.config_path.as_deref())?;
-    let config = Config::from_toml(&config_toml)?;
+    let config = Config::from_file(template_args.config_path.as_deref())?;
     let input = TemplateInput::new(ast, &config, template_args)?;
     let source: String = match input.source {
         Source::Source(ref s) => s.clone(),

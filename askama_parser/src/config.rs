@@ -19,7 +19,18 @@ pub struct Config {
 }
 
 impl Config {
-    /// Load Askama configuration from a TOML file.
+    /// Load Askama configuration from the project's config file.
+    ///
+    /// This will try to load TOML file with Askama configuration
+    /// for the dependent project.  The config file is relative
+    /// to `CARGO_MANIFEST_DIR`.  If a filename is not provided,
+    /// it defaults to `askama.toml`.
+    pub fn from_file(file: Option<&str>) -> std::result::Result<Config, CompileError> {
+        let config_toml = read_config_file(file)?;
+        Config::from_toml(&config_toml)
+    }
+
+    /// Load Askama configuration from TOML source.
     pub fn from_toml(s: &str) -> std::result::Result<Config, CompileError> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default_dirs = vec![root.join("templates")];
@@ -271,13 +282,7 @@ struct RawEscaper<'a> {
     extensions: Vec<&'a str>,
 }
 
-/// Read an Askama configuration file into memory
-///
-/// This will try to load TOML file with Askama configuration
-/// for the dependent project.  The config file is relative
-/// to `CARGO_MANIFEST_DIR`.  If a filename is not provided,
-/// it defaults to `askama.toml`.
-pub fn read_config_file(config_path: Option<&str>) -> std::result::Result<String, CompileError> {
+fn read_config_file(config_path: Option<&str>) -> std::result::Result<String, CompileError> {
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let filename = match config_path {
         Some(config_path) => root.join(config_path),
