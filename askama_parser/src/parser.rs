@@ -1212,10 +1212,7 @@ fn tag_expr_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
     tag(s.syntax.expr_end)(i)
 }
 
-pub fn parse<'a>(
-    src: &'a str,
-    syntax: &'a Syntax<'a>,
-) -> Result<Vec<Node<'a>>, CompileError> {
+pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'a>) -> Result<Vec<Node<'a>>, CompileError> {
     let state = State {
         syntax,
         loop_depth: Cell::new(0),

@@ -119,19 +119,13 @@ impl Config<'_> {
         .into())
     }
 
-    pub fn find_escaper(
-        &self,
-        name: &str,
-    ) -> Option<&str> {
-        self
-            .escapers
+    pub fn find_escaper(&self, name: &str) -> Option<&str> {
+        self.escapers
             .iter()
             .find_map(|(escapers, escaper)| escapers.contains(name).then_some(escaper.as_ref()))
     }
 
-    pub fn whitespace(
-        &self,
-    ) -> WhitespaceHandling {
+    pub fn whitespace(&self) -> WhitespaceHandling {
         self.whitespace
     }
 }
@@ -264,9 +258,7 @@ struct RawEscaper<'a> {
     extensions: Vec<&'a str>,
 }
 
-pub fn read_config_file(
-    config_path: Option<&str>,
-) -> std::result::Result<String, CompileError> {
+pub fn read_config_file(config_path: Option<&str>) -> std::result::Result<String, CompileError> {
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let filename = match config_path {
         Some(config_path) => root.join(config_path),

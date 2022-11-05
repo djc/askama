@@ -57,7 +57,7 @@ impl TemplateArgs {
                         "unsupported attribute argument {:?}",
                         item.to_token_stream()
                     )
-                    .into())
+                    .into());
                 }
             };
             let ident = match pair.path.get_ident() {
