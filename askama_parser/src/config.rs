@@ -5,7 +5,10 @@
 //! to load the project's default `askama.toml`.
 //!
 //! ```no_run
-//! let default_config = askama_parser::Config::from_file(None)?;
+//! use askama_parser::config::Config;
+//!
+//! let default_config = Config::from_file(None)
+//!     .expect("load config");
 //! ```
 
 use std::collections::{BTreeMap, HashSet};
