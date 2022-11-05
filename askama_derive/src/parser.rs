@@ -32,6 +32,7 @@ pub(crate) enum Node<'a> {
     Raw(Ws, &'a str, &'a str, &'a str, Ws),
     Break(Ws),
     Continue(Ws),
+    Code(Ws, &'a str),
 }
 
 #[derive(Debug, PartialEq)]
@@ -1120,6 +1121,15 @@ fn continue_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a
     Ok((j, Node::Continue(Ws(pws, nws))))
 }
 
+fn block_code(i: &str) -> IResult<&str, Node<'_>> {
+    let (i, delim) = recognize(many1(value((), char('%'))))(i)?;
+    let (_, (pws, (code, (i, nws)))) = cut(pair(
+        opt(expr_handle_ws),
+        consumed(skip_till(terminated(opt(expr_handle_ws), tag(delim)))),
+    ))(i)?;
+    Ok((i, Node::Code(Ws(pws, nws), code.trim())))
+}
+
 fn block_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
         |i| tag_block_start(i, s),
@@ -1137,6 +1147,7 @@ fn block_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             |i| block_raw(i, s),
             |i| break_statement(i, s),
             |i| continue_statement(i, s),
+            block_code,
         )),
         cut(|i| tag_block_end(i, s)),
     ));

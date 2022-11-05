@@ -662,6 +662,12 @@ impl<'a> Generator<'a> {
                     self.write_buf_writable(buf)?;
                     buf.writeln("continue;")?;
                 }
+                Node::Code(ws, code) => {
+                    self.handle_ws(ws);
+                    self.write_buf_writable(buf)?;
+                    buf.buf.push_str(code);
+                    buf.buf.push('\n');
+                }
             }
         }
 
