@@ -1,3 +1,13 @@
+//! Askama parser configuration.
+//!
+//! This module handles the configuration format for Askama.
+//! Load a `Config` object by calling `from_file`, pass `None`
+//! to load the project's default `askama.toml`.
+//!
+//! ```no_run
+//! let default_config = askama_parser::Config::from_file(None)?;
+//! ```
+
 use std::collections::{BTreeMap, HashSet};
 use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
