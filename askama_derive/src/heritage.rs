@@ -44,7 +44,7 @@ pub(crate) struct Context<'a> {
 
 impl Context<'_> {
     pub(crate) fn new<'n>(
-        config: &Config<'_>,
+        config: &Config,
         path: &Path,
         nodes: &'n [Node<'n>],
     ) -> Result<Context<'n>, CompileError> {

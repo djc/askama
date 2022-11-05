@@ -9,8 +9,8 @@ use mime::Mime;
 
 pub struct TemplateInput<'a> {
     pub ast: &'a syn::DeriveInput,
-    pub config: &'a Config<'a>,
-    pub syntax: &'a Syntax<'a>,
+    pub config: &'a Config,
+    pub syntax: &'a Syntax,
     pub source: Source,
     pub print: Print,
     pub escaper: &'a str,
@@ -25,7 +25,7 @@ impl TemplateInput<'_> {
     /// `template()` attribute list fields.
     pub fn new<'n>(
         ast: &'n syn::DeriveInput,
-        config: &'n Config<'_>,
+        config: &'n Config,
         args: TemplateArgs,
     ) -> Result<TemplateInput<'n>, CompileError> {
         let TemplateArgs {
@@ -51,7 +51,7 @@ impl TemplateInput<'_> {
 
         // Validate syntax
         let syntax = syntax.map_or_else(
-            || Ok(config.syntaxes.get(config.default_syntax).unwrap()),
+            || Ok(config.syntaxes.get(&config.default_syntax).unwrap()),
             |s| {
                 config
                     .syntaxes

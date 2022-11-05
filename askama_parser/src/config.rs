@@ -10,17 +10,17 @@ use crate::CompileError;
 
 /// Askama parser configuration.
 #[derive(Debug)]
-pub struct Config<'a> {
+pub struct Config {
     dirs: Vec<PathBuf>,
-    pub(crate) syntaxes: BTreeMap<String, Syntax<'a>>,
-    pub(crate) default_syntax: &'a str,
+    pub(crate) syntaxes: BTreeMap<String, Syntax>,
+    pub(crate) default_syntax: String,
     pub(crate) escapers: Vec<(HashSet<String>, String)>,
     whitespace: WhitespaceHandling,
 }
 
-impl Config<'_> {
+impl Config {
     /// Load Askama configuration from a TOML file.
-    pub fn from_toml(s: &str) -> std::result::Result<Config<'_>, CompileError> {
+    pub fn from_toml(s: &str) -> std::result::Result<Config, CompileError> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default_dirs = vec![root.join("templates")];
 
@@ -89,7 +89,7 @@ impl Config<'_> {
         Ok(Config {
             dirs,
             syntaxes,
-            default_syntax,
+            default_syntax: default_syntax.into(),
             escapers,
             whitespace,
         })
@@ -137,46 +137,46 @@ impl Config<'_> {
 
 /// The definition of a custom template syntax.
 #[derive(Debug)]
-pub struct Syntax<'a> {
+pub struct Syntax {
     /// Defaults to `"{%"`.
-    pub block_start: &'a str,
+    pub block_start: String,
     /// Defaults to `"%}"`.
-    pub block_end: &'a str,
+    pub block_end: String,
     /// Defaults to `"{{"`.
-    pub expr_start: &'a str,
+    pub expr_start: String,
     /// Defaults to `"}}"`.
-    pub expr_end: &'a str,
+    pub expr_end: String,
     /// Defaults to `"{#"`.
-    pub comment_start: &'a str,
+    pub comment_start: String,
     /// Defaults to `"#}"`.
-    pub comment_end: &'a str,
+    pub comment_end: String,
 }
 
-impl Default for Syntax<'_> {
+impl Default for Syntax {
     fn default() -> Self {
         Self {
-            block_start: "{%",
-            block_end: "%}",
-            expr_start: "{{",
-            expr_end: "}}",
-            comment_start: "{#",
-            comment_end: "#}",
+            block_start: "{%".into(),
+            block_end: "%}".into(),
+            expr_start: "{{".into(),
+            expr_end: "}}".into(),
+            comment_start: "{#".into(),
+            comment_end: "#}".into(),
         }
     }
 }
 
-impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
+impl<'a> TryFrom<RawSyntax<'a>> for Syntax {
     type Error = CompileError;
 
     fn try_from(raw: RawSyntax<'a>) -> std::result::Result<Self, Self::Error> {
         let default = Self::default();
         let syntax = Self {
-            block_start: raw.block_start.unwrap_or(default.block_start),
-            block_end: raw.block_end.unwrap_or(default.block_end),
-            expr_start: raw.expr_start.unwrap_or(default.expr_start),
-            expr_end: raw.expr_end.unwrap_or(default.expr_end),
-            comment_start: raw.comment_start.unwrap_or(default.comment_start),
-            comment_end: raw.comment_end.unwrap_or(default.comment_end),
+            block_start: raw.block_start.map(ToString::to_string).unwrap_or(default.block_start),
+            block_end: raw.block_end.map(ToString::to_string).unwrap_or(default.block_end),
+            expr_start: raw.expr_start.map(ToString::to_string).unwrap_or(default.expr_start),
+            expr_end: raw.expr_end.map(ToString::to_string).unwrap_or(default.expr_end),
+            comment_start: raw.comment_start.map(ToString::to_string).unwrap_or(default.comment_start),
+            comment_end: raw.comment_end.map(ToString::to_string).unwrap_or(default.comment_end),
         };
 
         if syntax.block_start.len() != 2
