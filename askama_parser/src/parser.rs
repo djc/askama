@@ -184,7 +184,7 @@ impl From<char> for Whitespace {
 /// First field is "minus/plus sign was used on the left part of the item".
 ///
 /// Second field is "minus/plus sign was used on the right part of the item".
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Ws(pub Option<Whitespace>, pub Option<Whitespace>);
 
 pub type Cond<'a> = (Ws, Option<CondTest<'a>>, Vec<Node<'a>>);
