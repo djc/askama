@@ -12,6 +12,7 @@ pub mod generator;
 pub mod input;
 pub mod parser;
 
+/// An error that occurred during compilation, along with the source location.
 #[derive(Debug, Clone)]
 pub struct CompileError {
     msg: Cow<'static, str>,
@@ -19,6 +20,8 @@ pub struct CompileError {
 }
 
 impl CompileError {
+    /// Create a new error, reporting a failure which is described by the message
+    /// and occurred at the specified source location.
     pub fn new<S: Into<Cow<'static, str>>>(s: S, span: Span) -> Self {
         Self {
             msg: s.into(),
@@ -26,6 +29,7 @@ impl CompileError {
         }
     }
 
+    /// Convert the error into a Rust compiler error.
     pub fn into_compile_error(self) -> TokenStream {
         syn::Error::new(self.span, self.msg).to_compile_error()
     }
