@@ -1,3 +1,5 @@
+//! Parser and AST nodes for Askama's template syntax.
+
 use std::cell::Cell;
 use std::str;
 
@@ -13,24 +15,130 @@ use nom::{self, error_position, AsChar, IResult, InputTakeAtPosition};
 use crate::config::Syntax;
 use crate::CompileError;
 
+/// An abstract syntax tree node.
 #[derive(Debug, PartialEq)]
 pub enum Node<'a> {
+    /// Literal text to output directly.
+    ///
+    /// The first and third tuple elements are the left- and right-side
+    /// white space surrounding the output, and the second is the value
+    /// itself.
     Lit(&'a str, &'a str, &'a str),
+    /// A block comment.
+    ///
+    /// ```ignore
+    /// {# A Comment #}
+    /// ```
     Comment(Ws),
+    /// An expression, the result of which will be output.
+    ///
+    /// ```ignore
+    /// {{ 25 / 6 - 4 }}
+    /// ```
     Expr(Ws, Expr<'a>),
+    /// A macro invocation.
+    ///
+    /// ```ignore
+    /// {% call scope::heading(s) %}
+    /// ```
+    ///
+    /// The second tuple element is the optional scope, the third is the
+    /// name of the macro, and the last element is the macro arguments.
     Call(Ws, Option<&'a str>, &'a str, Vec<Expr<'a>>),
+    /// A variable declaration without an assignment.
+    ///
+    /// ```ignore
+    /// {% let val %}
+    /// ```
     LetDecl(Ws, Target<'a>),
+    /// A variable assignment.
+    ///
+    /// ```ignore
+    /// {% let val = "foo" %}
+    /// ```
     Let(Ws, Target<'a>, Expr<'a>),
+    /// An if-else block.
+    ///
+    /// ```
+    /// {% if users.len() == 0 %}
+    ///   No users
+    /// {% else if users.len() == 1 %}
+    ///   1 user
+    /// {% else %}
+    ///   {{ users.len() }} users
+    /// {% endif %}
+    /// ```
     Cond(Vec<Cond<'a>>, Ws),
+    /// A match block with several clauses.
+    ///
+    /// ```ignore
+    /// {% match item %}
+    ///   {% when Some with ("foo") %}
+    ///     Found literal foo
+    ///   {% when Some with (val) %}
+    ///     Found {{ val }}
+    ///   {% when None %}
+    /// {% endmatch %}
+    /// ```
     Match(Ws, Expr<'a>, Vec<When<'a>>, Ws),
+    /// A for loop.
+    ///
+    /// ```ignore
+    /// Users
+    /// -----
+    /// {% for user in users %}
+    ///   - {{ user.name }}
+    /// {% endfor %}
+    /// ```
     Loop(Loop<'a>),
+    /// A template inheritance declaration.
+    ///
+    /// ```ignore
+    /// {% extends "base.html" %}
+    /// ```
     Extends(Expr<'a>),
+    /// A block definition.
+    ///
+    /// ```ignore
+    /// {% block title %}Index{% endblock %}
+    /// ```
     BlockDef(Ws, &'a str, Vec<Node<'a>>, Ws),
+    /// Include the specified template file inline here.
+    ///
+    /// ```ignore
+    /// {% include "item.html" %}
+    /// ```
     Include(Ws, &'a str),
+    /// Import macros from another template file.
+    ///
+    /// ```ignore
+    /// {% import "macros.html" as scope %}
+    /// ```
     Import(Ws, &'a str, &'a str),
+    /// A macro declaration.
+    ///
+    /// ```ignore
+    /// {% macro heading(arg) %}
+    /// {{arg}}
+    /// -------
+    /// {% endmacro %}
+    /// ```
     Macro(&'a str, Macro<'a>),
+    /// A raw block.
+    ///
+    /// ```ignore
+    /// {% raw %}
+    /// {{ this * is - not + an % expression }}
+    /// {% endraw %}
+    /// ```
+    ///
+    /// The second and fourth tuple elements are the left- and right-side
+    /// white space surrounding the output, and the third is the value
+    /// itself.
     Raw(Ws, &'a str, &'a str, &'a str, Ws),
+    /// The break statement.
     Break(Ws),
+    /// The continue statement.
     Continue(Ws),
 }
 
