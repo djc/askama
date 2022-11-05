@@ -11,20 +11,6 @@ edition = "2018"
 
 [features]
 config = ["serde", "toml"]
-humansize = []
-markdown = []
-urlencode = []
-serde-json = []
-serde-yaml = []
-num-traits = []
-with-actix-web = []
-with-axum = []
-with-gotham = []
-with-hyper = []
-with-mendes = []
-with-rocket = []
-with-tide = []
-with-warp = []
 
 [dependencies]
 mime = "0.3"

@@ -13,7 +13,7 @@ edition = "2018"
 proc-macro = true
 
 [features]
-config = ["serde", "toml"]
+config = ["serde", "toml", "askama_parser/config"]
 humansize = []
 markdown = []
 urlencode = []
