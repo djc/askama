@@ -7,23 +7,23 @@ use std::str::FromStr;
 
 use mime::Mime;
 
-pub(crate) struct TemplateInput<'a> {
-    pub(crate) ast: &'a syn::DeriveInput,
-    pub(crate) config: &'a Config<'a>,
-    pub(crate) syntax: &'a Syntax<'a>,
-    pub(crate) source: Source,
-    pub(crate) print: Print,
-    pub(crate) escaper: &'a str,
-    pub(crate) ext: Option<String>,
-    pub(crate) mime_type: String,
-    pub(crate) path: PathBuf,
+pub struct TemplateInput<'a> {
+    pub ast: &'a syn::DeriveInput,
+    pub config: &'a Config<'a>,
+    pub syntax: &'a Syntax<'a>,
+    pub source: Source,
+    pub print: Print,
+    pub escaper: &'a str,
+    pub ext: Option<String>,
+    pub mime_type: String,
+    pub path: PathBuf,
 }
 
 impl TemplateInput<'_> {
     /// Extract the template metadata from the `DeriveInput` structure. This
     /// mostly recovers the data for the `TemplateInput` fields from the
     /// `template()` attribute list fields.
-    pub(crate) fn new<'n>(
+    pub fn new<'n>(
         ast: &'n syn::DeriveInput,
         config: &'n Config<'_>,
         args: TemplateArgs,
@@ -99,7 +99,7 @@ impl TemplateInput<'_> {
     }
 
     #[inline]
-    pub(crate) fn extension(&self) -> Option<&str> {
+    pub fn extension(&self) -> Option<&str> {
         ext_default_to_path(self.ext.as_deref(), &self.path)
     }
 }
@@ -123,13 +123,13 @@ fn extension(path: &Path) -> Option<&str> {
     }
 }
 
-pub(crate) enum Source {
+pub enum Source {
     Path(String),
     Source(String),
 }
 
 #[derive(PartialEq)]
-pub(crate) enum Print {
+pub enum Print {
     All,
     Ast,
     Code,
@@ -157,7 +157,7 @@ impl Default for Print {
     }
 }
 
-pub(crate) fn extension_to_mime_type(ext: &str) -> Mime {
+pub fn extension_to_mime_type(ext: &str) -> Mime {
     let basic_type = mime_guess::from_ext(ext).first_or_octet_stream();
     for (simple, utf_8) in &TEXT_TYPES {
         if &basic_type == simple {

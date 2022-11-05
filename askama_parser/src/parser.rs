@@ -14,7 +14,7 @@ use crate::config::Syntax;
 use crate::CompileError;
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum Node<'a> {
+pub enum Node<'a> {
     Lit(&'a str, &'a str, &'a str),
     Comment(Ws),
     Expr(Ws, Expr<'a>),
@@ -35,19 +35,19 @@ pub(crate) enum Node<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct Loop<'a> {
-    pub(crate) ws1: Ws,
-    pub(crate) var: Target<'a>,
-    pub(crate) iter: Expr<'a>,
-    pub(crate) cond: Option<Expr<'a>>,
-    pub(crate) body: Vec<Node<'a>>,
-    pub(crate) ws2: Ws,
-    pub(crate) else_block: Vec<Node<'a>>,
-    pub(crate) ws3: Ws,
+pub struct Loop<'a> {
+    pub ws1: Ws,
+    pub var: Target<'a>,
+    pub iter: Expr<'a>,
+    pub cond: Option<Expr<'a>>,
+    pub body: Vec<Node<'a>>,
+    pub ws2: Ws,
+    pub else_block: Vec<Node<'a>>,
+    pub ws3: Ws,
 }
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum Expr<'a> {
+pub enum Expr<'a> {
     BoolLit(&'a str),
     NumLit(&'a str),
     StrLit(&'a str),
@@ -71,7 +71,7 @@ pub(crate) enum Expr<'a> {
 impl Expr<'_> {
     /// Returns `true` if enough assumptions can be made,
     /// to determine that `self` is copyable.
-    pub(crate) fn is_copyable(&self) -> bool {
+    pub fn is_copyable(&self) -> bool {
         self.is_copyable_within_op(false)
     }
 
@@ -99,7 +99,7 @@ impl Expr<'_> {
     }
 
     /// Returns `true` if this is an `Attr` where the `obj` is `"self"`.
-    pub(crate) fn is_attr_self(&self) -> bool {
+    pub fn is_attr_self(&self) -> bool {
         match self {
             Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Var("self")) => true,
             Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Attr(..)) => obj.is_attr_self(),
@@ -110,7 +110,7 @@ impl Expr<'_> {
     /// Returns `true` if the outcome of this expression may be used multiple times in the same
     /// `write!()` call, without evaluating the expression again, i.e. the expression should be
     /// side-effect free.
-    pub(crate) fn is_cachable(&self) -> bool {
+    pub fn is_cachable(&self) -> bool {
         match self {
             // Literals are the definition of pure:
             Expr::BoolLit(_) => true,
@@ -141,18 +141,18 @@ impl Expr<'_> {
     }
 }
 
-pub(crate) type When<'a> = (Ws, Target<'a>, Vec<Node<'a>>);
+pub type When<'a> = (Ws, Target<'a>, Vec<Node<'a>>);
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct Macro<'a> {
-    pub(crate) ws1: Ws,
-    pub(crate) args: Vec<&'a str>,
-    pub(crate) nodes: Vec<Node<'a>>,
-    pub(crate) ws2: Ws,
+pub struct Macro<'a> {
+    pub ws1: Ws,
+    pub args: Vec<&'a str>,
+    pub nodes: Vec<Node<'a>>,
+    pub ws2: Ws,
 }
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum Target<'a> {
+pub enum Target<'a> {
     Name(&'a str),
     Tuple(Vec<&'a str>, Vec<Target<'a>>),
     Struct(Vec<&'a str>, Vec<(&'a str, Target<'a>)>),
@@ -164,7 +164,7 @@ pub(crate) enum Target<'a> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum Whitespace {
+pub enum Whitespace {
     Preserve,
     Suppress,
     Minimize,
@@ -185,14 +185,14 @@ impl From<char> for Whitespace {
 ///
 /// Second field is "minus/plus sign was used on the right part of the item".
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct Ws(pub(crate) Option<Whitespace>, pub(crate) Option<Whitespace>);
+pub struct Ws(pub Option<Whitespace>, pub Option<Whitespace>);
 
-pub(crate) type Cond<'a> = (Ws, Option<CondTest<'a>>, Vec<Node<'a>>);
+pub type Cond<'a> = (Ws, Option<CondTest<'a>>, Vec<Node<'a>>);
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct CondTest<'a> {
-    pub(crate) target: Option<Target<'a>>,
-    pub(crate) expr: Expr<'a>,
+pub struct CondTest<'a> {
+    pub target: Option<Target<'a>>,
+    pub expr: Expr<'a>,
 }
 
 fn is_ws(c: char) -> bool {
@@ -1212,7 +1212,7 @@ fn tag_expr_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
     tag(s.syntax.expr_end)(i)
 }
 
-pub(crate) fn parse<'a>(
+pub fn parse<'a>(
     src: &'a str,
     syntax: &'a Syntax<'a>,
 ) -> Result<Vec<Node<'a>>, CompileError> {

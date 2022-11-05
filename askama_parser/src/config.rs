@@ -9,16 +9,16 @@ use serde::Deserialize;
 use crate::CompileError;
 
 #[derive(Debug)]
-pub(crate) struct Config<'a> {
-    pub(crate) dirs: Vec<PathBuf>,
-    pub(crate) syntaxes: BTreeMap<String, Syntax<'a>>,
-    pub(crate) default_syntax: &'a str,
-    pub(crate) escapers: Vec<(HashSet<String>, String)>,
-    pub(crate) whitespace: WhitespaceHandling,
+pub struct Config<'a> {
+    pub dirs: Vec<PathBuf>,
+    pub syntaxes: BTreeMap<String, Syntax<'a>>,
+    pub default_syntax: &'a str,
+    pub escapers: Vec<(HashSet<String>, String)>,
+    pub whitespace: WhitespaceHandling,
 }
 
 impl Config<'_> {
-    pub(crate) fn new(s: &str) -> std::result::Result<Config<'_>, CompileError> {
+    pub fn new(s: &str) -> std::result::Result<Config<'_>, CompileError> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default_dirs = vec![root.join("templates")];
 
@@ -93,7 +93,7 @@ impl Config<'_> {
         })
     }
 
-    pub(crate) fn find_template(
+    pub fn find_template(
         &self,
         path: &str,
         start_at: Option<&Path>,
@@ -121,13 +121,13 @@ impl Config<'_> {
 }
 
 #[derive(Debug)]
-pub(crate) struct Syntax<'a> {
-    pub(crate) block_start: &'a str,
-    pub(crate) block_end: &'a str,
-    pub(crate) expr_start: &'a str,
-    pub(crate) expr_end: &'a str,
-    pub(crate) comment_start: &'a str,
-    pub(crate) comment_end: &'a str,
+pub struct Syntax<'a> {
+    pub block_start: &'a str,
+    pub block_end: &'a str,
+    pub expr_start: &'a str,
+    pub expr_end: &'a str,
+    pub comment_start: &'a str,
+    pub comment_end: &'a str,
 }
 
 impl Default for Syntax<'_> {
@@ -205,7 +205,7 @@ impl RawConfig<'_> {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(field_identifier, rename_all = "lowercase"))]
-pub(crate) enum WhitespaceHandling {
+pub enum WhitespaceHandling {
     /// The default behaviour. It will leave the whitespace characters "as is".
     Preserve,
     /// It'll remove all the whitespace characters before and after the jinja block.
@@ -248,7 +248,7 @@ struct RawEscaper<'a> {
     extensions: Vec<&'a str>,
 }
 
-pub(crate) fn read_config_file(
+pub fn read_config_file(
     config_path: Option<&str>,
 ) -> std::result::Result<String, CompileError> {
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
@@ -275,7 +275,7 @@ where
 }
 
 #[allow(clippy::match_wild_err_arm)]
-pub(crate) fn get_template_source(tpl_path: &Path) -> std::result::Result<String, CompileError> {
+pub fn get_template_source(tpl_path: &Path) -> std::result::Result<String, CompileError> {
     match fs::read_to_string(tpl_path) {
         Err(_) => Err(format!(
             "unable to open template file '{}'",
