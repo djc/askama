@@ -142,37 +142,62 @@ pub enum Node<'a> {
     Continue(Ws),
 }
 
+/// A for loop syntax node.
 #[derive(Debug, PartialEq)]
 pub struct Loop<'a> {
+    /// The whitespace suppression for the start tag.
     pub ws1: Ws,
+    /// The variable of iteration within the loop.
     pub var: Target<'a>,
+    /// The collection to iterate over.
     pub iter: Expr<'a>,
+    /// An optional condition, which if it evaluates to false should skip that iteration.
     pub cond: Option<Expr<'a>>,
+    /// The body of the loop.
     pub body: Vec<Node<'a>>,
+    /// The whitespace suppression for the else tag.
     pub ws2: Ws,
+    /// The else block of the loop, invoked if the collection is empty.
     pub else_block: Vec<Node<'a>>,
+    /// The whitespace suppression for the end tag.
     pub ws3: Ws,
 }
 
+/// An expression syntax node.
 #[derive(Debug, PartialEq)]
 pub enum Expr<'a> {
+    /// A boolean literal.
     BoolLit(&'a str),
+    /// A numeric literal.
     NumLit(&'a str),
+    /// A string literal.
     StrLit(&'a str),
+    /// A character literal.
     CharLit(&'a str),
+    /// A variable reference.
     Var(&'a str),
+    /// A path reference.
     Path(Vec<&'a str>),
+    /// An array of expressions.
     Array(Vec<Expr<'a>>),
+    /// An attribute reference of an expression.
     Attr(Box<Expr<'a>>, &'a str),
+    /// An index into an expression.
     Index(Box<Expr<'a>>, Box<Expr<'a>>),
+    /// An application of a filter to an expression.
     Filter(&'a str, Vec<Expr<'a>>),
+    /// A unary operation.
     Unary(&'a str, Box<Expr<'a>>),
+    /// A binary operation.
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
     Range(&'a str, Option<Box<Expr<'a>>>, Option<Box<Expr<'a>>>),
     Group(Box<Expr<'a>>),
+    /// A tuple expression.
     Tuple(Vec<Expr<'a>>),
+    /// A function call expression.
     Call(Box<Expr<'a>>, Vec<Expr<'a>>),
     RustMacro(&'a str, &'a str),
+    /// The Askama equivalent of Rust's try operator `?`.
     Try(Box<Expr<'a>>),
 }
 
@@ -289,12 +314,14 @@ impl From<char> for Whitespace {
     }
 }
 
-/// First field is "minus/plus sign was used on the left part of the item".
+/// Whitespace suppression for a block.
 ///
-/// Second field is "minus/plus sign was used on the right part of the item".
+/// The first tuple value is the setting (`-`/`+`) for the left side of block.
+/// The second tuple value is the setting (`-`/`+`) for the right side of the block.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Ws(pub Option<Whitespace>, pub Option<Whitespace>);
 
+/// A single condition with its consequent.
 pub type Cond<'a> = (Ws, Option<CondTest<'a>>, Vec<Node<'a>>);
 
 #[derive(Debug, PartialEq)]
@@ -1320,6 +1347,10 @@ fn tag_expr_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
     tag(AsRef::<str>::as_ref(&s.syntax.expr_end))(i)
 }
 
+/// Parse template source to an abstract syntax tree.
+///
+/// Tries to parse the provided template string using the given syntax.
+/// If successful, returns the list of nodes parsed.
 pub fn parse<'a>(src: &'a str, syntax: &'a Syntax) -> Result<Vec<Node<'a>>, CompileError> {
     let state = State {
         syntax,
