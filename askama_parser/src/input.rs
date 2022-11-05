@@ -1,3 +1,5 @@
+//! Input for the `template()` attribute.
+
 use crate::config::{Config, Syntax};
 use crate::generator::TemplateArgs;
 use crate::CompileError;
@@ -7,15 +9,25 @@ use std::str::FromStr;
 
 use mime::Mime;
 
+/// Input configuration passed to the Askama `template()` attribute.
 pub struct TemplateInput<'a> {
+    /// The original raw `syn::DeriveInput` parsed.
     pub ast: &'a syn::DeriveInput,
+    /// The configuration in use.
     pub config: &'a Config,
+    /// The syntax used for this template.
     pub syntax: &'a Syntax,
+    /// The source of the template.
     pub source: Source,
+    /// Debug printing mode.
     pub print: Print,
+    /// The escaper to use for the template.
     pub escaper: &'a str,
+    /// The file extension specified for inline templates.
     pub ext: Option<String>,
+    /// The MIME type of the template's results.
     pub mime_type: String,
+    /// The generated path of the template.
     pub path: PathBuf,
 }
 
@@ -123,16 +135,32 @@ fn extension(path: &Path) -> Option<&str> {
     }
 }
 
+/// Ways to specify the source for an Askama template.
 pub enum Source {
+    /// Load the specified template file.
+    ///
+    /// The path is interpreted as relative to the configured template directories
+    /// (by default, this is a templates directory next to your Cargo.toml).
     Path(String),
+    /// Directly set the template source.
+    ///
+    /// This can be useful for test cases or short templates. The generated path is
+    /// undefined, which generally makes it impossible to refer to this template
+    /// from other templates.
     Source(String),
 }
 
+/// Print debug information at compile time.
 #[derive(PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Print {
+    /// Print all debug info.
     All,
+    /// Print the parsed syntax tree.
     Ast,
+    /// Print the generated code.
     Code,
+    /// Do not print.
     None,
 }
 
