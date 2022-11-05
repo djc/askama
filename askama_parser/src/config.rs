@@ -8,6 +8,7 @@ use serde::Deserialize;
 
 use crate::CompileError;
 
+/// Askama parser configuration.
 #[derive(Debug)]
 pub struct Config<'a> {
     dirs: Vec<PathBuf>,
@@ -18,6 +19,7 @@ pub struct Config<'a> {
 }
 
 impl Config<'_> {
+    /// Load Askama configuration from a TOML file.
     pub fn from_toml(s: &str) -> std::result::Result<Config<'_>, CompileError> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default_dirs = vec![root.join("templates")];
@@ -93,6 +95,7 @@ impl Config<'_> {
         })
     }
 
+    /// Find a template file based on this configuration.
     pub fn find_template(
         &self,
         path: &str,
@@ -119,24 +122,33 @@ impl Config<'_> {
         .into())
     }
 
+    /// Find the escaper to use for the given content type.
     pub fn find_escaper(&self, name: &str) -> Option<&str> {
         self.escapers
             .iter()
             .find_map(|(escapers, escaper)| escapers.contains(name).then_some(escaper.as_ref()))
     }
 
+    /// The whitespace handling to use.
     pub fn whitespace(&self) -> WhitespaceHandling {
         self.whitespace
     }
 }
 
+/// The definition of a custom template syntax.
 #[derive(Debug)]
 pub struct Syntax<'a> {
+    /// Defaults to `"{%"`.
     pub block_start: &'a str,
+    /// Defaults to `"%}"`.
     pub block_end: &'a str,
+    /// Defaults to `"{{"`.
     pub expr_start: &'a str,
+    /// Defaults to `"}}"`.
     pub expr_end: &'a str,
+    /// Defaults to `"{#"`.
     pub comment_start: &'a str,
+    /// Defaults to `"#}"`.
     pub comment_end: &'a str,
 }
 
@@ -212,6 +224,7 @@ impl RawConfig<'_> {
     }
 }
 
+/// How should we handle whitespace in the template?
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(field_identifier, rename_all = "lowercase"))]
@@ -258,6 +271,12 @@ struct RawEscaper<'a> {
     extensions: Vec<&'a str>,
 }
 
+/// Read an Askama configuration file into memory
+///
+/// This will try to load TOML file with Askama configuration
+/// for the dependent project.  The config file is relative
+/// to `CARGO_MANIFEST_DIR`.  If a filename is not provided,
+/// it defaults to `askama.toml`.
 pub fn read_config_file(config_path: Option<&str>) -> std::result::Result<String, CompileError> {
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let filename = match config_path {
@@ -282,6 +301,7 @@ where
     vals.iter().map(|s| s.to_string()).collect()
 }
 
+/// Load a template file to a string.
 #[allow(clippy::match_wild_err_arm)]
 pub fn get_template_source(tpl_path: &Path) -> std::result::Result<String, CompileError> {
     match fs::read_to_string(tpl_path) {
