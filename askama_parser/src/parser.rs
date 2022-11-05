@@ -163,7 +163,7 @@ pub enum Target<'a> {
     Path(Vec<&'a str>),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Whitespace {
     Preserve,
     Suppress,

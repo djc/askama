@@ -29,7 +29,6 @@ impl CompileError {
     pub fn into_compile_error(self) -> TokenStream {
         syn::Error::new(self.span, self.msg)
             .to_compile_error()
-            .into()
     }
 }
 

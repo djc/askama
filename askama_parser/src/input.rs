@@ -128,7 +128,7 @@ pub enum Source {
     Source(String),
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum Print {
     All,
     Ast,
