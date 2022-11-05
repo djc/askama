@@ -10,15 +10,15 @@ use crate::CompileError;
 
 #[derive(Debug)]
 pub struct Config<'a> {
-    pub dirs: Vec<PathBuf>,
-    pub syntaxes: BTreeMap<String, Syntax<'a>>,
-    pub default_syntax: &'a str,
-    pub escapers: Vec<(HashSet<String>, String)>,
-    pub whitespace: WhitespaceHandling,
+    dirs: Vec<PathBuf>,
+    pub(crate) syntaxes: BTreeMap<String, Syntax<'a>>,
+    pub(crate) default_syntax: &'a str,
+    pub(crate) escapers: Vec<(HashSet<String>, String)>,
+    whitespace: WhitespaceHandling,
 }
 
 impl Config<'_> {
-    pub fn new(s: &str) -> std::result::Result<Config<'_>, CompileError> {
+    pub fn from_toml(s: &str) -> std::result::Result<Config<'_>, CompileError> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default_dirs = vec![root.join("templates")];
 
@@ -117,6 +117,22 @@ impl Config<'_> {
             path, self.dirs
         )
         .into())
+    }
+
+    pub fn find_escaper(
+        &self,
+        name: &str,
+    ) -> Option<&str> {
+        self
+            .escapers
+            .iter()
+            .find_map(|(escapers, escaper)| escapers.contains(name).then_some(escaper.as_ref()))
+    }
+
+    pub fn whitespace(
+        &self,
+    ) -> WhitespaceHandling {
+        self.whitespace
     }
 }
 
@@ -309,7 +325,7 @@ mod tests {
 
     #[test]
     fn get_source() {
-        let path = Config::new("")
+        let path = Config::from_toml("")
             .and_then(|config| config.find_template("b.html", None))
             .unwrap();
         assert_eq!(get_template_source(&path).unwrap(), "bar");
@@ -319,7 +335,7 @@ mod tests {
     fn test_default_config() {
         let mut root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         root.push("templates");
-        let config = Config::new("").unwrap();
+        let config = Config::from_toml("").unwrap();
         assert_eq!(config.dirs, vec![root]);
     }
 
@@ -328,7 +344,7 @@ mod tests {
     fn test_config_dirs() {
         let mut root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         root.push("tpl");
-        let config = Config::new("[general]\ndirs = [\"tpl\"]").unwrap();
+        let config = Config::from_toml("[general]\ndirs = [\"tpl\"]").unwrap();
         assert_eq!(config.dirs, vec![root]);
     }
 
@@ -342,7 +358,7 @@ mod tests {
 
     #[test]
     fn find_absolute() {
-        let config = Config::new("").unwrap();
+        let config = Config::from_toml("").unwrap();
         let root = config.find_template("a.html", None).unwrap();
         let path = config.find_template("sub/b.html", Some(&root)).unwrap();
         assert_eq_rooted(&path, "sub/b.html");
@@ -351,14 +367,14 @@ mod tests {
     #[test]
     #[should_panic]
     fn find_relative_nonexistent() {
-        let config = Config::new("").unwrap();
+        let config = Config::from_toml("").unwrap();
         let root = config.find_template("a.html", None).unwrap();
         config.find_template("c.html", Some(&root)).unwrap();
     }
 
     #[test]
     fn find_relative() {
-        let config = Config::new("").unwrap();
+        let config = Config::from_toml("").unwrap();
         let root = config.find_template("sub/b.html", None).unwrap();
         let path = config.find_template("c.html", Some(&root)).unwrap();
         assert_eq_rooted(&path, "sub/c.html");
@@ -366,7 +382,7 @@ mod tests {
 
     #[test]
     fn find_relative_sub() {
-        let config = Config::new("").unwrap();
+        let config = Config::from_toml("").unwrap();
         let root = config.find_template("sub/b.html", None).unwrap();
         let path = config.find_template("sub1/d.html", Some(&root)).unwrap();
         assert_eq_rooted(&path, "sub/sub1/d.html");
@@ -389,7 +405,7 @@ mod tests {
         "#;
 
         let default_syntax = Syntax::default();
-        let config = Config::new(raw_config).unwrap();
+        let config = Config::from_toml(raw_config).unwrap();
         assert_eq!(config.default_syntax, "foo");
 
         let foo = config.syntaxes.get("foo").unwrap();
@@ -421,7 +437,7 @@ mod tests {
         "#;
 
         let default_syntax = Syntax::default();
-        let config = Config::new(raw_config).unwrap();
+        let config = Config::from_toml(raw_config).unwrap();
         assert_eq!(config.default_syntax, "foo");
 
         let foo = config.syntaxes.get("foo").unwrap();
@@ -449,7 +465,7 @@ mod tests {
         syntax = [{ name = "default" }]
         "#;
 
-        let _config = Config::new(raw_config).unwrap();
+        let _config = Config::from_toml(raw_config).unwrap();
     }
 
     #[cfg(feature = "toml")]
@@ -461,7 +477,7 @@ mod tests {
                   { name = "foo", block_start = "%%" } ]
         "#;
 
-        let _config = Config::new(raw_config).unwrap();
+        let _config = Config::from_toml(raw_config).unwrap();
     }
 
     #[cfg(feature = "toml")]
@@ -473,13 +489,13 @@ mod tests {
         default_syntax = "foo"
         "#;
 
-        let _config = Config::new(raw_config).unwrap();
+        let _config = Config::from_toml(raw_config).unwrap();
     }
 
     #[cfg(feature = "config")]
     #[test]
     fn escape_modes() {
-        let config = Config::new(
+        let config = Config::from_toml(
             r#"
             [[escaper]]
             path = "::askama::Js"
@@ -504,7 +520,7 @@ mod tests {
     #[cfg(feature = "config")]
     #[test]
     fn test_whitespace_parsing() {
-        let config = Config::new(
+        let config = Config::from_toml(
             r#"
             [general]
             whitespace = "suppress"
@@ -513,10 +529,10 @@ mod tests {
         .unwrap();
         assert_eq!(config.whitespace, WhitespaceHandling::Suppress);
 
-        let config = Config::new(r#""#).unwrap();
+        let config = Config::from_toml(r#""#).unwrap();
         assert_eq!(config.whitespace, WhitespaceHandling::Preserve);
 
-        let config = Config::new(
+        let config = Config::from_toml(
             r#"
             [general]
             whitespace = "preserve"
@@ -525,7 +541,7 @@ mod tests {
         .unwrap();
         assert_eq!(config.whitespace, WhitespaceHandling::Preserve);
 
-        let config = Config::new(
+        let config = Config::from_toml(
             r#"
             [general]
             whitespace = "minimize"

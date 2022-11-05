@@ -31,7 +31,7 @@ pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
 fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     let template_args = TemplateArgs::new(ast)?;
     let config_toml = read_config_file(template_args.config_path.as_deref())?;
-    let config = Config::new(&config_toml)?;
+    let config = Config::from_toml(&config_toml)?;
     let input = TemplateInput::new(ast, &config, template_args)?;
     let source: String = match input.source {
         Source::Source(ref s) => s.clone(),
@@ -67,7 +67,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
         &contexts,
         heritage.as_ref(),
         MapChain::new(),
-        config.whitespace,
+        config.whitespace(),
     )
     .build(&contexts[input.path.as_path()])?;
     if input.print == Print::Code || input.print == Print::All {
@@ -1271,9 +1271,7 @@ impl<'a> Generator<'a> {
             Some(name) => self
                 .input
                 .config
-                .escapers
-                .iter()
-                .find_map(|(escapers, escaper)| escapers.contains(name).then_some(escaper))
+                .find_escaper(name)
                 .ok_or_else(|| CompileError::from("invalid escaper for escape filter"))?,
             None => self.input.escaper,
         };
