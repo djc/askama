@@ -5,6 +5,7 @@ members = [
     "askama_axum",
     "askama_derive",
     "askama_escape",
+    "askama_fmt",
     "askama_gotham",
     "askama_mendes",
     "askama_parser",
