@@ -60,8 +60,12 @@ fn test_code4_trim() {
 #[test]
 fn test_inser_percents() {
     #[derive(Template)]
-    #[template(source = r#"< {%%%%% writer.write_str("%%%")?; %%%%%} >"#, ext = "txt")]
+    #[template(
+        // one less '%' than in the delimiter '%%%%%'
+        source = r#"< {%%%%% writer.write_str("%%%%}")?; %%%%%} >"#,
+        ext = "txt"
+    )]
     struct Code;
 
-    assert_eq!(Code.render().unwrap(), "< %%% >");
+    assert_eq!(Code.render().unwrap(), "< %%%%} >");
 }

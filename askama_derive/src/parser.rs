@@ -1121,11 +1121,15 @@ fn continue_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a
     Ok((j, Node::Continue(Ws(pws, nws))))
 }
 
-fn block_code(i: &str) -> IResult<&str, Node<'_>> {
+fn block_code<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let (i, delim) = recognize(many1(value((), char('%'))))(i)?;
-    let (_, (pws, (code, (i, nws)))) = cut(pair(
+    let (_, (pws, (code, (i, (nws, _, _))))) = cut(pair(
         opt(expr_handle_ws),
-        consumed(skip_till(terminated(opt(expr_handle_ws), tag(delim)))),
+        consumed(skip_till(tuple((
+            opt(expr_handle_ws),
+            tag(delim),
+            peek(|i| tag_block_end(i, s)),
+        )))),
     ))(i)?;
     Ok((i, Node::Code(Ws(pws, nws), code.trim())))
 }
@@ -1147,7 +1151,7 @@ fn block_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             |i| block_raw(i, s),
             |i| break_statement(i, s),
             |i| continue_statement(i, s),
-            block_code,
+            |i| block_code(i, s),
         )),
         cut(|i| tag_block_end(i, s)),
     ));
