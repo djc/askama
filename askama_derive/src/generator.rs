@@ -442,7 +442,7 @@ impl<'a> Generator<'a> {
                 Node::Lit(lws, val, rws) => {
                     self.visit_lit(lws, val, rws);
                 }
-                Node::Comment(ws) => {
+                Node::Comment(ws, _) => {
                     self.write_comment(ws);
                 }
                 Node::Expr(ws, ref val) => {

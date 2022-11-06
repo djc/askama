@@ -29,7 +29,7 @@ pub enum Node<'a> {
     /// ```ignore
     /// {# A Comment #}
     /// ```
-    Comment(Ws),
+    Comment(Ws, &'a str),
     /// An expression, the result of which will be output.
     ///
     /// ```ignore
@@ -1335,7 +1335,11 @@ fn block_comment<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     } else {
         None
     };
-    Ok((i, Node::Comment(Ws(pws, nws))))
+    let text = match nws {
+        Some(_) => &tail[..tail.len()-1],
+        None => tail,
+    };
+    Ok((i, Node::Comment(Ws(pws, nws), text)))
 }
 
 fn parse_template<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {
