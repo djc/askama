@@ -274,28 +274,44 @@ impl Expr<'_> {
     }
 }
 
+/// A single branch of a match block.
 pub type When<'a> = (Ws, Target<'a>, Vec<Node<'a>>);
 
+/// A macro definition.
 #[derive(Debug, PartialEq)]
 pub struct Macro<'a> {
+    /// Whitespace suppreeeession for the begin macro tag.
     pub ws1: Ws,
+    /// The names of the macro's arguments.
     pub args: Vec<&'a str>,
+    /// The body of the  macro.
     pub nodes: Vec<Node<'a>>,
+    /// Whitespace suppression for the end macro tag.
     pub ws2: Ws,
 }
 
+/// The Askama equivalent of a Rust pattern, the target of a match or assignment.
 #[derive(Debug, PartialEq)]
 pub enum Target<'a> {
+    /// Bind the value to a name.
     Name(&'a str),
+    /// Destruture a tuple value.
     Tuple(Vec<&'a str>, Vec<Target<'a>>),
+    /// Destructure a struct value.
     Struct(Vec<&'a str>, Vec<(&'a str, Target<'a>)>),
+    /// Match a numeric literal.
     NumLit(&'a str),
+    /// Match a string literal.
     StrLit(&'a str),
+    /// Match a character literal.
     CharLit(&'a str),
+    /// Match a boolean literal.
     BoolLit(&'a str),
+    /// Match against a path.
     Path(Vec<&'a str>),
 }
 
+/// Whitespace preservation or suppression.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Whitespace {
     Preserve,
@@ -324,9 +340,12 @@ pub struct Ws(pub Option<Whitespace>, pub Option<Whitespace>);
 /// A single condition with its consequent.
 pub type Cond<'a> = (Ws, Option<CondTest<'a>>, Vec<Node<'a>>);
 
+/// An if or if let condition.
 #[derive(Debug, PartialEq)]
 pub struct CondTest<'a> {
+    /// For an if let, the assignment target.
     pub target: Option<Target<'a>>,
+    /// The condition expression to evaluate.
     pub expr: Expr<'a>,
 }
 
