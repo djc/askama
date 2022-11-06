@@ -57,6 +57,44 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                 ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
                 buf.push_str(&syn.block_end);
             }
+            Node::Cond(blocks, ws) => {
+                let mut print_else = false;
+                for (bws, cond, block) in blocks {
+                    buf.push_str(&syn.block_start);
+                    bws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                    if print_else {
+                        buf.push_str(" else");
+                    } else {
+                        print_else = true;
+                    }
+                    buf.push(' ');
+                    if let Some(test) = cond {
+                        buf.push_str("if ");
+                        if let Some(target) = &test.target {
+                            buf.push_str("let ");
+                            target_to_str(&mut buf, target);
+                            buf.push_str(" = ");
+                        }
+                        expr_to_str(&mut buf, &test.expr);
+                        buf.push(' ');
+                    }
+                    bws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                    buf.push_str(&syn.block_end);
+
+                    // check the ws allows for this
+                    buf.push_str("\n  ");
+
+                    buf.push_str(&fmt(block, syn)?);
+
+                    // check the ws allows for this
+                    buf.push_str("\n");
+                }
+                buf.push_str(&syn.block_start);
+                ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                buf.push_str(" endif ");
+                ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                buf.push_str(&syn.block_end);
+            }
             _ => panic!("boo"),
         }
     }
@@ -170,5 +208,14 @@ mod tests {
 
         assert_eq!("{% let foo = 42 %}", fmt(&node, &syn).expect("FMT"));
         assert_eq!("<? let foo = 42 ?>", fmt(&node, &custom()).expect("FMT"));
+    }
+
+    #[test]
+    fn cond() {
+        let syn = Syntax::default();
+        let node = parse("{%if foo-%}bar{%-else\t-%}baz{%- endif\n%}", &syn).expect("PARSE");
+
+        assert_eq!("{% if foo -%}\n  bar\n{%- else -%}\n  baz\n{%- endif %}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? if foo -?>\n  bar\n<?- else -?>\n  baz\n<?- endif ?>", fmt(&node, &custom()).expect("FMT"));
     }
 }
