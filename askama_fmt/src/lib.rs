@@ -1,4 +1,5 @@
 use askama_parser::CompileError;
+use askama_parser::config::Syntax;
 use askama_parser::parser::{Node, Whitespace};
 
 pub fn ws_to_char(ws: &Whitespace) -> char {
@@ -9,7 +10,7 @@ pub fn ws_to_char(ws: &Whitespace) -> char {
     }
 }
 
-pub fn fmt(ast: &[Node]) -> Result<String, CompileError> { // TODO: need result?????
+pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO: need result?????
     let mut buf = String::new();
 
     for node in ast {
@@ -20,33 +21,33 @@ pub fn fmt(ast: &[Node]) -> Result<String, CompileError> { // TODO: need result?
                 buf.push_str(rws);
             }
             Node::Comment(ws, text) => {
-                buf.push_str("{#");
+                buf.push_str(&syn.comment_start);
                 ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
                 buf.push_str(text);
                 ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str("#}");
+                buf.push_str(&syn.comment_end);
             }
             Node::Expr(ws, expr) => {
-                buf.push_str("{{");
+                buf.push_str(&syn.expr_start);
                 ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
                 buf.push(' ');
                 expr_to_str(&mut buf, expr);
                 buf.push(' ');
                 ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str("}}");
+                buf.push_str(&syn.expr_end);
             }
             // TODO: Node::Call
             Node::LetDecl(ws, target) => {
-                buf.push_str("{%");
+                buf.push_str(&syn.block_start);
                 ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
                 buf.push_str(" let ");
                 target_to_str(&mut buf, target);
                 buf.push(' ');
                 ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str("%}");
+                buf.push_str(&syn.block_end);
             }
             Node::Let(ws, target, expr) => {
-                buf.push_str("{%");
+                buf.push_str(&syn.block_start);
                 ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
                 buf.push_str(" let ");
                 target_to_str(&mut buf, target);
@@ -54,7 +55,7 @@ pub fn fmt(ast: &[Node]) -> Result<String, CompileError> { // TODO: need result?
                 expr_to_str(&mut buf, expr);
                 buf.push(' ');
                 ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str("%}");
+                buf.push_str(&syn.block_end);
             }
             _ => panic!("boo"),
         }
@@ -99,14 +100,23 @@ mod tests {
     use askama_parser::config::Syntax;
     use askama_parser::parser::{parse, Expr, Ws};
 
+    fn custom() -> Syntax {
+        Syntax {
+            block_start: "<?".into(),
+            block_end: "?>".into(),
+            comment_start: "<!".into(),
+            comment_end: "!>".into(),
+            expr_start: "<:".into(),
+            expr_end: ":>".into(),
+        }
+    }
+
     #[test]
     fn lit() {
         let syn = Syntax::default();
         let node = parse(" foobar\t", &syn).expect("PARSE");
 
-        let result = fmt(&node).expect("EVAL");
-
-        assert_eq!(" foobar\t", result);
+        assert_eq!(" foobar\t", fmt(&node, &syn).expect("FMT"));
     }
 
     #[test]
@@ -114,9 +124,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("foo{#+ empty -#}bar", &syn).expect("PARSE");
 
-        let result = fmt(&node).expect("EVAL");
-
-        assert_eq!("foo{#+ empty -#}bar", result);
+        assert_eq!("foo{#+ empty -#}bar", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("foo<!+ empty -!>bar", fmt(&node, &custom()).expect("FMT"));
     }
 
     #[test]
@@ -124,18 +133,17 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{{42}}", &syn).expect("PARSE");
 
-        let result = fmt(&node).expect("EVAL");
-
-        assert_eq!("{{ 42 }}", result);
+        assert_eq!("{{ 42 }}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<: 42 :>", fmt(&node, &custom()).expect("FMT"));
     }
 
     fn test_expr(expr: Expr) {
+        let syn = Syntax::default();
         let node = Node::Expr(Ws(None, None), expr);
 
-        let str1 = fmt(&[node]).expect("FMT1");
-        let syn = Syntax::default();
+        let str1 = fmt(&[node], &syn).expect("FMT1");
         let parsed = parse(&str1, &syn).expect("PARSE");
-        let str2 = fmt(&parsed).expect("FMT1");
+        let str2 = fmt(&parsed, &syn).expect("FMT1");
         assert_eq!(str1, str2);
     }
 
@@ -151,9 +159,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%let foo\t%}", &syn).expect("PARSE");
 
-        let result = fmt(&node).expect("EVAL");
-
-        assert_eq!("{% let foo %}", result);
+        assert_eq!("{% let foo %}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? let foo ?>", fmt(&node, &custom()).expect("FMT"));
     }
 
     #[test]
@@ -161,8 +168,7 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%let foo\t=\n42%}", &syn).expect("PARSE");
 
-        let result = fmt(&node).expect("EVAL");
-
-        assert_eq!("{% let foo = 42 %}", result);
+        assert_eq!("{% let foo = 42 %}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? let foo = 42 ?>", fmt(&node, &custom()).expect("FMT"));
     }
 }
