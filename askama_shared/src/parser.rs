@@ -129,7 +129,7 @@ pub enum Target<'a> {
     Path(Vec<&'a str>),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Ws(pub bool, pub bool);
 
 pub type Cond<'a> = (Ws, Option<CondTest<'a>>, Vec<Node<'a>>);
