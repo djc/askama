@@ -1,6 +1,6 @@
 use askama_parser::CompileError;
 use askama_parser::config::Syntax;
-use askama_parser::parser::{Loop, Node, Whitespace};
+use askama_parser::parser::{Loop, Node, Whitespace, Ws};
 
 pub fn ws_to_char(ws: &Whitespace) -> char {
     match ws {
@@ -8,6 +8,16 @@ pub fn ws_to_char(ws: &Whitespace) -> char {
         Whitespace::Suppress => '-',
         Whitespace::Minimize => '~',
     }
+}
+
+fn block_tag<F: FnOnce(&mut String)>(buf: &mut String, syn: &Syntax, ws: &Ws, f: F) {
+    buf.push_str(&syn.block_start);
+    ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
+    buf.push(' ');
+    f(buf);
+    buf.push(' ');
+    ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
+    buf.push_str(&syn.block_end);
 }
 
 pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO: need result?????
@@ -37,142 +47,92 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                 buf.push_str(&syn.expr_end);
             }
             // TODO: Node::Call
-            Node::LetDecl(ws, target) => {
-                buf.push_str(&syn.block_start);
-                ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(" let ");
-                target_to_str(&mut buf, target);
-                buf.push(' ');
-                ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(&syn.block_end);
-            }
-            Node::Let(ws, target, expr) => {
-                buf.push_str(&syn.block_start);
-                ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(" let ");
-                target_to_str(&mut buf, target);
+            Node::LetDecl(ws, target) => block_tag(&mut buf, syn, ws, |buf| {
+                buf.push_str("let ");
+                target_to_str(buf, target);
+            }),
+            Node::Let(ws, target, expr) => block_tag(&mut buf, syn, ws, |buf| {
+                buf.push_str("let ");
+                target_to_str(buf, target);
                 buf.push_str(" = ");
-                expr_to_str(&mut buf, expr);
-                buf.push(' ');
-                ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(&syn.block_end);
-            }
+                expr_to_str(buf, expr);
+            }),
             Node::Cond(blocks, ws) => {
                 let mut print_else = false;
                 for (bws, cond, block) in blocks {
-                    buf.push_str(&syn.block_start);
-                    bws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                    if print_else {
-                        buf.push_str(" else");
-                    } else {
-                        print_else = true;
-                    }
-                    buf.push(' ');
-                    if let Some(test) = cond {
-                        buf.push_str("if ");
-                        if let Some(target) = &test.target {
-                            buf.push_str("let ");
-                            target_to_str(&mut buf, target);
-                            buf.push_str(" = ");
+                    block_tag(&mut buf, syn, bws, |buf| {
+                        if print_else {
+                            buf.push_str("else");
                         }
-                        expr_to_str(&mut buf, &test.expr);
-                        buf.push(' ');
-                    }
-                    bws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                    buf.push_str(&syn.block_end);
-
-                    // check the ws allows for this
-                    //buf.push_str("\n  ");
+                        if let Some(test) = cond {
+                            if print_else {
+                                buf.push(' ');
+                            }
+                            buf.push_str("if ");
+                            if let Some(target) = &test.target {
+                                buf.push_str("let ");
+                                target_to_str(buf, target);
+                                buf.push_str(" = ");
+                            }
+                            expr_to_str(buf, &test.expr);
+                        }
+                        if !print_else {
+                            print_else = true;
+                        }
+                    });
 
                     buf.push_str(&fmt(block, syn)?);
-
-                    // check the ws allows for this
-                    //buf.push_str("\n");
                 }
-                buf.push_str(&syn.block_start);
-                ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(" endif ");
-                ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(&syn.block_end);
+                block_tag(&mut buf, syn, ws, |buf| buf.push_str("endif"));
             }
             Node::Match(lws, expr, interstitial, blocks, rws) => {
-                buf.push_str(&syn.block_start);
-                lws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(" match ");
-                expr_to_str(&mut buf, expr);
-                buf.push(' ');
-                lws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(&syn.block_end);
+                block_tag(&mut buf, syn, lws, |buf| {
+                    buf.push_str("match ");
+                    expr_to_str(buf, expr);
+                });
 
                 buf.push_str(&fmt(interstitial, syn)?);
 
                 for (ws, target, block) in blocks {
-                    buf.push_str(&syn.block_start);
-                    ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                    buf.push_str(" when ");
-                    target_to_str(&mut buf, target);
-                    buf.push(' ');
-                    ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                    buf.push_str(&syn.block_end);
+                    block_tag(&mut buf, syn, ws, |buf| {
+                        buf.push_str("when ");
+                        target_to_str(buf, target);
+                    });
                     buf.push_str(&fmt(block, syn)?);
                 }
 
-                buf.push_str(&syn.block_start);
-                rws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(" endmatch ");
-                rws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(&syn.block_end);
+                block_tag(&mut buf, syn, rws, |buf| buf.push_str("endmatch"));
             }
             Node::Loop(Loop { ws1, var, iter, cond, body, ws2, else_block, ws3 }) => {
-                buf.push_str(&syn.block_start);
-                ws1.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(" for ");
-                target_to_str(&mut buf, var);
-                buf.push_str(" in ");
-                expr_to_str(&mut buf, iter);
+                block_tag(&mut buf, syn, ws1, |buf| {
+                    buf.push_str("for ");
+                    target_to_str(buf, var);
+                    buf.push_str(" in ");
+                    expr_to_str(buf, iter);
 
-                if let Some(cond) = cond {
-                    buf.push_str(" if ");
-                    expr_to_str(&mut buf, cond);
-                }
-
-                buf.push(' ');
-                ws1.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(&syn.block_end);
+                    if let Some(cond) = cond {
+                        buf.push_str(" if ");
+                        expr_to_str(buf, cond);
+                    }
+                });
 
                 buf.push_str(&fmt(body, syn)?);
 
                 if !else_block.is_empty() {
-                    buf.push_str(&syn.block_start);
-                    ws2.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                    buf.push_str(" else ");
-                    ws2.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                    buf.push_str(&syn.block_end);
+                    block_tag(&mut buf, syn, ws2, |buf| { buf.push_str("else") });
 
                     buf.push_str(&fmt(else_block, syn)?);
                 }
 
-                buf.push_str(&syn.block_start);
-                ws3.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(" endfor ");
-                ws3.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(&syn.block_end);
+                block_tag(&mut buf, syn, ws3, |buf| { buf.push_str("endfor") });
             }
             Node::Break(ws) => {
-                buf.push_str(&syn.block_start);
-                ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(" break ");
-                ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(&syn.block_end);
+                block_tag(&mut buf, syn, ws, |buf| { buf.push_str("break") });
             }
             Node::Continue(ws) => {
-                buf.push_str(&syn.block_start);
-                ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(" continue ");
-                ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(&syn.block_end);
+                block_tag(&mut buf, syn, ws, |buf| { buf.push_str("continue") });
             }
-            _ => panic!("boo"),
+            _ => panic!("unhandled node type! {:?}", node),
         }
     }
 
