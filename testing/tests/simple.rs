@@ -1,4 +1,4 @@
-#![allow(clippy::disallowed_names)]
+#![allow(clippy::disallowed_names)] // For the use of `foo` in test cases
 
 use askama::Template;
 

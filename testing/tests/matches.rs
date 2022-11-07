@@ -1,5 +1,3 @@
-#![allow(clippy::disallowed_names)]
-
 use askama::Template;
 
 #[derive(Template)]

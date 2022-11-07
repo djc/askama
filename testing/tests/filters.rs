@@ -1,5 +1,3 @@
-#![allow(clippy::disallowed_names)]
-
 #[cfg(feature = "serde-json")]
 #[macro_use]
 extern crate serde_json;
