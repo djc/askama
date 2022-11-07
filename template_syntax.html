@@ -255,8 +255,8 @@ or <code>xml</code>. When specifying a template as <code>source</code> in an att
 <code>ext</code> attribute parameter must be used to specify a type. Additionally,
 you can specify an escape mode explicitly for your template by setting
 the <code>escape</code> attribute parameter value (to <code>none</code> or <code>html</code>).</p>
-<p>Askama escapes <code>&lt;</code>, <code>&gt;</code>, <code>&amp;</code>, <code>&quot;</code>, <code>'</code>, <code>\</code> and <code>/</code>, according to the
-<a href="https://www.owasp.org/index.php/XSS_(Cross_Site_Scripting)_Prevention_Cheat_Sheet#RULE_.231_-_HTML_Escape_Before_Inserting_Untrusted_Data_into_HTML_Element_Content">OWASP escaping recommendations</a>. Use the <code>safe</code> filter to
+<p>Askama escapes <code>&lt;</code>, <code>&gt;</code>, <code>&amp;</code>, <code>&quot;</code>, and <code>'</code>, according to the
+<a href="https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html#output-encoding-for-html-contexts">OWASP escaping recommendations</a>. Use the <code>safe</code> filter to
 prevent escaping for a single expression, or the <code>escape</code> (or <code>e</code>)
 filter to escape a single expression in an unescaped context.</p>
 <pre><pre class="playground"><code class="language-rust">#[derive(Template)]
