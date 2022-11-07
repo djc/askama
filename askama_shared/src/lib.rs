@@ -336,7 +336,6 @@ impl From<String> for CompileError {
 }
 
 #[cfg(test)]
-#[allow(clippy::blacklisted_name)]
 mod tests {
     use super::*;
     use std::env;
