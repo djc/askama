@@ -80,7 +80,7 @@ pub enum Node<'a> {
     ///   {% when None %}
     /// {% endmatch %}
     /// ```
-    Match(Ws, Expr<'a>, Vec<When<'a>>, Ws),
+    Match(Ws, Expr<'a>, Vec<Node<'a>>, Vec<When<'a>>, Ws),
     /// A for loop.
     ///
     /// ```ignore
@@ -1014,7 +1014,7 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             opt(expr_handle_ws),
             |i| tag_block_end(i, s),
             cut(tuple((
-                ws(many0(ws(value((), |i| block_comment(i, s))))),
+                |i| parse_ws_or_comment(i, s),
                 many1(|i| when_block(i, s)),
                 cut(tuple((
                     opt(|i| match_else_block(i, s)),
@@ -1028,14 +1028,14 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             ))),
         ))),
     ));
-    let (i, (pws1, _, (expr, nws1, _, (_, arms, (else_arm, (_, pws2, _, nws2)))))) = p(i)?;
+    let (i, (pws1, _, (expr, nws1, _, (interstitial, arms, (else_arm, (_, pws2, _, nws2)))))) = p(i)?;
 
     let mut arms = arms;
     if let Some(arm) = else_arm {
         arms.push(arm);
     }
 
-    Ok((i, Node::Match(Ws(pws1, nws1), expr, arms, Ws(pws2, nws2))))
+    Ok((i, Node::Match(Ws(pws1, nws1), expr, interstitial, arms, Ws(pws2, nws2))))
 }
 
 fn block_let(i: &str) -> IResult<&str, Node<'_>> {
@@ -1348,6 +1348,13 @@ fn parse_template<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a
         complete(|i| block_comment(i, s)),
         complete(|i| expr_node(i, s)),
         complete(|i| block_node(i, s)),
+    )))(i)
+}
+
+fn parse_ws_or_comment<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {
+    many0(alt((
+        complete(|i| take_content(i, s)),
+        complete(|i| block_comment(i, s)),
     )))(i)
 }
 

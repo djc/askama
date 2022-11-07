@@ -82,17 +82,45 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                     buf.push_str(&syn.block_end);
 
                     // check the ws allows for this
-                    buf.push_str("\n  ");
+                    //buf.push_str("\n  ");
 
                     buf.push_str(&fmt(block, syn)?);
 
                     // check the ws allows for this
-                    buf.push_str("\n");
+                    //buf.push_str("\n");
                 }
                 buf.push_str(&syn.block_start);
                 ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
                 buf.push_str(" endif ");
                 ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                buf.push_str(&syn.block_end);
+            }
+            Node::Match(lws, expr, interstitial, blocks, rws) => {
+                buf.push_str(&syn.block_start);
+                lws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                buf.push_str(" match ");
+                expr_to_str(&mut buf, expr);
+                buf.push(' ');
+                lws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                buf.push_str(&syn.block_end);
+
+                buf.push_str(&fmt(interstitial, syn)?);
+
+                for (ws, target, block) in blocks {
+                    buf.push_str(&syn.block_start);
+                    ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                    buf.push_str(" when ");
+                    target_to_str(&mut buf, target);
+                    buf.push(' ');
+                    ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                    buf.push_str(&syn.block_end);
+                    buf.push_str(&fmt(block, syn)?);
+                }
+
+                buf.push_str(&syn.block_start);
+                rws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                buf.push_str(" endmatch ");
+                rws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
                 buf.push_str(&syn.block_end);
             }
             _ => panic!("boo"),
@@ -106,7 +134,30 @@ fn target_to_str(buf: &mut String, target: &askama_parser::parser::Target) {
     use askama_parser::parser::Target::*;
     match target {
         Name(name) => buf.push_str(name),
-        _ => panic!("unsupported target!"),
+        Tuple(path, elements) => {
+            buf.push_str(&path.join("::"));
+            buf.push_str(" with (");
+
+            let mut print_comma = false;
+            for element in elements {
+                if print_comma {
+                    buf.push_str(", ");
+                } else {
+                    print_comma = true;
+                }
+
+                target_to_str(buf, element);
+            }
+
+            buf.push(')');
+        }
+        StrLit(val) => {
+            buf.push('"');
+            buf.push_str(val); // TODO determine escaping
+            buf.push('"');
+        }
+        Path(path) => buf.push_str(&path.join("::")),
+        _ => panic!("unsupported target {:?}!", target),
     }
 }
 
@@ -215,7 +266,35 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%if foo-%}bar{%-else\t-%}baz{%- endif\n%}", &syn).expect("PARSE");
 
-        assert_eq!("{% if foo -%}\n  bar\n{%- else -%}\n  baz\n{%- endif %}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? if foo -?>\n  bar\n<?- else -?>\n  baz\n<?- endif ?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% if foo -%}bar{%- else -%}baz{%- endif %}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? if foo -?>bar<?- else -?>baz<?- endif ?>", fmt(&node, &custom()).expect("FMT"));
+    }
+
+    #[test]
+    fn match_() {
+        let syn = Syntax::default();
+        let node = parse("{%match item-%}
+  {%  when Some
+  with\t (\t \"foo\"  )\t-%}
+    Found literal foo
+  {% when Some with (val) -%}
+    Found {{ val }}
+  {% when None -%}
+{% endmatch\n%}", &syn).expect("PARSE");
+
+        assert_eq!("{% match item -%}
+  {% when Some with (\"foo\") -%}
+    Found literal foo
+  {% when Some with (val) -%}
+    Found {{ val }}
+  {% when None -%}
+{% endmatch %}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? match item -?>
+  <? when Some with (\"foo\") -?>
+    Found literal foo
+  <? when Some with (val) -?>
+    Found <: val :>
+  <? when None -?>
+<? endmatch ?>", fmt(&node, &custom()).expect("FMT"));
     }
 }
