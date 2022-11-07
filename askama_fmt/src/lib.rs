@@ -1,6 +1,6 @@
 use askama_parser::CompileError;
 use askama_parser::config::Syntax;
-use askama_parser::parser::{Node, Whitespace};
+use askama_parser::parser::{Loop, Node, Whitespace};
 
 pub fn ws_to_char(ws: &Whitespace) -> char {
     match ws {
@@ -121,6 +121,41 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                 rws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
                 buf.push_str(" endmatch ");
                 rws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                buf.push_str(&syn.block_end);
+            }
+            Node::Loop(Loop { ws1, var, iter, cond, body, ws2, else_block, ws3 }) => {
+                buf.push_str(&syn.block_start);
+                ws1.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                buf.push_str(" for ");
+                target_to_str(&mut buf, var);
+                buf.push_str(" in ");
+                expr_to_str(&mut buf, iter);
+
+                if let Some(cond) = cond {
+                    buf.push_str(" if ");
+                    expr_to_str(&mut buf, cond);
+                }
+
+                buf.push(' ');
+                ws1.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                buf.push_str(&syn.block_end);
+
+                buf.push_str(&fmt(body, syn)?);
+
+                if !else_block.is_empty() {
+                    buf.push_str(&syn.block_start);
+                    ws2.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                    buf.push_str(" else ");
+                    ws2.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                    buf.push_str(&syn.block_end);
+
+                    buf.push_str(&fmt(else_block, syn)?);
+                }
+
+                buf.push_str(&syn.block_start);
+                ws3.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                buf.push_str(" endfor ");
+                ws3.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
                 buf.push_str(&syn.block_end);
             }
             _ => panic!("boo"),
@@ -296,5 +331,32 @@ mod tests {
     Found <: val :>
   <? when None -?>
 <? endmatch ?>", fmt(&node, &custom()).expect("FMT"));
+    }
+
+    #[test]
+    fn loop_() {
+        let syn = Syntax::default();
+        let node = parse("{%for value in values-%}{{\tvalue\n}}{%endfor~%}", &syn).expect("PARSE");
+
+        assert_eq!("{% for value in values -%}{{ value }}{% endfor ~%}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? for value in values -?><: value :><? endfor ~?>", fmt(&node, &custom()).expect("FMT"));
+    }
+
+    #[test]
+    fn loop_cond() {
+        let syn = Syntax::default();
+        let node = parse("{%for value in values if true-%}{{\tvalue\n}}{%endfor~%}", &syn).expect("PARSE");
+
+        assert_eq!("{% for value in values if true -%}{{ value }}{% endfor ~%}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? for value in values if true -?><: value :><? endfor ~?>", fmt(&node, &custom()).expect("FMT"));
+    }
+
+    #[test]
+    fn loop_else() {
+        let syn = Syntax::default();
+        let node = parse("{%for value in values-%}{{\tvalue\n}}{%else%}NONE{%endfor~%}", &syn).expect("PARSE");
+
+        assert_eq!("{% for value in values -%}{{ value }}{% else %}NONE{% endfor ~%}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? for value in values -?><: value :><? else ?>NONE<? endfor ~?>", fmt(&node, &custom()).expect("FMT"));
     }
 }
