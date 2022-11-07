@@ -158,6 +158,20 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                 ws3.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
                 buf.push_str(&syn.block_end);
             }
+            Node::Break(ws) => {
+                buf.push_str(&syn.block_start);
+                ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                buf.push_str(" break ");
+                ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                buf.push_str(&syn.block_end);
+            }
+            Node::Continue(ws) => {
+                buf.push_str(&syn.block_start);
+                ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                buf.push_str(" continue ");
+                ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
+                buf.push_str(&syn.block_end);
+            }
             _ => panic!("boo"),
         }
     }
@@ -358,5 +372,23 @@ mod tests {
 
         assert_eq!("{% for value in values -%}{{ value }}{% else %}NONE{% endfor ~%}", fmt(&node, &syn).expect("FMT"));
         assert_eq!("<? for value in values -?><: value :><? else ?>NONE<? endfor ~?>", fmt(&node, &custom()).expect("FMT"));
+    }
+
+    #[test]
+    fn break_() {
+        let syn = Syntax::default();
+        let node = parse("{%for value in values-%}{%\tbreak\n%}{%endfor~%}", &syn).expect("PARSE");
+
+        assert_eq!("{% for value in values -%}{% break %}{% endfor ~%}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? for value in values -?><? break ?><? endfor ~?>", fmt(&node, &custom()).expect("FMT"));
+    }
+
+    #[test]
+    fn continue_() {
+        let syn = Syntax::default();
+        let node = parse("{%for value in values-%}{%\tcontinue\n%}{%endfor~%}", &syn).expect("PARSE");
+
+        assert_eq!("{% for value in values -%}{% continue %}{% endfor ~%}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? for value in values -?><? continue ?><? endfor ~?>", fmt(&node, &custom()).expect("FMT"));
     }
 }
