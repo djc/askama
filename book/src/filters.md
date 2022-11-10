@@ -408,18 +408,25 @@ This will output formatted YAML for any value that implements the required
 ## Custom Filters
 [#custom-filters]: #custom-filters
 
-To define your own filters, simply have a module named filters in scope of the context deriving a `Template` impl.
+To define your own filters, simply have a module named `filters` in scope of the context deriving a `Template` impl and defines the filters as functions within this module. The functions must have a first argument `&str`, but otherwise can have other inputs. The output must be `::askama::Result<String>`.
 
-Note that in case of name collision, the built in filters take precedence.
+Note that built-in filters have preference over custom filters, so, in case of name collision, the built-in filter is applied.
 
+### Examples
+
+Implementing a filter that replaces all instances of `"oo"` for `"aa"`.
 ```rust
+use askama::Template;
+
 #[derive(Template)]
 #[template(source = "{{ s|myfilter }}", ext = "txt")]
 struct MyFilterTemplate<'a> {
     s: &'a str,
 }
 
+// Any filter defined in the module `filters` is accessible in your template.
 mod filters {
+    // This filter does not have extra arguments
     pub fn myfilter(s: &str) -> ::askama::Result<String> {
         Ok(s.replace("oo", "aa"))
     }
@@ -430,3 +437,30 @@ fn main() {
     assert_eq!(t.render().unwrap(), "faa");
 }
 ```
+
+Implementing a filter that replaces all instances of `"oo"` for `n` times `"a"`.
+```rust
+use askama::Template;
+
+#[derive(Template)]
+#[template(source = "{{ s|myfilter(4) }}", ext = "txt")]
+struct MyFilterTemplate<'a> {
+    s: &'a str,
+}
+
+// Any filter defined in the module `filters` is accessible in your template.
+mod filters {
+    // This filter requires a `usize` input when called in templates
+    pub fn myfilter(s: &str, n: usize) -> ::askama::Result<String> {
+    	let mut replace = String::with_capacity(n);
+    	replace.extend((0..n).map(|_| "a"));
+        Ok(s.replace("oo", &replace))
+    }
+}
+
+fn main() {
+    let t = MyFilterTemplate { s: "foo" };
+    assert_eq!(t.render().unwrap(), "faaaa");
+}
+```
+
