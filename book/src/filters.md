@@ -13,7 +13,8 @@ is passed to the next.
 {{ "HELLO"|lower }}
 ```
 
-Askama has a collection of built-in filters, documented below, but can also include custom filters. Additionally, the `json` and `yaml` filters are included in the built-in filters,
+Askama has a collection of built-in filters, documented below, but can also include custom filters. 
+Additionally, the `json` and `yaml` filters are included in the built-in filters,
 but are disabled by default. Enable them with Cargo features (see below for more information).
 
 **Table of contents**
@@ -105,7 +106,10 @@ Output:
 Escape &lt;&gt;&amp;
 ```
 
-Optionally, it is possible to specify and override which escaper is used. Consider a template where the escaper is configured as [`escape = "none"`]. However, somewhere escaping using the HTML escaper is desired. Then it is possible to override and use the HTML escaper like this:
+Optionally, it is possible to specify and override which escaper is used. 
+Consider a template where the escaper is configured as [`escape = "none"`]. 
+However, somewhere escaping using the HTML escaper is desired. 
+Then it is possible to override and use the HTML escaper like this:
 
 ```jinja
 {{ "Don't Escape <>&"|escape }}
@@ -408,19 +412,39 @@ This will output formatted YAML for any value that implements the required
 ## Custom Filters
 [#custom-filters]: #custom-filters
 
-To define your own filters, simply have a module named filters in scope of the context deriving a `Template` impl.
+To define your own filters, simply have a module named `filters` in scope of the context deriving a `Template` impl 
+and define the filters as functions within this module. 
+The functions must have at least one argument and the return type must be `::askama::Result<T>`.
+Although there are no restrictions on `T` for a single filter, 
+the final result of a chain of filters must implement `Display`. 
 
-Note that in case of name collision, the built in filters take precedence.
+The arguments to the filters are passed as follows. 
+The first argument corresponds to the expression they are applied to. 
+Subsequent arguments, if any, must be given directly when calling the filter. 
+The first argument may or may not be a reference, depending on the context in which the filter is called. 
+To abstract over ownership, consider defining your argument as a trait bound.
+For example, the `trim` built-in filter accepts any value implementing `Display`. 
+Its signature is similar to `fn trim(s: impl std::fmt::Display) -> ::askama::Result<String>`.
 
+Note that built-in filters have preference over custom filters, so, in case of name collision, the built-in filter is applied.
+
+### Examples
+
+Implementing a filter that replaces all instances of `"oo"` for `"aa"`.
 ```rust
+use askama::Template;
+
 #[derive(Template)]
 #[template(source = "{{ s|myfilter }}", ext = "txt")]
 struct MyFilterTemplate<'a> {
     s: &'a str,
 }
 
+// Any filter defined in the module `filters` is accessible in your template.
 mod filters {
-    pub fn myfilter(s: &str) -> ::askama::Result<String> {
+    // This filter does not have extra arguments
+    pub fn myfilter<T: std::fmt::Display>(s: T) -> ::askama::Result<String> {
+        let s = s.to_string();
         Ok(s.replace("oo", "aa"))
     }
 }
@@ -428,5 +452,32 @@ mod filters {
 fn main() {
     let t = MyFilterTemplate { s: "foo" };
     assert_eq!(t.render().unwrap(), "faa");
+}
+```
+
+Implementing a filter that replaces all instances of `"oo"` for `n` times `"a"`.
+```rust
+use askama::Template;
+
+#[derive(Template)]
+#[template(source = "{{ s|myfilter(4) }}", ext = "txt")]
+struct MyFilterTemplate<'a> {
+    s: &'a str,
+}
+
+// Any filter defined in the module `filters` is accessible in your template.
+mod filters {
+    // This filter requires a `usize` input when called in templates
+    pub fn myfilter<T: std::fmt::Display>(s: T, n: usize) -> ::askama::Result<String> {
+        let s = s.to_string();
+    	  let mut replace = String::with_capacity(n);
+    	  replace.extend((0..n).map(|_| "a"));
+        Ok(s.replace("oo", &replace))
+    }
+}
+
+fn main() {
+    let t = MyFilterTemplate { s: "foo" };
+    assert_eq!(t.render().unwrap(), "faaaa");
 }
 ```
