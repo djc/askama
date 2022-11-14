@@ -408,7 +408,9 @@ This will output formatted YAML for any value that implements the required
 ## Custom Filters
 [#custom-filters]: #custom-filters
 
-To define your own filters, simply have a module named `filters` in scope of the context deriving a `Template` impl and defines the filters as functions within this module. The functions must have a first argument `&str`, but otherwise can have other inputs. The output must be `::askama::Result<String>`.
+To define your own filters, simply have a module named `filters` in scope of the context deriving a `Template` impl and define the filters as functions within this module. The functions must have at least one argument and the return type must be `::askama::Result<T>` where `T` is some type that implements `Display`. 
+
+The arguments to the filters are passed as follows. The first argument corresponds to the expression they are applied to. Subsequent arguments, if any, must be given directly when calling the filter. The first argument <em>may</em> be passed as reference whenever Askama can not determine that it can be passed directly. If you want a filter to accept a first argument with or without reference, you may use traits to bound the argument. For example, the `trim` built-in filter accepts any value implementing `Display`. Its signature is similar to `fn trim<T: fmt::Display>(s: T) -> ::askama::Result<String>`.
 
 Note that built-in filters have preference over custom filters, so, in case of name collision, the built-in filter is applied.
 
@@ -427,7 +429,8 @@ struct MyFilterTemplate<'a> {
 // Any filter defined in the module `filters` is accessible in your template.
 mod filters {
     // This filter does not have extra arguments
-    pub fn myfilter(s: &str) -> ::askama::Result<String> {
+    pub fn myfilter<T: std::fmt::Display>(s: T) -> ::askama::Result<String> {
+        let s = s.to_string();
         Ok(s.replace("oo", "aa"))
     }
 }
@@ -451,9 +454,10 @@ struct MyFilterTemplate<'a> {
 // Any filter defined in the module `filters` is accessible in your template.
 mod filters {
     // This filter requires a `usize` input when called in templates
-    pub fn myfilter(s: &str, n: usize) -> ::askama::Result<String> {
-    	let mut replace = String::with_capacity(n);
-    	replace.extend((0..n).map(|_| "a"));
+    pub fn myfilter<T: std::fmt::Display>(s: T, n: usize) -> ::askama::Result<String> {
+        let s = s.to_string();
+    	  let mut replace = String::with_capacity(n);
+    	  replace.extend((0..n).map(|_| "a"));
         Ok(s.replace("oo", &replace))
     }
 }
@@ -463,4 +467,3 @@ fn main() {
     assert_eq!(t.render().unwrap(), "faaaa");
 }
 ```
-
