@@ -21,6 +21,7 @@ mod tests {
     use askama_escape::Html;
 
     #[test]
+    #[allow(clippy::needless_borrow)]
     fn test_yaml() {
         assert_eq!(yaml(Html, true).unwrap().to_string(), "---\ntrue");
         assert_eq!(yaml(Html, "foo").unwrap().to_string(), "---\nfoo");
