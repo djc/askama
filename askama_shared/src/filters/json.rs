@@ -28,6 +28,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::needless_borrow)]
     fn test_json() {
         assert_eq!(json(true).unwrap(), "true");
         assert_eq!(json("foo").unwrap(), r#""foo""#);
