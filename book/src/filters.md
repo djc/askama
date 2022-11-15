@@ -13,7 +13,8 @@ is passed to the next.
 {{ "HELLO"|lower }}
 ```
 
-Askama has a collection of built-in filters, documented below, but can also include custom filters. Additionally, the `json` and `yaml` filters are included in the built-in filters,
+Askama has a collection of built-in filters, documented below, but can also include custom filters. 
+Additionally, the `json` and `yaml` filters are included in the built-in filters,
 but are disabled by default. Enable them with Cargo features (see below for more information).
 
 **Table of contents**
@@ -105,7 +106,10 @@ Output:
 Escape &lt;&gt;&amp;
 ```
 
-Optionally, it is possible to specify and override which escaper is used. Consider a template where the escaper is configured as [`escape = "none"`]. However, somewhere escaping using the HTML escaper is desired. Then it is possible to override and use the HTML escaper like this:
+Optionally, it is possible to specify and override which escaper is used. 
+Consider a template where the escaper is configured as [`escape = "none"`]. 
+However, somewhere escaping using the HTML escaper is desired. 
+Then it is possible to override and use the HTML escaper like this:
 
 ```jinja
 {{ "Don't Escape <>&"|escape }}
@@ -408,9 +412,19 @@ This will output formatted YAML for any value that implements the required
 ## Custom Filters
 [#custom-filters]: #custom-filters
 
-To define your own filters, simply have a module named `filters` in scope of the context deriving a `Template` impl and define the filters as functions within this module. The functions must have at least one argument and the return type must be `::askama::Result<T>` where `T` is some type that implements `Display`. 
+To define your own filters, simply have a module named `filters` in scope of the context deriving a `Template` impl 
+and define the filters as functions within this module. 
+The functions must have at least one argument and the return type must be `::askama::Result<T>`.
+Although there are no restrictions on `T` for a single filter, 
+the final result of a chain of filters must implement `Display`. 
 
-The arguments to the filters are passed as follows. The first argument corresponds to the expression they are applied to. Subsequent arguments, if any, must be given directly when calling the filter. The first argument <em>may</em> be passed as reference whenever Askama can not determine that it can be passed directly. If you want a filter to accept a first argument with or without reference, you may use traits to bound the argument. For example, the `trim` built-in filter accepts any value implementing `Display`. Its signature is similar to `fn trim<T: fmt::Display>(s: T) -> ::askama::Result<String>`.
+The arguments to the filters are passed as follows. 
+The first argument corresponds to the expression they are applied to. 
+Subsequent arguments, if any, must be given directly when calling the filter. 
+The first argument may or may not be a reference, depending on the context in which the filter is called. 
+To abstract over ownership, consider defining your argument as a trait bound.
+For example, the `trim` built-in filter accepts any value implementing `Display`. 
+Its signature is similar to `fn trim(s: impl std::fmt::Display) -> ::askama::Result<String>`.
 
 Note that built-in filters have preference over custom filters, so, in case of name collision, the built-in filter is applied.
 
