@@ -777,8 +777,7 @@ Filters can be chained, in which case the output from one filter
 is passed to the next.</p>
 <pre><code>{{ &quot;HELLO&quot;|lower }}
 </code></pre>
-<p>Askama has a collection of built-in filters, documented below, but can also include custom filters. 
-Additionally, the <code>json</code> and <code>yaml</code> filters are included in the built-in filters,
+<p>Askama has a collection of built-in filters, documented below, but can also include custom filters. Additionally, the <code>json</code> and <code>yaml</code> filters are included in the built-in filters,
 but are disabled by default. Enable them with Cargo features (see below for more information).</p>
 <p><strong>Table of contents</strong></p>
 <ul>
@@ -840,10 +839,7 @@ but are disabled by default. Enable them with Cargo features (see below for more
 <p>Output:</p>
 <pre><code>Escape &amp;lt;&amp;gt;&amp;amp;
 </code></pre>
-<p>Optionally, it is possible to specify and override which escaper is used. 
-Consider a template where the escaper is configured as <a href="creating_templates.html#the-template-attribute"><code>escape = &quot;none&quot;</code></a>. 
-However, somewhere escaping using the HTML escaper is desired. 
-Then it is possible to override and use the HTML escaper like this:</p>
+<p>Optionally, it is possible to specify and override which escaper is used. Consider a template where the escaper is configured as <a href="creating_templates.html#the-template-attribute"><code>escape = &quot;none&quot;</code></a>. However, somewhere escaping using the HTML escaper is desired. Then it is possible to override and use the HTML escaper like this:</p>
 <pre><code class="language-jinja">{{ &quot;Don't Escape &lt;&gt;&amp;&quot;|escape }}
 {{ &quot;Don't Escape &lt;&gt;&amp;&quot;|e }}
 
@@ -1000,34 +996,16 @@ This will output formatted YAML for any value that implements the required
 <pre><code class="language-jinja">{{ foo|yaml }}
 </code></pre>
 <h2 id="custom-filters"><a class="header" href="#custom-filters">Custom Filters</a></h2>
-<p>To define your own filters, simply have a module named <code>filters</code> in scope of the context deriving a <code>Template</code> impl 
-and define the filters as functions within this module. 
-The functions must have at least one argument and the return type must be <code>::askama::Result&lt;T&gt;</code>.
-Although there are no restrictions on <code>T</code> for a single filter, 
-the final result of a chain of filters must implement <code>Display</code>. </p>
-<p>The arguments to the filters are passed as follows. 
-The first argument corresponds to the expression they are applied to. 
-Subsequent arguments, if any, must be given directly when calling the filter. 
-The first argument may or may not be a reference, depending on the context in which the filter is called. 
-To abstract over ownership, consider defining your argument as a trait bound.
-For example, the <code>trim</code> built-in filter accepts any value implementing <code>Display</code>. 
-Its signature is similar to <code>fn trim(s: impl std::fmt::Display) -&gt; ::askama::Result&lt;String&gt;</code>.</p>
-<p>Note that built-in filters have preference over custom filters, so, in case of name collision, the built-in filter is applied.</p>
-<h3 id="examples"><a class="header" href="#examples">Examples</a></h3>
-<p>Implementing a filter that replaces all instances of <code>&quot;oo&quot;</code> for <code>&quot;aa&quot;</code>.</p>
-<pre><pre class="playground"><code class="language-rust">use askama::Template;
-
-#[derive(Template)]
+<p>To define your own filters, simply have a module named filters in scope of the context deriving a <code>Template</code> impl.</p>
+<p>Note that in case of name collision, the built in filters take precedence.</p>
+<pre><pre class="playground"><code class="language-rust">#[derive(Template)]
 #[template(source = &quot;{{ s|myfilter }}&quot;, ext = &quot;txt&quot;)]
 struct MyFilterTemplate&lt;'a&gt; {
     s: &amp;'a str,
 }
 
-// Any filter defined in the module `filters` is accessible in your template.
 mod filters {
-    // This filter does not have extra arguments
-    pub fn myfilter&lt;T: std::fmt::Display&gt;(s: T) -&gt; ::askama::Result&lt;String&gt; {
-        let s = s.to_string();
+    pub fn myfilter(s: &amp;str) -&gt; ::askama::Result&lt;String&gt; {
         Ok(s.replace(&quot;oo&quot;, &quot;aa&quot;))
     }
 }
@@ -1035,31 +1013,6 @@ mod filters {
 fn main() {
     let t = MyFilterTemplate { s: &quot;foo&quot; };
     assert_eq!(t.render().unwrap(), &quot;faa&quot;);
-}
-</code></pre></pre>
-<p>Implementing a filter that replaces all instances of <code>&quot;oo&quot;</code> for <code>n</code> times <code>&quot;a&quot;</code>.</p>
-<pre><pre class="playground"><code class="language-rust">use askama::Template;
-
-#[derive(Template)]
-#[template(source = &quot;{{ s|myfilter(4) }}&quot;, ext = &quot;txt&quot;)]
-struct MyFilterTemplate&lt;'a&gt; {
-    s: &amp;'a str,
-}
-
-// Any filter defined in the module `filters` is accessible in your template.
-mod filters {
-    // This filter requires a `usize` input when called in templates
-    pub fn myfilter&lt;T: std::fmt::Display&gt;(s: T, n: usize) -&gt; ::askama::Result&lt;String&gt; {
-        let s = s.to_string();
-    	  let mut replace = String::with_capacity(n);
-    	  replace.extend((0..n).map(|_| &quot;a&quot;));
-        Ok(s.replace(&quot;oo&quot;, &amp;replace))
-    }
-}
-
-fn main() {
-    let t = MyFilterTemplate { s: &quot;foo&quot; };
-    assert_eq!(t.render().unwrap(), &quot;faaaa&quot;);
 }
 </code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="integrations"><a class="header" href="#integrations">Integrations</a></h1>
