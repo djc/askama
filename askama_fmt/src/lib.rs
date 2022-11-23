@@ -36,7 +36,26 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
             }
             Node::Comment(ws, text) => structured(&mut buf, &syn.comment_start, &syn.comment_end, false, ws, |buf| buf.push_str(text)),
             Node::Expr(ws, expr) => structured(&mut buf, &syn.expr_start, &syn.expr_end, true, ws, |buf| expr_to_str(buf, expr)),
-            // TODO: Node::Call
+            Node::Call(ws, scope, name, args) => block_tag(&mut buf, syn, ws, |buf| {
+                buf.push_str("call ");
+                if let Some(scope) = scope {
+                    buf.push_str(scope);
+                    buf.push_str("::");
+                }
+                buf.push_str(name);
+                buf.push('(');
+                let mut first = true;
+                for arg in args {
+                    if first {
+                        first = false;
+                    } else {
+                        buf.push_str(", ");
+                    }
+
+                    expr_to_str(buf, arg);
+                }
+                buf.push(')');
+            }),
             Node::LetDecl(ws, target) => block_tag(&mut buf, syn, ws, |buf| {
                 buf.push_str("let ");
                 target_to_str(buf, target);
@@ -241,6 +260,15 @@ mod tests {
     #[test] fn expr_char_lit() { test_expr(Expr::CharLit("c")); }
     #[test] fn expr_var() { test_expr(Expr::Var("value")); }
     #[test] fn expr_path() { test_expr(Expr::Path(vec!["askama", "Template"])); }
+
+    #[test]
+    fn call() {
+        let syn = Syntax::default();
+        let node = parse("{% call scope::macro(1, 2, 3) %}", &syn).expect("PARSE");
+
+        assert_eq!("{% call scope::macro(1, 2, 3) %}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? call scope::macro(1, 2, 3) ?>", fmt(&node, &custom()).expect("FMT"));
+    }
 
     #[test]
     fn let_decl() {
