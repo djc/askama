@@ -1,4 +1,3 @@
-use askama_parser::CompileError;
 use askama_parser::config::Syntax;
 use askama_parser::parser::{Loop, Macro, Node, Whitespace, Ws};
 
@@ -24,7 +23,7 @@ fn structured<F: FnOnce(&mut String)>(buf: &mut String, open: &str, close: &str,
     buf.push_str(close);
 }
 
-pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO: need result?????
+pub fn fmt(ast: &[Node], syn: &Syntax) -> String {
     let mut buf = String::new();
 
     for node in ast {
@@ -90,7 +89,7 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                         }
                     });
 
-                    buf.push_str(&fmt(block, syn)?);
+                    buf.push_str(&fmt(block, syn));
                 }
                 block_tag(&mut buf, syn, ws, |buf| buf.push_str("endif"));
             }
@@ -100,14 +99,14 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                     expr_to_str(buf, expr);
                 });
 
-                buf.push_str(&fmt(interstitial, syn)?);
+                buf.push_str(&fmt(interstitial, syn));
 
                 for (ws, target, block) in blocks {
                     block_tag(&mut buf, syn, ws, |buf| {
                         buf.push_str("when ");
                         target_to_str(buf, target);
                     });
-                    buf.push_str(&fmt(block, syn)?);
+                    buf.push_str(&fmt(block, syn));
                 }
 
                 block_tag(&mut buf, syn, rws, |buf| buf.push_str("endmatch"));
@@ -125,12 +124,12 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                     }
                 });
 
-                buf.push_str(&fmt(body, syn)?);
+                buf.push_str(&fmt(body, syn));
 
                 if !else_block.is_empty() {
                     block_tag(&mut buf, syn, ws2, |buf| { buf.push_str("else") });
 
-                    buf.push_str(&fmt(else_block, syn)?);
+                    buf.push_str(&fmt(else_block, syn));
                 }
 
                 block_tag(&mut buf, syn, ws3, |buf| { buf.push_str("endfor") });
@@ -147,7 +146,7 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                     buf.push_str("block ");
                     buf.push_str(name);
                 });
-                buf.push_str(&fmt(body, syn)?);
+                buf.push_str(&fmt(body, syn));
                 block_tag(&mut buf, syn, rws, |buf| {
                     buf.push_str("endblock");
                 });
@@ -182,7 +181,7 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                     }
                     buf.push(')');
                 });
-                buf.push_str(&fmt(nodes, syn)?);
+                buf.push_str(&fmt(nodes, syn));
                 block_tag(&mut buf, syn, ws2, |buf| {
                     buf.push_str("endmacro");
                 });
@@ -203,7 +202,7 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
         }
     }
 
-    Ok(buf)
+    buf
 }
 
 fn target_to_str(buf: &mut String, target: &askama_parser::parser::Target) {
@@ -434,7 +433,7 @@ mod tests {
         let syn = Syntax::default();
         let node = parse(" foobar\t", &syn).expect("PARSE");
 
-        assert_eq!(" foobar\t", fmt(&node, &syn).expect("FMT"));
+        assert_eq!(" foobar\t", fmt(&node, &syn));
     }
 
     #[test]
@@ -442,8 +441,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("foo{#+ empty -#}bar", &syn).expect("PARSE");
 
-        assert_eq!("foo{#+ empty -#}bar", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("foo<!+ empty -!>bar", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("foo{#+ empty -#}bar", fmt(&node, &syn));
+        assert_eq!("foo<!+ empty -!>bar", fmt(&node, &custom()));
     }
 
     #[test]
@@ -451,19 +450,19 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{{42}}", &syn).expect("PARSE");
 
-        assert_eq!("{{ 42 }}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<: 42 :>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{{ 42 }}", fmt(&node, &syn));
+        assert_eq!("<: 42 :>", fmt(&node, &custom()));
     }
 
     fn test_target(expected: &str, target: Target) {
         let syn = Syntax::default();
         let node = Node::Let(Ws(None, None), target, Expr::Var("val"));
 
-        let str1 = fmt(&[node], &syn).expect("FMT1");
+        let str1 = fmt(&[node], &syn);
         assert_eq!(str1, format!("{{% let {} = val %}}", expected));
 
         let parsed = parse(&str1, &syn).expect("PARSE");
-        let str2 = fmt(&parsed, &syn).expect("FMT1");
+        let str2 = fmt(&parsed, &syn);
         assert_eq!(str1, str2);
     }
 
@@ -488,11 +487,11 @@ mod tests {
         let syn = Syntax::default();
         let node = Node::Expr(Ws(None, None), expr);
 
-        let str1 = fmt(&[node], &syn).expect("FMT1");
+        let str1 = fmt(&[node], &syn);
         assert_eq!(str1, format!("{{{{ {} }}}}", expected));
 
         let parsed = parse(&str1, &syn).expect("PARSE");
-        let str2 = fmt(&parsed, &syn).expect("FMT1");
+        let str2 = fmt(&parsed, &syn);
         assert_eq!(str1, str2);
     }
 
@@ -546,8 +545,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{% call scope::macro(1, 2, 3) %}", &syn).expect("PARSE");
 
-        assert_eq!("{% call scope::macro(1, 2, 3) %}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? call scope::macro(1, 2, 3) ?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% call scope::macro(1, 2, 3) %}", fmt(&node, &syn));
+        assert_eq!("<? call scope::macro(1, 2, 3) ?>", fmt(&node, &custom()));
     }
 
     #[test]
@@ -555,8 +554,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%let foo\t%}", &syn).expect("PARSE");
 
-        assert_eq!("{% let foo %}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? let foo ?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% let foo %}", fmt(&node, &syn));
+        assert_eq!("<? let foo ?>", fmt(&node, &custom()));
     }
 
     #[test]
@@ -564,8 +563,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%let foo\t=\n42%}", &syn).expect("PARSE");
 
-        assert_eq!("{% let foo = 42 %}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? let foo = 42 ?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% let foo = 42 %}", fmt(&node, &syn));
+        assert_eq!("<? let foo = 42 ?>", fmt(&node, &custom()));
     }
 
     #[test]
@@ -573,8 +572,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%if foo-%}bar{%-else\t-%}baz{%- endif\n%}", &syn).expect("PARSE");
 
-        assert_eq!("{% if foo -%}bar{%- else -%}baz{%- endif %}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? if foo -?>bar<?- else -?>baz<?- endif ?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% if foo -%}bar{%- else -%}baz{%- endif %}", fmt(&node, &syn));
+        assert_eq!("<? if foo -?>bar<?- else -?>baz<?- endif ?>", fmt(&node, &custom()));
     }
 
     #[test]
@@ -595,14 +594,14 @@ mod tests {
   {% when Some with (val) -%}
     Found {{ val }}
   {% when None -%}
-{% endmatch %}", fmt(&node, &syn).expect("FMT"));
+{% endmatch %}", fmt(&node, &syn));
         assert_eq!("<? match item -?>
   <? when Some with (\"foo\") -?>
     Found literal foo
   <? when Some with (val) -?>
     Found <: val :>
   <? when None -?>
-<? endmatch ?>", fmt(&node, &custom()).expect("FMT"));
+<? endmatch ?>", fmt(&node, &custom()));
     }
 
     #[test]
@@ -610,8 +609,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%for value in values-%}{{\tvalue\n}}{%endfor~%}", &syn).expect("PARSE");
 
-        assert_eq!("{% for value in values -%}{{ value }}{% endfor ~%}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? for value in values -?><: value :><? endfor ~?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% for value in values -%}{{ value }}{% endfor ~%}", fmt(&node, &syn));
+        assert_eq!("<? for value in values -?><: value :><? endfor ~?>", fmt(&node, &custom()));
     }
 
     #[test]
@@ -619,8 +618,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%for value in values if true-%}{{\tvalue\n}}{%endfor~%}", &syn).expect("PARSE");
 
-        assert_eq!("{% for value in values if true -%}{{ value }}{% endfor ~%}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? for value in values if true -?><: value :><? endfor ~?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% for value in values if true -%}{{ value }}{% endfor ~%}", fmt(&node, &syn));
+        assert_eq!("<? for value in values if true -?><: value :><? endfor ~?>", fmt(&node, &custom()));
     }
 
     #[test]
@@ -628,8 +627,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%for value in values-%}{{\tvalue\n}}{%else%}NONE{%endfor~%}", &syn).expect("PARSE");
 
-        assert_eq!("{% for value in values -%}{{ value }}{% else %}NONE{% endfor ~%}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? for value in values -?><: value :><? else ?>NONE<? endfor ~?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% for value in values -%}{{ value }}{% else %}NONE{% endfor ~%}", fmt(&node, &syn));
+        assert_eq!("<? for value in values -?><: value :><? else ?>NONE<? endfor ~?>", fmt(&node, &custom()));
     }
 
     #[test]
@@ -637,8 +636,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%extends \"base.html\"\t%}", &syn).expect("PARSE");
 
-        assert_eq!("{% extends \"base.html\" %}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? extends \"base.html\" ?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% extends \"base.html\" %}", fmt(&node, &syn));
+        assert_eq!("<? extends \"base.html\" ?>", fmt(&node, &custom()));
     }
 
     #[test]
@@ -646,8 +645,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%block title\t%}Hi!{%endblock%}", &syn).expect("PARSE");
 
-        assert_eq!("{% block title %}Hi!{% endblock %}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? block title ?>Hi!<? endblock ?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% block title %}Hi!{% endblock %}", fmt(&node, &syn));
+        assert_eq!("<? block title ?>Hi!<? endblock ?>", fmt(&node, &custom()));
     }
 
     #[test]
@@ -655,8 +654,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%include \"item.html\"\t%}", &syn).expect("PARSE");
 
-        assert_eq!("{% include \"item.html\" %}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? include \"item.html\" ?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% include \"item.html\" %}", fmt(&node, &syn));
+        assert_eq!("<? include \"item.html\" ?>", fmt(&node, &custom()));
     }
 
     #[test]
@@ -664,8 +663,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%import \"macros.html\" as mod\t%}", &syn).expect("PARSE");
 
-        assert_eq!("{% import \"macros.html\" as mod %}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? import \"macros.html\" as mod ?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% import \"macros.html\" as mod %}", fmt(&node, &syn));
+        assert_eq!("<? import \"macros.html\" as mod ?>", fmt(&node, &custom()));
     }
 
     #[test]
@@ -673,8 +672,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%macro heading(arg)\t%}<h1>{{arg}}</h1>{%endmacro%}", &syn).expect("PARSE");
 
-        assert_eq!("{% macro heading(arg) %}<h1>{{ arg }}</h1>{% endmacro %}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? macro heading(arg) ?><h1><: arg :></h1><? endmacro ?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% macro heading(arg) %}<h1>{{ arg }}</h1>{% endmacro %}", fmt(&node, &syn));
+        assert_eq!("<? macro heading(arg) ?><h1><: arg :></h1><? endmacro ?>", fmt(&node, &custom()));
     }
 
     #[test]
@@ -682,8 +681,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%raw\t%}\n{{\twhat}}{%endraw%}", &syn).expect("PARSE");
 
-        assert_eq!("{% raw %}\n{{\twhat}}{% endraw %}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? raw ?>\n{{\twhat}}<? endraw ?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% raw %}\n{{\twhat}}{% endraw %}", fmt(&node, &syn));
+        assert_eq!("<? raw ?>\n{{\twhat}}<? endraw ?>", fmt(&node, &custom()));
     }
 
     #[test]
@@ -691,8 +690,8 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%for value in values-%}{%\tbreak\n%}{%endfor~%}", &syn).expect("PARSE");
 
-        assert_eq!("{% for value in values -%}{% break %}{% endfor ~%}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? for value in values -?><? break ?><? endfor ~?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% for value in values -%}{% break %}{% endfor ~%}", fmt(&node, &syn));
+        assert_eq!("<? for value in values -?><? break ?><? endfor ~?>", fmt(&node, &custom()));
     }
 
     #[test]
@@ -700,7 +699,7 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%for value in values-%}{%\tcontinue\n%}{%endfor~%}", &syn).expect("PARSE");
 
-        assert_eq!("{% for value in values -%}{% continue %}{% endfor ~%}", fmt(&node, &syn).expect("FMT"));
-        assert_eq!("<? for value in values -?><? continue ?><? endfor ~?>", fmt(&node, &custom()).expect("FMT"));
+        assert_eq!("{% for value in values -%}{% continue %}{% endfor ~%}", fmt(&node, &syn));
+        assert_eq!("<? for value in values -?><? continue ?><? endfor ~?>", fmt(&node, &custom()));
     }
 }
