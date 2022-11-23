@@ -457,7 +457,7 @@ impl<'a> Generator<'a> {
                 Node::Cond(ref conds, ws) => {
                     self.write_cond(ctx, buf, conds, ws)?;
                 }
-                Node::Match(ws1, ref expr, ref arms, ws2) => {
+                Node::Match(ws1, ref expr, _, ref arms, ws2) => {
                     self.write_match(ctx, buf, ws1, expr, arms, ws2)?;
                 }
                 Node::Loop(ref loop_block) => {
