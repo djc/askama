@@ -152,6 +152,12 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                     buf.push_str("endblock");
                 });
             }
+            Node::Include(ws, name) => {
+                block_tag(&mut buf, syn, ws, |buf| {
+                    buf.push_str("include ");
+                    strlit_to_str(buf, name);
+                });
+            }
             Node::Break(ws) => {
                 block_tag(&mut buf, syn, ws, |buf| { buf.push_str("break") });
             }
@@ -201,9 +207,7 @@ fn expr_to_str(buf: &mut String, expr: &askama_parser::parser::Expr) {
     match expr {
         BoolLit(s) | NumLit(s) | Var(s) => buf.push_str(s),
         StrLit(s) => {
-            buf.push_str("\"");
-            buf.push_str(s);
-            buf.push_str("\"");
+            strlit_to_str(buf, s);
         }
         CharLit(s) => {
             buf.push_str("'");
@@ -215,6 +219,12 @@ fn expr_to_str(buf: &mut String, expr: &askama_parser::parser::Expr) {
         }
         _ => panic!("unsupported expr!"),
     }
+}
+
+fn strlit_to_str(buf: &mut String, s: &str) {
+    buf.push_str("\"");
+    buf.push_str(s);
+    buf.push_str("\"");
 }
 
 #[cfg(test)]
@@ -385,6 +395,15 @@ mod tests {
 
         assert_eq!("{% block title %}Hi!{% endblock %}", fmt(&node, &syn).expect("FMT"));
         assert_eq!("<? block title ?>Hi!<? endblock ?>", fmt(&node, &custom()).expect("FMT"));
+    }
+
+    #[test]
+    fn include() {
+        let syn = Syntax::default();
+        let node = parse("{%include \"item.html\"\t%}", &syn).expect("PARSE");
+
+        assert_eq!("{% include \"item.html\" %}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? include \"item.html\" ?>", fmt(&node, &custom()).expect("FMT"));
     }
 
     #[test]
