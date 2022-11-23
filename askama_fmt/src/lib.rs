@@ -11,13 +11,17 @@ pub fn ws_to_char(ws: &Whitespace) -> char {
 }
 
 fn block_tag<F: FnOnce(&mut String)>(buf: &mut String, syn: &Syntax, ws: &Ws, f: F) {
-    buf.push_str(&syn.block_start);
+    structured(buf, &syn.block_start, &syn.block_end, true, ws, f);
+}
+
+fn structured<F: FnOnce(&mut String)>(buf: &mut String, open: &str, close: &str, padding: bool, ws: &Ws, f: F) {
+    buf.push_str(open);
     ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-    buf.push(' ');
+    if padding { buf.push(' '); }
     f(buf);
-    buf.push(' ');
+    if padding { buf.push(' '); }
     ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-    buf.push_str(&syn.block_end);
+    buf.push_str(close);
 }
 
 pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO: need result?????
@@ -30,22 +34,8 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                 buf.push_str(val);
                 buf.push_str(rws);
             }
-            Node::Comment(ws, text) => {
-                buf.push_str(&syn.comment_start);
-                ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(text);
-                ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(&syn.comment_end);
-            }
-            Node::Expr(ws, expr) => {
-                buf.push_str(&syn.expr_start);
-                ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push(' ');
-                expr_to_str(&mut buf, expr);
-                buf.push(' ');
-                ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
-                buf.push_str(&syn.expr_end);
-            }
+            Node::Comment(ws, text) => structured(&mut buf, &syn.comment_start, &syn.comment_end, false, ws, |buf| buf.push_str(text)),
+            Node::Expr(ws, expr) => structured(&mut buf, &syn.expr_start, &syn.expr_end, true, ws, |buf| expr_to_str(buf, expr)),
             // TODO: Node::Call
             Node::LetDecl(ws, target) => block_tag(&mut buf, syn, ws, |buf| {
                 buf.push_str("let ");
