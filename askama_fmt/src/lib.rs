@@ -13,12 +13,23 @@ fn block_tag<F: FnOnce(&mut String)>(buf: &mut String, syn: &Syntax, ws: &Ws, f:
     structured(buf, &syn.block_start, &syn.block_end, true, ws, f);
 }
 
-fn structured<F: FnOnce(&mut String)>(buf: &mut String, open: &str, close: &str, padding: bool, ws: &Ws, f: F) {
+fn structured<F: FnOnce(&mut String)>(
+    buf: &mut String,
+    open: &str,
+    close: &str,
+    padding: bool,
+    ws: &Ws,
+    f: F,
+) {
     buf.push_str(open);
     ws.0.iter().map(ws_to_char).for_each(|c| buf.push(c));
-    if padding { buf.push(' '); }
+    if padding {
+        buf.push(' ');
+    }
     f(buf);
-    if padding { buf.push(' '); }
+    if padding {
+        buf.push(' ');
+    }
     ws.1.iter().map(ws_to_char).for_each(|c| buf.push(c));
     buf.push_str(close);
 }
@@ -33,8 +44,19 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> String {
                 buf.push_str(val);
                 buf.push_str(rws);
             }
-            Node::Comment(ws, text) => structured(&mut buf, &syn.comment_start, &syn.comment_end, false, ws, |buf| buf.push_str(text)),
-            Node::Expr(ws, expr) => structured(&mut buf, &syn.expr_start, &syn.expr_end, true, ws, |buf| expr_to_str(buf, expr)),
+            Node::Comment(ws, text) => structured(
+                &mut buf,
+                &syn.comment_start,
+                &syn.comment_end,
+                false,
+                ws,
+                |buf| buf.push_str(text),
+            ),
+            Node::Expr(ws, expr) => {
+                structured(&mut buf, &syn.expr_start, &syn.expr_end, true, ws, |buf| {
+                    expr_to_str(buf, expr)
+                })
+            }
             Node::Call(ws, scope, name, args) => block_tag(&mut buf, syn, ws, |buf| {
                 buf.push_str("call ");
                 if let Some(scope) = scope {
@@ -111,7 +133,16 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> String {
 
                 block_tag(&mut buf, syn, rws, |buf| buf.push_str("endmatch"));
             }
-            Node::Loop(Loop { ws1, var, iter, cond, body, ws2, else_block, ws3 }) => {
+            Node::Loop(Loop {
+                ws1,
+                var,
+                iter,
+                cond,
+                body,
+                ws2,
+                else_block,
+                ws3,
+            }) => {
                 block_tag(&mut buf, syn, ws1, |buf| {
                     buf.push_str("for ");
                     target_to_str(buf, var);
@@ -127,12 +158,12 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> String {
                 buf.push_str(&fmt(body, syn));
 
                 if !else_block.is_empty() {
-                    block_tag(&mut buf, syn, ws2, |buf| { buf.push_str("else") });
+                    block_tag(&mut buf, syn, ws2, |buf| buf.push_str("else"));
 
                     buf.push_str(&fmt(else_block, syn));
                 }
 
-                block_tag(&mut buf, syn, ws3, |buf| { buf.push_str("endfor") });
+                block_tag(&mut buf, syn, ws3, |buf| buf.push_str("endfor"));
             }
             Node::Extends(parent) => {
                 let ws = &Ws(None, None);
@@ -165,7 +196,15 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> String {
                     buf.push_str(alias);
                 });
             }
-            Node::Macro(name, Macro { ws1, args, nodes, ws2 }) => {
+            Node::Macro(
+                name,
+                Macro {
+                    ws1,
+                    args,
+                    nodes,
+                    ws2,
+                },
+            ) => {
                 block_tag(&mut buf, syn, ws1, |buf| {
                     buf.push_str("macro ");
                     buf.push_str(name);
@@ -187,17 +226,17 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> String {
                 });
             }
             Node::Raw(ws1, lws, val, rws, ws2) => {
-                block_tag(&mut buf, syn, ws1, |buf| { buf.push_str("raw") });
+                block_tag(&mut buf, syn, ws1, |buf| buf.push_str("raw"));
                 buf.push_str(lws);
                 buf.push_str(val);
                 buf.push_str(rws);
-                block_tag(&mut buf, syn, ws2, |buf| { buf.push_str("endraw") });
+                block_tag(&mut buf, syn, ws2, |buf| buf.push_str("endraw"));
             }
             Node::Break(ws) => {
-                block_tag(&mut buf, syn, ws, |buf| { buf.push_str("break") });
+                block_tag(&mut buf, syn, ws, |buf| buf.push_str("break"));
             }
             Node::Continue(ws) => {
-                block_tag(&mut buf, syn, ws, |buf| { buf.push_str("continue") });
+                block_tag(&mut buf, syn, ws, |buf| buf.push_str("continue"));
             }
         }
     }
@@ -466,22 +505,59 @@ mod tests {
         assert_eq!(str1, str2);
     }
 
-    #[test] fn target_name() { test_target("foo", Target::Name("foo")); }
-    #[test] fn target_tuple_unit() { test_target("()", Target::Tuple(vec![], vec![])); }
-    #[test] fn target_tuple_anon() { test_target("(a,)", Target::Tuple(vec![], vec![Target::Name("a")])); }
-    #[test] fn target_tuple_named() { test_target("Some with (val)", Target::Tuple(
-        vec!["Some"],
-        vec![Target::Name("val")],
-    )); }
-    #[test] fn target_struct() { test_target("Color with { r, g: lime, b }", Target::Struct(
-        vec!["Color"],
-        vec![("r", Target::Name("r")), ("g", Target::Name("lime")), ("b", Target::Name("b"))],
-    )); }
-    #[test] fn target_numlit() { test_target("42", Target::NumLit("42")); }
-    #[test] fn target_strlit() { test_target("\"foo\\\"bar\"", Target::StrLit("foo\\\"bar")); }
-    #[test] fn target_charlit() { test_target("'.'", Target::CharLit(".")); }
-    #[test] fn target_boollit() { test_target("false", Target::BoolLit("false")); }
-    #[test] fn target_path() { test_target("foo::bar", Target::Path(vec!["foo", "bar"])); }
+    #[test]
+    fn target_name() {
+        test_target("foo", Target::Name("foo"));
+    }
+    #[test]
+    fn target_tuple_unit() {
+        test_target("()", Target::Tuple(vec![], vec![]));
+    }
+    #[test]
+    fn target_tuple_anon() {
+        test_target("(a,)", Target::Tuple(vec![], vec![Target::Name("a")]));
+    }
+    #[test]
+    fn target_tuple_named() {
+        test_target(
+            "Some with (val)",
+            Target::Tuple(vec!["Some"], vec![Target::Name("val")]),
+        );
+    }
+    #[test]
+    fn target_struct() {
+        test_target(
+            "Color with { r, g: lime, b }",
+            Target::Struct(
+                vec!["Color"],
+                vec![
+                    ("r", Target::Name("r")),
+                    ("g", Target::Name("lime")),
+                    ("b", Target::Name("b")),
+                ],
+            ),
+        );
+    }
+    #[test]
+    fn target_numlit() {
+        test_target("42", Target::NumLit("42"));
+    }
+    #[test]
+    fn target_strlit() {
+        test_target("\"foo\\\"bar\"", Target::StrLit("foo\\\"bar"));
+    }
+    #[test]
+    fn target_charlit() {
+        test_target("'.'", Target::CharLit("."));
+    }
+    #[test]
+    fn target_boollit() {
+        test_target("false", Target::BoolLit("false"));
+    }
+    #[test]
+    fn target_path() {
+        test_target("foo::bar", Target::Path(vec!["foo", "bar"]));
+    }
 
     fn test_expr(expected: &str, expr: Expr) {
         let syn = Syntax::default();
@@ -495,50 +571,125 @@ mod tests {
         assert_eq!(str1, str2);
     }
 
-    #[test] fn expr_bool_lit() { test_expr("true", Expr::BoolLit("true")); }
-    #[test] fn expr_num_lit() { test_expr("42", Expr::NumLit("42")); }
-    #[test] fn expr_str_lit() { test_expr("\"foo\\\"bar\"", Expr::StrLit("foo\\\"bar")); }
-    #[test] fn expr_char_lit() { test_expr("'c'", Expr::CharLit("c")); }
-    #[test] fn expr_var() { test_expr("value", Expr::Var("value")); }
-    #[test] fn expr_path() { test_expr("askama::Template", Expr::Path(vec!["askama", "Template"])); }
-    #[test] fn expr_array() { test_expr("[1, 2]", Expr::Array(vec![
-        Expr::NumLit("1"),
-        Expr::NumLit("2"),
-    ])); }
-    #[test] fn expr_attr() { test_expr("obj.field", Expr::Attr(Box::new(Expr::Var("obj")), "field")); }
-    #[test] fn expr_index() { test_expr("arr[idx]", Expr::Index(
-        Box::new(Expr::Var("arr")),
-        Box::new(Expr::Var("idx")),
-    )); }
-    #[test] fn expr_filter() { test_expr("input|filter(\"arg\")", Expr::Filter("filter", vec![
-        Expr::Var("input"),
-        Expr::StrLit("arg"),
-    ])); }
-    #[test] fn expr_unary() { test_expr("-42", Expr::Unary("-", Box::new(Expr::NumLit("42")))); }
-    #[test] fn expr_binop() { test_expr("1 + 2", Expr::BinOp(
-        "+",
-        Box::new(Expr::NumLit("1")),
-        Box::new(Expr::NumLit("2")),
-    )); }
-    #[test] fn expr_range_oo() { test_expr("..", Expr::Range("..", None, None)); }
-    #[test] fn expr_range_co() { test_expr("1..", Expr::Range("..", Some(Box::new(Expr::NumLit("1"))), None)); }
-    #[test] fn expr_range_oc() { test_expr("..1", Expr::Range("..", None, Some(Box::new(Expr::NumLit("1"))))); }
-    #[test] fn expr_range_right() { test_expr("..=1", Expr::Range("..=", None, Some(Box::new(Expr::NumLit("1"))))); }
-    #[test] fn expr_group() { test_expr("(var)", Expr::Group(Box::new(Expr::Var("var")))); }
-    #[test] fn expr_tuple_one() { test_expr("(var,)", Expr::Tuple(vec![Expr::Var("var")])); }
-    #[test] fn expr_tuple_two() { test_expr("(a, b)", Expr::Tuple(vec![
-        Expr::Var("a"),
-        Expr::Var("b"),
-    ])); }
-    #[test] fn expr_call() { test_expr("foo(bar, baz)", Expr::Call(
-        Box::new(Expr::Var("foo")),
-        vec![
-            Expr::Var("bar"),
-            Expr::Var("baz"),
-        ],
-    )); }
-    #[test] fn rust_macro() { test_expr("do!(+#15 I$ 4@3)", Expr::RustMacro("do", "+#15 I$ 4@3")); }
-    #[test] fn try_() { test_expr("maybe?", Expr::Try(Box::new(Expr::Var("maybe")))); }
+    #[test]
+    fn expr_bool_lit() {
+        test_expr("true", Expr::BoolLit("true"));
+    }
+    #[test]
+    fn expr_num_lit() {
+        test_expr("42", Expr::NumLit("42"));
+    }
+    #[test]
+    fn expr_str_lit() {
+        test_expr("\"foo\\\"bar\"", Expr::StrLit("foo\\\"bar"));
+    }
+    #[test]
+    fn expr_char_lit() {
+        test_expr("'c'", Expr::CharLit("c"));
+    }
+    #[test]
+    fn expr_var() {
+        test_expr("value", Expr::Var("value"));
+    }
+    #[test]
+    fn expr_path() {
+        test_expr("askama::Template", Expr::Path(vec!["askama", "Template"]));
+    }
+    #[test]
+    fn expr_array() {
+        test_expr(
+            "[1, 2]",
+            Expr::Array(vec![Expr::NumLit("1"), Expr::NumLit("2")]),
+        );
+    }
+    #[test]
+    fn expr_attr() {
+        test_expr("obj.field", Expr::Attr(Box::new(Expr::Var("obj")), "field"));
+    }
+    #[test]
+    fn expr_index() {
+        test_expr(
+            "arr[idx]",
+            Expr::Index(Box::new(Expr::Var("arr")), Box::new(Expr::Var("idx"))),
+        );
+    }
+    #[test]
+    fn expr_filter() {
+        test_expr(
+            "input|filter(\"arg\")",
+            Expr::Filter("filter", vec![Expr::Var("input"), Expr::StrLit("arg")]),
+        );
+    }
+    #[test]
+    fn expr_unary() {
+        test_expr("-42", Expr::Unary("-", Box::new(Expr::NumLit("42"))));
+    }
+    #[test]
+    fn expr_binop() {
+        test_expr(
+            "1 + 2",
+            Expr::BinOp(
+                "+",
+                Box::new(Expr::NumLit("1")),
+                Box::new(Expr::NumLit("2")),
+            ),
+        );
+    }
+    #[test]
+    fn expr_range_oo() {
+        test_expr("..", Expr::Range("..", None, None));
+    }
+    #[test]
+    fn expr_range_co() {
+        test_expr(
+            "1..",
+            Expr::Range("..", Some(Box::new(Expr::NumLit("1"))), None),
+        );
+    }
+    #[test]
+    fn expr_range_oc() {
+        test_expr(
+            "..1",
+            Expr::Range("..", None, Some(Box::new(Expr::NumLit("1")))),
+        );
+    }
+    #[test]
+    fn expr_range_right() {
+        test_expr(
+            "..=1",
+            Expr::Range("..=", None, Some(Box::new(Expr::NumLit("1")))),
+        );
+    }
+    #[test]
+    fn expr_group() {
+        test_expr("(var)", Expr::Group(Box::new(Expr::Var("var"))));
+    }
+    #[test]
+    fn expr_tuple_one() {
+        test_expr("(var,)", Expr::Tuple(vec![Expr::Var("var")]));
+    }
+    #[test]
+    fn expr_tuple_two() {
+        test_expr("(a, b)", Expr::Tuple(vec![Expr::Var("a"), Expr::Var("b")]));
+    }
+    #[test]
+    fn expr_call() {
+        test_expr(
+            "foo(bar, baz)",
+            Expr::Call(
+                Box::new(Expr::Var("foo")),
+                vec![Expr::Var("bar"), Expr::Var("baz")],
+            ),
+        );
+    }
+    #[test]
+    fn rust_macro() {
+        test_expr("do!(+#15 I$ 4@3)", Expr::RustMacro("do", "+#15 I$ 4@3"));
+    }
+    #[test]
+    fn try_() {
+        test_expr("maybe?", Expr::Try(Box::new(Expr::Var("maybe"))));
+    }
 
     #[test]
     fn call() {
@@ -572,36 +723,52 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%if foo-%}bar{%-else\t-%}baz{%- endif\n%}", &syn).expect("PARSE");
 
-        assert_eq!("{% if foo -%}bar{%- else -%}baz{%- endif %}", fmt(&node, &syn));
-        assert_eq!("<? if foo -?>bar<?- else -?>baz<?- endif ?>", fmt(&node, &custom()));
+        assert_eq!(
+            "{% if foo -%}bar{%- else -%}baz{%- endif %}",
+            fmt(&node, &syn)
+        );
+        assert_eq!(
+            "<? if foo -?>bar<?- else -?>baz<?- endif ?>",
+            fmt(&node, &custom())
+        );
     }
 
     #[test]
     fn match_() {
         let syn = Syntax::default();
-        let node = parse("{%match item-%}
+        let node = parse(
+            "{%match item-%}
   {%  when Some
   with\t (\t \"foo\"  )\t-%}
     Found literal foo
   {% when Some with (val) -%}
     Found {{ val }}
   {% when None -%}
-{% endmatch\n%}", &syn).expect("PARSE");
+{% endmatch\n%}",
+            &syn,
+        )
+        .expect("PARSE");
 
-        assert_eq!("{% match item -%}
+        assert_eq!(
+            "{% match item -%}
   {% when Some with (\"foo\") -%}
     Found literal foo
   {% when Some with (val) -%}
     Found {{ val }}
   {% when None -%}
-{% endmatch %}", fmt(&node, &syn));
-        assert_eq!("<? match item -?>
+{% endmatch %}",
+            fmt(&node, &syn)
+        );
+        assert_eq!(
+            "<? match item -?>
   <? when Some with (\"foo\") -?>
     Found literal foo
   <? when Some with (val) -?>
     Found <: val :>
   <? when None -?>
-<? endmatch ?>", fmt(&node, &custom()));
+<? endmatch ?>",
+            fmt(&node, &custom())
+        );
     }
 
     #[test]
@@ -609,26 +776,52 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%for value in values-%}{{\tvalue\n}}{%endfor~%}", &syn).expect("PARSE");
 
-        assert_eq!("{% for value in values -%}{{ value }}{% endfor ~%}", fmt(&node, &syn));
-        assert_eq!("<? for value in values -?><: value :><? endfor ~?>", fmt(&node, &custom()));
+        assert_eq!(
+            "{% for value in values -%}{{ value }}{% endfor ~%}",
+            fmt(&node, &syn)
+        );
+        assert_eq!(
+            "<? for value in values -?><: value :><? endfor ~?>",
+            fmt(&node, &custom())
+        );
     }
 
     #[test]
     fn loop_cond() {
         let syn = Syntax::default();
-        let node = parse("{%for value in values if true-%}{{\tvalue\n}}{%endfor~%}", &syn).expect("PARSE");
+        let node = parse(
+            "{%for value in values if true-%}{{\tvalue\n}}{%endfor~%}",
+            &syn,
+        )
+        .expect("PARSE");
 
-        assert_eq!("{% for value in values if true -%}{{ value }}{% endfor ~%}", fmt(&node, &syn));
-        assert_eq!("<? for value in values if true -?><: value :><? endfor ~?>", fmt(&node, &custom()));
+        assert_eq!(
+            "{% for value in values if true -%}{{ value }}{% endfor ~%}",
+            fmt(&node, &syn)
+        );
+        assert_eq!(
+            "<? for value in values if true -?><: value :><? endfor ~?>",
+            fmt(&node, &custom())
+        );
     }
 
     #[test]
     fn loop_else() {
         let syn = Syntax::default();
-        let node = parse("{%for value in values-%}{{\tvalue\n}}{%else%}NONE{%endfor~%}", &syn).expect("PARSE");
+        let node = parse(
+            "{%for value in values-%}{{\tvalue\n}}{%else%}NONE{%endfor~%}",
+            &syn,
+        )
+        .expect("PARSE");
 
-        assert_eq!("{% for value in values -%}{{ value }}{% else %}NONE{% endfor ~%}", fmt(&node, &syn));
-        assert_eq!("<? for value in values -?><: value :><? else ?>NONE<? endfor ~?>", fmt(&node, &custom()));
+        assert_eq!(
+            "{% for value in values -%}{{ value }}{% else %}NONE{% endfor ~%}",
+            fmt(&node, &syn)
+        );
+        assert_eq!(
+            "<? for value in values -?><: value :><? else ?>NONE<? endfor ~?>",
+            fmt(&node, &custom())
+        );
     }
 
     #[test]
@@ -670,10 +863,17 @@ mod tests {
     #[test]
     fn macro_() {
         let syn = Syntax::default();
-        let node = parse("{%macro heading(arg)\t%}<h1>{{arg}}</h1>{%endmacro%}", &syn).expect("PARSE");
+        let node =
+            parse("{%macro heading(arg)\t%}<h1>{{arg}}</h1>{%endmacro%}", &syn).expect("PARSE");
 
-        assert_eq!("{% macro heading(arg) %}<h1>{{ arg }}</h1>{% endmacro %}", fmt(&node, &syn));
-        assert_eq!("<? macro heading(arg) ?><h1><: arg :></h1><? endmacro ?>", fmt(&node, &custom()));
+        assert_eq!(
+            "{% macro heading(arg) %}<h1>{{ arg }}</h1>{% endmacro %}",
+            fmt(&node, &syn)
+        );
+        assert_eq!(
+            "<? macro heading(arg) ?><h1><: arg :></h1><? endmacro ?>",
+            fmt(&node, &custom())
+        );
     }
 
     #[test]
@@ -690,16 +890,29 @@ mod tests {
         let syn = Syntax::default();
         let node = parse("{%for value in values-%}{%\tbreak\n%}{%endfor~%}", &syn).expect("PARSE");
 
-        assert_eq!("{% for value in values -%}{% break %}{% endfor ~%}", fmt(&node, &syn));
-        assert_eq!("<? for value in values -?><? break ?><? endfor ~?>", fmt(&node, &custom()));
+        assert_eq!(
+            "{% for value in values -%}{% break %}{% endfor ~%}",
+            fmt(&node, &syn)
+        );
+        assert_eq!(
+            "<? for value in values -?><? break ?><? endfor ~?>",
+            fmt(&node, &custom())
+        );
     }
 
     #[test]
     fn continue_() {
         let syn = Syntax::default();
-        let node = parse("{%for value in values-%}{%\tcontinue\n%}{%endfor~%}", &syn).expect("PARSE");
+        let node =
+            parse("{%for value in values-%}{%\tcontinue\n%}{%endfor~%}", &syn).expect("PARSE");
 
-        assert_eq!("{% for value in values -%}{% continue %}{% endfor ~%}", fmt(&node, &syn));
-        assert_eq!("<? for value in values -?><? continue ?><? endfor ~?>", fmt(&node, &custom()));
+        assert_eq!(
+            "{% for value in values -%}{% continue %}{% endfor ~%}",
+            fmt(&node, &syn)
+        );
+        assert_eq!(
+            "<? for value in values -?><? continue ?><? endfor ~?>",
+            fmt(&node, &custom())
+        );
     }
 }
