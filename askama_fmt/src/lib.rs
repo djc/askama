@@ -187,13 +187,19 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                     buf.push_str("endmacro");
                 });
             }
+            Node::Raw(ws1, lws, val, rws, ws2) => {
+                block_tag(&mut buf, syn, ws1, |buf| { buf.push_str("raw") });
+                buf.push_str(lws);
+                buf.push_str(val);
+                buf.push_str(rws);
+                block_tag(&mut buf, syn, ws2, |buf| { buf.push_str("endraw") });
+            }
             Node::Break(ws) => {
                 block_tag(&mut buf, syn, ws, |buf| { buf.push_str("break") });
             }
             Node::Continue(ws) => {
                 block_tag(&mut buf, syn, ws, |buf| { buf.push_str("continue") });
             }
-            _ => panic!("unhandled node type! {:?}", node),
         }
     }
 
@@ -451,6 +457,15 @@ mod tests {
 
         assert_eq!("{% macro heading(arg) %}<h1>{{ arg }}</h1>{% endmacro %}", fmt(&node, &syn).expect("FMT"));
         assert_eq!("<? macro heading(arg) ?><h1><: arg :></h1><? endmacro ?>", fmt(&node, &custom()).expect("FMT"));
+    }
+
+    #[test]
+    fn raw() {
+        let syn = Syntax::default();
+        let node = parse("{%raw\t%}\n{{\twhat}}{%endraw%}", &syn).expect("PARSE");
+
+        assert_eq!("{% raw %}\n{{\twhat}}{% endraw %}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? raw ?>\n{{\twhat}}<? endraw ?>", fmt(&node, &custom()).expect("FMT"));
     }
 
     #[test]
