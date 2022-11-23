@@ -1,6 +1,6 @@
 use crate::config::get_template_source;
 use crate::input::{Print, Source, TemplateInput};
-use crate::parser::{parse, Expr, Node};
+use crate::parser::{parse, Node};
 use crate::CompileError;
 
 use std::collections::hash_map::HashMap;
@@ -132,7 +132,7 @@ pub fn find_used_templates(
     while let Some((path, source)) = check.pop() {
         for n in parse(&source, input.syntax)? {
             match n {
-                Node::Extends(Expr::StrLit(extends)) => {
+                Node::Extends(extends) => {
                     let extends = input.config.find_template(extends, Some(&path))?;
                     let dependency_path = (path.clone(), extends.clone());
                     if dependency_graph.contains(&dependency_path) {

@@ -96,7 +96,7 @@ pub enum Node<'a> {
     /// ```ignore
     /// {% extends "base.html" %}
     /// ```
-    Extends(Expr<'a>),
+    Extends(&'a str),
     /// A block definition.
     ///
     /// ```ignore
@@ -1128,7 +1128,7 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 }
 
 fn block_extends(i: &str) -> IResult<&str, Node<'_>> {
-    let (i, (_, name)) = tuple((ws(tag("extends")), ws(expr_str_lit)))(i)?;
+    let (i, (_, name)) = tuple((ws(tag("extends")), ws(str_lit)))(i)?;
     Ok((i, Node::Extends(name)))
 }
 

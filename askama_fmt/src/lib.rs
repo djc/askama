@@ -139,7 +139,7 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                 let ws = &Ws(None, None);
                 block_tag(&mut buf, syn, ws, |buf| {
                     buf.push_str("extends ");
-                    expr_to_str(buf, parent);
+                    strlit_to_str(buf, parent);
                 });
             }
             Node::BlockDef(lws, name, body, rws) => {
