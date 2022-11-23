@@ -1867,99 +1867,99 @@ mod tests {
 
         assert_eq!(
             super::parse("{##}", s).unwrap(),
-            vec![Node::Comment(Ws(None, None))],
+            vec![Node::Comment(Ws(None, None), "")],
         );
         assert_eq!(
             super::parse("{#- #}", s).unwrap(),
-            vec![Node::Comment(Ws(Some(Whitespace::Suppress), None))],
+            vec![Node::Comment(Ws(Some(Whitespace::Suppress), None), " ")],
         );
         assert_eq!(
             super::parse("{# -#}", s).unwrap(),
-            vec![Node::Comment(Ws(None, Some(Whitespace::Suppress)))],
+            vec![Node::Comment(Ws(None, Some(Whitespace::Suppress)), " ")],
         );
         assert_eq!(
             super::parse("{#--#}", s).unwrap(),
             vec![Node::Comment(Ws(
                 Some(Whitespace::Suppress),
                 Some(Whitespace::Suppress)
-            ))],
+            ), "")],
         );
         assert_eq!(
             super::parse("{#- foo\n bar -#}", s).unwrap(),
             vec![Node::Comment(Ws(
                 Some(Whitespace::Suppress),
                 Some(Whitespace::Suppress)
-            ))],
+            ), " foo\n bar ")],
         );
         assert_eq!(
             super::parse("{#- foo\n {#- bar\n -#} baz -#}", s).unwrap(),
             vec![Node::Comment(Ws(
                 Some(Whitespace::Suppress),
                 Some(Whitespace::Suppress)
-            ))],
+            ), " foo\n {#- bar\n -#} baz ")],
         );
         assert_eq!(
             super::parse("{#+ #}", s).unwrap(),
-            vec![Node::Comment(Ws(Some(Whitespace::Preserve), None))],
+            vec![Node::Comment(Ws(Some(Whitespace::Preserve), None), " ")],
         );
         assert_eq!(
             super::parse("{# +#}", s).unwrap(),
-            vec![Node::Comment(Ws(None, Some(Whitespace::Preserve)))],
+            vec![Node::Comment(Ws(None, Some(Whitespace::Preserve)), " ")],
         );
         assert_eq!(
             super::parse("{#++#}", s).unwrap(),
             vec![Node::Comment(Ws(
                 Some(Whitespace::Preserve),
                 Some(Whitespace::Preserve)
-            ))],
+            ), "")],
         );
         assert_eq!(
             super::parse("{#+ foo\n bar +#}", s).unwrap(),
             vec![Node::Comment(Ws(
                 Some(Whitespace::Preserve),
                 Some(Whitespace::Preserve)
-            ))],
+            ), " foo\n bar ")],
         );
         assert_eq!(
             super::parse("{#+ foo\n {#+ bar\n +#} baz -+#}", s).unwrap(),
             vec![Node::Comment(Ws(
                 Some(Whitespace::Preserve),
                 Some(Whitespace::Preserve)
-            ))],
+            ), " foo\n {#- bar\n -#} baz ")],
         );
         assert_eq!(
             super::parse("{#~ #}", s).unwrap(),
-            vec![Node::Comment(Ws(Some(Whitespace::Minimize), None))],
+            vec![Node::Comment(Ws(Some(Whitespace::Minimize), None), " ")],
         );
         assert_eq!(
             super::parse("{# ~#}", s).unwrap(),
-            vec![Node::Comment(Ws(None, Some(Whitespace::Minimize)))],
+            vec![Node::Comment(Ws(None, Some(Whitespace::Minimize)), " ")],
         );
         assert_eq!(
             super::parse("{#~~#}", s).unwrap(),
             vec![Node::Comment(Ws(
                 Some(Whitespace::Minimize),
                 Some(Whitespace::Minimize)
-            ))],
+            ), "")],
         );
         assert_eq!(
             super::parse("{#~ foo\n bar ~#}", s).unwrap(),
             vec![Node::Comment(Ws(
                 Some(Whitespace::Minimize),
                 Some(Whitespace::Minimize)
-            ))],
+            ), " foo\n bar ")],
         );
         assert_eq!(
             super::parse("{#~ foo\n {#~ bar\n ~#} baz -~#}", s).unwrap(),
             vec![Node::Comment(Ws(
                 Some(Whitespace::Minimize),
                 Some(Whitespace::Minimize)
-            ))],
+            ), " foo\n {#- bar\n -#} baz ")],
         );
 
         assert_eq!(
             super::parse("{# foo {# bar #} {# {# baz #} qux #} #}", s).unwrap(),
-            vec![Node::Comment(Ws(None, None))],
+            vec![Node::Comment(Ws(None, None), " foo {# bar #} {# {# baz #} qux ")],
         );
     }
 
