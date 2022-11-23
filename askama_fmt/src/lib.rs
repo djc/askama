@@ -211,8 +211,12 @@ fn target_to_str(buf: &mut String, target: &askama_parser::parser::Target) {
     match target {
         Name(name) => buf.push_str(name),
         Tuple(path, elements) => {
-            buf.push_str(&path.join("::"));
-            buf.push_str(" with (");
+            if !path.is_empty() {
+                buf.push_str(&path.join("::"));
+                buf.push_str(" with ");
+            }
+
+            buf.push('(');
 
             let mut print_comma = false;
             for element in elements {
@@ -225,15 +229,49 @@ fn target_to_str(buf: &mut String, target: &askama_parser::parser::Target) {
                 target_to_str(buf, element);
             }
 
+            if elements.len() == 1 && path.is_empty() {
+                buf.push(',');
+            }
+
             buf.push(')');
+        }
+        Struct(path, fields) => {
+            buf.push_str(&path.join("::"));
+            buf.push_str(" with { ");
+            let mut first = true;
+            for field in fields {
+                if first {
+                    first = false;
+                } else {
+                    buf.push_str(", ");
+                }
+                buf.push_str(field.0);
+                if let askama_parser::parser::Target::Name(n) = field.1 {
+                    if n != field.0 {
+                        buf.push_str(": ");
+                        target_to_str(buf, &field.1);
+                    }
+                }
+            }
+            buf.push_str(" }");
+        }
+        NumLit(val) => {
+            buf.push_str(val);
         }
         StrLit(val) => {
             buf.push('"');
             buf.push_str(val); // TODO determine escaping
             buf.push('"');
         }
+        CharLit(val) => {
+            buf.push('\'');
+            buf.push_str(val);
+            buf.push('\'');
+        }
+        BoolLit(val) => {
+            buf.push_str(val);
+        }
         Path(path) => buf.push_str(&path.join("::")),
-        _ => panic!("unsupported target {:?}!", target),
     }
 }
 
@@ -378,7 +416,7 @@ mod tests {
     use super::*;
 
     use askama_parser::config::Syntax;
-    use askama_parser::parser::{parse, Expr, Ws};
+    use askama_parser::parser::{parse, Expr, Target, Ws};
 
     fn custom() -> Syntax {
         Syntax {
@@ -417,15 +455,45 @@ mod tests {
         assert_eq!("<: 42 :>", fmt(&node, &custom()).expect("FMT"));
     }
 
+    fn test_target(expected: &str, target: Target) {
+        let syn = Syntax::default();
+        let node = Node::Let(Ws(None, None), target, Expr::Var("val"));
+
+        let str1 = fmt(&[node], &syn).expect("FMT1");
+        assert_eq!(str1, format!("{{% let {} = val %}}", expected));
+
+        let parsed = parse(&str1, &syn).expect("PARSE");
+        let str2 = fmt(&parsed, &syn).expect("FMT1");
+        assert_eq!(str1, str2);
+    }
+
+    #[test] fn target_name() { test_target("foo", Target::Name("foo")); }
+    #[test] fn target_tuple_unit() { test_target("()", Target::Tuple(vec![], vec![])); }
+    #[test] fn target_tuple_anon() { test_target("(a,)", Target::Tuple(vec![], vec![Target::Name("a")])); }
+    #[test] fn target_tuple_named() { test_target("Some with (val)", Target::Tuple(
+        vec!["Some"],
+        vec![Target::Name("val")],
+    )); }
+    #[test] fn target_struct() { test_target("Color with { r, g: lime, b }", Target::Struct(
+        vec!["Color"],
+        vec![("r", Target::Name("r")), ("g", Target::Name("lime")), ("b", Target::Name("b"))],
+    )); }
+    #[test] fn target_numlit() { test_target("42", Target::NumLit("42")); }
+    #[test] fn target_strlit() { test_target("\"foo\\\"bar\"", Target::StrLit("foo\\\"bar")); }
+    #[test] fn target_charlit() { test_target("'.'", Target::CharLit(".")); }
+    #[test] fn target_boollit() { test_target("false", Target::BoolLit("false")); }
+    #[test] fn target_path() { test_target("foo::bar", Target::Path(vec!["foo", "bar"])); }
+
     fn test_expr(expected: &str, expr: Expr) {
         let syn = Syntax::default();
         let node = Node::Expr(Ws(None, None), expr);
 
         let str1 = fmt(&[node], &syn).expect("FMT1");
+        assert_eq!(str1, format!("{{{{ {} }}}}", expected));
+
         let parsed = parse(&str1, &syn).expect("PARSE");
         let str2 = fmt(&parsed, &syn).expect("FMT1");
         assert_eq!(str1, str2);
-        assert_eq!(str1, format!("{{{{ {} }}}}", expected));
     }
 
     #[test] fn expr_bool_lit() { test_expr("true", Expr::BoolLit("true")); }
