@@ -135,6 +135,13 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
 
                 block_tag(&mut buf, syn, ws3, |buf| { buf.push_str("endfor") });
             }
+            Node::Extends(parent) => {
+                let ws = &Ws(None, None);
+                block_tag(&mut buf, syn, ws, |buf| {
+                    buf.push_str("extends ");
+                    expr_to_str(buf, parent);
+                });
+            }
             Node::Break(ws) => {
                 block_tag(&mut buf, syn, ws, |buf| { buf.push_str("break") });
             }
@@ -350,6 +357,15 @@ mod tests {
 
         assert_eq!("{% for value in values -%}{{ value }}{% else %}NONE{% endfor ~%}", fmt(&node, &syn).expect("FMT"));
         assert_eq!("<? for value in values -?><: value :><? else ?>NONE<? endfor ~?>", fmt(&node, &custom()).expect("FMT"));
+    }
+
+    #[test]
+    fn extends() {
+        let syn = Syntax::default();
+        let node = parse("{%extends \"base.html\"\t%}", &syn).expect("PARSE");
+
+        assert_eq!("{% extends \"base.html\" %}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? extends \"base.html\" ?>", fmt(&node, &custom()).expect("FMT"));
     }
 
     #[test]
