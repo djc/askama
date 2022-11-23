@@ -252,7 +252,118 @@ fn expr_to_str(buf: &mut String, expr: &askama_parser::parser::Expr) {
         Path(ss) => {
             buf.push_str(&ss.join("::"));
         }
-        _ => panic!("unsupported expr!"),
+        Array(exprs) => {
+            buf.push('[');
+            let mut first = true;
+            for el in exprs {
+                if first {
+                    first = false;
+                } else {
+                    buf.push_str(", ");
+                }
+                expr_to_str(buf, el);
+            }
+            buf.push(']');
+        }
+        Attr(expr, field) => {
+            expr_to_str(buf, expr);
+            buf.push('.');
+            buf.push_str(field);
+        }
+        Index(expr, idx) => {
+            expr_to_str(buf, expr);
+            buf.push('[');
+            expr_to_str(buf, idx);
+            buf.push(']');
+        }
+        Filter(name, args) => {
+            assert!(!args.is_empty());
+            expr_to_str(buf, &args[0]);
+            buf.push('|');
+            buf.push_str(name);
+            if args.len() > 1 {
+                buf.push('(');
+                let mut first = true;
+                for arg in args.iter().skip(1) {
+                    if first {
+                        first = false;
+                    } else {
+                        buf.push_str(", ");
+                    }
+                    expr_to_str(buf, arg);
+                }
+                buf.push(')');
+            }
+        }
+        Unary(op, arg) => {
+            buf.push_str(op);
+            expr_to_str(buf, arg);
+        }
+        BinOp(op, lhs, rhs) => {
+            expr_to_str(buf, lhs);
+            buf.push(' ');
+            buf.push_str(op);
+            buf.push(' ');
+            expr_to_str(buf, rhs);
+        }
+        Range(op, lhs, rhs) => {
+            // TODO: Rust ranges are notorious for needing parens.... same here???
+            if let Some(lhs) = lhs {
+                expr_to_str(buf, lhs);
+            }
+            buf.push_str(op);
+            if let Some(rhs) = rhs {
+                expr_to_str(buf, rhs);
+            }
+        }
+        Group(expr) => {
+            buf.push('(');
+            expr_to_str(buf, expr);
+            buf.push(')');
+        }
+        Tuple(els) => {
+            buf.push('(');
+            let mut first = true;
+            for el in els {
+                if first {
+                    first = false;
+                } else {
+                    buf.push_str(", ");
+                }
+                expr_to_str(buf, el);
+            }
+
+            if els.len() == 1 {
+                buf.push(',');
+            }
+
+            buf.push(')');
+        }
+        Call(callee, args) => {
+            expr_to_str(buf, callee);
+            buf.push('(');
+            let mut first = true;
+            for arg in args {
+                if first {
+                    first = false;
+                } else {
+                    buf.push_str(", ");
+                }
+                expr_to_str(buf, arg);
+            }
+            buf.push(')');
+        }
+        RustMacro(name, input) => {
+            buf.push_str(name);
+            buf.push('!');
+            buf.push('(');
+            buf.push_str(input);
+            buf.push(')');
+        }
+        Try(expr) => {
+            expr_to_str(buf, expr);
+            buf.push('?');
+        }
     }
 }
 
@@ -306,7 +417,7 @@ mod tests {
         assert_eq!("<: 42 :>", fmt(&node, &custom()).expect("FMT"));
     }
 
-    fn test_expr(expr: Expr) {
+    fn test_expr(expected: &str, expr: Expr) {
         let syn = Syntax::default();
         let node = Node::Expr(Ws(None, None), expr);
 
@@ -314,14 +425,53 @@ mod tests {
         let parsed = parse(&str1, &syn).expect("PARSE");
         let str2 = fmt(&parsed, &syn).expect("FMT1");
         assert_eq!(str1, str2);
+        assert_eq!(str1, format!("{{{{ {} }}}}", expected));
     }
 
-    #[test] fn expr_bool_lit() { test_expr(Expr::BoolLit("true")); }
-    #[test] fn expr_num_lit() { test_expr(Expr::NumLit("42")); }
-    #[test] fn expr_str_lit() { test_expr(Expr::StrLit("foo\\\"bar")); }
-    #[test] fn expr_char_lit() { test_expr(Expr::CharLit("c")); }
-    #[test] fn expr_var() { test_expr(Expr::Var("value")); }
-    #[test] fn expr_path() { test_expr(Expr::Path(vec!["askama", "Template"])); }
+    #[test] fn expr_bool_lit() { test_expr("true", Expr::BoolLit("true")); }
+    #[test] fn expr_num_lit() { test_expr("42", Expr::NumLit("42")); }
+    #[test] fn expr_str_lit() { test_expr("\"foo\\\"bar\"", Expr::StrLit("foo\\\"bar")); }
+    #[test] fn expr_char_lit() { test_expr("'c'", Expr::CharLit("c")); }
+    #[test] fn expr_var() { test_expr("value", Expr::Var("value")); }
+    #[test] fn expr_path() { test_expr("askama::Template", Expr::Path(vec!["askama", "Template"])); }
+    #[test] fn expr_array() { test_expr("[1, 2]", Expr::Array(vec![
+        Expr::NumLit("1"),
+        Expr::NumLit("2"),
+    ])); }
+    #[test] fn expr_attr() { test_expr("obj.field", Expr::Attr(Box::new(Expr::Var("obj")), "field")); }
+    #[test] fn expr_index() { test_expr("arr[idx]", Expr::Index(
+        Box::new(Expr::Var("arr")),
+        Box::new(Expr::Var("idx")),
+    )); }
+    #[test] fn expr_filter() { test_expr("input|filter(\"arg\")", Expr::Filter("filter", vec![
+        Expr::Var("input"),
+        Expr::StrLit("arg"),
+    ])); }
+    #[test] fn expr_unary() { test_expr("-42", Expr::Unary("-", Box::new(Expr::NumLit("42")))); }
+    #[test] fn expr_binop() { test_expr("1 + 2", Expr::BinOp(
+        "+",
+        Box::new(Expr::NumLit("1")),
+        Box::new(Expr::NumLit("2")),
+    )); }
+    #[test] fn expr_range_oo() { test_expr("..", Expr::Range("..", None, None)); }
+    #[test] fn expr_range_co() { test_expr("1..", Expr::Range("..", Some(Box::new(Expr::NumLit("1"))), None)); }
+    #[test] fn expr_range_oc() { test_expr("..1", Expr::Range("..", None, Some(Box::new(Expr::NumLit("1"))))); }
+    #[test] fn expr_range_right() { test_expr("..=1", Expr::Range("..=", None, Some(Box::new(Expr::NumLit("1"))))); }
+    #[test] fn expr_group() { test_expr("(var)", Expr::Group(Box::new(Expr::Var("var")))); }
+    #[test] fn expr_tuple_one() { test_expr("(var,)", Expr::Tuple(vec![Expr::Var("var")])); }
+    #[test] fn expr_tuple_two() { test_expr("(a, b)", Expr::Tuple(vec![
+        Expr::Var("a"),
+        Expr::Var("b"),
+    ])); }
+    #[test] fn expr_call() { test_expr("foo(bar, baz)", Expr::Call(
+        Box::new(Expr::Var("foo")),
+        vec![
+            Expr::Var("bar"),
+            Expr::Var("baz"),
+        ],
+    )); }
+    #[test] fn rust_macro() { test_expr("do!(+#15 I$ 4@3)", Expr::RustMacro("do", "+#15 I$ 4@3")); }
+    #[test] fn try_() { test_expr("maybe?", Expr::Try(Box::new(Expr::Var("maybe")))); }
 
     #[test]
     fn call() {
