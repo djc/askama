@@ -142,6 +142,16 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                     expr_to_str(buf, parent);
                 });
             }
+            Node::BlockDef(lws, name, body, rws) => {
+                block_tag(&mut buf, syn, lws, |buf| {
+                    buf.push_str("block ");
+                    buf.push_str(name);
+                });
+                buf.push_str(&fmt(body, syn)?);
+                block_tag(&mut buf, syn, lws, |buf| {
+                    buf.push_str("endblock");
+                });
+            }
             Node::Break(ws) => {
                 block_tag(&mut buf, syn, ws, |buf| { buf.push_str("break") });
             }
@@ -366,6 +376,15 @@ mod tests {
 
         assert_eq!("{% extends \"base.html\" %}", fmt(&node, &syn).expect("FMT"));
         assert_eq!("<? extends \"base.html\" ?>", fmt(&node, &custom()).expect("FMT"));
+    }
+
+    #[test]
+    fn block_def() {
+        let syn = Syntax::default();
+        let node = parse("{%block title\t%}Hi!{%endblock%}", &syn).expect("PARSE");
+
+        assert_eq!("{% block title %}Hi!{% endblock %}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? block title ?>Hi!<? endblock ?>", fmt(&node, &custom()).expect("FMT"));
     }
 
     #[test]
