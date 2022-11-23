@@ -298,7 +298,7 @@ fn target_to_str(buf: &mut String, target: &askama_parser::parser::Target) {
         }
         StrLit(val) => {
             buf.push('"');
-            buf.push_str(val); // TODO determine escaping
+            buf.push_str(val);
             buf.push('"');
         }
         CharLit(val) => {
@@ -383,7 +383,6 @@ fn expr_to_str(buf: &mut String, expr: &askama_parser::parser::Expr) {
             expr_to_str(buf, rhs);
         }
         Range(op, lhs, rhs) => {
-            // TODO: Rust ranges are notorious for needing parens.... same here???
             if let Some(lhs) = lhs {
                 expr_to_str(buf, lhs);
             }
