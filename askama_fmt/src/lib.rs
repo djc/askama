@@ -158,6 +158,14 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                     strlit_to_str(buf, name);
                 });
             }
+            Node::Import(ws, name, alias) => {
+                block_tag(&mut buf, syn, ws, |buf| {
+                    buf.push_str("import ");
+                    strlit_to_str(buf, name);
+                    buf.push_str(" as ");
+                    buf.push_str(alias);
+                });
+            }
             Node::Break(ws) => {
                 block_tag(&mut buf, syn, ws, |buf| { buf.push_str("break") });
             }
@@ -404,6 +412,15 @@ mod tests {
 
         assert_eq!("{% include \"item.html\" %}", fmt(&node, &syn).expect("FMT"));
         assert_eq!("<? include \"item.html\" ?>", fmt(&node, &custom()).expect("FMT"));
+    }
+
+    #[test]
+    fn import() {
+        let syn = Syntax::default();
+        let node = parse("{%import \"macros.html\" as mod\t%}", &syn).expect("PARSE");
+
+        assert_eq!("{% import \"macros.html\" as mod %}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? import \"macros.html\" as mod ?>", fmt(&node, &custom()).expect("FMT"));
     }
 
     #[test]
