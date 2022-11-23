@@ -59,7 +59,7 @@ pub enum Node<'a> {
     Let(Ws, Target<'a>, Expr<'a>),
     /// An if-else block.
     ///
-    /// ```
+    /// ```ignore
     /// {% if users.len() == 0 %}
     ///   No users
     /// {% else if users.len() == 1 %}
@@ -1300,8 +1300,9 @@ fn block_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
 fn block_comment_body<'a>(mut i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
     let mut level = 0;
+    let initial = i;
     loop {
-        let (end, tail) = take_until(AsRef::<str>::as_ref(&s.syntax.comment_end))(i)?;
+        let (end, _) = take_until(AsRef::<str>::as_ref(&s.syntax.comment_end))(i)?;
         match take_until::<_, _, Error<_>>(AsRef::<str>::as_ref(&s.syntax.comment_start))(i) {
             Ok((start, _)) if start.as_ptr() < end.as_ptr() => {
                 level += 1;
@@ -1311,7 +1312,10 @@ fn block_comment_body<'a>(mut i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a
                 level -= 1;
                 i = &end[2..];
             }
-            _ => return Ok((end, tail)),
+            _ => {
+                let len = initial.len() - end.len();
+                return Ok((end, &initial[..len]));
+            }
         }
     }
 }
@@ -1925,7 +1929,7 @@ mod tests {
             vec![Node::Comment(Ws(
                 Some(Whitespace::Preserve),
                 Some(Whitespace::Preserve)
-            ), " foo\n {#- bar\n -#} baz ")],
+            ), " foo\n {#+ bar\n +#} baz -")],
         );
         assert_eq!(
             super::parse("{#~ #}", s).unwrap(),
@@ -1954,12 +1958,12 @@ mod tests {
             vec![Node::Comment(Ws(
                 Some(Whitespace::Minimize),
                 Some(Whitespace::Minimize)
-            ), " foo\n {#- bar\n -#} baz ")],
+            ), " foo\n {#~ bar\n ~#} baz -")],
         );
 
         assert_eq!(
             super::parse("{# foo {# bar #} {# {# baz #} qux #} #}", s).unwrap(),
-            vec![Node::Comment(Ws(None, None), " foo {# bar #} {# {# baz #} qux ")],
+            vec![Node::Comment(Ws(None, None), " foo {# bar #} {# {# baz #} qux #} ")],
         );
     }
 

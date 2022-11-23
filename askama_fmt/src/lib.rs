@@ -148,7 +148,7 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                     buf.push_str(name);
                 });
                 buf.push_str(&fmt(body, syn)?);
-                block_tag(&mut buf, syn, lws, |buf| {
+                block_tag(&mut buf, syn, rws, |buf| {
                     buf.push_str("endblock");
                 });
             }
