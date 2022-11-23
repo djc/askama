@@ -1,6 +1,6 @@
 use askama_parser::CompileError;
 use askama_parser::config::Syntax;
-use askama_parser::parser::{Loop, Node, Whitespace, Ws};
+use askama_parser::parser::{Loop, Macro, Node, Whitespace, Ws};
 
 pub fn ws_to_char(ws: &Whitespace) -> char {
     match ws {
@@ -164,6 +164,27 @@ pub fn fmt(ast: &[Node], syn: &Syntax) -> Result<String, CompileError> { // TODO
                     strlit_to_str(buf, name);
                     buf.push_str(" as ");
                     buf.push_str(alias);
+                });
+            }
+            Node::Macro(name, Macro { ws1, args, nodes, ws2 }) => {
+                block_tag(&mut buf, syn, ws1, |buf| {
+                    buf.push_str("macro ");
+                    buf.push_str(name);
+                    buf.push('(');
+                    let mut first = true;
+                    for arg in args {
+                        if first {
+                            first = false;
+                        } else {
+                            buf.push_str(", ");
+                        }
+                        buf.push_str(arg);
+                    }
+                    buf.push(')');
+                });
+                buf.push_str(&fmt(nodes, syn)?);
+                block_tag(&mut buf, syn, ws2, |buf| {
+                    buf.push_str("endmacro");
                 });
             }
             Node::Break(ws) => {
@@ -421,6 +442,15 @@ mod tests {
 
         assert_eq!("{% import \"macros.html\" as mod %}", fmt(&node, &syn).expect("FMT"));
         assert_eq!("<? import \"macros.html\" as mod ?>", fmt(&node, &custom()).expect("FMT"));
+    }
+
+    #[test]
+    fn macro_() {
+        let syn = Syntax::default();
+        let node = parse("{%macro heading(arg)\t%}<h1>{{arg}}</h1>{%endmacro%}", &syn).expect("PARSE");
+
+        assert_eq!("{% macro heading(arg) %}<h1>{{ arg }}</h1>{% endmacro %}", fmt(&node, &syn).expect("FMT"));
+        assert_eq!("<? macro heading(arg) ?><h1><: arg :></h1><? endmacro ?>", fmt(&node, &custom()).expect("FMT"));
     }
 
     #[test]
