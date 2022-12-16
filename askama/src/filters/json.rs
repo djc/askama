@@ -34,7 +34,7 @@ mod tests {
         assert_eq!(json(true).unwrap(), "true");
         assert_eq!(json("foo").unwrap(), r#""foo""#);
         assert_eq!(
-            json(&vec!["foo", "bar"]).unwrap(),
+            json(vec!["foo", "bar"]).unwrap(),
             r#"[
   "foo",
   "bar"
