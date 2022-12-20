@@ -1,6 +1,6 @@
 [package]
 name = "askama_axum"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2018"
 description = "Axum integration for Askama templates"
 keywords = ["markup", "template", "jinja2", "html", "axum"]
