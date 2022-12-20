@@ -311,14 +311,14 @@ struct FunctionRefTemplate {
 #[test]
 fn test_func_ref_call() {
     let t = FunctionRefTemplate {
-        world: |s, r| format!("world({}, {})", s, r),
+        world: |s, r| format!("world({s}, {r})"),
     };
     assert_eq!(t.render().unwrap(), "Hello, world(123, 4)!");
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)]
 fn world2(s: &str, v: u8) -> String {
-    format!("world{}{}", v, s)
+    format!("world{v}{s}")
 }
 
 #[derive(Template)]
@@ -346,7 +346,7 @@ struct FunctionTemplate;
 impl FunctionTemplate {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     fn world3(&self, s: &str, v: u8) -> String {
-        format!("world{}{}", s, v)
+        format!("world{s}{v}")
     }
 }
 

@@ -64,7 +64,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
 
     let code = generator::generate(&input, &contexts, heritage.as_ref(), INTEGRATIONS)?;
     if input.print == Print::Code || input.print == Print::All {
-        eprintln!("{}", code);
+        eprintln!("{code}");
     }
     Ok(code)
 }
