@@ -72,13 +72,13 @@ impl Config<'_> {
                     .insert(name.to_string(), Syntax::try_from(raw_s)?)
                     .is_some()
                 {
-                    return Err(format!("syntax \"{}\" is already defined", name).into());
+                    return Err(format!("syntax \"{name}\" is already defined").into());
                 }
             }
         }
 
         if !syntaxes.contains_key(default_syntax) {
-            return Err(format!("default syntax \"{}\" not found", default_syntax).into());
+            return Err(format!("default syntax \"{default_syntax}\" not found").into());
         }
 
         let mut escapers = Vec::new();
@@ -206,7 +206,7 @@ struct RawConfig<'d> {
 impl RawConfig<'_> {
     #[cfg(feature = "config")]
     fn from_toml_str(s: &str) -> std::result::Result<RawConfig<'_>, CompileError> {
-        toml::from_str(s).map_err(|e| format!("invalid TOML in {}: {}", CONFIG_FILE_NAME, e).into())
+        toml::from_str(s).map_err(|e| format!("invalid TOML in {CONFIG_FILE_NAME}: {e}").into())
     }
 
     #[cfg(not(feature = "config"))]

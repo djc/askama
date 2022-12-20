@@ -162,7 +162,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln(";")?;
 
         buf.writeln("const SIZE_HINT: ::std::primitive::usize = ")?;
-        buf.writeln(&format!("{}", size_hint))?;
+        buf.writeln(&format!("{size_hint}"))?;
         buf.writeln(";")?;
 
         buf.writeln("const MIME_TYPE: &'static ::std::primitive::str = ")?;
@@ -221,7 +221,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("#[inline]")?;
         buf.writeln("fn into_response(self) -> ::askama_axum::Response {")?;
         let ext = self.input.extension().unwrap_or("txt");
-        buf.writeln(&format!("::askama_axum::into_response(&self, {:?})", ext))?;
+        buf.writeln(&format!("::askama_axum::into_response(&self, {ext:?})"))?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
@@ -235,7 +235,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
              -> ::askama_gotham::Response<::askama_gotham::Body> {",
         )?;
         let ext = self.input.extension().unwrap_or("txt");
-        buf.writeln(&format!("::askama_gotham::respond(&self, {:?})", ext))?;
+        buf.writeln(&format!("::askama_gotham::respond(&self, {ext:?})"))?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
@@ -305,7 +305,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
              -> ::askama_rocket::Result<'askama> {",
         )?;
         let ext = self.input.extension().unwrap_or("txt");
-        buf.writeln(&format!("::askama_rocket::respond(&self, {:?})", ext))?;
+        buf.writeln(&format!("::askama_rocket::respond(&self, {ext:?})"))?;
 
         buf.writeln("}")?;
         buf.writeln("}")?;
@@ -333,7 +333,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         self.write_header(buf, "Into<::askama_tide::tide::Response>", None)?;
         buf.writeln("#[inline]")?;
         buf.writeln("fn into(self) -> ::askama_tide::tide::Response {")?;
-        buf.writeln(&format!("::askama_tide::into_response(&self, {:?})", ext))?;
+        buf.writeln(&format!("::askama_tide::into_response(&self, {ext:?})"))?;
         buf.writeln("}\n}")
     }
 
@@ -342,7 +342,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("#[inline]")?;
         buf.writeln("fn into_response(self) -> ::askama_warp::warp::reply::Response {")?;
         let ext = self.input.extension().unwrap_or("txt");
-        buf.writeln(&format!("::askama_warp::reply(&self, {:?})", ext))?;
+        buf.writeln(&format!("::askama_warp::reply(&self, {ext:?})"))?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
@@ -548,7 +548,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let mut arm_sizes = Vec::new();
 
         let expr_code = self.visit_expr_root(expr)?;
-        buf.writeln(&format!("match &{} {{", expr_code))?;
+        buf.writeln(&format!("match &{expr_code} {{"))?;
 
         let mut arm_size = 0;
         for (i, arm) in arms.iter().enumerate() {
@@ -595,24 +595,24 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         buf.writeln("{")?;
         buf.writeln("let mut _did_loop = false;")?;
         match loop_block.iter {
-            Expr::Range(_, _, _) => buf.writeln(&format!("let _iter = {};", expr_code)),
-            Expr::Array(..) => buf.writeln(&format!("let _iter = {}.iter();", expr_code)),
+            Expr::Range(_, _, _) => buf.writeln(&format!("let _iter = {expr_code};")),
+            Expr::Array(..) => buf.writeln(&format!("let _iter = {expr_code}.iter();")),
             // If `iter` is a call then we assume it's something that returns
             // an iterator. If not then the user can explicitly add the needed
             // call without issues.
             Expr::Call(..) | Expr::Index(..) => {
-                buf.writeln(&format!("let _iter = ({}).into_iter();", expr_code))
+                buf.writeln(&format!("let _iter = ({expr_code}).into_iter();"))
             }
             // If accessing `self` then it most likely needs to be
             // borrowed, to prevent an attempt of moving.
             _ if expr_code.starts_with("self.") => {
-                buf.writeln(&format!("let _iter = (&{}).into_iter();", expr_code))
+                buf.writeln(&format!("let _iter = (&{expr_code}).into_iter();"))
             }
             // If accessing a field then it most likely needs to be
             // borrowed, to prevent an attempt of moving.
-            Expr::Attr(..) => buf.writeln(&format!("let _iter = (&{}).into_iter();", expr_code)),
+            Expr::Attr(..) => buf.writeln(&format!("let _iter = (&{expr_code}).into_iter();")),
             // Otherwise, we borrow `iter` assuming that it implements `IntoIterator`.
-            _ => buf.writeln(&format!("let _iter = ({}).into_iter();", expr_code)),
+            _ => buf.writeln(&format!("let _iter = ({expr_code}).into_iter();")),
         }?;
         if let Some(cond) = &loop_block.cond {
             self.locals.push();
@@ -665,13 +665,14 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let (def, own_ctx) = match scope {
             Some(s) => {
                 let path = ctx.imports.get(s).ok_or_else(|| {
-                    CompileError::from(format!("no import found for scope {:?}", s))
+                    CompileError::from(format!("no import found for scope {s:?}"))
                 })?;
-                let mctx = self.contexts.get(path.as_path()).ok_or_else(|| {
-                    CompileError::from(format!("context for {:?} not found", path))
-                })?;
+                let mctx = self
+                    .contexts
+                    .get(path.as_path())
+                    .ok_or_else(|| CompileError::from(format!("context for {path:?} not found")))?;
                 let def = mctx.macros.get(name).ok_or_else(|| {
-                    CompileError::from(format!("macro {:?} not found in scope {:?}", name, s))
+                    CompileError::from(format!("macro {name:?} not found in scope {s:?}"))
                 })?;
                 (def, mctx)
             }
@@ -679,7 +680,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 let def = ctx
                     .macros
                     .get(name)
-                    .ok_or_else(|| CompileError::from(format!("macro {:?} not found", name)))?;
+                    .ok_or_else(|| CompileError::from(format!("macro {name:?} not found")))?;
                 (def, ctx)
             }
         };
@@ -695,7 +696,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let mut is_first_variable = true;
         for (i, arg) in def.args.iter().enumerate() {
             let expr = args.get(i).ok_or_else(|| {
-                CompileError::from(format!("macro {:?} takes more than {} arguments", name, i))
+                CompileError::from(format!("macro {name:?} takes more than {i} arguments"))
             })?;
 
             match expr {
@@ -882,7 +883,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
             (Some(cur_name), None) => (cur_name, 0),
             // A block definition contains a block definition of the same name
             (Some(cur_name), Some((prev_name, _))) if cur_name == prev_name => {
-                return Err(format!("cannot define recursive blocks ({})", cur_name).into());
+                return Err(format!("cannot define recursive blocks ({cur_name})").into());
             }
             // A block definition contains a definition of another block
             (Some(cur_name), Some((_, _))) => (cur_name, 0),
@@ -901,7 +902,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         let (ctx, def) = heritage.blocks[cur.0].get(cur.1).ok_or_else(|| {
             CompileError::from(match name {
                 None => format!("no super() block found for block '{}'", cur.0),
-                Some(name) => format!("no block found for name '{}'", name),
+                Some(name) => format!("no block found for name '{name}'"),
             })
         })?;
 
@@ -987,7 +988,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                             let id = self.named;
                             self.named += 1;
 
-                            buf_expr.write(&format!("expr{} = ", id));
+                            buf_expr.write(&format!("expr{id} = "));
                             buf_expr.write("&");
                             buf_expr.write(&expression);
                             buf_expr.writeln(",")?;
@@ -997,7 +998,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                         }
                     };
 
-                    buf_format.write(&format!("{{expr{}}}", id));
+                    buf_format.write(&format!("{{expr{id}}}"));
                     size_hint += 3;
                 }
             }
@@ -1175,9 +1176,9 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 name, self.input.escaper
             ));
         } else if filters::BUILT_IN_FILTERS.contains(&name) {
-            buf.write(&format!("::askama::filters::{}(", name));
+            buf.write(&format!("::askama::filters::{name}("));
         } else {
-            buf.write(&format!("filters::{}(", name));
+            buf.write(&format!("filters::{name}("));
         }
 
         self._visit_args(buf, args)?;
@@ -1381,7 +1382,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                     }
                     _ => return Err("loop.cycle(…) expects exactly one argument".into()),
                 },
-                s => return Err(format!("unknown loop method: {:?}", s).into()),
+                s => return Err(format!("unknown loop method: {s:?}").into()),
             },
             left => {
                 match left {
@@ -1438,7 +1439,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         right: &Expr<'_>,
     ) -> Result<DisplayWrap, CompileError> {
         self.visit_expr(buf, left)?;
-        buf.write(&format!(" {} ", op));
+        buf.write(&format!(" {op} "));
         self.visit_expr(buf, right)?;
         Ok(DisplayWrap::Unwrapped)
     }
@@ -1513,12 +1514,12 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
     }
 
     fn visit_str_lit(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
-        buf.write(&format!("\"{}\"", s));
+        buf.write(&format!("\"{s}\""));
         DisplayWrap::Unwrapped
     }
 
     fn visit_char_lit(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
-        buf.write(&format!("'{}'", s));
+        buf.write(&format!("'{s}'"));
         DisplayWrap::Unwrapped
     }
 
@@ -1785,8 +1786,7 @@ impl MapChain<'_, &str, LocalMeta> {
 
     fn resolve_or_self(&self, name: &str) -> String {
         let name = normalize_identifier(name);
-        self.resolve(name)
-            .unwrap_or_else(|| format!("self.{}", name))
+        self.resolve(name).unwrap_or_else(|| format!("self.{name}"))
     }
 }
 

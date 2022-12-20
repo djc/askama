@@ -197,7 +197,7 @@ pub fn linebreaks<T: fmt::Display>(s: T) -> Result<String> {
     let s = s.to_string();
     let linebroken = s.replace("\n\n", "</p><p>").replace('\n', "<br/>");
 
-    Ok(format!("<p>{}</p>", linebroken))
+    Ok(format!("<p>{linebroken}</p>"))
 }
 
 /// Converts all newlines in a piece of plain text to HTML line breaks
@@ -215,7 +215,7 @@ pub fn paragraphbreaks<T: fmt::Display>(s: T) -> Result<String> {
     let s = s.to_string();
     let linebroken = s.replace("\n\n", "</p><p>").replace("<p></p>", "");
 
-    Ok(format!("<p>{}</p>", linebroken))
+    Ok(format!("<p>{linebroken}</p>"))
 }
 
 /// Converts to lowercase
@@ -313,7 +313,7 @@ where
             rv.push_str(separator);
         }
 
-        write!(rv, "{}", item)?;
+        write!(rv, "{item}")?;
     }
 
     Ok(rv)

@@ -56,8 +56,7 @@ where
                     fmt,
                     escaper: &self.escaper
                 },
-                "{}",
-                t
+                "{t}",
             ),
             DisplayValue::Safe(ref t) => t.fmt(fmt),
         }
