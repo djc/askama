@@ -3,6 +3,7 @@
 #![deny(unreachable_pub)]
 
 pub use askama::*;
+pub use axum_core::body::BoxBody;
 pub use axum_core::response::{IntoResponse, Response};
 use http::StatusCode;
 
