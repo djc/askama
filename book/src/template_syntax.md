@@ -155,12 +155,12 @@ or `xml`. When specifying a template as `source` in an attribute, the
 you can specify an escape mode explicitly for your template by setting
 the `escape` attribute parameter value (to `none` or `html`).
 
-Askama escapes `<`, `>`, `&`, `"`, `'`, `\` and `/`, according to the
+Askama escapes `<`, `>`, `&`, `"`, and `'`, according to the
 [OWASP escaping recommendations][owasp]. Use the `safe` filter to
 prevent escaping for a single expression, or the `escape` (or `e`)
 filter to escape a single expression in an unescaped context.
 
-[owasp]: https://www.owasp.org/index.php/XSS_(Cross_Site_Scripting)_Prevention_Cheat_Sheet#RULE_.231_-_HTML_Escape_Before_Inserting_Untrusted_Data_into_HTML_Element_Content
+[owasp]: https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html#output-encoding-for-html-contexts
 
 ```rust
 #[derive(Template)]

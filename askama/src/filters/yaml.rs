@@ -24,8 +24,8 @@ mod tests {
     fn test_yaml() {
         assert_eq!(yaml(Html, true).unwrap().to_string(), "true\n");
         assert_eq!(yaml(Html, "foo").unwrap().to_string(), "foo\n");
-        assert_eq!(yaml(Html, &true).unwrap().to_string(), "true\n");
-        assert_eq!(yaml(Html, &"foo").unwrap().to_string(), "foo\n");
+        assert_eq!(yaml(Html, true).unwrap().to_string(), "true\n");
+        assert_eq!(yaml(Html, "foo").unwrap().to_string(), "foo\n");
         assert_eq!(
             yaml(Html, &vec!["foo", "bar"]).unwrap().to_string(),
             "- foo\n- bar\n"

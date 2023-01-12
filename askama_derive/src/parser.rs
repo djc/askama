@@ -244,6 +244,17 @@ fn skip_till<'a, O>(
     }
 }
 
+fn keyword<'a>(k: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
+    move |i: &'a str| -> IResult<&'a str, &'a str> {
+        let (j, v) = identifier(i)?;
+        if k == v {
+            Ok((j, v))
+        } else {
+            Err(nom::Err::Error(error_position!(i, ErrorKind::Tag)))
+        }
+    }
+}
+
 struct State<'a> {
     syntax: &'a Syntax<'a>,
     loop_depth: Cell<usize>,
@@ -288,7 +299,7 @@ fn identifier_tail(s: &str) -> IResult<&str, &str> {
 }
 
 fn bool_lit(i: &str) -> IResult<&str, &str> {
-    alt((tag("false"), tag("true")))(i)
+    alt((keyword("false"), keyword("true")))(i)
 }
 
 fn expr_bool_lit(i: &str) -> IResult<&str, Expr<'_>> {
@@ -448,7 +459,7 @@ fn target(i: &str) -> IResult<&str, Target<'_>> {
     let (i, path) = opt(path)(i)?;
     if let Some(path) = path {
         let i_before_matching_with = i;
-        let (i, _) = opt(ws(tag("with")))(i)?;
+        let (i, _) = opt(ws(keyword("with")))(i)?;
 
         let (i, is_unnamed_struct) = opt_opening_paren(i)?;
         if is_unnamed_struct {
@@ -818,7 +829,7 @@ fn expr_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 fn block_call(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
         opt(expr_handle_ws),
-        ws(tag("call")),
+        ws(keyword("call")),
         cut(tuple((
             opt(tuple((ws(identifier), ws(tag("::"))))),
             ws(identifier),
@@ -833,10 +844,10 @@ fn block_call(i: &str) -> IResult<&str, Node<'_>> {
 
 fn cond_if(i: &str) -> IResult<&str, CondTest<'_>> {
     let mut p = preceded(
-        ws(tag("if")),
+        ws(keyword("if")),
         cut(tuple((
             opt(delimited(
-                ws(alt((tag("let"), tag("set")))),
+                ws(alt((keyword("let"), keyword("set")))),
                 ws(target),
                 ws(char('=')),
             )),
@@ -851,7 +862,7 @@ fn cond_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Cond<'a>> {
     let mut p = tuple((
         |i| tag_block_start(i, s),
         opt(expr_handle_ws),
-        ws(tag("else")),
+        ws(keyword("else")),
         cut(tuple((
             opt(cond_if),
             opt(expr_handle_ws),
@@ -876,7 +887,7 @@ fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
                 cut(tuple((
                     |i| tag_block_start(i, s),
                     opt(expr_handle_ws),
-                    ws(tag("endif")),
+                    ws(keyword("endif")),
                     opt(expr_handle_ws),
                 ))),
             ))),
@@ -893,7 +904,7 @@ fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>>
     let mut p = tuple((
         |i| tag_block_start(i, s),
         opt(expr_handle_ws),
-        ws(tag("else")),
+        ws(keyword("else")),
         cut(tuple((
             opt(expr_handle_ws),
             |i| tag_block_end(i, s),
@@ -908,7 +919,7 @@ fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
     let mut p = tuple((
         |i| tag_block_start(i, s),
         opt(expr_handle_ws),
-        ws(tag("when")),
+        ws(keyword("when")),
         cut(tuple((
             ws(target),
             opt(expr_handle_ws),
@@ -923,7 +934,7 @@ fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
 fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
         opt(expr_handle_ws),
-        ws(tag("match")),
+        ws(keyword("match")),
         cut(tuple((
             ws(expr_any),
             opt(expr_handle_ws),
@@ -936,7 +947,7 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
                     cut(tuple((
                         ws(|i| tag_block_start(i, s)),
                         opt(expr_handle_ws),
-                        ws(tag("endmatch")),
+                        ws(keyword("endmatch")),
                         opt(expr_handle_ws),
                     ))),
                 ))),
@@ -956,7 +967,7 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 fn block_let(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
         opt(expr_handle_ws),
-        ws(alt((tag("let"), tag("set")))),
+        ws(alt((keyword("let"), keyword("set")))),
         cut(tuple((
             ws(target),
             opt(tuple((ws(char('=')), ws(expr_any)))),
@@ -983,10 +994,10 @@ fn parse_loop_content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Nod
 }
 
 fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
-    let if_cond = preceded(ws(tag("if")), cut(ws(expr_any)));
+    let if_cond = preceded(ws(keyword("if")), cut(ws(expr_any)));
     let else_block = |i| {
         let mut p = preceded(
-            ws(tag("else")),
+            ws(keyword("else")),
             cut(tuple((
                 opt(expr_handle_ws),
                 delimited(
@@ -1002,10 +1013,10 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     };
     let mut p = tuple((
         opt(expr_handle_ws),
-        ws(tag("for")),
+        ws(keyword("for")),
         cut(tuple((
             ws(target),
-            ws(tag("in")),
+            ws(keyword("in")),
             cut(tuple((
                 ws(expr_any),
                 opt(if_cond),
@@ -1017,7 +1028,7 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
                         |i| tag_block_start(i, s),
                         opt(expr_handle_ws),
                         opt(else_block),
-                        ws(tag("endfor")),
+                        ws(keyword("endfor")),
                         opt(expr_handle_ws),
                     ))),
                 ))),
@@ -1043,14 +1054,14 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 }
 
 fn block_extends(i: &str) -> IResult<&str, Node<'_>> {
-    let (i, (_, name)) = tuple((ws(tag("extends")), ws(expr_str_lit)))(i)?;
+    let (i, (_, name)) = tuple((ws(keyword("extends")), ws(expr_str_lit)))(i)?;
     Ok((i, Node::Extends(name)))
 }
 
 fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut start = tuple((
         opt(expr_handle_ws),
-        ws(tag("block")),
+        ws(keyword("block")),
         cut(tuple((ws(identifier), opt(expr_handle_ws), |i| {
             tag_block_end(i, s)
         }))),
@@ -1062,8 +1073,8 @@ fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         cut(tuple((
             |i| tag_block_start(i, s),
             opt(expr_handle_ws),
-            ws(tag("endblock")),
-            cut(tuple((opt(ws(tag(name))), opt(expr_handle_ws)))),
+            ws(keyword("endblock")),
+            cut(tuple((opt(ws(keyword(name))), opt(expr_handle_ws)))),
         ))),
     )));
     let (i, (contents, (_, pws2, _, (_, nws2)))) = end(i)?;
@@ -1077,7 +1088,7 @@ fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 fn block_include(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
         opt(expr_handle_ws),
-        ws(tag("include")),
+        ws(keyword("include")),
         cut(pair(ws(str_lit), opt(expr_handle_ws))),
     ));
     let (i, (pws, _, (name, nws))) = p(i)?;
@@ -1087,10 +1098,10 @@ fn block_include(i: &str) -> IResult<&str, Node<'_>> {
 fn block_import(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
         opt(expr_handle_ws),
-        ws(tag("import")),
+        ws(keyword("import")),
         cut(tuple((
             ws(str_lit),
-            ws(tag("as")),
+            ws(keyword("as")),
             cut(pair(ws(identifier), opt(expr_handle_ws))),
         ))),
     ));
@@ -1101,7 +1112,7 @@ fn block_import(i: &str) -> IResult<&str, Node<'_>> {
 fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut start = tuple((
         opt(expr_handle_ws),
-        ws(tag("macro")),
+        ws(keyword("macro")),
         cut(tuple((
             ws(identifier),
             ws(parameters),
@@ -1116,8 +1127,8 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         cut(tuple((
             |i| tag_block_start(i, s),
             opt(expr_handle_ws),
-            ws(tag("endmacro")),
-            cut(tuple((opt(ws(tag(name))), opt(expr_handle_ws)))),
+            ws(keyword("endmacro")),
+            cut(tuple((opt(ws(keyword(name))), opt(expr_handle_ws)))),
         ))),
     )));
     let (i, (contents, (_, pws2, _, (_, nws2)))) = end(i)?;
@@ -1142,14 +1153,14 @@ fn block_raw<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let endraw = tuple((
         |i| tag_block_start(i, s),
         opt(expr_handle_ws),
-        ws(tag("endraw")),
+        ws(keyword("endraw")),
         opt(expr_handle_ws),
         peek(|i| tag_block_end(i, s)),
     ));
 
     let mut p = tuple((
         opt(expr_handle_ws),
-        ws(tag("raw")),
+        ws(keyword("raw")),
         cut(tuple((
             opt(expr_handle_ws),
             |i| tag_block_end(i, s),
@@ -1168,7 +1179,11 @@ fn block_raw<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 }
 
 fn break_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
-    let mut p = tuple((opt(expr_handle_ws), ws(tag("break")), opt(expr_handle_ws)));
+    let mut p = tuple((
+        opt(expr_handle_ws),
+        ws(keyword("break")),
+        opt(expr_handle_ws),
+    ));
     let (j, (pws, _, nws)) = p(i)?;
     if s.loop_depth.get() == 0 {
         return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
@@ -1179,7 +1194,7 @@ fn break_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> 
 fn continue_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
         opt(expr_handle_ws),
-        ws(tag("continue")),
+        ws(keyword("continue")),
         opt(expr_handle_ws),
     ));
     let (j, (pws, _, nws)) = p(i)?;
@@ -2054,5 +2069,15 @@ mod tests {
                 ),
             )],
         );
+    }
+
+    #[test]
+    fn test_missing_space_after_kw() {
+        let syntax = Syntax::default();
+        let err = super::parse("{%leta=b%}", &syntax).unwrap_err();
+        assert!(matches!(
+            &*err.msg,
+            "unable to parse template:\n\n\"{%leta=b%}\""
+        ));
     }
 }

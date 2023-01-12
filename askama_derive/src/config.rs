@@ -300,7 +300,6 @@ static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
 ];
 
 #[cfg(test)]
-#[allow(clippy::blacklisted_name)]
 mod tests {
     use std::env;
     use std::path::{Path, PathBuf};
