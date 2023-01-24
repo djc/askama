@@ -250,15 +250,15 @@ fn keyword<'a>(k: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
 }
 
 struct State<'a> {
-    syntax: &'a Syntax<'a>,
+    syntax: &'a Syntax,
     loop_depth: Cell<usize>,
 }
 
 fn take_content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let p_start = alt((
-        tag(s.syntax.block_start),
-        tag(s.syntax.comment_start),
-        tag(s.syntax.expr_start),
+        tag(s.syntax.block_start.as_str()),
+        tag(s.syntax.comment_start.as_str()),
+        tag(s.syntax.expr_start.as_str()),
     ));
 
     let (i, _) = not(eof)(i)?;
@@ -1162,8 +1162,8 @@ fn block_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 fn block_comment_body<'a>(mut i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
     let mut level = 0;
     loop {
-        let (end, tail) = take_until(s.syntax.comment_end)(i)?;
-        match take_until::<_, _, Error<_>>(s.syntax.comment_start)(i) {
+        let (end, tail) = take_until(s.syntax.comment_end.as_str())(i)?;
+        match take_until::<_, _, Error<_>>(s.syntax.comment_start.as_str())(i) {
             Ok((start, _)) if start.as_ptr() < end.as_ptr() => {
                 level += 1;
                 i = &start[2..];
@@ -1209,28 +1209,25 @@ fn parse_template<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a
 }
 
 fn tag_block_start<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.block_start)(i)
+    tag(s.syntax.block_start.as_str())(i)
 }
 fn tag_block_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.block_end)(i)
+    tag(s.syntax.block_end.as_str())(i)
 }
 fn tag_comment_start<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.comment_start)(i)
+    tag(s.syntax.comment_start.as_str())(i)
 }
 fn tag_comment_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.comment_end)(i)
+    tag(s.syntax.comment_end.as_str())(i)
 }
 fn tag_expr_start<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.expr_start)(i)
+    tag(s.syntax.expr_start.as_str())(i)
 }
 fn tag_expr_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.expr_end)(i)
+    tag(s.syntax.expr_end.as_str())(i)
 }
 
-pub(crate) fn parse<'a>(
-    src: &'a str,
-    syntax: &'a Syntax<'a>,
-) -> Result<Vec<Node<'a>>, CompileError> {
+pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax) -> Result<Vec<Node<'a>>, CompileError> {
     let state = State {
         syntax,
         loop_depth: Cell::new(0),
@@ -1498,8 +1495,8 @@ mod tests {
     #[test]
     fn change_delimiters_parse_filter() {
         let syntax = Syntax {
-            expr_start: "{=",
-            expr_end: "=}",
+            expr_start: "{=".to_owned(),
+            expr_end: "=}".to_owned(),
             ..Syntax::default()
         };
 

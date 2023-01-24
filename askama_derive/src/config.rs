@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
+use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
@@ -8,16 +9,16 @@ use serde::Deserialize;
 use crate::CompileError;
 
 #[derive(Debug)]
-pub(crate) struct Config<'a> {
+pub(crate) struct Config {
     pub(crate) dirs: Vec<PathBuf>,
-    pub(crate) syntaxes: BTreeMap<String, Syntax<'a>>,
-    pub(crate) default_syntax: &'a str,
+    pub(crate) syntaxes: BTreeMap<String, Syntax>,
+    pub(crate) default_syntax: String,
     pub(crate) escapers: Vec<(HashSet<String>, String)>,
     pub(crate) whitespace: WhitespaceHandling,
 }
 
-impl Config<'_> {
-    pub(crate) fn new(s: &str) -> std::result::Result<Config<'_>, CompileError> {
+impl Config {
+    pub(crate) fn new(s: &str) -> std::result::Result<Config, CompileError> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default_dirs = vec![root.join("templates")];
 
@@ -39,19 +40,19 @@ impl Config<'_> {
                 dirs.map_or(default_dirs, |v| {
                     v.into_iter().map(|dir| root.join(dir)).collect()
                 }),
-                default_syntax.unwrap_or(DEFAULT_SYNTAX_NAME),
+                default_syntax.unwrap_or_else(|| DEFAULT_SYNTAX_NAME.to_owned()),
                 whitespace,
             ),
             None => (
                 default_dirs,
-                DEFAULT_SYNTAX_NAME,
+                DEFAULT_SYNTAX_NAME.to_owned(),
                 WhitespaceHandling::default(),
             ),
         };
 
         if let Some(raw_syntaxes) = raw.syntax {
             for raw_s in raw_syntaxes {
-                let name = raw_s.name;
+                let name = raw_s.name.clone();
 
                 if syntaxes
                     .insert(name.to_string(), Syntax::try_from(raw_s)?)
@@ -62,7 +63,7 @@ impl Config<'_> {
             }
         }
 
-        if !syntaxes.contains_key(default_syntax) {
+        if !syntaxes.contains_key(&default_syntax) {
             return Err(format!("default syntax \"{default_syntax}\" not found").into());
         }
 
@@ -120,32 +121,32 @@ impl Config<'_> {
 }
 
 #[derive(Debug)]
-pub(crate) struct Syntax<'a> {
-    pub(crate) block_start: &'a str,
-    pub(crate) block_end: &'a str,
-    pub(crate) expr_start: &'a str,
-    pub(crate) expr_end: &'a str,
-    pub(crate) comment_start: &'a str,
-    pub(crate) comment_end: &'a str,
+pub(crate) struct Syntax {
+    pub(crate) block_start: String,
+    pub(crate) block_end: String,
+    pub(crate) expr_start: String,
+    pub(crate) expr_end: String,
+    pub(crate) comment_start: String,
+    pub(crate) comment_end: String,
 }
 
-impl Default for Syntax<'_> {
+impl Default for Syntax {
     fn default() -> Self {
         Self {
-            block_start: "{%",
-            block_end: "%}",
-            expr_start: "{{",
-            expr_end: "}}",
-            comment_start: "{#",
-            comment_end: "#}",
+            block_start: "{%".to_owned(),
+            block_end: "%}".to_owned(),
+            expr_start: "{{".to_owned(),
+            expr_end: "}}".to_owned(),
+            comment_start: "{#".to_owned(),
+            comment_end: "#}".to_owned(),
         }
     }
 }
 
-impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
+impl TryFrom<RawSyntax> for Syntax {
     type Error = CompileError;
 
-    fn try_from(raw: RawSyntax<'a>) -> std::result::Result<Self, Self::Error> {
+    fn try_from(raw: RawSyntax) -> std::result::Result<Self, Self::Error> {
         let default = Self::default();
         let syntax = Self {
             block_start: raw.block_start.unwrap_or(default.block_start),
@@ -182,21 +183,20 @@ impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
 
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[derive(Default)]
-struct RawConfig<'d> {
-    #[cfg_attr(feature = "serde", serde(borrow))]
-    general: Option<General<'d>>,
-    syntax: Option<Vec<RawSyntax<'d>>>,
-    escaper: Option<Vec<RawEscaper<'d>>>,
+struct RawConfig {
+    general: Option<General>,
+    syntax: Option<Vec<RawSyntax>>,
+    escaper: Option<Vec<RawEscaper>>,
 }
 
-impl RawConfig<'_> {
+impl RawConfig {
     #[cfg(feature = "config")]
-    fn from_toml_str(s: &str) -> std::result::Result<RawConfig<'_>, CompileError> {
+    fn from_toml_str(s: &str) -> std::result::Result<RawConfig, CompileError> {
         toml::from_str(s).map_err(|e| format!("invalid TOML in {CONFIG_FILE_NAME}: {e}").into())
     }
 
     #[cfg(not(feature = "config"))]
-    fn from_toml_str(_: &str) -> std::result::Result<RawConfig<'_>, CompileError> {
+    fn from_toml_str(_: &str) -> std::result::Result<RawConfig, CompileError> {
         Err("TOML support not available".into())
     }
 }
@@ -222,29 +222,28 @@ impl Default for WhitespaceHandling {
 }
 
 #[cfg_attr(feature = "serde", derive(Deserialize))]
-struct General<'a> {
-    #[cfg_attr(feature = "serde", serde(borrow))]
-    dirs: Option<Vec<&'a str>>,
-    default_syntax: Option<&'a str>,
+struct General {
+    dirs: Option<Vec<String>>,
+    default_syntax: Option<String>,
     #[cfg_attr(feature = "serde", serde(default))]
     whitespace: WhitespaceHandling,
 }
 
 #[cfg_attr(feature = "serde", derive(Deserialize))]
-struct RawSyntax<'a> {
-    name: &'a str,
-    block_start: Option<&'a str>,
-    block_end: Option<&'a str>,
-    expr_start: Option<&'a str>,
-    expr_end: Option<&'a str>,
-    comment_start: Option<&'a str>,
-    comment_end: Option<&'a str>,
+struct RawSyntax {
+    name: String,
+    block_start: Option<String>,
+    block_end: Option<String>,
+    expr_start: Option<String>,
+    expr_end: Option<String>,
+    comment_start: Option<String>,
+    comment_end: Option<String>,
 }
 
 #[cfg_attr(feature = "serde", derive(Deserialize))]
-struct RawEscaper<'a> {
-    path: &'a str,
-    extensions: Vec<&'a str>,
+struct RawEscaper {
+    path: String,
+    extensions: Vec<String>,
 }
 
 pub(crate) fn read_config_file(
