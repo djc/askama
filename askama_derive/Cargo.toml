@@ -14,7 +14,7 @@ rust-version = "1.58"
 proc-macro = true
 
 [features]
-config = ["serde", "toml"]
+config = ["serde", "toml_edit"]
 humansize = []
 markdown = []
 urlencode = []
@@ -38,4 +38,4 @@ proc-macro2 = "1"
 quote = "1"
 serde = { version = "1.0", optional = true, features = ["derive"] }
 syn = "1"
-toml = { version = "0.5", optional = true }
+toml_edit = { version = "0.19", optional = true, features = ["serde"] }
