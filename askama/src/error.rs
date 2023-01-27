@@ -56,10 +56,10 @@ impl std::error::Error for Error {
 impl Display for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Fmt(err) => write!(formatter, "formatting error: {}", err),
-            Error::Custom(err) => write!(formatter, "{}", err),
+            Error::Fmt(err) => write!(formatter, "formatting error: {err}"),
+            Error::Custom(err) => write!(formatter, "{err}"),
             #[cfg(feature = "serde_json")]
-            Error::Json(err) => write!(formatter, "json conversion error: {}", err),
+            Error::Json(err) => write!(formatter, "json conversion error: {err}"),
             #[cfg(feature = "serde_yaml")]
             Error::Yaml(err) => write!(formatter, "yaml conversion error: {}", err),
         }

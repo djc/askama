@@ -93,7 +93,7 @@ pub trait Template: fmt::Display {
     /// Renders the template to the given `writer` io buffer
     #[inline]
     fn write_into(&self, writer: &mut (impl std::io::Write + ?Sized)) -> std::io::Result<()> {
-        writer.write_fmt(format_args!("{}", self))
+        writer.write_fmt(format_args!("{self}"))
     }
 
     /// The template's extension, if provided
@@ -140,7 +140,7 @@ impl<T: Template> DynTemplate for T {
 
     #[inline]
     fn dyn_write_into(&self, writer: &mut dyn std::io::Write) -> std::io::Result<()> {
-        writer.write_fmt(format_args!("{}", self))
+        writer.write_fmt(format_args!("{self}"))
     }
 
     fn extension(&self) -> Option<&'static str> {
@@ -201,7 +201,7 @@ mod tests {
 
         assert_eq!(test.to_string(), "test");
 
-        assert_eq!(format!("{}", test), "test");
+        assert_eq!(format!("{test}"), "test");
 
         let mut vec = Vec::new();
         test.dyn_write_into(&mut vec).unwrap();

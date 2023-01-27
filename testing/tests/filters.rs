@@ -122,8 +122,7 @@ mod filters {
     }
     // for test_nested_filter_ref
     pub fn mytrim(s: &dyn (::std::fmt::Display)) -> ::askama::Result<String> {
-        let s = format!("{}", s);
-        Ok(s.trim().to_owned())
+        Ok(s.to_string().trim().to_owned())
     }
 }
 

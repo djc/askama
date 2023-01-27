@@ -3,7 +3,8 @@ name = "askama_testing"
 version = "0.1.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 workspace = ".."
-edition = "2018"
+edition = "2021"
+rust-version = "1.58"
 publish = false
 
 [features]

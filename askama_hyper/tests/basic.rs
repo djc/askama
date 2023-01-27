@@ -43,7 +43,7 @@ async fn test_hyper() {
         server.await.expect("Could not serve");
     };
     let query = async move {
-        let uri = format!("http://{}/hello/world", local_addr)
+        let uri = format!("http://{local_addr}/hello/world")
             .parse()
             .expect("Could not format URI");
         let client = Client::new();

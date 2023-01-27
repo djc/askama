@@ -1238,7 +1238,7 @@ pub(crate) fn parse<'a>(
     match parse_template(src, &state) {
         Ok((left, res)) => {
             if !left.is_empty() {
-                Err(format!("unable to parse template:\n\n{:?}", left).into())
+                Err(format!("unable to parse template:\n\n{left:?}").into())
             } else {
                 Ok(res)
             }
@@ -1251,7 +1251,7 @@ pub(crate) fn parse<'a>(
 
             let source_after = match source_after.char_indices().enumerate().take(41).last() {
                 Some((40, (i, _))) => format!("{:?}...", &source_after[..i]),
-                _ => format!("{:?}", source_after),
+                _ => format!("{source_after:?}"),
             };
 
             let (row, last_line) = source_before.lines().enumerate().last().unwrap();
