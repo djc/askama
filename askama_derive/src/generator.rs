@@ -200,7 +200,7 @@ fn find_used_templates(
     while let Some((path, source)) = check.pop() {
         for n in parse(&source, input.syntax)? {
             match n {
-                Node::Extends(Expr::StrLit(extends)) => {
+                Node::Extends(extends) => {
                     let extends = input.config.find_template(extends, Some(&path))?;
                     let dependency_path = (path.clone(), extends.clone());
                     if dependency_graph.contains(&dependency_path) {

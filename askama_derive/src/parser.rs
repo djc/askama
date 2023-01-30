@@ -24,7 +24,7 @@ pub(crate) enum Node<'a> {
     Cond(Vec<Cond<'a>>, Ws),
     Match(Ws, Expr<'a>, Vec<When<'a>>, Ws),
     Loop(Loop<'a>),
-    Extends(Expr<'a>),
+    Extends(&'a str),
     BlockDef(Ws, &'a str, Vec<Node<'a>>, Ws),
     Include(Ws, &'a str),
     Import(Ws, &'a str, &'a str),
@@ -985,7 +985,7 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 }
 
 fn block_extends(i: &str) -> IResult<&str, Node<'_>> {
-    let (i, (_, name)) = tuple((ws(keyword("extends")), ws(expr_str_lit)))(i)?;
+    let (i, (_, name)) = tuple((ws(keyword("extends")), ws(str_lit)))(i)?;
     Ok((i, Node::Extends(name)))
 }
 
