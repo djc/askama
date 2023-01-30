@@ -6,7 +6,6 @@ use std::borrow::Cow;
 use std::fmt;
 
 use proc_macro::TokenStream;
-use proc_macro2::Span;
 
 mod config;
 mod generator;
@@ -22,21 +21,21 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 #[derive(Debug, Clone)]
 struct CompileError {
     msg: Cow<'static, str>,
-    span: Span,
 }
 
 impl CompileError {
-    fn new<S: Into<Cow<'static, str>>>(s: S, span: Span) -> Self {
+    fn new(s: impl Into<Cow<'static, str>>) -> Self {
         Self {
             msg: s.into(),
-            span,
         }
     }
 
     fn into_compile_error(self) -> TokenStream {
-        syn::Error::new(self.span, self.msg)
-            .to_compile_error()
-            .into()
+        let msg = &*self.msg;
+        quote::quote! {
+            ::core::compile_error!(#msg);
+        }
+        .into()
     }
 }
 
@@ -52,14 +51,14 @@ impl fmt::Display for CompileError {
 impl From<&'static str> for CompileError {
     #[inline]
     fn from(s: &'static str) -> Self {
-        Self::new(s, Span::call_site())
+        Self::new(s)
     }
 }
 
 impl From<String> for CompileError {
     #[inline]
     fn from(s: String) -> Self {
-        Self::new(s, Span::call_site())
+        Self::new(s)
     }
 }
 

@@ -34,8 +34,7 @@ with-warp = []
 mime = "0.3"
 mime_guess = "2"
 nom = "7"
-proc-macro2 = "1"
-quote = "1"
+quote = { version = "1", default-features = false }
 serde = { version = "1.0", optional = true, features = ["derive"] }
-syn = "1"
+syn = { version = "1", default-features = false }
 toml_edit = { version = "0.19", optional = true, features = ["serde"] }

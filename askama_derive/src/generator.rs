@@ -463,7 +463,7 @@ impl<'a> Generator<'a> {
         let mut where_clause = match where_clause {
             Some(clause) => clause.clone(),
             None => syn::WhereClause {
-                where_token: syn::Token![where](proc_macro2::Span::call_site()),
+                where_token: syn::token::Where::default(),
                 predicates: syn::punctuated::Punctuated::new(),
             },
         };
@@ -500,8 +500,7 @@ impl<'a> Generator<'a> {
     // Implement Rocket's `Responder`.
     #[cfg(feature = "with-rocket")]
     fn impl_rocket_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let lifetime = syn::Lifetime::new("'askama", proc_macro2::Span::call_site());
-        let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
+        let param = syn::parse_quote!('askama);
         self.write_header(
             buf,
             "::askama_rocket::Responder<'askama, 'askama>",
