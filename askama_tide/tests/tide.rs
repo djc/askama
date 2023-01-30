@@ -1,6 +1,5 @@
 use askama::Template;
 use async_std::prelude::*;
-use std::convert::TryInto;
 use tide::{http::mime::HTML, Body, Response};
 
 #[derive(Template)]
