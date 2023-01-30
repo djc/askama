@@ -374,6 +374,7 @@ where
             // default:
             smart: false,
             default_info_string: None,
+            relaxed_tasklist_matching: false,
         },
         render: ComrakRenderOptions {
             unsafe_: false,
