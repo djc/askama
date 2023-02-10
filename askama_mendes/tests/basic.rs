@@ -2,18 +2,32 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use hyper::body::to_bytes;
-use hyper::{Body, Request};
+use hyper::Request;
 use mendes::application::IntoResponse;
 use mendes::http::request::Parts;
+use mendes::http::response::Builder;
 use mendes::http::{Response, StatusCode};
+use mendes::hyper::Body;
 use mendes::{handler, route, Application, Context};
 
 use askama::Template;
 
 #[tokio::test]
 async fn test() {
-    let req = Request::builder().body(()).unwrap();
-    let rsp = App::handle(Context::new(Arc::new(App), req)).await;
+    let app = Arc::new(App);
+    let req = Request::builder().uri("/hello").body(()).unwrap();
+    let rsp = App::handle(Context::new(app.clone(), req)).await;
+    let (rsp, body) = rsp.into_parts();
+    assert_eq!(
+        rsp.headers
+            .get("content-type")
+            .and_then(|hv| hv.to_str().ok()),
+        Some("text/plain; charset=utf-8")
+    );
+    assert_eq!(to_bytes(body).await.unwrap(), &b"Hello, world!"[..]);
+
+    let req = Request::builder().uri("/hello").body(()).unwrap();
+    let rsp = App::handle(Context::new(app.clone(), req)).await;
     let (rsp, body) = rsp.into_parts();
     assert_eq!(
         rsp.headers
@@ -27,6 +41,12 @@ async fn test() {
 #[handler(GET)]
 async fn hello(_: &App) -> Result<HelloTemplate<'static>, Error> {
     Ok(HelloTemplate { name: "world" })
+}
+
+#[handler(GET)]
+async fn body_handler(_: &App) -> Result<Response<Body>, Error> {
+    let template = &HelloTemplate { name: "world" };
+    Ok(Builder::new().body(template.into()).unwrap())
 }
 
 #[derive(Template)]
@@ -45,7 +65,8 @@ impl Application for App {
 
     async fn handle(mut cx: Context<Self>) -> Response<Body> {
         route!(match cx.path() {
-            _ => hello,
+            Some("hello") => hello,
+            Some("body") => body_handler,
         })
     }
 }

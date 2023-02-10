@@ -31,6 +31,7 @@ with-mendes = ["askama_derive/mendes"]
 with-rocket = ["askama_derive/rocket"]
 with-tide = ["askama_derive/tide"]
 with-warp = ["askama_derive/warp"]
+mendes-with-hyper = ["askama_derive/mendes", "askama_derive/mendes-with-hyper"]
 
 # deprecated
 mime = []

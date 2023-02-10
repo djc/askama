@@ -15,6 +15,7 @@ config = ["serde", "toml"]
 json = ["serde", "serde_json", "askama_escape/json"]
 markdown = ["comrak"]
 yaml = ["serde", "serde_yaml"]
+mendes-with-hyper = []
 
 [dependencies]
 askama_escape = { version = "0.10.3", path = "../askama_escape" }

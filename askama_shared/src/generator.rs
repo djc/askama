@@ -246,8 +246,13 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
 
         let mut generics = self.input.ast.generics.clone();
         generics.params.push(param);
+        #[cfg(feature = "mendes-with-hyper")]
+        let (orig_ty_impl, orig_ty_generics, orig_where_clause) =
+            self.input.ast.generics.split_for_impl();
+        #[cfg(not(feature = "mendes-with-hyper"))]
         let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
         let (impl_generics, _, where_clause) = generics.split_for_impl();
+        let ident = &self.input.ast.ident;
 
         let mut where_clause = match where_clause {
             Some(clause) => clause.clone(),
@@ -269,7 +274,7 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
                 "{} {} for {} {} {{",
                 quote!(impl#impl_generics),
                 "::mendes::application::IntoResponse<A>",
-                self.input.ast.ident,
+                ident,
                 quote!(#orig_ty_generics #where_clause),
             )
             .as_ref(),
@@ -286,6 +291,30 @@ impl<'a, S: std::hash::BuildHasher> Generator<'a, S> {
         ))?;
         buf.writeln("}")?;
         buf.writeln("}")?;
+
+        #[cfg(feature = "mendes-with-hyper")]
+        {
+            // From<Template> for hyper::Body
+            buf.writeln(&format!(
+                "{} {{",
+                quote!(
+                    impl #orig_ty_impl ::core::convert::From<&#ident #orig_ty_generics>
+                    for ::mendes::hyper::Body
+                    where #orig_where_clause
+                )
+            ))?;
+            buf.writeln("#[inline]")?;
+            buf.writeln(&format!(
+                "{} {{",
+                quote!(fn from(value: &#ident #orig_ty_generics) -> Self)
+            ))?;
+            buf.writeln(
+                "::askama::Template::render(value).ok().map(Into::into)\
+            .unwrap_or_else(|| ::mendes::hyper::Body::empty())",
+            )?;
+            buf.writeln("}")?;
+            buf.writeln("}")?;
+        }
         Ok(())
     }
 
