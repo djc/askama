@@ -426,12 +426,13 @@ impl<'a> Generator<'a> {
         buf.writeln("}")
     }
 
-    // Implement `From<Template> for hyper::Response<Body>`.
+    // Implement `From<Template> for hyper::Response<Body>` and `From<Template> for hyper::Body.
     #[cfg(feature = "with-hyper")]
     fn impl_hyper_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         let (impl_generics, orig_ty_generics, where_clause) =
             self.input.ast.generics.split_for_impl();
         let ident = &self.input.ast.ident;
+        // From<Template> for hyper::Response<Body>
         buf.writeln(&format!(
             "{} {{",
             quote!(
@@ -446,6 +447,27 @@ impl<'a> Generator<'a> {
             quote!(fn from(value: &#ident #orig_ty_generics) -> Self)
         ))?;
         buf.writeln("::askama_hyper::respond(value)")?;
+        buf.writeln("}")?;
+        buf.writeln("}")?;
+
+        // From<Template> for hyper::Body
+        buf.writeln(&format!(
+            "{} {{",
+            quote!(
+                impl #impl_generics ::core::convert::From<&#ident #orig_ty_generics>
+                for ::askama_hyper::hyper::Body
+                #where_clause
+            )
+        ))?;
+        buf.writeln("#[inline]")?;
+        buf.writeln(&format!(
+            "{} {{",
+            quote!(fn from(value: &#ident #orig_ty_generics) -> Self)
+        ))?;
+        buf.writeln(
+            "::askama::Template::render(value).ok().map(Into::into)\
+            .unwrap_or_else(|| ::askama_hyper::hyper::Body::empty())",
+        )?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
