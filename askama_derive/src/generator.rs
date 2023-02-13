@@ -450,24 +450,22 @@ impl<'a> Generator<'a> {
         buf.writeln("}")?;
         buf.writeln("}")?;
 
-        // From<Template> for hyper::Body
+        // TryFrom<Template> for hyper::Body
         buf.writeln(&format!(
             "{} {{",
             quote!(
-                impl #impl_generics ::core::convert::From<&#ident #orig_ty_generics>
+                impl #impl_generics ::core::convert::TryFrom<&#ident #orig_ty_generics>
                 for ::askama_hyper::hyper::Body
                 #where_clause
             )
         ))?;
+        buf.writeln("type Error = ::askama::Error;")?;
         buf.writeln("#[inline]")?;
         buf.writeln(&format!(
             "{} {{",
-            quote!(fn from(value: &#ident #orig_ty_generics) -> Self)
+            quote!(fn try_from(value: &#ident #orig_ty_generics) -> Result<Self, Self::Error>)
         ))?;
-        buf.writeln(
-            "::askama::Template::render(value).ok().map(Into::into)\
-            .unwrap_or_else(|| ::askama_hyper::hyper::Body::empty())",
-        )?;
+        buf.writeln("::askama::Template::render(value).map(Into::into)")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
