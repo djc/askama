@@ -520,8 +520,8 @@ fn block_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 fn block_comment_body<'a>(mut i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
     let mut level = 0;
     loop {
-        let (end, tail) = take_until(s.syntax.comment_end.as_str())(i)?;
-        match take_until::<_, _, Error<_>>(s.syntax.comment_start.as_str())(i) {
+        let (end, tail) = take_until(s.syntax.comment_end)(i)?;
+        match take_until::<_, _, Error<_>>(s.syntax.comment_start)(i) {
             Ok((start, _)) if start.as_ptr() < end.as_ptr() => {
                 level += 1;
                 i = &start[2..];
