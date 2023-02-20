@@ -192,7 +192,7 @@ struct RawConfig {
 impl RawConfig {
     #[cfg(feature = "config")]
     fn from_toml_str(s: &str) -> std::result::Result<RawConfig, CompileError> {
-        toml_edit::de::from_str(s)
+        basic_toml::from_str(s)
             .map_err(|e| format!("invalid TOML in {CONFIG_FILE_NAME}: {e}").into())
     }
 
