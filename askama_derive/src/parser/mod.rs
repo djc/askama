@@ -22,12 +22,12 @@ mod node;
 mod tests;
 
 struct State<'a> {
-    syntax: &'a Syntax,
+    syntax: &'a Syntax<'a>,
     loop_depth: Cell<usize>,
 }
 
-impl State<'_> {
-    fn new(syntax: &Syntax) -> State<'_> {
+impl<'a> State<'a> {
+    fn new(syntax: &'a Syntax<'a>) -> State<'a> {
         State {
             syntax,
             loop_depth: Cell::new(0),
@@ -58,7 +58,10 @@ impl From<char> for Whitespace {
     }
 }
 
-pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax) -> Result<Vec<Node<'a>>, CompileError> {
+pub(crate) fn parse<'a>(
+    src: &'a str,
+    syntax: &'a Syntax<'_>,
+) -> Result<Vec<Node<'a>>, CompileError> {
     match Node::parse(src, &State::new(syntax)) {
         Ok((left, res)) => {
             if !left.is_empty() {
@@ -271,9 +274,9 @@ fn path(i: &str) -> IResult<&str, Vec<&str>> {
 
 fn take_content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let p_start = alt((
-        tag(s.syntax.block_start.as_str()),
-        tag(s.syntax.comment_start.as_str()),
-        tag(s.syntax.expr_start.as_str()),
+        tag(s.syntax.block_start),
+        tag(s.syntax.comment_start),
+        tag(s.syntax.expr_start),
     ));
 
     let (i, _) = not(eof)(i)?;
@@ -290,25 +293,25 @@ fn take_content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 }
 
 fn tag_block_start<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.block_start.as_str())(i)
+    tag(s.syntax.block_start)(i)
 }
 
 fn tag_block_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.block_end.as_str())(i)
+    tag(s.syntax.block_end)(i)
 }
 
 fn tag_comment_start<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.comment_start.as_str())(i)
+    tag(s.syntax.comment_start)(i)
 }
 
 fn tag_comment_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.comment_end.as_str())(i)
+    tag(s.syntax.comment_end)(i)
 }
 
 fn tag_expr_start<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.expr_start.as_str())(i)
+    tag(s.syntax.expr_start)(i)
 }
 
 fn tag_expr_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.expr_end.as_str())(i)
+    tag(s.syntax.expr_end)(i)
 }

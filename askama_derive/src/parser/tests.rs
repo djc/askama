@@ -224,8 +224,8 @@ fn test_parse_root_path() {
 #[test]
 fn change_delimiters_parse_filter() {
     let syntax = Syntax {
-        expr_start: "{=".to_owned(),
-        expr_end: "=}".to_owned(),
+        expr_start: "{=",
+        expr_end: "=}",
         ..Syntax::default()
     };
 
