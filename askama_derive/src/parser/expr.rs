@@ -84,7 +84,7 @@ impl Expr<'_> {
     /// Returns `true` if the outcome of this expression may be used multiple times in the same
     /// `write!()` call, without evaluating the expression again, i.e. the expression should be
     /// side-effect free.
-    pub(crate) fn is_cachable(&self) -> bool {
+    pub(crate) fn is_cacheable(&self) -> bool {
         match self {
             // Literals are the definition of pure:
             Expr::BoolLit(_) => true,
@@ -95,18 +95,18 @@ impl Expr<'_> {
             Expr::Var(_) => true,
             Expr::Path(_) => true,
             // Check recursively:
-            Expr::Array(args) => args.iter().all(|arg| arg.is_cachable()),
-            Expr::Attr(lhs, _) => lhs.is_cachable(),
-            Expr::Index(lhs, rhs) => lhs.is_cachable() && rhs.is_cachable(),
-            Expr::Filter(_, args) => args.iter().all(|arg| arg.is_cachable()),
-            Expr::Unary(_, arg) => arg.is_cachable(),
-            Expr::BinOp(_, lhs, rhs) => lhs.is_cachable() && rhs.is_cachable(),
+            Expr::Array(args) => args.iter().all(|arg| arg.is_cacheable()),
+            Expr::Attr(lhs, _) => lhs.is_cacheable(),
+            Expr::Index(lhs, rhs) => lhs.is_cacheable() && rhs.is_cacheable(),
+            Expr::Filter(_, args) => args.iter().all(|arg| arg.is_cacheable()),
+            Expr::Unary(_, arg) => arg.is_cacheable(),
+            Expr::BinOp(_, lhs, rhs) => lhs.is_cacheable() && rhs.is_cacheable(),
             Expr::Range(_, lhs, rhs) => {
-                lhs.as_ref().map_or(true, |v| v.is_cachable())
-                    && rhs.as_ref().map_or(true, |v| v.is_cachable())
+                lhs.as_ref().map_or(true, |v| v.is_cacheable())
+                    && rhs.as_ref().map_or(true, |v| v.is_cacheable())
             }
-            Expr::Group(arg) => arg.is_cachable(),
-            Expr::Tuple(args) => args.iter().all(|arg| arg.is_cachable()),
+            Expr::Group(arg) => arg.is_cacheable(),
+            Expr::Tuple(args) => args.iter().all(|arg| arg.is_cacheable()),
             // We have too little information to tell if the expression is pure:
             Expr::Call(_, _) => false,
             Expr::RustMacro(_, _) => false,
