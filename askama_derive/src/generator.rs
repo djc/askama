@@ -205,7 +205,7 @@ fn find_used_templates(
                     let dependency_path = (path.clone(), extends.clone());
                     if dependency_graph.contains(&dependency_path) {
                         return Err(format!(
-                            "cyclic dependecy in graph {:#?}",
+                            "cyclic dependency in graph {:#?}",
                             dependency_graph
                                 .iter()
                                 .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
@@ -1211,7 +1211,7 @@ impl<'a> Generator<'a> {
                     };
 
                     let id = match expr_cache.entry(expression.clone()) {
-                        Entry::Occupied(e) if s.is_cachable() => *e.get(),
+                        Entry::Occupied(e) if s.is_cacheable() => *e.get(),
                         e => {
                             let id = self.named;
                             self.named += 1;
