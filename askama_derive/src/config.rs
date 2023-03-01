@@ -6,6 +6,7 @@ use std::{env, fs};
 #[cfg(feature = "serde")]
 use serde::Deserialize;
 
+use crate::parser::Syntax;
 use crate::CompileError;
 
 #[derive(Debug)]
@@ -117,29 +118,6 @@ impl Config<'_> {
             path, self.dirs
         )
         .into())
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct Syntax<'a> {
-    pub(crate) block_start: &'a str,
-    pub(crate) block_end: &'a str,
-    pub(crate) expr_start: &'a str,
-    pub(crate) expr_end: &'a str,
-    pub(crate) comment_start: &'a str,
-    pub(crate) comment_end: &'a str,
-}
-
-impl Default for Syntax<'static> {
-    fn default() -> Self {
-        Self {
-            block_start: "{%",
-            block_end: "%}",
-            expr_start: "{{",
-            expr_end: "}}",
-            comment_start: "{#",
-            comment_end: "#}",
-        }
     }
 }
 

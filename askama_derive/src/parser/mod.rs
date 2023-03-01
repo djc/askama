@@ -13,13 +13,35 @@ use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
 
 pub(crate) use self::expr::Expr;
 pub(crate) use self::node::{Cond, CondTest, Loop, Macro, Node, Target, When, Whitespace, Ws};
-use crate::config::Syntax;
 use crate::CompileError;
 
 mod expr;
 mod node;
 #[cfg(test)]
 mod tests;
+
+#[derive(Debug)]
+pub(crate) struct Syntax<'a> {
+    pub(crate) block_start: &'a str,
+    pub(crate) block_end: &'a str,
+    pub(crate) expr_start: &'a str,
+    pub(crate) expr_end: &'a str,
+    pub(crate) comment_start: &'a str,
+    pub(crate) comment_end: &'a str,
+}
+
+impl Default for Syntax<'static> {
+    fn default() -> Self {
+        Self {
+            block_start: "{%",
+            block_end: "%}",
+            expr_start: "{{",
+            expr_end: "}}",
+            comment_start: "{#",
+            comment_end: "#}",
+        }
+    }
+}
 
 struct State<'a> {
     syntax: &'a Syntax<'a>,
