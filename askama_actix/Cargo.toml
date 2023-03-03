@@ -1,6 +1,6 @@
 [package]
 name = "askama_actix"
-version = "0.13.1"
+version = "0.14.0"
 description = "Actix-Web integration for Askama templates"
 documentation = "https://docs.rs/askama"
 keywords = ["markup", "template", "jinja2", "html"]
@@ -15,7 +15,7 @@ rust-version = "1.58"
 
 [dependencies]
 actix-web = { version = "4", default-features = false }
-askama = { version = "0.11.2", path = "../askama", default-features = false, features = ["with-actix-web"] }
+askama = { version = "0.12", path = "../askama", default-features = false, features = ["with-actix-web"] }
 
 [dev-dependencies]
 actix-rt = { version = "2", default-features = false }

@@ -1,6 +1,6 @@
 [package]
 name = "askama_axum"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.58"
 description = "Axum integration for Askama templates"
@@ -14,7 +14,7 @@ workspace = ".."
 readme = "README.md"
 
 [dependencies]
-askama = { version = "0.11.2", path = "../askama", default-features = false, features = ["with-axum", "mime", "mime_guess"] }
+askama = { version = "0.12", path = "../askama", default-features = false, features = ["with-axum", "mime", "mime_guess"] }
 axum-core = "0.3"
 http = "0.2"
 
