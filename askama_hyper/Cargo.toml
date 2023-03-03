@@ -14,7 +14,7 @@ edition = "2021"
 rust-version = "1.58"
 
 [dependencies]
-askama = { version = "0.11.2", path = "../askama", default-features = false, features = ["with-hyper"] }
+askama = { version = "0.12", path = "../askama", default-features = false, features = ["with-hyper"] }
 hyper = { version = "0.14", default-features = false }
 
 [dev-dependencies]
