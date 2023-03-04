@@ -1,5 +1,5 @@
 use crate::config::Syntax;
-use crate::parser::{Expr, Lit, Node, Whitespace, Ws};
+use crate::parser::{Expr, Lit, Node, Target, Whitespace, Ws};
 
 fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
     let Lit { lws, val, rws } = super::split_ws_parts(s);
@@ -529,6 +529,38 @@ fn test_parse_comments() {
     assert_eq!(
         super::parse("{# foo {# bar #} {# {# baz #} qux #} #}", s).unwrap(),
         vec![Node::Comment(Ws(None, None))],
+    );
+}
+
+#[test]
+fn test_parse_match() {
+    use super::{Match, When};
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse(
+            "{%+ match foo %}{% when Foo ~%}{%- else +%}{%~ endmatch %}",
+            &syntax
+        )
+        .unwrap(),
+        vec![Node::Match(
+            Ws(Some(Whitespace::Preserve), None),
+            Match {
+                expr: Expr::Var("foo"),
+                arms: vec![
+                    When {
+                        ws: Ws(None, Some(Whitespace::Minimize)),
+                        target: Target::Path(vec!["Foo"]),
+                        block: vec![],
+                    },
+                    When {
+                        ws: Ws(Some(Whitespace::Suppress), Some(Whitespace::Preserve)),
+                        target: Target::Name("_"),
+                        block: vec![],
+                    }
+                ],
+                ws: Ws(Some(Whitespace::Minimize), None),
+            }
+        )],
     );
 }
 
