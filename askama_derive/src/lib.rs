@@ -52,6 +52,12 @@ impl From<String> for CompileError {
     }
 }
 
+impl From<parser::ParseError> for CompileError {
+    fn from(e: parser::ParseError) -> Self {
+        Self::new(e.to_string())
+    }
+}
+
 // This is used by the code generator to decide whether a named filter is part of
 // Askama or should refer to a local `filters` module. It should contain all the
 // filters shipped with Askama, even the optional ones (since optional inclusion

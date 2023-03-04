@@ -82,7 +82,7 @@ impl From<char> for Whitespace {
     }
 }
 
-pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax<'_>) -> Result<Block<'a>, String> {
+pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax<'_>) -> Result<Block<'a>, ParseError> {
     let state = State::new(syntax);
     let mut p = all_consuming(complete(|i| Node::parse(i, &state)));
     match p(src) {
@@ -96,28 +96,56 @@ pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax<'_>) -> Result<Block<'a
             let offset = src.len() - input.len();
             let (source_before, source_after) = src.split_at(offset);
 
-            let source_after = match source_after.char_indices().enumerate().take(41).last() {
+            let snippet = match source_after.char_indices().enumerate().take(41).last() {
                 Some((40, (i, _))) => format!("{:?}...", &source_after[..i]),
                 _ => format!("{source_after:?}"),
             };
 
             let (row, column) = match source_before.lines().enumerate().last() {
-                Some((row, last_line)) => (row, last_line.chars().count()),
-                None => (0, 0),
+                Some((row, last_line)) => (row + 1, last_line.chars().count()),
+                None => (1, 0),
             };
 
-            let msg = format!(
-                "problems parsing template source at row {}, column {} near:\n{}",
-                row + 1,
+            Err(ParseError {
+                row,
                 column,
-                source_after,
-            );
-            Err(msg)
+                snippet,
+            })
         }
 
         Err(nom::Err::Incomplete(_)) => unreachable!(),
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct ParseError {
+    row: usize,
+    column: usize,
+    snippet: String,
+}
+
+#[cfg(test)]
+impl ParseError {
+    pub(crate) fn row(&self) -> usize {
+        self.row
+    }
+
+    pub(crate) fn column(&self) -> usize {
+        self.column
+    }
+}
+
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "problems parsing template source at row {}, column {} near:\n{}",
+            self.row, self.column, self.snippet,
+        )
+    }
+}
+
+impl std::error::Error for ParseError {}
 
 fn is_ws(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\r' | '\n')
