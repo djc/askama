@@ -651,6 +651,38 @@ fn test_parse_tuple() {
 }
 
 #[test]
+fn test_parse_loop() {
+    use super::{Expr, Loop, Target};
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse("{% for user in users +%}{%~ else -%}{%+ endfor %}", &syntax).unwrap(),
+        vec![Node::Loop(Loop {
+            ws1: Ws(None, Some(Whitespace::Preserve)),
+            var: Target::Name("user"),
+            iter: Expr::Var("users"),
+            cond: None,
+            body: vec![],
+            ws2: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
+            else_block: vec![],
+            ws3: Ws(Some(Whitespace::Preserve), None),
+        })]
+    );
+    assert_eq!(
+        super::parse("{% for user in users +%}{%~ endfor -%}", &syntax).unwrap(),
+        vec![Node::Loop(Loop {
+            ws1: Ws(None, Some(Whitespace::Preserve)),
+            var: Target::Name("user"),
+            iter: Expr::Var("users"),
+            cond: None,
+            body: vec![],
+            ws2: Ws(Some(Whitespace::Minimize), None),
+            else_block: vec![],
+            ws3: Ws(None, Some(Whitespace::Suppress)),
+        })]
+    );
+}
+
+#[test]
 fn test_missing_space_after_kw() {
     let syntax = Syntax::default();
     let err = super::parse("{%leta=b%}", &syntax).unwrap_err();
