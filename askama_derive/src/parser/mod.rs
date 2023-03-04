@@ -5,7 +5,7 @@ use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_till};
 use nom::character::complete::char;
 use nom::character::complete::{anychar, digit1};
-use nom::combinator::{eof, map, not, opt, recognize, value};
+use nom::combinator::{all_consuming, complete, eof, map, not, opt, recognize, value};
 use nom::error::ErrorKind;
 use nom::multi::separated_list1;
 use nom::sequence::{delimited, pair, tuple};
@@ -83,14 +83,12 @@ impl From<char> for Whitespace {
 }
 
 pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax<'_>) -> Result<Block<'a>, String> {
-    match Node::parse(src, &State::new(syntax)) {
-        Ok((left, nodes)) => {
-            if !left.is_empty() {
-                Err(format!("unable to parse template:\n\n{left:?}"))
-            } else {
-                let ws = Ws(None, None);
-                Ok(Block { nodes, ws })
-            }
+    let state = State::new(syntax);
+    let mut p = all_consuming(complete(|i| Node::parse(i, &state)));
+    match p(src) {
+        Ok((_, nodes)) => {
+            let ws = Ws(None, None);
+            Ok(Block { nodes, ws })
         }
 
         Err(nom::Err::Error(err)) | Err(nom::Err::Failure(err)) => {
@@ -103,8 +101,10 @@ pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax<'_>) -> Result<Block<'a
                 _ => format!("{source_after:?}"),
             };
 
-            let (row, last_line) = source_before.lines().enumerate().last().unwrap();
-            let column = last_line.chars().count();
+            let (row, column) = match source_before.lines().enumerate().last() {
+                Some((row, last_line)) => (row, last_line.chars().count()),
+                None => (0, 0),
+            };
 
             let msg = format!(
                 "problems parsing template source at row {}, column {} near:\n{}",
@@ -115,7 +115,7 @@ pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax<'_>) -> Result<Block<'a
             Err(msg)
         }
 
-        Err(nom::Err::Incomplete(_)) => Err("parsing incomplete".into()),
+        Err(nom::Err::Incomplete(_)) => unreachable!(),
     }
 }
 
