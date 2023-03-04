@@ -660,8 +660,5 @@ fn test_parse_tuple() {
 fn test_missing_space_after_kw() {
     let syntax = Syntax::default();
     let err = super::parse("{%leta=b%}", &syntax).unwrap_err();
-    assert!(matches!(
-        &*err.msg,
-        "unable to parse template:\n\n\"{%leta=b%}\""
-    ));
+    assert_eq!(err, "unable to parse template:\n\n\"{%leta=b%}\"");
 }

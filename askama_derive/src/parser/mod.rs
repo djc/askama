@@ -13,7 +13,6 @@ use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
 
 pub(crate) use self::expr::Expr;
 pub(crate) use self::node::{Cond, CondTest, Loop, Macro, Node, Target, When, Whitespace, Ws};
-use crate::CompileError;
 
 mod expr;
 mod node;
@@ -80,14 +79,11 @@ impl From<char> for Whitespace {
     }
 }
 
-pub(crate) fn parse<'a>(
-    src: &'a str,
-    syntax: &'a Syntax<'_>,
-) -> Result<Vec<Node<'a>>, CompileError> {
+pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax<'_>) -> Result<Vec<Node<'a>>, String> {
     match Node::parse(src, &State::new(syntax)) {
         Ok((left, res)) => {
             if !left.is_empty() {
-                Err(format!("unable to parse template:\n\n{left:?}").into())
+                Err(format!("unable to parse template:\n\n{left:?}"))
             } else {
                 Ok(res)
             }
@@ -112,7 +108,7 @@ pub(crate) fn parse<'a>(
                 column,
                 source_after,
             );
-            Err(msg.into())
+            Err(msg)
         }
 
         Err(nom::Err::Incomplete(_)) => Err("parsing incomplete".into()),
