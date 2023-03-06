@@ -665,12 +665,11 @@ impl<'a> Generator<'a> {
                 ) => {
                     size_hint += self.write_call(ctx, buf, ws, scope, name, args)?;
                 }
-                Node::Macro(ref m) => {
+                Node::Macro(ws, _) => {
                     if level != AstLevel::Top {
                         return Err("macro blocks only allowed at the top level".into());
                     }
-                    self.flush_ws(m.ws1);
-                    self.prepare_ws(m.ws2);
+                    self.handle_ws(ws);
                 }
                 Node::Raw(ws1, ref lit, ws2) => {
                     self.handle_ws(ws1);
@@ -934,7 +933,7 @@ impl<'a> Generator<'a> {
         self.locals.push();
         self.write_buf_writable(buf)?;
         buf.writeln("{")?;
-        self.prepare_ws(def.ws1);
+        self.prepare_ws(def.ws);
 
         let mut names = Buffer::new(0);
         let mut values = Buffer::new(0);
@@ -987,7 +986,7 @@ impl<'a> Generator<'a> {
 
         let mut size_hint = self.handle(own_ctx, &def.nodes, buf, AstLevel::Nested)?;
 
-        self.flush_ws(def.ws2);
+        self.flush_ws(def.ws);
         size_hint += self.write_buf_writable(buf)?;
         buf.writeln("}")?;
         self.locals.pop();

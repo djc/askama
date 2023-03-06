@@ -30,7 +30,7 @@ pub(crate) enum Node<'a> {
     BlockDef(Ws, &'a str, Vec<Node<'a>>, Ws),
     Include(Ws, &'a str),
     Import(Ws, &'a str, &'a str),
-    Macro(Macro<'a>),
+    Macro(Ws, Macro<'a>),
     Raw(Ws, Lit<'a>, Ws),
     Break(Ws),
     Continue(Ws),
@@ -109,10 +109,9 @@ pub(crate) struct Loop<'a> {
 #[derive(Debug, PartialEq)]
 pub(crate) struct Macro<'a> {
     pub(crate) name: &'a str,
-    pub(crate) ws1: Ws,
     pub(crate) args: Vec<&'a str>,
     pub(crate) nodes: Vec<Node<'a>>,
-    pub(crate) ws2: Ws,
+    pub(crate) ws: Ws,
 }
 
 /// First field is "minus/plus sign was used on the left part of the item".
@@ -498,13 +497,15 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
     Ok((
         i,
-        Node::Macro(Macro {
-            name,
-            ws1: Ws(pws1, nws1),
-            args: params,
-            nodes: contents,
-            ws2: Ws(pws2, nws2),
-        }),
+        Node::Macro(
+            Ws(pws1, nws2),
+            Macro {
+                name,
+                args: params,
+                nodes: contents,
+                ws: Ws(pws2, nws1),
+            },
+        ),
     ))
 }
 

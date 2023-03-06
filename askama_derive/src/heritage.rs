@@ -64,14 +64,14 @@ impl Context<'_> {
                             extends = Some(config.find_template(extends_path, Some(path))?);
                         }
                     },
-                    Node::Macro(m) if top => {
+                    Node::Macro(_, m) if top => {
                         macros.insert(m.name, m);
                     }
                     Node::Import(_, import_path, scope) if top => {
                         let path = config.find_template(import_path, Some(path))?;
                         imports.insert(*scope, path);
                     }
-                    Node::Extends(_) | Node::Macro(_) | Node::Import(_, _, _) if !top => {
+                    Node::Extends(_) | Node::Macro(_, _) | Node::Import(_, _, _) if !top => {
                         return Err(
                             "extends, macro or import blocks not allowed below top level".into(),
                         );
