@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::config::Config;
-use crate::parser::{Cond, Loop, Macro, Match, Node, When};
+use crate::parser::{BlockDef, Cond, Loop, Macro, Match, Node, When};
 use crate::CompileError;
 
 pub(crate) struct Heritage<'a> {
@@ -32,12 +32,12 @@ impl Heritage<'_> {
     }
 }
 
-type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a Node<'a>)>>;
+type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a BlockDef<'a>)>>;
 
 pub(crate) struct Context<'a> {
     pub(crate) nodes: &'a [Node<'a>],
     pub(crate) extends: Option<PathBuf>,
-    pub(crate) blocks: HashMap<&'a str, &'a Node<'a>>,
+    pub(crate) blocks: HashMap<&'a str, &'a BlockDef<'a>>,
     pub(crate) macros: HashMap<&'a str, &'a Macro<'a>>,
     pub(crate) imports: HashMap<&'a str, PathBuf>,
 }
@@ -76,11 +76,9 @@ impl Context<'_> {
                             "extends, macro or import blocks not allowed below top level".into(),
                         );
                     }
-                    def @ Node::BlockDef(_, _, _, _) => {
+                    Node::BlockDef(_, def @ BlockDef { block, .. }) => {
                         blocks.push(def);
-                        if let Node::BlockDef(_, _, nodes, _) = def {
-                            nested.push(nodes);
-                        }
+                        nested.push(block);
                     }
                     Node::Cond(branches, _) => {
                         for Cond { block, .. } in branches {
@@ -107,11 +105,8 @@ impl Context<'_> {
         let blocks: HashMap<_, _> = blocks
             .iter()
             .map(|def| {
-                if let Node::BlockDef(_, name, _, _) = def {
-                    (*name, *def)
-                } else {
-                    unreachable!()
-                }
+                let BlockDef { name, .. } = def;
+                (*name, *def)
             })
             .collect();
 
