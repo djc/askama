@@ -191,7 +191,7 @@ fn block_call(i: &str) -> IResult<&str, Node<'_>> {
         ))),
     ));
     let (i, (pws, _, (scope, name, args, nws))) = p(i)?;
-    let ws = Ws(pws, nws);
+    let ws = Ws::new(pws, nws);
 
     let tag = match name {
         "super" => Tag::Super,
@@ -234,7 +234,7 @@ fn cond_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Cond<'a>> {
     let (i, (_, pws, _, (test, nws, _, nodes))) = p(i)?;
     let block = Block {
         nodes,
-        ws: Ws(pws, nws),
+        ws: Ws::new(pws, nws),
     };
     Ok((i, Cond { test, block }))
 }
@@ -261,7 +261,7 @@ fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let (i, (pws1, cond, (nws1, _, (nodes, elifs, (_, pws2, _, nws2))))) = p(i)?;
     let block = Block {
         nodes,
-        ws: Ws(pws1, nws1),
+        ws: Ws::new(pws1, nws1),
     };
 
     let mut res = vec![Cond {
@@ -270,12 +270,12 @@ fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     }];
     res.extend(elifs);
 
-    let outer = Ws(pws1, nws2);
+    let outer = Ws::new(pws1, nws2);
 
     let mut cursor = pws2;
     let mut idx = res.len() - 1;
     loop {
-        std::mem::swap(&mut cursor, &mut res[idx].block.ws.0);
+        std::mem::swap(&mut cursor, &mut res[idx].block.ws.flush);
 
         if idx == 0 {
             break;
@@ -300,7 +300,7 @@ fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>>
     let (i, (_, pws, _, (nws, _, nodes))) = p(i)?;
     let block = Block {
         nodes,
-        ws: Ws(pws, nws),
+        ws: Ws::new(pws, nws),
     };
     Ok((
         i,
@@ -326,7 +326,7 @@ fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
     let (i, (_, pws, _, (target, nws, _, nodes))) = p(i)?;
     let block = Block {
         nodes,
-        ws: Ws(pws, nws),
+        ws: Ws::new(pws, nws),
     };
     Ok((i, When { target, block }))
 }
@@ -361,12 +361,12 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         arms.push(arm);
     }
 
-    let outer = Ws(pws1, nws2);
+    let outer = Ws::new(pws1, nws2);
 
     let mut cursor = pws2;
     let mut idx = arms.len() - 1;
     loop {
-        std::mem::swap(&mut cursor, &mut arms[idx].block.ws.0);
+        std::mem::swap(&mut cursor, &mut arms[idx].block.ws.flush);
 
         if idx == 0 {
             break;
@@ -392,9 +392,9 @@ fn block_let(i: &str) -> IResult<&str, Node<'_>> {
     Ok((
         i,
         if let Some((_, val)) = val {
-            Node::Tag(Ws(pws, nws), Tag::Let(var, val))
+            Node::Tag(Ws::new(pws, nws), Tag::Let(var, val))
         } else {
-            Node::Tag(Ws(pws, nws), Tag::LetDecl(var))
+            Node::Tag(Ws::new(pws, nws), Tag::LetDecl(var))
         },
     ))
 }
@@ -453,16 +453,16 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let (nws3, else_block, pws3) = else_block.unwrap_or_default();
     let body = Block {
         nodes: body,
-        ws: Ws(pws2, nws1),
+        ws: Ws::new(pws2, nws1),
     };
     let else_block = Block {
         nodes: else_block,
-        ws: Ws(pws3, nws3),
+        ws: Ws::new(pws3, nws3),
     };
     Ok((
         i,
         Node::Tag(
-            Ws(pws1, nws2),
+            Ws::new(pws1, nws2),
             Tag::Loop(Loop {
                 var,
                 iter,
@@ -476,7 +476,7 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
 fn block_extends(i: &str) -> IResult<&str, Node<'_>> {
     let (i, (_, name)) = tuple((ws(keyword("extends")), ws(str_lit)))(i)?;
-    Ok((i, Node::Tag(Ws(None, None), Tag::Extends(name))))
+    Ok((i, Node::Tag(Ws::new(None, None), Tag::Extends(name))))
 }
 
 fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
@@ -501,12 +501,12 @@ fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let (i, (nodes, (_, pws2, _, (_, nws2)))) = end(i)?;
     let block = Block {
         nodes,
-        ws: Ws(pws2, nws1),
+        ws: Ws::new(pws2, nws1),
     };
 
     Ok((
         i,
-        Node::Tag(Ws(pws1, nws2), Tag::BlockDef(BlockDef { name, block })),
+        Node::Tag(Ws::new(pws1, nws2), Tag::BlockDef(BlockDef { name, block })),
     ))
 }
 
@@ -517,7 +517,7 @@ fn block_include(i: &str) -> IResult<&str, Node<'_>> {
         cut(pair(ws(str_lit), opt(expr_handle_ws))),
     ));
     let (i, (pws, _, (name, nws))) = p(i)?;
-    Ok((i, Node::Tag(Ws(pws, nws), Tag::Include(name))))
+    Ok((i, Node::Tag(Ws::new(pws, nws), Tag::Include(name))))
 }
 
 fn block_import(i: &str) -> IResult<&str, Node<'_>> {
@@ -531,7 +531,7 @@ fn block_import(i: &str) -> IResult<&str, Node<'_>> {
         ))),
     ));
     let (i, (pws, _, (name, _, (scope, nws)))) = p(i)?;
-    Ok((i, Node::Tag(Ws(pws, nws), Tag::Import(name, scope))))
+    Ok((i, Node::Tag(Ws::new(pws, nws), Tag::Import(name, scope))))
 }
 
 fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
@@ -559,7 +559,7 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let (i, (nodes, (_, pws2, _, (_, nws2)))) = end(i)?;
     let block = Block {
         nodes,
-        ws: Ws(pws2, nws1),
+        ws: Ws::new(pws2, nws1),
     };
 
     assert_ne!(name, "super", "invalid macro name 'super'");
@@ -567,7 +567,7 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     Ok((
         i,
         Node::Tag(
-            Ws(pws1, nws2),
+            Ws::new(pws1, nws2),
             Tag::Macro(Macro {
                 name,
                 args: params,
@@ -598,8 +598,8 @@ fn block_raw<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
     let (_, (pws1, _, (nws1, _, (contents, (i, (_, pws2, _, nws2, _)))))) = p(i)?;
     let lit = split_ws_parts(contents);
-    let outer = Ws(pws1, nws2);
-    let ws = Ws(pws2, nws1);
+    let outer = Ws::new(pws1, nws2);
+    let ws = Ws::new(pws2, nws1);
     Ok((i, Node::Tag(outer, Tag::Raw(Raw { lit, ws }))))
 }
 
@@ -613,7 +613,7 @@ fn break_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> 
     if !s.is_in_loop() {
         return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
     }
-    Ok((j, Node::Tag(Ws(pws, nws), Tag::Break)))
+    Ok((j, Node::Tag(Ws::new(pws, nws), Tag::Break)))
 }
 
 fn continue_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
@@ -626,7 +626,7 @@ fn continue_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a
     if !s.is_in_loop() {
         return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
     }
-    Ok((j, Node::Tag(Ws(pws, nws), Tag::Continue)))
+    Ok((j, Node::Tag(Ws::new(pws, nws), Tag::Continue)))
 }
 
 fn block_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
@@ -690,7 +690,7 @@ fn block_comment<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     } else {
         None
     };
-    Ok((i, Node::Tag(Ws(pws, nws), Tag::Comment)))
+    Ok((i, Node::Tag(Ws::new(pws, nws), Tag::Comment)))
 }
 
 fn expr_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
@@ -704,7 +704,7 @@ fn expr_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         ))),
     ));
     let (i, (_, (pws, expr, nws, _))) = p(i)?;
-    Ok((i, Node::Tag(Ws(pws, nws), Tag::Expr(expr))))
+    Ok((i, Node::Tag(Ws::new(pws, nws), Tag::Expr(expr))))
 }
 
 fn parse_template<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {

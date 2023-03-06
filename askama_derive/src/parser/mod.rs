@@ -51,11 +51,21 @@ pub(crate) enum Whitespace {
     Minimize,
 }
 
-/// First field is "minus/plus sign was used on the left part of the item".
-///
-/// Second field is "minus/plus sign was used on the right part of the item".
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct Ws(pub(crate) Option<Whitespace>, pub(crate) Option<Whitespace>);
+/// Whitespace suppression for a `Tag` or `Block`.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct Ws {
+    /// Handling of trailing whitespace on literal text at a transition in to Askama.
+    pub(crate) flush: Option<Whitespace>,
+    /// Handling of leading whitespace on literal text at a transition out of Askama.
+    pub(crate) prepare: Option<Whitespace>,
+}
+
+impl Ws {
+    // internal shorthand form, not meant to be public
+    fn new(flush: Option<Whitespace>, prepare: Option<Whitespace>) -> Self {
+        Ws { flush, prepare }
+    }
+}
 
 struct State<'a> {
     syntax: &'a Syntax<'a>,
@@ -99,7 +109,7 @@ pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax<'_>) -> Result<Block<'a
     let mut p = all_consuming(complete(|i| Node::parse(i, &state)));
     match p(src) {
         Ok((_, nodes)) => {
-            let ws = Ws(None, None);
+            let ws = Ws::default();
             Ok(Block { nodes, ws })
         }
 

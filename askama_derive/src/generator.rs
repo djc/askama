@@ -358,7 +358,7 @@ impl<'a> Generator<'a> {
             self.handle(ctx, ctx.block, buf, AstLevel::Top)
         }?;
 
-        self.flush_ws(Ws(None, None));
+        self.flush_ws(Ws::default());
         buf.writeln("::askama::Result::Ok(())")?;
         buf.writeln("}")?;
 
@@ -1825,7 +1825,7 @@ impl<'a> Generator<'a> {
 
         // If `whitespace` is set to `suppress`, we keep the whitespace characters only if there is
         // a `+` character.
-        match self.should_trim_ws(ws.0) {
+        match self.should_trim_ws(ws.flush) {
             WhitespaceHandling::Preserve => {
                 let val = self.next_ws.unwrap();
                 if !val.is_empty() {
@@ -1851,7 +1851,7 @@ impl<'a> Generator<'a> {
     // argument, to determine whether to suppress leading whitespace from the
     // next literal.
     fn prepare_ws(&mut self, ws: Ws) {
-        self.skip_ws = self.should_trim_ws(ws.1);
+        self.skip_ws = self.should_trim_ws(ws.prepare);
     }
 }
 
