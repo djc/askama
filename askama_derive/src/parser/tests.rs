@@ -547,17 +547,16 @@ fn test_parse_match() {
                 expr: Expr::Var("foo"),
                 arms: vec![
                     When {
-                        ws: Ws(None, Some(Whitespace::Minimize)),
+                        ws: Ws(Some(Whitespace::Suppress), Some(Whitespace::Minimize)),
                         target: Target::Path(vec!["Foo"]),
                         block: vec![],
                     },
                     When {
-                        ws: Ws(Some(Whitespace::Suppress), Some(Whitespace::Preserve)),
+                        ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
                         target: Target::Name("_"),
                         block: vec![],
                     }
                 ],
-                ws: Ws(Some(Whitespace::Minimize), None),
             }
         )],
     );

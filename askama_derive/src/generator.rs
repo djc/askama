@@ -637,15 +637,10 @@ impl<'a> Generator<'a> {
                 Node::Cond(ref conds, ws) => {
                     size_hint += self.write_cond(ctx, buf, conds, ws)?;
                 }
-                Node::Match(
-                    ws1,
-                    Match {
-                        ref expr,
-                        ref arms,
-                        ws,
-                    },
-                ) => {
-                    size_hint += self.write_match(ctx, buf, ws1, expr, arms, ws)?;
+                Node::Match(ws, Match { ref expr, ref arms }) => {
+                    self.flush_ws(ws);
+                    size_hint += self.write_match(ctx, buf, expr, arms)?;
+                    self.prepare_ws(ws);
                 }
                 Node::Loop(ws, ref loop_block) => {
                     self.flush_ws(ws);
@@ -785,12 +780,9 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        ws1: Ws,
         expr: &Expr<'_>,
         arms: &'a [When<'_>],
-        ws2: Ws,
     ) -> Result<usize, CompileError> {
-        self.flush_ws(ws1);
         let flushed = self.write_buf_writable(buf)?;
         let mut arm_sizes = Vec::new();
 
@@ -800,7 +792,6 @@ impl<'a> Generator<'a> {
         let mut arm_size = 0;
         for (i, arm) in arms.iter().enumerate() {
             let When { ws, target, block } = arm;
-            self.handle_ws(*ws);
 
             if i > 0 {
                 arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
@@ -813,10 +804,11 @@ impl<'a> Generator<'a> {
             self.visit_target(buf, true, true, target);
             buf.writeln(" => {")?;
 
+            self.prepare_ws(*ws);
             arm_size = self.handle(ctx, block, buf, AstLevel::Nested)?;
+            self.flush_ws(*ws);
         }
 
-        self.handle_ws(ws2);
         arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
         buf.writeln("}")?;
         self.locals.pop();
