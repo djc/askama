@@ -21,13 +21,20 @@ mod node;
 #[cfg(test)]
 mod tests;
 
+/// Askama template syntax configuration.
 #[derive(Debug)]
 pub(crate) struct Syntax<'a> {
+    /// Defaults to `"{%"`.
     pub(crate) block_start: &'a str,
+    /// Defaults to `"%}"`.
     pub(crate) block_end: &'a str,
+    /// Defaults to `"{{"`.
     pub(crate) expr_start: &'a str,
+    /// Defaults to `"}}"`.
     pub(crate) expr_end: &'a str,
+    /// Defaults to `"{#"`.
     pub(crate) comment_start: &'a str,
+    /// Defaults to `"#}"`.
     pub(crate) comment_end: &'a str,
 }
 
@@ -44,6 +51,7 @@ impl Default for Syntax<'static> {
     }
 }
 
+/// Whitespace preservation or suppression.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum Whitespace {
     Preserve,
@@ -104,6 +112,9 @@ impl From<char> for Whitespace {
     }
 }
 
+/// Parse template source to an abstract syntax tree.
+///
+/// Tries to parse the provided template string using the given syntax.
 pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax<'_>) -> Result<Block<'a>, ParseError> {
     let state = State::new(syntax);
     let mut p = all_consuming(complete(|i| Node::parse(i, &state)));
