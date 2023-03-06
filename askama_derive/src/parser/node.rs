@@ -20,7 +20,6 @@ pub(crate) enum Node<'a> {
     Lit(Lit<'a>),
     Tag(Ws, Tag<'a>),
     Extends(&'a str),
-    Import(Ws, &'a str, &'a str),
     Macro(Ws, Macro<'a>),
     Raw(Ws, Raw<'a>),
     Break(Ws),
@@ -39,6 +38,7 @@ pub(crate) enum Tag<'a> {
     Loop(Loop<'a>),
     BlockDef(BlockDef<'a>),
     Include(&'a str),
+    Import(&'a str, &'a str),
 }
 
 #[derive(Debug, PartialEq)]
@@ -520,7 +520,7 @@ fn block_import(i: &str) -> IResult<&str, Node<'_>> {
         ))),
     ));
     let (i, (pws, _, (name, _, (scope, nws)))) = p(i)?;
-    Ok((i, Node::Import(Ws(pws, nws), name, scope)))
+    Ok((i, Node::Tag(Ws(pws, nws), Tag::Import(name, scope))))
 }
 
 fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {

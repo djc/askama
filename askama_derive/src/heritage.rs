@@ -67,11 +67,13 @@ impl Context<'_> {
                     Node::Macro(_, m) if top => {
                         macros.insert(m.name, m);
                     }
-                    Node::Import(_, import_path, scope) if top => {
+                    Node::Tag(_, Tag::Import(import_path, scope)) if top => {
                         let path = config.find_template(import_path, Some(path))?;
                         imports.insert(*scope, path);
                     }
-                    Node::Extends(_) | Node::Macro(_, _) | Node::Import(_, _, _) if !top => {
+                    Node::Extends(_) | Node::Macro(_, _) | Node::Tag(_, Tag::Import(_, _))
+                        if !top =>
+                    {
                         return Err(
                             "extends, macro or import blocks not allowed below top level".into(),
                         );

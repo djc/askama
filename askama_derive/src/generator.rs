@@ -222,7 +222,7 @@ fn find_used_templates(
                     let source = get_template_source(&extends)?;
                     check.push((extends, source));
                 }
-                Node::Import(_, import, _) => {
+                Node::Tag(_, Tag::Import(import, _)) => {
                     let import = input.config.find_template(import, Some(&path))?;
                     let source = get_template_source(&import)?;
                     check.push((import, source));
@@ -647,6 +647,11 @@ impl<'a> Generator<'a> {
                         Tag::Include(path) => {
                             size_hint += self.handle_include(ctx, buf, path)?;
                         }
+                        Tag::Import(_, _) => {
+                            if level != AstLevel::Top {
+                                return Err("import blocks only allowed at the top level".into());
+                            }
+                        }
                     }
                     self.prepare_ws(ws);
                 }
@@ -660,13 +665,6 @@ impl<'a> Generator<'a> {
                 Node::Raw(ws, ref raw) => {
                     self.flush_ws(ws);
                     self.visit_raw(raw);
-                    self.prepare_ws(ws);
-                }
-                Node::Import(ws, _, _) => {
-                    if level != AstLevel::Top {
-                        return Err("import blocks only allowed at the top level".into());
-                    }
-                    self.flush_ws(ws);
                     self.prepare_ws(ws);
                 }
                 Node::Extends(_) => {
