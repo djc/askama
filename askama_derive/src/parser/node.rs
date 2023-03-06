@@ -99,7 +99,6 @@ pub(crate) struct Match<'a> {
     pub(crate) expr: Expr<'a>,
     /// Each of the match arms, with a pattern and a body.
     pub(crate) arms: Vec<When<'a>>,
-    pub(crate) ws: Ws,
 }
 
 /// A single arm of a match statement.
@@ -339,15 +338,27 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             ))),
         ))),
     ));
-    let (i, (pws1, _, (expr, nws1, _, (_, arms, (else_arm, (_, pws2, _, nws2)))))) = p(i)?;
-    let ws = Ws(pws2, nws2);
+    let (i, (pws1, _, (expr, _, _, (_, arms, (else_arm, (_, pws2, _, nws2)))))) = p(i)?;
 
     let mut arms = arms;
     if let Some(arm) = else_arm {
         arms.push(arm);
     }
 
-    Ok((i, Node::Match(Ws(pws1, nws1), Match { expr, arms, ws })))
+    let outer = Ws(pws1, nws2);
+
+    let mut cursor = pws2;
+    let mut idx = arms.len() - 1;
+    loop {
+        std::mem::swap(&mut cursor, &mut arms[idx].ws.0);
+
+        if idx == 0 {
+            break;
+        }
+        idx -= 1;
+    }
+
+    Ok((i, Node::Match(outer, Match { expr, arms })))
 }
 
 fn block_let(i: &str) -> IResult<&str, Node<'_>> {
