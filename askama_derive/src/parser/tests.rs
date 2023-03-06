@@ -684,3 +684,19 @@ fn test_parse_call_statement() {
         )],
     );
 }
+
+#[test]
+fn test_parse_macro_statement() {
+    use super::Macro;
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse("{% macro foo(bar) -%}{%~ endmacro +%}", &syntax).unwrap(),
+        vec![Node::Macro(Macro {
+            name: "foo",
+            ws1: Ws(None, Some(Whitespace::Suppress)),
+            args: vec!["bar"],
+            nodes: vec![],
+            ws2: Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
+        },)]
+    );
+}
