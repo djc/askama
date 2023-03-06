@@ -2,7 +2,7 @@ use crate::config::{get_template_source, read_config_file, Config, WhitespaceHan
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
 use crate::parser::{
-    parse, BlockDef, Call, Cond, CondTest, Expr, Lit, Loop, Match, Node, Raw, Target, When,
+    parse, BlockDef, Call, Cond, CondTest, Expr, Lit, Loop, Match, Node, Raw, Tag, Target, When,
     Whitespace, Ws,
 };
 use crate::CompileError;
@@ -622,8 +622,11 @@ impl<'a> Generator<'a> {
                 Node::Lit(ref lit) => {
                     self.visit_lit(lit);
                 }
-                Node::Comment(ws) => {
+                Node::Tag(ws, ref tag) => {
                     self.flush_ws(ws);
+                    match tag {
+                        Tag::Comment => {}
+                    }
                     self.prepare_ws(ws);
                 }
                 Node::Expr(ws, ref val) => {

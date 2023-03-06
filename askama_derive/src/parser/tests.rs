@@ -1,4 +1,4 @@
-use crate::parser::{Expr, Lit, Node, Syntax, Target, Whitespace, Ws};
+use crate::parser::{Expr, Lit, Node, Syntax, Tag, Target, Whitespace, Ws};
 
 fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
     let Lit { lws, val, rws } = super::split_ws_parts(s);
@@ -435,99 +435,117 @@ fn test_parse_comments() {
 
     assert_eq!(
         super::parse("{##}", s).unwrap(),
-        vec![Node::Comment(Ws(None, None))],
+        vec![Node::Tag(Ws(None, None), Tag::Comment)],
     );
     assert_eq!(
         super::parse("{#- #}", s).unwrap(),
-        vec![Node::Comment(Ws(Some(Whitespace::Suppress), None))],
+        vec![Node::Tag(
+            Ws(Some(Whitespace::Suppress), None),
+            Tag::Comment
+        )],
     );
     assert_eq!(
         super::parse("{# -#}", s).unwrap(),
-        vec![Node::Comment(Ws(None, Some(Whitespace::Suppress)))],
+        vec![Node::Tag(
+            Ws(None, Some(Whitespace::Suppress)),
+            Tag::Comment
+        )],
     );
     assert_eq!(
         super::parse("{#--#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Suppress),
-            Some(Whitespace::Suppress)
-        ))],
+        vec![Node::Tag(
+            Ws(Some(Whitespace::Suppress), Some(Whitespace::Suppress)),
+            Tag::Comment
+        )],
     );
     assert_eq!(
         super::parse("{#- foo\n bar -#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Suppress),
-            Some(Whitespace::Suppress)
-        ))],
+        vec![Node::Tag(
+            Ws(Some(Whitespace::Suppress), Some(Whitespace::Suppress)),
+            Tag::Comment
+        )],
     );
     assert_eq!(
         super::parse("{#- foo\n {#- bar\n -#} baz -#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Suppress),
-            Some(Whitespace::Suppress)
-        ))],
+        vec![Node::Tag(
+            Ws(Some(Whitespace::Suppress), Some(Whitespace::Suppress)),
+            Tag::Comment
+        )],
     );
     assert_eq!(
         super::parse("{#+ #}", s).unwrap(),
-        vec![Node::Comment(Ws(Some(Whitespace::Preserve), None))],
+        vec![Node::Tag(
+            Ws(Some(Whitespace::Preserve), None),
+            Tag::Comment
+        )],
     );
     assert_eq!(
         super::parse("{# +#}", s).unwrap(),
-        vec![Node::Comment(Ws(None, Some(Whitespace::Preserve)))],
+        vec![Node::Tag(
+            Ws(None, Some(Whitespace::Preserve)),
+            Tag::Comment
+        )],
     );
     assert_eq!(
         super::parse("{#++#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Preserve),
-            Some(Whitespace::Preserve)
-        ))],
+        vec![Node::Tag(
+            Ws(Some(Whitespace::Preserve), Some(Whitespace::Preserve)),
+            Tag::Comment
+        )],
     );
     assert_eq!(
         super::parse("{#+ foo\n bar +#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Preserve),
-            Some(Whitespace::Preserve)
-        ))],
+        vec![Node::Tag(
+            Ws(Some(Whitespace::Preserve), Some(Whitespace::Preserve)),
+            Tag::Comment
+        )],
     );
     assert_eq!(
         super::parse("{#+ foo\n {#+ bar\n +#} baz -+#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Preserve),
-            Some(Whitespace::Preserve)
-        ))],
+        vec![Node::Tag(
+            Ws(Some(Whitespace::Preserve), Some(Whitespace::Preserve)),
+            Tag::Comment
+        )],
     );
     assert_eq!(
         super::parse("{#~ #}", s).unwrap(),
-        vec![Node::Comment(Ws(Some(Whitespace::Minimize), None))],
+        vec![Node::Tag(
+            Ws(Some(Whitespace::Minimize), None),
+            Tag::Comment
+        )],
     );
     assert_eq!(
         super::parse("{# ~#}", s).unwrap(),
-        vec![Node::Comment(Ws(None, Some(Whitespace::Minimize)))],
+        vec![Node::Tag(
+            Ws(None, Some(Whitespace::Minimize)),
+            Tag::Comment
+        )],
     );
     assert_eq!(
         super::parse("{#~~#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Minimize),
-            Some(Whitespace::Minimize)
-        ))],
+        vec![Node::Tag(
+            Ws(Some(Whitespace::Minimize), Some(Whitespace::Minimize)),
+            Tag::Comment
+        )],
     );
     assert_eq!(
         super::parse("{#~ foo\n bar ~#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Minimize),
-            Some(Whitespace::Minimize)
-        ))],
+        vec![Node::Tag(
+            Ws(Some(Whitespace::Minimize), Some(Whitespace::Minimize)),
+            Tag::Comment
+        )],
     );
     assert_eq!(
         super::parse("{#~ foo\n {#~ bar\n ~#} baz -~#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Minimize),
-            Some(Whitespace::Minimize)
-        ))],
+        vec![Node::Tag(
+            Ws(Some(Whitespace::Minimize), Some(Whitespace::Minimize)),
+            Tag::Comment
+        )],
     );
 
     assert_eq!(
         super::parse("{# foo {# bar #} {# {# baz #} qux #} #}", s).unwrap(),
-        vec![Node::Comment(Ws(None, None))],
+        vec![Node::Tag(Ws(None, None), Tag::Comment)],
     );
 }
 

@@ -18,7 +18,7 @@ use super::{
 #[derive(Debug, PartialEq)]
 pub(crate) enum Node<'a> {
     Lit(Lit<'a>),
-    Comment(Ws),
+    Tag(Ws, Tag),
     Expr(Ws, Expr<'a>),
     Call(Ws, Call<'a>),
     LetDecl(Ws, Target<'a>),
@@ -34,6 +34,11 @@ pub(crate) enum Node<'a> {
     Raw(Ws, Raw<'a>),
     Break(Ws),
     Continue(Ws),
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) enum Tag {
+    Comment,
 }
 
 #[derive(Debug, PartialEq)]
@@ -670,7 +675,7 @@ fn block_comment<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     } else {
         None
     };
-    Ok((i, Node::Comment(Ws(pws, nws))))
+    Ok((i, Node::Tag(Ws(pws, nws), Tag::Comment)))
 }
 
 fn expr_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
