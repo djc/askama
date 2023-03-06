@@ -1,16 +1,10 @@
-use crate::parser::{Expr, Node, Syntax, Whitespace, Ws};
+use crate::parser::{Expr, Lit, Node, Syntax, Whitespace, Ws};
 
 fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
-    match super::split_ws_parts(s) {
-        Node::Lit(lws, s, rws) => {
-            assert_eq!(lws, res.0);
-            assert_eq!(s, res.1);
-            assert_eq!(rws, res.2);
-        }
-        _ => {
-            panic!("fail");
-        }
-    }
+    let Lit { lws, val, rws } = super::split_ws_parts(s);
+    assert_eq!(lws, res.0);
+    assert_eq!(val, res.1);
+    assert_eq!(rws, res.2);
 }
 
 #[test]
