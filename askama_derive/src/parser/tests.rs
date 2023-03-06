@@ -709,6 +709,7 @@ fn test_parse_macro_statement() {
 
 #[test]
 fn test_parse_raw_block() {
+    use super::Raw;
     let syntax = Syntax::default();
     assert_eq!(
         super::parse(
@@ -717,13 +718,15 @@ fn test_parse_raw_block() {
         )
         .unwrap(),
         vec![Node::Raw(
-            Ws(None, Some(Whitespace::Suppress)),
-            Lit {
-                lws: "",
-                val: "{% if condition %}{{ result }}{% endif %}",
-                rws: "",
-            },
-            Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
+            Ws(None, Some(Whitespace::Preserve)),
+            Raw {
+                lit: Lit {
+                    lws: "",
+                    val: "{% if condition %}{{ result }}{% endif %}",
+                    rws: "",
+                },
+                ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
+            }
         )]
     );
 }
