@@ -1,4 +1,4 @@
-use crate::parser::{Block, Expr, Lit, Node, Syntax, Tag, Target, Whitespace, Ws};
+use crate::{Block, Expr, Lit, Node, Syntax, Tag, Target, Whitespace, Ws};
 
 fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
     let Lit { lws, val, rws } = super::split_ws_parts(s);

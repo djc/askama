@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::generator::TemplateArgs;
-use crate::parser::Syntax;
 use crate::CompileError;
+use askama_parser::Syntax;
 
 use std::path::{Path, PathBuf};
 use std::str::FromStr;

@@ -11,7 +11,6 @@ mod config;
 mod generator;
 mod heritage;
 mod input;
-mod parser;
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
@@ -52,8 +51,8 @@ impl From<String> for CompileError {
     }
 }
 
-impl From<parser::ParseError> for CompileError {
-    fn from(e: parser::ParseError) -> Self {
+impl From<askama_parser::ParseError> for CompileError {
+    fn from(e: askama_parser::ParseError) -> Self {
         Self::new(e.to_string())
     }
 }

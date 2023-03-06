@@ -23,8 +23,8 @@ use nom::multi::separated_list1;
 use nom::sequence::{delimited, pair, tuple};
 use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
 
-pub(crate) use self::expr::Expr;
-pub(crate) use self::node::{
+pub use self::expr::Expr;
+pub use self::node::{
     Block, BlockDef, Call, Cond, CondTest, Lit, Loop, Macro, Match, Node, Raw, Tag, Target, When,
 };
 
@@ -35,19 +35,19 @@ mod tests;
 
 /// Askama template syntax configuration.
 #[derive(Debug)]
-pub(crate) struct Syntax<'a> {
+pub struct Syntax<'a> {
     /// Defaults to `"{%"`.
-    pub(crate) block_start: &'a str,
+    pub block_start: &'a str,
     /// Defaults to `"%}"`.
-    pub(crate) block_end: &'a str,
+    pub block_end: &'a str,
     /// Defaults to `"{{"`.
-    pub(crate) expr_start: &'a str,
+    pub expr_start: &'a str,
     /// Defaults to `"}}"`.
-    pub(crate) expr_end: &'a str,
+    pub expr_end: &'a str,
     /// Defaults to `"{#"`.
-    pub(crate) comment_start: &'a str,
+    pub comment_start: &'a str,
     /// Defaults to `"#}"`.
-    pub(crate) comment_end: &'a str,
+    pub comment_end: &'a str,
 }
 
 impl Default for Syntax<'static> {
@@ -65,7 +65,7 @@ impl Default for Syntax<'static> {
 
 /// Whitespace preservation or suppression.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum Whitespace {
+pub enum Whitespace {
     Preserve,
     Suppress,
     Minimize,
@@ -73,11 +73,11 @@ pub(crate) enum Whitespace {
 
 /// Whitespace suppression for a `Tag` or `Block`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub(crate) struct Ws {
+pub struct Ws {
     /// Handling of trailing whitespace on literal text at a transition in to Askama.
-    pub(crate) flush: Option<Whitespace>,
+    pub flush: Option<Whitespace>,
     /// Handling of leading whitespace on literal text at a transition out of Askama.
-    pub(crate) prepare: Option<Whitespace>,
+    pub prepare: Option<Whitespace>,
 }
 
 impl Ws {
@@ -127,7 +127,7 @@ impl From<char> for Whitespace {
 /// Parse template source to an abstract syntax tree.
 ///
 /// Tries to parse the provided template string using the given syntax.
-pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax<'_>) -> Result<Block<'a>, ParseError> {
+pub fn parse<'a>(src: &'a str, syntax: &'a Syntax<'_>) -> Result<Block<'a>, ParseError> {
     let state = State::new(syntax);
     let mut p = all_consuming(complete(|i| Node::parse(i, &state)));
     match p(src) {
@@ -164,21 +164,20 @@ pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax<'_>) -> Result<Block<'a
 
 /// An error encountered when parsing template source.
 #[derive(Debug)]
-pub(crate) struct ParseError {
+pub struct ParseError {
     row: usize,
     column: usize,
     snippet: String,
 }
 
-#[cfg(test)]
 impl ParseError {
     /// The line number in the source where the error was identified.
-    pub(crate) fn line(&self) -> usize {
+    pub fn line(&self) -> usize {
         self.row
     }
 
     /// The column number in the source where the error was identified.
-    pub(crate) fn column(&self) -> usize {
+    pub fn column(&self) -> usize {
         self.column
     }
 }

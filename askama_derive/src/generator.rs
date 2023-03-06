@@ -1,11 +1,11 @@
 use crate::config::{get_template_source, read_config_file, Config, WhitespaceHandling};
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
-use crate::parser::{
+use crate::CompileError;
+use askama_parser::{
     parse, Block, BlockDef, Call, Cond, CondTest, Expr, Lit, Loop, Match, Node, Raw, Tag, Target,
     When, Whitespace, Ws,
 };
-use crate::CompileError;
 
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};

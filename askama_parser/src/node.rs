@@ -21,16 +21,16 @@ use super::{
 ///
 /// This represents both the top-level block of a template and all sub-blocks of statement nodes.
 #[derive(Debug, PartialEq)]
-pub(crate) struct Block<'a> {
+pub struct Block<'a> {
     /// The nodes within the block.
-    pub(crate) nodes: Vec<Node<'a>>,
+    pub nodes: Vec<Node<'a>>,
     /// Whitespace suppression for the inside of the block.
-    pub(crate) ws: Ws,
+    pub ws: Ws,
 }
 
 impl<'a> Block<'a> {
     #[cfg(test)]
-    pub(crate) fn with_whitespace(ws: Ws) -> Self {
+    pub fn with_whitespace(ws: Ws) -> Self {
         Block { nodes: vec![], ws }
     }
 }
@@ -43,7 +43,7 @@ impl<'a> PartialEq<Vec<Node<'a>>> for Block<'a> {
 
 /// An Askama template abstract syntax tree node.
 #[derive(Debug, PartialEq)]
-pub(crate) enum Node<'a> {
+pub enum Node<'a> {
     /// Literal text to output directly.
     Lit(Lit<'a>),
     /// An Askama tag, either a comment, expression, or statement.
@@ -62,7 +62,7 @@ pub(crate) enum Node<'a> {
 /// may or may not have a matching end tag, depending on the type of statement.
 /// Statements with child `Block`s always require an end tag.
 #[derive(Debug, PartialEq)]
-pub(crate) enum Tag<'a> {
+pub enum Tag<'a> {
     /// A block comment.
     ///
     /// ```ignore
@@ -182,7 +182,7 @@ pub(crate) enum Tag<'a> {
 
 /// The Askama equivalent of a Rust pattern, the target of a match or assignment.
 #[derive(Debug, PartialEq)]
-pub(crate) enum Target<'a> {
+pub enum Target<'a> {
     /// Bind the value to a name.
     Name(&'a str),
     /// Destructure a tuple value.
@@ -203,104 +203,104 @@ pub(crate) enum Target<'a> {
 
 /// A literal bit of text to output directly.
 #[derive(Debug, PartialEq)]
-pub(crate) struct Lit<'a> {
+pub struct Lit<'a> {
     /// White space preceeding the text.
-    pub(crate) lws: &'a str,
+    pub lws: &'a str,
     /// The literal text itself.
-    pub(crate) val: &'a str,
+    pub val: &'a str,
     /// White space following the text.
-    pub(crate) rws: &'a str,
+    pub rws: &'a str,
 }
 
 /// A raw block to output directly.
 #[derive(Debug, PartialEq)]
-pub(crate) struct Raw<'a> {
+pub struct Raw<'a> {
     /// The content of the raw block.
-    pub(crate) lit: Lit<'a>,
+    pub lit: Lit<'a>,
     /// Whitespace suppression for the inside of the block.
-    pub(crate) ws: Ws,
+    pub ws: Ws,
 }
 
 /// A macro call statement.
 #[derive(Debug, PartialEq)]
-pub(crate) struct Call<'a> {
+pub struct Call<'a> {
     /// If the macro is imported, the scope name.
-    pub(crate) scope: Option<&'a str>,
+    pub scope: Option<&'a str>,
     /// The name of the macro to call.
-    pub(crate) name: &'a str,
+    pub name: &'a str,
     /// The arguments to the macro.
-    pub(crate) args: Vec<Expr<'a>>,
+    pub args: Vec<Expr<'a>>,
 }
 
 /// A match statement.
 #[derive(Debug, PartialEq)]
-pub(crate) struct Match<'a> {
+pub struct Match<'a> {
     /// The expression to match against.
-    pub(crate) expr: Expr<'a>,
+    pub expr: Expr<'a>,
     /// Each of the match arms, with a pattern and a body.
-    pub(crate) arms: Vec<When<'a>>,
+    pub arms: Vec<When<'a>>,
 }
 
 /// A single arm of a match statement.
 #[derive(Debug, PartialEq)]
-pub(crate) struct When<'a> {
+pub struct When<'a> {
     /// The target pattern to match.
-    pub(crate) target: Target<'a>,
+    pub target: Target<'a>,
     /// Body of the match arm.
-    pub(crate) block: Block<'a>,
+    pub block: Block<'a>,
 }
 
 /// A for loop syntax node.
 #[derive(Debug, PartialEq)]
-pub(crate) struct Loop<'a> {
+pub struct Loop<'a> {
     /// The variable of iteration within the loop.
-    pub(crate) var: Target<'a>,
+    pub var: Target<'a>,
     /// The collection to iterate over.
-    pub(crate) iter: Expr<'a>,
+    pub iter: Expr<'a>,
     /// An optional condition, which if it evaluates to false should skip that iteration.
-    pub(crate) cond: Option<Expr<'a>>,
+    pub cond: Option<Expr<'a>>,
     /// The body of the loop.
-    pub(crate) body: Block<'a>,
+    pub body: Block<'a>,
     /// The else block of the loop, invoked if the collection is empty.
-    pub(crate) else_block: Block<'a>,
+    pub else_block: Block<'a>,
 }
 
 /// A macro definition.
 #[derive(Debug, PartialEq)]
-pub(crate) struct Macro<'a> {
+pub struct Macro<'a> {
     /// The name of the macro.
-    pub(crate) name: &'a str,
+    pub name: &'a str,
     /// Names of each of the macro's parameters.
-    pub(crate) args: Vec<&'a str>,
+    pub args: Vec<&'a str>,
     /// The body of the macro.
-    pub(crate) block: Block<'a>,
+    pub block: Block<'a>,
 }
 
 /// A block statement, either a definition or a reference.
 #[derive(Debug, PartialEq)]
-pub(crate) struct BlockDef<'a> {
+pub struct BlockDef<'a> {
     /// The name of the block.
-    pub(crate) name: &'a str,
+    pub name: &'a str,
     /// The contents of the block.
-    pub(crate) block: Block<'a>,
+    pub block: Block<'a>,
 }
 
 /// A single branch of a conditional statement.
 #[derive(Debug, PartialEq)]
-pub(crate) struct Cond<'a> {
+pub struct Cond<'a> {
     /// The test for this branch, or `None` for the `else` branch.
-    pub(crate) test: Option<CondTest<'a>>,
+    pub test: Option<CondTest<'a>>,
     /// Body of this conditional branch.
-    pub(crate) block: Block<'a>,
+    pub block: Block<'a>,
 }
 
 /// An if or if let condition.
 #[derive(Debug, PartialEq)]
-pub(crate) struct CondTest<'a> {
+pub struct CondTest<'a> {
     /// For an if let, the assignment target.
-    pub(crate) target: Option<Target<'a>>,
+    pub target: Option<Target<'a>>,
     /// The condition expression to evaluate.
-    pub(crate) expr: Expr<'a>,
+    pub expr: Expr<'a>,
 }
 
 impl Node<'_> {

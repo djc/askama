@@ -31,6 +31,7 @@ with-tide = []
 with-warp = []
 
 [dependencies]
+askama_parser = { version = "0.1", path = "../askama_parser" }
 mime = "0.3"
 mime_guess = "2"
 proc-macro2 = "1"

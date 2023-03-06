@@ -16,7 +16,7 @@ use super::{
 
 /// An Askama expression.
 #[derive(Debug, PartialEq)]
-pub(crate) enum Expr<'a> {
+pub enum Expr<'a> {
     /// A boolean literal.
     BoolLit(&'a str),
     /// A numeric literal.
@@ -66,7 +66,7 @@ impl Expr<'_> {
 
     /// Returns `true` if enough assumptions can be made,
     /// to determine that `self` is copyable.
-    pub(crate) fn is_copyable(&self) -> bool {
+    pub fn is_copyable(&self) -> bool {
         self.is_copyable_within_op(false)
     }
 
@@ -94,7 +94,7 @@ impl Expr<'_> {
     }
 
     /// Returns `true` if this is an `Attr` where the `obj` is `"self"`.
-    pub(crate) fn is_attr_self(&self) -> bool {
+    pub fn is_attr_self(&self) -> bool {
         match self {
             Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Var("self")) => true,
             Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Attr(..)) => obj.is_attr_self(),
@@ -105,7 +105,7 @@ impl Expr<'_> {
     /// Returns `true` if the outcome of this expression may be used multiple times in the same
     /// `write!()` call, without evaluating the expression again, i.e. the expression should be
     /// side-effect free.
-    pub(crate) fn is_cacheable(&self) -> bool {
+    pub fn is_cacheable(&self) -> bool {
         match self {
             // Literals are the definition of pure:
             Expr::BoolLit(_) => true,
