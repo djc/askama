@@ -666,3 +666,28 @@ fn test_missing_space_after_kw() {
         "unable to parse template:\n\n\"{%leta=b%}\""
     ));
 }
+
+#[test]
+fn test_parse_call_statement() {
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse("{% call foo(bar) %}", &syntax).unwrap(),
+        vec![Node::Call(
+            Ws(None, None),
+            None,
+            "foo",
+            vec![
+                Expr::Var("bar"),
+            ],
+        )],
+    );
+    assert_eq!(
+        super::parse("{% call foo::bar() %}", &syntax).unwrap(),
+        vec![Node::Call(
+            Ws(None, None),
+            Some("foo"),
+            "bar",
+            vec![],
+        )],
+    );
+}
