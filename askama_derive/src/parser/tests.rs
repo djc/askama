@@ -28,29 +28,35 @@ fn test_parse_filter() {
     let syntax = Syntax::default();
     assert_eq!(
         super::parse("{{ strvar|e }}", &syntax).unwrap(),
-        vec![Node::Expr(Ws(None, None), Filter("e", vec![Var("strvar")]),)],
+        vec![Node::Tag(
+            Ws(None, None),
+            Tag::Expr(Filter("e", vec![Var("strvar")])),
+        )],
     );
     assert_eq!(
         super::parse("{{ 2|abs }}", &syntax).unwrap(),
-        vec![Node::Expr(Ws(None, None), Filter("abs", vec![NumLit("2")]),)],
+        vec![Node::Tag(
+            Ws(None, None),
+            Tag::Expr(Filter("abs", vec![NumLit("2")])),
+        )],
     );
     assert_eq!(
         super::parse("{{ -2|abs }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Filter("abs", vec![Unary("-", NumLit("2").into())]),
+            Tag::Expr(Filter("abs", vec![Unary("-", NumLit("2").into())])),
         )],
     );
     assert_eq!(
         super::parse("{{ (1 - 2)|abs }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Filter(
+            Tag::Expr(Filter(
                 "abs",
                 vec![Group(
                     BinOp("-", NumLit("1").into(), NumLit("2").into()).into()
                 )]
-            ),
+            )),
         )],
     );
 }
@@ -60,11 +66,11 @@ fn test_parse_numbers() {
     let syntax = Syntax::default();
     assert_eq!(
         super::parse("{{ 2 }}", &syntax).unwrap(),
-        vec![Node::Expr(Ws(None, None), Expr::NumLit("2"),)],
+        vec![Node::Tag(Ws(None, None), Tag::Expr(Expr::NumLit("2")))],
     );
     assert_eq!(
         super::parse("{{ 2.5 }}", &syntax).unwrap(),
-        vec![Node::Expr(Ws(None, None), Expr::NumLit("2.5"),)],
+        vec![Node::Tag(Ws(None, None), Tag::Expr(Expr::NumLit("2.5")))],
     );
 }
 
@@ -74,16 +80,16 @@ fn test_parse_var() {
 
     assert_eq!(
         super::parse("{{ foo }}", &s).unwrap(),
-        vec![Node::Expr(Ws(None, None), Expr::Var("foo"))],
+        vec![Node::Tag(Ws(None, None), Tag::Expr(Expr::Var("foo")))],
     );
     assert_eq!(
         super::parse("{{ foo_bar }}", &s).unwrap(),
-        vec![Node::Expr(Ws(None, None), Expr::Var("foo_bar"))],
+        vec![Node::Tag(Ws(None, None), Tag::Expr(Expr::Var("foo_bar")))],
     );
 
     assert_eq!(
         super::parse("{{ none }}", &s).unwrap(),
-        vec![Node::Expr(Ws(None, None), Expr::Var("none"))],
+        vec![Node::Tag(Ws(None, None), Tag::Expr(Expr::Var("none")))],
     );
 }
 
@@ -93,16 +99,25 @@ fn test_parse_const() {
 
     assert_eq!(
         super::parse("{{ FOO }}", &s).unwrap(),
-        vec![Node::Expr(Ws(None, None), Expr::Path(vec!["FOO"]))],
+        vec![Node::Tag(
+            Ws(None, None),
+            Tag::Expr(Expr::Path(vec!["FOO"])),
+        )],
     );
     assert_eq!(
         super::parse("{{ FOO_BAR }}", &s).unwrap(),
-        vec![Node::Expr(Ws(None, None), Expr::Path(vec!["FOO_BAR"]))],
+        vec![Node::Tag(
+            Ws(None, None),
+            Tag::Expr(Expr::Path(vec!["FOO_BAR"])),
+        )],
     );
 
     assert_eq!(
         super::parse("{{ NONE }}", &s).unwrap(),
-        vec![Node::Expr(Ws(None, None), Expr::Path(vec!["NONE"]))],
+        vec![Node::Tag(
+            Ws(None, None),
+            Tag::Expr(Expr::Path(vec!["NONE"])),
+        )],
     );
 }
 
@@ -112,31 +127,40 @@ fn test_parse_path() {
 
     assert_eq!(
         super::parse("{{ None }}", &s).unwrap(),
-        vec![Node::Expr(Ws(None, None), Expr::Path(vec!["None"]))],
+        vec![Node::Tag(
+            Ws(None, None),
+            Tag::Expr(Expr::Path(vec!["None"])),
+        )],
     );
     assert_eq!(
         super::parse("{{ Some(123) }}", &s).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Expr::Call(
+            Tag::Expr(Expr::Call(
                 Box::new(Expr::Path(vec!["Some"])),
-                vec![Expr::NumLit("123")]
-            ),
+                vec![Expr::NumLit("123")],
+            )),
         )],
     );
 
     assert_eq!(
         super::parse("{{ Ok(123) }}", &s).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Expr::Call(Box::new(Expr::Path(vec!["Ok"])), vec![Expr::NumLit("123")]),
+            Tag::Expr(Expr::Call(
+                Box::new(Expr::Path(vec!["Ok"])),
+                vec![Expr::NumLit("123")],
+            )),
         )],
     );
     assert_eq!(
         super::parse("{{ Err(123) }}", &s).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Expr::Call(Box::new(Expr::Path(vec!["Err"])), vec![Expr::NumLit("123")]),
+            Tag::Expr(Expr::Call(
+                Box::new(Expr::Path(vec!["Err"])),
+                vec![Expr::NumLit("123")],
+            )),
         )],
     );
 }
@@ -145,12 +169,12 @@ fn test_parse_path() {
 fn test_parse_var_call() {
     assert_eq!(
         super::parse("{{ function(\"123\", 3) }}", &Syntax::default()).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Expr::Call(
+            Tag::Expr(Expr::Call(
                 Box::new(Expr::Var("function")),
-                vec![Expr::StrLit("123"), Expr::NumLit("3")]
-            ),
+                vec![Expr::StrLit("123"), Expr::NumLit("3")],
+            )),
         )],
     );
 }
@@ -161,30 +185,30 @@ fn test_parse_path_call() {
 
     assert_eq!(
         super::parse("{{ Option::None }}", &s).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Expr::Path(vec!["Option", "None"])
+            Tag::Expr(Expr::Path(vec!["Option", "None"])),
         )],
     );
     assert_eq!(
         super::parse("{{ Option::Some(123) }}", &s).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Expr::Call(
+            Tag::Expr(Expr::Call(
                 Box::new(Expr::Path(vec!["Option", "Some"])),
                 vec![Expr::NumLit("123")],
-            ),
+            )),
         )],
     );
 
     assert_eq!(
         super::parse("{{ self::function(\"123\", 3) }}", &s).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Expr::Call(
+            Tag::Expr(Expr::Call(
                 Box::new(Expr::Path(vec!["self", "function"])),
                 vec![Expr::StrLit("123"), Expr::NumLit("3")],
-            ),
+            )),
         )],
     );
 }
@@ -194,22 +218,22 @@ fn test_parse_root_path() {
     let syntax = Syntax::default();
     assert_eq!(
         super::parse("{{ std::string::String::new() }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Expr::Call(
+            Tag::Expr(Expr::Call(
                 Box::new(Expr::Path(vec!["std", "string", "String", "new"])),
-                vec![]
-            ),
+                vec![],
+            )),
         )],
     );
     assert_eq!(
         super::parse("{{ ::std::string::String::new() }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Expr::Call(
+            Tag::Expr(Expr::Call(
                 Box::new(Expr::Path(vec!["", "std", "string", "String", "new"])),
-                vec![]
-            ),
+                vec![],
+            )),
         )],
     );
 }
@@ -231,20 +255,20 @@ fn test_precedence() {
     let syntax = Syntax::default();
     assert_eq!(
         super::parse("{{ a + b == c }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            BinOp(
+            Tag::Expr(BinOp(
                 "==",
                 BinOp("+", Var("a").into(), Var("b").into()).into(),
                 Var("c").into(),
-            )
+            )),
         )],
     );
     assert_eq!(
         super::parse("{{ a + b * c - d / e }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            BinOp(
+            Tag::Expr(BinOp(
                 "-",
                 BinOp(
                     "+",
@@ -253,14 +277,14 @@ fn test_precedence() {
                 )
                 .into(),
                 BinOp("/", Var("d").into(), Var("e").into()).into(),
-            )
+            )),
         )],
     );
     assert_eq!(
         super::parse("{{ a * (b + c) / -d }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            BinOp(
+            Tag::Expr(BinOp(
                 "/",
                 BinOp(
                     "*",
@@ -269,14 +293,14 @@ fn test_precedence() {
                 )
                 .into(),
                 Unary("-", Var("d").into()).into()
-            )
+            )),
         )],
     );
     assert_eq!(
         super::parse("{{ a || b && c || d && e }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            BinOp(
+            Tag::Expr(BinOp(
                 "||",
                 BinOp(
                     "||",
@@ -285,7 +309,7 @@ fn test_precedence() {
                 )
                 .into(),
                 BinOp("&&", Var("d").into(), Var("e").into()).into(),
-            )
+            )),
         )],
     );
 }
@@ -296,42 +320,42 @@ fn test_associativity() {
     let syntax = Syntax::default();
     assert_eq!(
         super::parse("{{ a + b + c }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            BinOp(
+            Tag::Expr(BinOp(
                 "+",
                 BinOp("+", Var("a").into(), Var("b").into()).into(),
                 Var("c").into()
-            )
+            )),
         )],
     );
     assert_eq!(
         super::parse("{{ a * b * c }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            BinOp(
+            Tag::Expr(BinOp(
                 "*",
                 BinOp("*", Var("a").into(), Var("b").into()).into(),
                 Var("c").into()
-            )
+            )),
         )],
     );
     assert_eq!(
         super::parse("{{ a && b && c }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            BinOp(
+            Tag::Expr(BinOp(
                 "&&",
                 BinOp("&&", Var("a").into(), Var("b").into()).into(),
                 Var("c").into()
-            )
+            )),
         )],
     );
     assert_eq!(
         super::parse("{{ a + b - c + d }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            BinOp(
+            Tag::Expr(BinOp(
                 "+",
                 BinOp(
                     "-",
@@ -340,14 +364,14 @@ fn test_associativity() {
                 )
                 .into(),
                 Var("d").into()
-            )
+            )),
         )],
     );
     assert_eq!(
         super::parse("{{ a == b != c > d > e == f }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            BinOp(
+            Tag::Expr(BinOp(
                 "==",
                 BinOp(
                     ">",
@@ -366,7 +390,7 @@ fn test_associativity() {
                 )
                 .into(),
                 Var("f").into()
-            )
+            )),
         )],
     );
 }
@@ -377,54 +401,57 @@ fn test_odd_calls() {
     let syntax = Syntax::default();
     assert_eq!(
         super::parse("{{ a[b](c) }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Call(
+            Tag::Expr(Call(
                 Box::new(Index(Box::new(Var("a")), Box::new(Var("b")))),
                 vec![Var("c")],
-            ),
+            )),
         )],
     );
     assert_eq!(
         super::parse("{{ (a + b)(c) }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Call(
+            Tag::Expr(Call(
                 Box::new(Group(Box::new(BinOp(
                     "+",
                     Box::new(Var("a")),
                     Box::new(Var("b"))
                 )))),
                 vec![Var("c")],
-            ),
+            )),
         )],
     );
     assert_eq!(
         super::parse("{{ a + b(c) }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            BinOp(
+            Tag::Expr(BinOp(
                 "+",
                 Box::new(Var("a")),
                 Box::new(Call(Box::new(Var("b")), vec![Var("c")])),
-            ),
+            )),
         )],
     );
     assert_eq!(
         super::parse("{{ (-a)(b) }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Call(
+            Tag::Expr(Call(
                 Box::new(Group(Box::new(Unary("-", Box::new(Var("a")))))),
                 vec![Var("b")],
-            ),
+            )),
         )],
     );
     assert_eq!(
         super::parse("{{ -a(b) }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Unary("-", Box::new(Call(Box::new(Var("a")), vec![Var("b")])),),
+            Tag::Expr(Unary(
+                "-",
+                Box::new(Call(Box::new(Var("a")), vec![Var("b")]))
+            )),
         )],
     );
 }
@@ -586,115 +613,130 @@ fn test_parse_tuple() {
     let syntax = Syntax::default();
     assert_eq!(
         super::parse("{{ () }}", &syntax).unwrap(),
-        vec![Node::Expr(Ws(None, None), Tuple(vec![]),)],
+        vec![Node::Tag(Ws(None, None), Tag::Expr(Tuple(vec![])))],
     );
     assert_eq!(
         super::parse("{{ (1) }}", &syntax).unwrap(),
-        vec![Node::Expr(Ws(None, None), Group(Box::new(NumLit("1"))),)],
+        vec![Node::Tag(
+            Ws(None, None),
+            Tag::Expr(Group(Box::new(NumLit("1"))))
+        )],
     );
     assert_eq!(
         super::parse("{{ (1,) }}", &syntax).unwrap(),
-        vec![Node::Expr(Ws(None, None), Tuple(vec![NumLit("1")]),)],
+        vec![Node::Tag(
+            Ws(None, None),
+            Tag::Expr(Tuple(vec![NumLit("1")]))
+        )],
     );
     assert_eq!(
         super::parse("{{ (1, ) }}", &syntax).unwrap(),
-        vec![Node::Expr(Ws(None, None), Tuple(vec![NumLit("1")]),)],
+        vec![Node::Tag(
+            Ws(None, None),
+            Tag::Expr(Tuple(vec![NumLit("1")]))
+        )],
     );
     assert_eq!(
         super::parse("{{ (1 ,) }}", &syntax).unwrap(),
-        vec![Node::Expr(Ws(None, None), Tuple(vec![NumLit("1")]),)],
+        vec![Node::Tag(
+            Ws(None, None),
+            Tag::Expr(Tuple(vec![NumLit("1")]))
+        )],
     );
     assert_eq!(
         super::parse("{{ (1 , ) }}", &syntax).unwrap(),
-        vec![Node::Expr(Ws(None, None), Tuple(vec![NumLit("1")]),)],
+        vec![Node::Tag(
+            Ws(None, None),
+            Tag::Expr(Tuple(vec![NumLit("1")]))
+        )],
     );
     assert_eq!(
         super::parse("{{ (1, 2) }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Tuple(vec![NumLit("1"), NumLit("2")]),
+            Tag::Expr(Tuple(vec![NumLit("1"), NumLit("2")])),
         )],
     );
     assert_eq!(
         super::parse("{{ (1, 2,) }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Tuple(vec![NumLit("1"), NumLit("2")]),
+            Tag::Expr(Tuple(vec![NumLit("1"), NumLit("2")])),
         )],
     );
     assert_eq!(
         super::parse("{{ (1, 2, 3) }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Tuple(vec![NumLit("1"), NumLit("2"), NumLit("3")]),
+            Tag::Expr(Tuple(vec![NumLit("1"), NumLit("2"), NumLit("3")])),
         )],
     );
     assert_eq!(
         super::parse("{{ ()|abs }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Filter("abs", vec![Tuple(vec![])]),
+            Tag::Expr(Filter("abs", vec![Tuple(vec![])])),
         )],
     );
     assert_eq!(
         super::parse("{{ () | abs }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            BinOp("|", Box::new(Tuple(vec![])), Box::new(Var("abs"))),
+            Tag::Expr(BinOp("|", Box::new(Tuple(vec![])), Box::new(Var("abs")))),
         )],
     );
     assert_eq!(
         super::parse("{{ (1)|abs }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Filter("abs", vec![Group(Box::new(NumLit("1")))]),
+            Tag::Expr(Filter("abs", vec![Group(Box::new(NumLit("1")))])),
         )],
     );
     assert_eq!(
         super::parse("{{ (1) | abs }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            BinOp(
+            Tag::Expr(BinOp(
                 "|",
                 Box::new(Group(Box::new(NumLit("1")))),
                 Box::new(Var("abs"))
-            ),
+            )),
         )],
     );
     assert_eq!(
         super::parse("{{ (1,)|abs }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Filter("abs", vec![Tuple(vec![NumLit("1")])]),
+            Tag::Expr(Filter("abs", vec![Tuple(vec![NumLit("1")])])),
         )],
     );
     assert_eq!(
         super::parse("{{ (1,) | abs }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            BinOp(
+            Tag::Expr(BinOp(
                 "|",
                 Box::new(Tuple(vec![NumLit("1")])),
                 Box::new(Var("abs"))
-            ),
+            )),
         )],
     );
     assert_eq!(
         super::parse("{{ (1, 2)|abs }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            Filter("abs", vec![Tuple(vec![NumLit("1"), NumLit("2")])]),
+            Tag::Expr(Filter("abs", vec![Tuple(vec![NumLit("1"), NumLit("2")])])),
         )],
     );
     assert_eq!(
         super::parse("{{ (1, 2) | abs }}", &syntax).unwrap(),
-        vec![Node::Expr(
+        vec![Node::Tag(
             Ws(None, None),
-            BinOp(
+            Tag::Expr(BinOp(
                 "|",
                 Box::new(Tuple(vec![NumLit("1"), NumLit("2")])),
                 Box::new(Var("abs"))
-            ),
+            )),
         )],
     );
 }

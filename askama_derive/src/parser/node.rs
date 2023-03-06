@@ -18,8 +18,7 @@ use super::{
 #[derive(Debug, PartialEq)]
 pub(crate) enum Node<'a> {
     Lit(Lit<'a>),
-    Tag(Ws, Tag),
-    Expr(Ws, Expr<'a>),
+    Tag(Ws, Tag<'a>),
     Call(Ws, Call<'a>),
     LetDecl(Ws, Target<'a>),
     Let(Ws, Target<'a>, Expr<'a>),
@@ -37,8 +36,9 @@ pub(crate) enum Node<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum Tag {
+pub(crate) enum Tag<'a> {
     Comment,
+    Expr(Expr<'a>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -689,7 +689,7 @@ fn expr_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         ))),
     ));
     let (i, (_, (pws, expr, nws, _))) = p(i)?;
-    Ok((i, Node::Expr(Ws(pws, nws), expr)))
+    Ok((i, Node::Tag(Ws(pws, nws), Tag::Expr(expr))))
 }
 
 fn parse_template<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {

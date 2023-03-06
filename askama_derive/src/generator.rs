@@ -626,12 +626,8 @@ impl<'a> Generator<'a> {
                     self.flush_ws(ws);
                     match tag {
                         Tag::Comment => {}
+                        Tag::Expr(val) => self.write_expr(val),
                     }
-                    self.prepare_ws(ws);
-                }
-                Node::Expr(ws, ref val) => {
-                    self.flush_ws(ws);
-                    self.write_expr(val);
                     self.prepare_ws(ws);
                 }
                 Node::LetDecl(ws, ref var) => {
