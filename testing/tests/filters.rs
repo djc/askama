@@ -44,7 +44,8 @@ fn filter_opt_escaper_none() {
         r#"<h1 class="title">Foo Bar</h1>
 &lt;h1 class=&quot;title&quot;&gt;Foo Bar&lt;/h1&gt;
 <h1 class="title">Foo Bar</h1>
-<h1 class="title">Foo Bar</h1>"#
+<h1 class="title">Foo Bar</h1>
+"#
     );
 }
 
@@ -68,7 +69,8 @@ fn filter_opt_escaper_html() {
         r#"<h1 class="title">Foo Bar</h1>
 &lt;h1 class=&quot;title&quot;&gt;Foo Bar&lt;/h1&gt;
 &lt;h1 class=&quot;title&quot;&gt;Foo Bar&lt;/h1&gt;
-&lt;h1 class=&quot;title&quot;&gt;Foo Bar&lt;/h1&gt;"#
+&lt;h1 class=&quot;title&quot;&gt;Foo Bar&lt;/h1&gt;
+"#
     );
 }
 
