@@ -635,8 +635,8 @@ impl<'a> Generator<'a> {
                         Tag::Cond(conds) => {
                             size_hint += self.write_cond(ctx, buf, conds)?;
                         }
-                        Tag::Match(Match { expr, arms }) => {
-                            size_hint += self.write_match(ctx, buf, expr, arms)?;
+                        Tag::Match(match_node) => {
+                            size_hint += self.write_match(ctx, buf, match_node)?;
                         }
                     }
                     self.prepare_ws(ws);
@@ -776,9 +776,10 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        expr: &Expr<'_>,
-        arms: &'a [When<'_>],
+        match_node: &'a Match<'_>,
     ) -> Result<usize, CompileError> {
+        let Match { expr, arms } = match_node;
+
         let flushed = self.write_buf_writable(buf)?;
         let mut arm_sizes = Vec::new();
 
