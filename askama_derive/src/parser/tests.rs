@@ -818,29 +818,29 @@ fn test_parse_cond() {
     assert_eq!(
         super::parse("{% if condition -%}{%~ endif +%}", &syntax).unwrap(),
         vec![Node::Cond(
+            Ws(None, Some(Whitespace::Preserve)),
             vec![Cond {
                 test: Some(CondTest {
                     expr: Expr::Var("condition"),
                     target: None,
                 }),
                 block: vec![],
-                ws: Ws(None, Some(Whitespace::Suppress)),
+                ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
             },],
-            Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
         )],
     );
     assert_eq!(
         super::parse("{% if let Some(val) = condition -%}{%~ endif +%}", &syntax).unwrap(),
         vec![Node::Cond(
+            Ws(None, Some(Whitespace::Preserve)),
             vec![Cond {
                 test: Some(CondTest {
                     expr: Expr::Var("condition"),
                     target: Some(Target::Tuple(vec!["Some"], vec![Target::Name("val")],)),
                 }),
                 block: vec![],
-                ws: Ws(None, Some(Whitespace::Suppress)),
+                ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
             },],
-            Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
         )],
     );
     assert_eq!(
@@ -850,6 +850,7 @@ fn test_parse_cond() {
         )
         .unwrap(),
         vec![Node::Cond(
+            Ws(None, Some(Whitespace::Preserve)),
             vec![
                 Cond {
                     test: Some(CondTest {
@@ -857,7 +858,7 @@ fn test_parse_cond() {
                         target: None,
                     }),
                     block: vec![],
-                    ws: Ws(None, Some(Whitespace::Suppress)),
+                    ws: Ws(Some(Whitespace::Preserve), Some(Whitespace::Suppress)),
                 },
                 Cond {
                     test: Some(CondTest {
@@ -865,7 +866,7 @@ fn test_parse_cond() {
                         target: None,
                     }),
                     block: vec![],
-                    ws: Ws(Some(Whitespace::Preserve), Some(Whitespace::Suppress)),
+                    ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
                 },
                 Cond {
                     test: None,
@@ -873,7 +874,6 @@ fn test_parse_cond() {
                     ws: Ws(Some(Whitespace::Minimize), None),
                 },
             ],
-            Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
         )],
     );
 }

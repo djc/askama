@@ -23,7 +23,7 @@ pub(crate) enum Node<'a> {
     Call(Ws, Call<'a>),
     LetDecl(Ws, Target<'a>),
     Let(Ws, Target<'a>, Expr<'a>),
-    Cond(Vec<Cond<'a>>, Ws),
+    Cond(Ws, Vec<Cond<'a>>),
     Match(Ws, Match<'a>),
     Loop(Ws, Loop<'a>),
     Extends(&'a str),
@@ -255,7 +255,21 @@ fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         block,
     }];
     res.extend(elifs);
-    Ok((i, Node::Cond(res, Ws(pws2, nws2))))
+
+    let outer = Ws(pws1, nws2);
+
+    let mut cursor = pws2;
+    let mut idx = res.len() - 1;
+    loop {
+        std::mem::swap(&mut cursor, &mut res[idx].ws.0);
+
+        if idx == 0 {
+            break;
+        }
+        idx -= 1;
+    }
+
+    Ok((i, Node::Cond(outer, res)))
 }
 
 fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {

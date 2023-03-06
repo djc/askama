@@ -80,7 +80,7 @@ impl Context<'_> {
                         blocks.push(def);
                         nested.push(block);
                     }
-                    Node::Cond(branches, _) => {
+                    Node::Cond(_, branches) => {
                         for Cond { block, .. } in branches {
                             nested.push(block);
                         }
