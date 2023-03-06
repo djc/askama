@@ -653,8 +653,10 @@ impl<'a> Generator<'a> {
                 Node::Let(ws, ref var, ref val) => {
                     self.write_let(buf, ws, var, val)?;
                 }
-                Node::Cond(ref conds, ws) => {
-                    size_hint += self.write_cond(ctx, buf, conds, ws)?;
+                Node::Cond(ws, ref conds) => {
+                    self.flush_ws(ws);
+                    size_hint += self.write_cond(ctx, buf, conds)?;
+                    self.prepare_ws(ws);
                 }
                 Node::Match(ws, Match { ref expr, ref arms }) => {
                     self.flush_ws(ws);
@@ -735,13 +737,11 @@ impl<'a> Generator<'a> {
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
         conds: &'a [Cond<'_>],
-        ws: Ws,
     ) -> Result<usize, CompileError> {
         let mut flushed = 0;
         let mut arm_sizes = Vec::new();
         let mut has_else = false;
         for (i, cond) in conds.iter().enumerate() {
-            self.handle_ws(cond.ws);
             flushed += self.write_buf_writable(buf)?;
             if i > 0 {
                 self.locals.pop();
@@ -784,10 +784,11 @@ impl<'a> Generator<'a> {
 
             buf.writeln(" {")?;
 
+            self.prepare_ws(cond.ws);
             arm_size += self.handle(ctx, &cond.block, buf, AstLevel::Nested)?;
             arm_sizes.push(arm_size);
+            self.flush_ws(cond.ws);
         }
-        self.handle_ws(ws);
         flushed += self.write_buf_writable(buf)?;
         buf.writeln("}")?;
 
