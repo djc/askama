@@ -1,3 +1,5 @@
+//! Template abstract syntax tree node types
+
 use std::str;
 
 use nom::branch::alt;
@@ -15,9 +17,14 @@ use super::{
     tag_expr_start, take_content, ws, Expr, State, Whitespace, Ws,
 };
 
+/// An Askama block.
+///
+/// This represents both the top-level block of a template and all sub-blocks of statement nodes.
 #[derive(Debug, PartialEq)]
 pub(crate) struct Block<'a> {
+    /// The nodes within the block.
     pub(crate) nodes: Vec<Node<'a>>,
+    /// Whitespace suppression for the inside of the block.
     pub(crate) ws: Ws,
 }
 
@@ -34,57 +41,183 @@ impl<'a> PartialEq<Vec<Node<'a>>> for Block<'a> {
     }
 }
 
+/// An Askama template abstract syntax tree node.
 #[derive(Debug, PartialEq)]
 pub(crate) enum Node<'a> {
+    /// Literal text to output directly.
     Lit(Lit<'a>),
+    /// An Askama tag, either a comment, expression, or statement.
+    ///
+    /// The `Ws` element represents whitespace suppression for the outside of the entire tag.
     Tag(Ws, Tag<'a>),
 }
 
+/// An Askama tag.
+///
+/// Tags come in three "flavors": comments, expressions, and statements.
+/// With the default syntax, comments are tags wrapped in `{# #}`, expressions are
+/// wrapped in `{{ }}`, and statements in `{% %}`.
+///
+/// Expression and comment tags are always self-closing.  Statement tags
+/// may or may not have a matching end tag, depending on the type of statement.
+/// Statements with child `Block`s always require an end tag.
 #[derive(Debug, PartialEq)]
 pub(crate) enum Tag<'a> {
+    /// A block comment.
+    ///
+    /// ```ignore
+    /// {# A Comment #}
+    /// ```
     Comment,
+    /// An expression, the result of which will be output.
+    ///
+    /// ```ignore
+    /// {{ 25 / 6 - 4 }}
+    /// ```
     Expr(Expr<'a>),
+    /// A macro invocation.
+    ///
+    /// ```ignore
+    /// {% call scope::heading(s) %}
+    /// ```
     Call(Call<'a>),
+    /// A variable declaration without an assignment.
+    ///
+    /// ```ignore
+    /// {% let val %}
+    /// ```
     LetDecl(Target<'a>),
+    /// A variable assignment.
+    ///
+    /// ```ignore
+    /// {% let val = "foo" %}
+    /// ```
     Let(Target<'a>, Expr<'a>),
+    /// An if-else block.
+    ///
+    /// ```ignore
+    /// {% if users.len() == 0 %}
+    ///   No users
+    /// {% else if users.len() == 1 %}
+    ///   1 user
+    /// {% else %}
+    ///   {{ users.len() }} users
+    /// {% endif %}
+    /// ```
     Cond(Vec<Cond<'a>>),
+    /// A match block with several clauses.
+    ///
+    /// ```ignore
+    /// {% match item %}
+    ///   {% when Some with ("foo") %}
+    ///     Found literal foo
+    ///   {% when Some with (val) %}
+    ///     Found {{ val }}
+    ///   {% when None %}
+    /// {% endmatch %}
+    /// ```
     Match(Match<'a>),
+    /// A for loop.
+    ///
+    /// ```ignore
+    /// Users
+    /// -----
+    /// {% for user in users %}
+    ///   - {{ user.name }}
+    /// {% endfor %}
+    /// ```
     Loop(Loop<'a>),
-    BlockDef(BlockDef<'a>),
-    Include(&'a str),
-    Import(&'a str, &'a str),
+    /// A template inheritance declaration.
+    ///
+    /// ```ignore
+    /// {% extends "base.html" %}
+    /// ```
     Extends(&'a str),
+    /// A block definition.
+    ///
+    /// ```ignore
+    /// {% block title %}Index{% endblock %}
+    /// ```
+    BlockDef(BlockDef<'a>),
+    /// Include the specified template file inline here.
+    ///
+    /// ```ignore
+    /// {% include "item.html" %}
+    /// ```
+    Include(&'a str),
+    /// Import macros from another template file.
+    ///
+    /// ```ignore
+    /// {% import "macros.html" as scope %}
+    /// ```
+    Import(&'a str, &'a str),
+    /// A macro declaration.
+    ///
+    /// ```ignore
+    /// {% macro heading(arg) %}
+    /// {{arg}}
+    /// -------
+    /// {% endmacro %}
+    /// ```
     Macro(Macro<'a>),
+    /// A raw block.
+    ///
+    /// ```ignore
+    /// {% raw %}
+    /// {{ this * is - not + an % expression }}
+    /// {% endraw %}
+    /// ```
     Raw(Raw<'a>),
+    /// The break statement.
     Break,
+    /// The continue statement.
     Continue,
+    /// A call to render the parent block.
+    ///
+    /// ```ignore
+    /// {% call super() %}
+    /// ```
     Super,
 }
 
+/// The Askama equivalent of a Rust pattern, the target of a match or assignment.
 #[derive(Debug, PartialEq)]
 pub(crate) enum Target<'a> {
+    /// Bind the value to a name.
     Name(&'a str),
+    /// Destructure a tuple value.
     Tuple(Vec<&'a str>, Vec<Target<'a>>),
+    /// Destructure a struct value.
     Struct(Vec<&'a str>, Vec<(&'a str, Target<'a>)>),
+    /// Match a numeric literal.
     NumLit(&'a str),
+    /// Match a string literal.
     StrLit(&'a str),
+    /// Match a character literal.
     CharLit(&'a str),
+    /// Match a boolean literal.
     BoolLit(&'a str),
+    /// Match against a path.
     Path(Vec<&'a str>),
 }
 
 /// A literal bit of text to output directly.
 #[derive(Debug, PartialEq)]
 pub(crate) struct Lit<'a> {
+    /// White space preceeding the text.
     pub(crate) lws: &'a str,
+    /// The literal text itself.
     pub(crate) val: &'a str,
+    /// White space following the text.
     pub(crate) rws: &'a str,
 }
 
 /// A raw block to output directly.
 #[derive(Debug, PartialEq)]
 pub(crate) struct Raw<'a> {
+    /// The content of the raw block.
     pub(crate) lit: Lit<'a>,
+    /// Whitespace suppression for the inside of the block.
     pub(crate) ws: Ws,
 }
 
@@ -117,26 +250,38 @@ pub(crate) struct When<'a> {
     pub(crate) block: Block<'a>,
 }
 
+/// A for loop syntax node.
 #[derive(Debug, PartialEq)]
 pub(crate) struct Loop<'a> {
+    /// The variable of iteration within the loop.
     pub(crate) var: Target<'a>,
+    /// The collection to iterate over.
     pub(crate) iter: Expr<'a>,
+    /// An optional condition, which if it evaluates to false should skip that iteration.
     pub(crate) cond: Option<Expr<'a>>,
+    /// The body of the loop.
     pub(crate) body: Block<'a>,
+    /// The else block of the loop, invoked if the collection is empty.
     pub(crate) else_block: Block<'a>,
 }
 
+/// A macro definition.
 #[derive(Debug, PartialEq)]
 pub(crate) struct Macro<'a> {
+    /// The name of the macro.
     pub(crate) name: &'a str,
+    /// Names of each of the macro's parameters.
     pub(crate) args: Vec<&'a str>,
+    /// The body of the macro.
     pub(crate) block: Block<'a>,
 }
 
 /// A block statement, either a definition or a reference.
 #[derive(Debug, PartialEq)]
 pub(crate) struct BlockDef<'a> {
+    /// The name of the block.
     pub(crate) name: &'a str,
+    /// The contents of the block.
     pub(crate) block: Block<'a>,
 }
 
@@ -149,9 +294,12 @@ pub(crate) struct Cond<'a> {
     pub(crate) block: Block<'a>,
 }
 
+/// An if or if let condition.
 #[derive(Debug, PartialEq)]
 pub(crate) struct CondTest<'a> {
+    /// For an if let, the assignment target.
     pub(crate) target: Option<Target<'a>>,
+    /// The condition expression to evaluate.
     pub(crate) expr: Expr<'a>,
 }
 
