@@ -19,7 +19,6 @@ use super::{
 pub(crate) enum Node<'a> {
     Lit(Lit<'a>),
     Tag(Ws, Tag<'a>),
-    Loop(Ws, Loop<'a>),
     Extends(&'a str),
     BlockDef(Ws, BlockDef<'a>),
     Include(Ws, &'a str),
@@ -39,6 +38,7 @@ pub(crate) enum Tag<'a> {
     Let(Target<'a>, Expr<'a>),
     Cond(Vec<Cond<'a>>),
     Match(Match<'a>),
+    Loop(Loop<'a>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -445,9 +445,9 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let (nws3, else_block, pws3) = else_block.unwrap_or_default();
     Ok((
         i,
-        Node::Loop(
+        Node::Tag(
             Ws(pws1, nws2),
-            Loop {
+            Tag::Loop(Loop {
                 var,
                 iter,
                 cond,
@@ -455,7 +455,7 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
                 body_ws: Ws(pws2, nws1),
                 else_block,
                 else_ws: Ws(pws3, nws3),
-            },
+            }),
         ),
     ))
 }

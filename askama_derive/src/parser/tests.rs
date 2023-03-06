@@ -747,9 +747,9 @@ fn test_parse_loop() {
     let syntax = Syntax::default();
     assert_eq!(
         super::parse("{% for user in users +%}{%~ else -%}{%+ endfor %}", &syntax).unwrap(),
-        vec![Node::Loop(
+        vec![Node::Tag(
             Ws(None, None),
-            Loop {
+            Tag::Loop(Loop {
                 var: Target::Name("user"),
                 iter: Expr::Var("users"),
                 cond: None,
@@ -757,14 +757,14 @@ fn test_parse_loop() {
                 body_ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
                 else_block: vec![],
                 else_ws: Ws(Some(Whitespace::Preserve), Some(Whitespace::Suppress)),
-            },
+            }),
         )]
     );
     assert_eq!(
         super::parse("{% for user in users +%}{%~ endfor -%}", &syntax).unwrap(),
-        vec![Node::Loop(
+        vec![Node::Tag(
             Ws(None, Some(Whitespace::Suppress)),
-            Loop {
+            Tag::Loop(Loop {
                 var: Target::Name("user"),
                 iter: Expr::Var("users"),
                 cond: None,
@@ -772,7 +772,7 @@ fn test_parse_loop() {
                 body_ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
                 else_block: vec![],
                 else_ws: Ws(None, None),
-            },
+            }),
         )]
     );
 }

@@ -85,11 +85,11 @@ impl Context<'_> {
                             nested.push(block);
                         }
                     }
-                    Node::Loop(
+                    Node::Tag(
                         _,
-                        Loop {
+                        Tag::Loop(Loop {
                             body, else_block, ..
-                        },
+                        }),
                     ) => {
                         nested.push(body);
                         nested.push(else_block);

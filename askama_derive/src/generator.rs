@@ -638,12 +638,10 @@ impl<'a> Generator<'a> {
                         Tag::Match(match_node) => {
                             size_hint += self.write_match(ctx, buf, match_node)?;
                         }
+                        Tag::Loop(loop_block) => {
+                            size_hint += self.write_loop(ctx, buf, loop_block)?;
+                        }
                     }
-                    self.prepare_ws(ws);
-                }
-                Node::Loop(ws, ref loop_block) => {
-                    self.flush_ws(ws);
-                    size_hint += self.write_loop(ctx, buf, loop_block)?;
                     self.prepare_ws(ws);
                 }
                 Node::BlockDef(ws, BlockDef { name, .. }) => {
