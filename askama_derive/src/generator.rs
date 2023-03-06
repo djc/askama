@@ -630,12 +630,8 @@ impl<'a> Generator<'a> {
                         Tag::Call(call) => {
                             size_hint += self.write_call(ctx, buf, call)?;
                         }
+                        Tag::LetDecl(var) => self.write_let_decl(buf, var)?,
                     }
-                    self.prepare_ws(ws);
-                }
-                Node::LetDecl(ws, ref var) => {
-                    self.flush_ws(ws);
-                    self.write_let_decl(buf, var)?;
                     self.prepare_ws(ws);
                 }
                 Node::Let(ws, ref var, ref val) => {

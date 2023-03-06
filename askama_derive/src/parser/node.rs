@@ -19,7 +19,6 @@ use super::{
 pub(crate) enum Node<'a> {
     Lit(Lit<'a>),
     Tag(Ws, Tag<'a>),
-    LetDecl(Ws, Target<'a>),
     Let(Ws, Target<'a>, Expr<'a>),
     Cond(Ws, Vec<Cond<'a>>),
     Match(Ws, Match<'a>),
@@ -39,6 +38,7 @@ pub(crate) enum Tag<'a> {
     Comment,
     Expr(Expr<'a>),
     Call(Call<'a>),
+    LetDecl(Target<'a>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -386,7 +386,7 @@ fn block_let(i: &str) -> IResult<&str, Node<'_>> {
         if let Some((_, val)) = val {
             Node::Let(Ws(pws, nws), var, val)
         } else {
-            Node::LetDecl(Ws(pws, nws), var)
+            Node::Tag(Ws(pws, nws), Tag::LetDecl(var))
         },
     ))
 }
