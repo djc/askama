@@ -685,16 +685,9 @@ impl<'a> Generator<'a> {
                     size_hint += self.handle_include(ctx, buf, path)?;
                     self.prepare_ws(ws);
                 }
-                Node::Call(
-                    ws,
-                    Call {
-                        scope,
-                        name,
-                        ref args,
-                    },
-                ) => {
+                Node::Call(ws, ref call) => {
                     self.flush_ws(ws);
-                    size_hint += self.write_call(ctx, buf, scope, name, args)?;
+                    size_hint += self.write_call(ctx, buf, call)?;
                     self.prepare_ws(ws);
                 }
                 Node::Macro(ws, _) => {
@@ -935,15 +928,15 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        scope: Option<&str>,
-        name: &str,
-        args: &[Expr<'_>],
+        call: &'a Call<'_>,
     ) -> Result<usize, CompileError> {
-        if name == "super" {
+        let Call { scope, name, args } = call;
+
+        if *name == "super" {
             return self.write_block(buf, None);
         }
 
-        let (def, own_ctx) = match scope {
+        let (def, own_ctx) = match *scope {
             Some(s) => {
                 let path = ctx.imports.get(s).ok_or_else(|| {
                     CompileError::from(format!("no import found for scope {s:?}"))
