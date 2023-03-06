@@ -20,8 +20,6 @@ pub(crate) enum Node<'a> {
     Lit(Lit<'a>),
     Tag(Ws, Tag<'a>),
     Extends(&'a str),
-    Break(Ws),
-    Continue(Ws),
 }
 
 #[derive(Debug, PartialEq)]
@@ -39,6 +37,8 @@ pub(crate) enum Tag<'a> {
     Import(&'a str, &'a str),
     Macro(Macro<'a>),
     Raw(Raw<'a>),
+    Break,
+    Continue,
 }
 
 #[derive(Debug, PartialEq)]
@@ -599,7 +599,7 @@ fn break_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> 
     if !s.is_in_loop() {
         return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
     }
-    Ok((j, Node::Break(Ws(pws, nws))))
+    Ok((j, Node::Tag(Ws(pws, nws), Tag::Break)))
 }
 
 fn continue_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
@@ -612,7 +612,7 @@ fn continue_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a
     if !s.is_in_loop() {
         return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
     }
-    Ok((j, Node::Continue(Ws(pws, nws))))
+    Ok((j, Node::Tag(Ws(pws, nws), Tag::Continue)))
 }
 
 fn block_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {

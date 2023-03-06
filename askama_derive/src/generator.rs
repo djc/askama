@@ -658,6 +658,14 @@ impl<'a> Generator<'a> {
                             }
                         }
                         Tag::Raw(raw) => self.visit_raw(raw),
+                        Tag::Break => {
+                            self.write_buf_writable(buf)?;
+                            buf.writeln("break;")?;
+                        }
+                        Tag::Continue => {
+                            self.write_buf_writable(buf)?;
+                            buf.writeln("continue;")?;
+                        }
                     }
                     self.prepare_ws(ws);
                 }
@@ -667,18 +675,6 @@ impl<'a> Generator<'a> {
                     }
                     // No whitespace handling: child template top-level is not used,
                     // except for the blocks defined in it.
-                }
-                Node::Break(ws) => {
-                    self.flush_ws(ws);
-                    self.prepare_ws(ws);
-                    self.write_buf_writable(buf)?;
-                    buf.writeln("break;")?;
-                }
-                Node::Continue(ws) => {
-                    self.flush_ws(ws);
-                    self.prepare_ws(ws);
-                    self.write_buf_writable(buf)?;
-                    buf.writeln("continue;")?;
                 }
             }
         }
