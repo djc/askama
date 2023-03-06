@@ -15,6 +15,8 @@ dirs = ["templates"]
 whitespace = "preserve"
 ```
 
+## Whitespace control
+
 In the default configuration, you can use the `-` operator to indicate that
 whitespace should be suppressed before or after a block. For example:
 
@@ -54,6 +56,8 @@ character remaining will be a newline.
 
 If you want this to be the default behaviour, you can set `whitespace` to
 `"minimize"`.
+
+## Custom syntaxes
 
 Here is an example that defines two custom syntaxes:
 
