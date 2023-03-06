@@ -676,10 +676,14 @@ impl<'a> Generator<'a> {
                     self.prepare_ws(ws);
                 }
                 Node::BlockDef(ws, BlockDef { name, .. }) => {
-                    size_hint += self.write_block(buf, Some(name), ws)?;
+                    self.flush_ws(ws);
+                    size_hint += self.write_block(buf, Some(name))?;
+                    self.prepare_ws(ws);
                 }
                 Node::Include(ws, path) => {
-                    size_hint += self.handle_include(ctx, buf, ws, path)?;
+                    self.flush_ws(ws);
+                    size_hint += self.handle_include(ctx, buf, path)?;
+                    self.prepare_ws(ws);
                 }
                 Node::Call(
                     ws,
@@ -689,7 +693,9 @@ impl<'a> Generator<'a> {
                         ref args,
                     },
                 ) => {
-                    size_hint += self.write_call(ctx, buf, ws, scope, name, args)?;
+                    self.flush_ws(ws);
+                    size_hint += self.write_call(ctx, buf, scope, name, args)?;
+                    self.prepare_ws(ws);
                 }
                 Node::Macro(ws, _) => {
                     if level != AstLevel::Top {
@@ -925,13 +931,12 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        ws: Ws,
         scope: Option<&str>,
         name: &str,
         args: &[Expr<'_>],
     ) -> Result<usize, CompileError> {
         if name == "super" {
-            return self.write_block(buf, None, ws);
+            return self.write_block(buf, None);
         }
 
         let (def, own_ctx) = match scope {
@@ -957,7 +962,6 @@ impl<'a> Generator<'a> {
             }
         };
 
-        self.flush_ws(ws); // Cannot handle_ws() here: whitespace from macro definition comes first
         self.locals.push();
         self.write_buf_writable(buf)?;
         buf.writeln("{")?;
@@ -1018,7 +1022,6 @@ impl<'a> Generator<'a> {
         size_hint += self.write_buf_writable(buf)?;
         buf.writeln("}")?;
         self.locals.pop();
-        self.prepare_ws(ws);
         Ok(size_hint)
     }
 
@@ -1026,10 +1029,8 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        ws: Ws,
         path: &str,
     ) -> Result<usize, CompileError> {
-        self.flush_ws(ws);
         self.write_buf_writable(buf)?;
         let path = self
             .input
@@ -1057,7 +1058,6 @@ impl<'a> Generator<'a> {
             size_hint += gen.write_buf_writable(buf)?;
             size_hint
         };
-        self.prepare_ws(ws);
         Ok(size_hint)
     }
 
@@ -1140,11 +1140,7 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         name: Option<&'a str>,
-        outer: Ws,
     ) -> Result<usize, CompileError> {
-        // Flush preceding whitespace according to the outer WS spec
-        self.flush_ws(outer);
-
         let prev_block = self.super_block;
         let cur = match (name, prev_block) {
             // The top-level context contains a block definition
@@ -1190,10 +1186,8 @@ impl<'a> Generator<'a> {
         self.locals.pop();
         self.flush_ws(*ws);
 
-        // Restore original block context and set whitespace suppression for
-        // succeeding whitespace according to the outer WS spec
+        // Restore original block context
         self.super_block = prev_block;
-        self.prepare_ws(outer);
         Ok(size_hint)
     }
 
