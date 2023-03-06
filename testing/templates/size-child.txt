@@ -1,0 +1,2 @@
+{% extends "size-parent.txt" %}
+{% block main %}{% if true %}123{% endif %}{% endblock %}

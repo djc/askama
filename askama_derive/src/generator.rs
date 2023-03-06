@@ -630,16 +630,16 @@ impl<'a> Generator<'a> {
                     self.write_let(buf, ws, var, val)?;
                 }
                 Node::Cond(ref conds, ws) => {
-                    self.write_cond(ctx, buf, conds, ws)?;
+                    size_hint += self.write_cond(ctx, buf, conds, ws)?;
                 }
                 Node::Match(ws1, ref expr, ref arms, ws2) => {
-                    self.write_match(ctx, buf, ws1, expr, arms, ws2)?;
+                    size_hint += self.write_match(ctx, buf, ws1, expr, arms, ws2)?;
                 }
                 Node::Loop(ref loop_block) => {
-                    self.write_loop(ctx, buf, loop_block)?;
+                    size_hint += self.write_loop(ctx, buf, loop_block)?;
                 }
                 Node::BlockDef(ws1, name, _, ws2) => {
-                    self.write_block(buf, Some(name), Ws(ws1.0, ws2.1))?;
+                    size_hint += self.write_block(buf, Some(name), Ws(ws1.0, ws2.1))?;
                 }
                 Node::Include(ws, path) => {
                     size_hint += self.handle_include(ctx, buf, ws, path)?;
