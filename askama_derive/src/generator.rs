@@ -656,7 +656,9 @@ impl<'a> Generator<'a> {
                     self.prepare_ws(ws);
                 }
                 Node::Let(ws, ref var, ref val) => {
-                    self.write_let(buf, ws, var, val)?;
+                    self.flush_ws(ws);
+                    self.write_let(buf, var, val)?;
+                    self.prepare_ws(ws);
                 }
                 Node::Cond(ws, ref conds) => {
                     self.flush_ws(ws);
@@ -1108,11 +1110,9 @@ impl<'a> Generator<'a> {
     fn write_let(
         &mut self,
         buf: &mut Buffer,
-        ws: Ws,
         var: &'a Target<'_>,
         val: &Expr<'_>,
     ) -> Result<(), CompileError> {
-        self.handle_ws(ws);
         let mut expr_buf = Buffer::new(0);
         self.visit_expr(&mut expr_buf, val)?;
 
