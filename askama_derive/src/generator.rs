@@ -666,8 +666,10 @@ impl<'a> Generator<'a> {
                 ) => {
                     size_hint += self.write_match(ctx, buf, ws1, expr, arms, ws)?;
                 }
-                Node::Loop(ref loop_block) => {
+                Node::Loop(ws, ref loop_block) => {
+                    self.flush_ws(ws);
                     size_hint += self.write_loop(ctx, buf, loop_block)?;
+                    self.prepare_ws(ws);
                 }
                 Node::BlockDef(ws, BlockDef { name, .. }) => {
                     size_hint += self.write_block(buf, Some(name), ws)?;
@@ -855,7 +857,6 @@ impl<'a> Generator<'a> {
         buf: &mut Buffer,
         loop_block: &'a Loop<'_>,
     ) -> Result<usize, CompileError> {
-        self.handle_ws(loop_block.ws1);
         self.locals.push();
 
         let expr_code = self.visit_expr_root(&loop_block.iter)?;
@@ -899,16 +900,18 @@ impl<'a> Generator<'a> {
         buf.writeln(", _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {")?;
 
         buf.writeln("_did_loop = true;")?;
+        self.prepare_ws(loop_block.body_ws);
         let mut size_hint1 = self.handle(ctx, &loop_block.body, buf, AstLevel::Nested)?;
-        self.handle_ws(loop_block.ws2);
+        self.flush_ws(loop_block.body_ws);
         size_hint1 += self.write_buf_writable(buf)?;
         self.locals.pop();
         buf.writeln("}")?;
 
         buf.writeln("if !_did_loop {")?;
         self.locals.push();
+        self.prepare_ws(loop_block.else_ws);
         let mut size_hint2 = self.handle(ctx, &loop_block.else_block, buf, AstLevel::Nested)?;
-        self.handle_ws(loop_block.ws3);
+        self.flush_ws(loop_block.else_ws);
         size_hint2 += self.write_buf_writable(buf)?;
         self.locals.pop();
         buf.writeln("}")?;

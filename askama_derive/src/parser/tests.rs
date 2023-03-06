@@ -657,29 +657,33 @@ fn test_parse_loop() {
     let syntax = Syntax::default();
     assert_eq!(
         super::parse("{% for user in users +%}{%~ else -%}{%+ endfor %}", &syntax).unwrap(),
-        vec![Node::Loop(Loop {
-            ws1: Ws(None, Some(Whitespace::Preserve)),
-            var: Target::Name("user"),
-            iter: Expr::Var("users"),
-            cond: None,
-            body: vec![],
-            ws2: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
-            else_block: vec![],
-            ws3: Ws(Some(Whitespace::Preserve), None),
-        })]
+        vec![Node::Loop(
+            Ws(None, None),
+            Loop {
+                var: Target::Name("user"),
+                iter: Expr::Var("users"),
+                cond: None,
+                body: vec![],
+                body_ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
+                else_block: vec![],
+                else_ws: Ws(Some(Whitespace::Preserve), Some(Whitespace::Suppress)),
+            },
+        )]
     );
     assert_eq!(
         super::parse("{% for user in users +%}{%~ endfor -%}", &syntax).unwrap(),
-        vec![Node::Loop(Loop {
-            ws1: Ws(None, Some(Whitespace::Preserve)),
-            var: Target::Name("user"),
-            iter: Expr::Var("users"),
-            cond: None,
-            body: vec![],
-            ws2: Ws(Some(Whitespace::Minimize), None),
-            else_block: vec![],
-            ws3: Ws(None, Some(Whitespace::Suppress)),
-        })]
+        vec![Node::Loop(
+            Ws(None, Some(Whitespace::Suppress)),
+            Loop {
+                var: Target::Name("user"),
+                iter: Expr::Var("users"),
+                cond: None,
+                body: vec![],
+                body_ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
+                else_block: vec![],
+                else_ws: Ws(None, None),
+            },
+        )]
     );
 }
 
