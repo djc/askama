@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::config::Config;
-use crate::parser::{Loop, Macro, Node};
+use crate::parser::{Loop, Macro, Match, Node};
 use crate::CompileError;
 
 pub(crate) struct Heritage<'a> {
@@ -93,7 +93,7 @@ impl Context<'_> {
                         nested.push(body);
                         nested.push(else_block);
                     }
-                    Node::Match(_, _, arms, _) => {
+                    Node::Match(_, Match { arms, .. }) => {
                         for (_, _, arm) in arms {
                             nested.push(arm);
                         }
