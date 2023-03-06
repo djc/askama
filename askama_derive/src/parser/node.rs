@@ -19,7 +19,6 @@ use super::{
 pub(crate) enum Node<'a> {
     Lit(Lit<'a>),
     Tag(Ws, Tag<'a>),
-    Cond(Ws, Vec<Cond<'a>>),
     Match(Ws, Match<'a>),
     Loop(Ws, Loop<'a>),
     Extends(&'a str),
@@ -39,6 +38,7 @@ pub(crate) enum Tag<'a> {
     Call(Call<'a>),
     LetDecl(Target<'a>),
     Let(Target<'a>, Expr<'a>),
+    Cond(Vec<Cond<'a>>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -275,7 +275,7 @@ fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         idx -= 1;
     }
 
-    Ok((i, Node::Cond(outer, res)))
+    Ok((i, Node::Tag(outer, Tag::Cond(res))))
 }
 
 fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {

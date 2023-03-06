@@ -877,30 +877,30 @@ fn test_parse_cond() {
     let syntax = Syntax::default();
     assert_eq!(
         super::parse("{% if condition -%}{%~ endif +%}", &syntax).unwrap(),
-        vec![Node::Cond(
+        vec![Node::Tag(
             Ws(None, Some(Whitespace::Preserve)),
-            vec![Cond {
+            Tag::Cond(vec![Cond {
                 test: Some(CondTest {
                     expr: Expr::Var("condition"),
                     target: None,
                 }),
                 block: vec![],
                 ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
-            },],
+            }]),
         )],
     );
     assert_eq!(
         super::parse("{% if let Some(val) = condition -%}{%~ endif +%}", &syntax).unwrap(),
-        vec![Node::Cond(
+        vec![Node::Tag(
             Ws(None, Some(Whitespace::Preserve)),
-            vec![Cond {
+            Tag::Cond(vec![Cond {
                 test: Some(CondTest {
                     expr: Expr::Var("condition"),
                     target: Some(Target::Tuple(vec!["Some"], vec![Target::Name("val")],)),
                 }),
                 block: vec![],
                 ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
-            },],
+            }]),
         )],
     );
     assert_eq!(
@@ -909,9 +909,9 @@ fn test_parse_cond() {
             &syntax
         )
         .unwrap(),
-        vec![Node::Cond(
+        vec![Node::Tag(
             Ws(None, Some(Whitespace::Preserve)),
-            vec![
+            Tag::Cond(vec![
                 Cond {
                     test: Some(CondTest {
                         expr: Expr::Var("condition"),
@@ -933,7 +933,7 @@ fn test_parse_cond() {
                     block: vec![],
                     ws: Ws(Some(Whitespace::Minimize), None),
                 },
-            ],
+            ]),
         )],
     );
 }

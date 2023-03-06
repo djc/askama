@@ -632,12 +632,10 @@ impl<'a> Generator<'a> {
                         }
                         Tag::LetDecl(var) => self.write_let_decl(buf, var)?,
                         Tag::Let(var, val) => self.write_let(buf, var, val)?,
+                        Tag::Cond(conds) => {
+                            size_hint += self.write_cond(ctx, buf, conds)?;
+                        }
                     }
-                    self.prepare_ws(ws);
-                }
-                Node::Cond(ws, ref conds) => {
-                    self.flush_ws(ws);
-                    size_hint += self.write_cond(ctx, buf, conds)?;
                     self.prepare_ws(ws);
                 }
                 Node::Match(ws, Match { ref expr, ref arms }) => {
