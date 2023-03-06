@@ -646,7 +646,9 @@ impl<'a> Generator<'a> {
                     self.prepare_ws(ws);
                 }
                 Node::Expr(ws, ref val) => {
-                    self.write_expr(ws, val);
+                    self.flush_ws(ws);
+                    self.write_expr(val);
+                    self.prepare_ws(ws);
                 }
                 Node::LetDecl(ws, ref var) => {
                     self.write_let_decl(buf, ws, var)?;
@@ -1195,8 +1197,7 @@ impl<'a> Generator<'a> {
         Ok(size_hint)
     }
 
-    fn write_expr(&mut self, ws: Ws, s: &'a Expr<'a>) {
-        self.handle_ws(ws);
+    fn write_expr(&mut self, s: &'a Expr<'a>) {
         self.buf_writable.push(Writable::Expr(s));
     }
 
