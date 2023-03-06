@@ -20,7 +20,6 @@ pub(crate) enum Node<'a> {
     Lit(Lit<'a>),
     Tag(Ws, Tag<'a>),
     Extends(&'a str),
-    Include(Ws, &'a str),
     Import(Ws, &'a str, &'a str),
     Macro(Ws, Macro<'a>),
     Raw(Ws, Raw<'a>),
@@ -39,6 +38,7 @@ pub(crate) enum Tag<'a> {
     Match(Match<'a>),
     Loop(Loop<'a>),
     BlockDef(BlockDef<'a>),
+    Include(&'a str),
 }
 
 #[derive(Debug, PartialEq)]
@@ -506,7 +506,7 @@ fn block_include(i: &str) -> IResult<&str, Node<'_>> {
         cut(pair(ws(str_lit), opt(expr_handle_ws))),
     ));
     let (i, (pws, _, (name, nws))) = p(i)?;
-    Ok((i, Node::Include(Ws(pws, nws), name)))
+    Ok((i, Node::Tag(Ws(pws, nws), Tag::Include(name))))
 }
 
 fn block_import(i: &str) -> IResult<&str, Node<'_>> {

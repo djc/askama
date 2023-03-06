@@ -644,12 +644,10 @@ impl<'a> Generator<'a> {
                         Tag::BlockDef(BlockDef { name, .. }) => {
                             size_hint += self.write_block(buf, Some(name))?;
                         }
+                        Tag::Include(path) => {
+                            size_hint += self.handle_include(ctx, buf, path)?;
+                        }
                     }
-                    self.prepare_ws(ws);
-                }
-                Node::Include(ws, path) => {
-                    self.flush_ws(ws);
-                    size_hint += self.handle_include(ctx, buf, path)?;
                     self.prepare_ws(ws);
                 }
                 Node::Macro(ws, _) => {
