@@ -20,7 +20,6 @@ pub(crate) enum Node<'a> {
     Lit(Lit<'a>),
     Tag(Ws, Tag<'a>),
     Extends(&'a str),
-    Raw(Ws, Raw<'a>),
     Break(Ws),
     Continue(Ws),
 }
@@ -39,6 +38,7 @@ pub(crate) enum Tag<'a> {
     Include(&'a str),
     Import(&'a str, &'a str),
     Macro(Macro<'a>),
+    Raw(Raw<'a>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -586,7 +586,7 @@ fn block_raw<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let lit = split_ws_parts(contents);
     let outer = Ws(pws1, nws2);
     let ws = Ws(pws2, nws1);
-    Ok((i, Node::Raw(outer, Raw { lit, ws })))
+    Ok((i, Node::Tag(outer, Tag::Raw(Raw { lit, ws }))))
 }
 
 fn break_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {

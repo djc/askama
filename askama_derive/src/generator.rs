@@ -657,12 +657,8 @@ impl<'a> Generator<'a> {
                                 return Err("macro blocks only allowed at the top level".into());
                             }
                         }
+                        Tag::Raw(raw) => self.visit_raw(raw),
                     }
-                    self.prepare_ws(ws);
-                }
-                Node::Raw(ws, ref raw) => {
-                    self.flush_ws(ws);
-                    self.visit_raw(raw);
                     self.prepare_ws(ws);
                 }
                 Node::Extends(_) => {

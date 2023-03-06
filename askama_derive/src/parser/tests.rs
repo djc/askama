@@ -840,16 +840,16 @@ fn test_parse_raw_block() {
             &syntax
         )
         .unwrap(),
-        vec![Node::Raw(
+        vec![Node::Tag(
             Ws(None, Some(Whitespace::Preserve)),
-            Raw {
+            Tag::Raw(Raw {
                 lit: Lit {
                     lws: "",
                     val: "{% if condition %}{{ result }}{% endif %}",
                     rws: "",
                 },
                 ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
-            }
+            }),
         )]
     );
 }
