@@ -2,8 +2,8 @@ use crate::config::{get_template_source, read_config_file, Config, WhitespaceHan
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
 use crate::parser::{
-    parse, BlockDef, Call, Cond, CondTest, Expr, Lit, Loop, Match, Node, Raw, Tag, Target, When,
-    Whitespace, Ws,
+    parse, Block, BlockDef, Call, Cond, CondTest, Expr, Lit, Loop, Match, Node, Raw, Tag, Target,
+    When, Whitespace, Ws,
 };
 use crate::CompileError;
 
@@ -353,14 +353,9 @@ impl<'a> Generator<'a> {
         }
 
         let size_hint = if let Some(heritage) = self.heritage {
-            self.handle(
-                heritage.root,
-                &heritage.root.block.nodes,
-                buf,
-                AstLevel::Top,
-            )
+            self.handle(heritage.root, heritage.root.block, buf, AstLevel::Top)
         } else {
-            self.handle(ctx, &ctx.block.nodes, buf, AstLevel::Top)
+            self.handle(ctx, ctx.block, buf, AstLevel::Top)
         }?;
 
         self.flush_ws(Ws(None, None));
@@ -617,12 +612,12 @@ impl<'a> Generator<'a> {
     fn handle(
         &mut self,
         ctx: &'a Context<'_>,
-        nodes: &'a [Node<'_>],
+        block: &'a Block<'_>,
         buf: &mut Buffer,
         level: AstLevel,
     ) -> Result<usize, CompileError> {
         let mut size_hint = 0;
-        for n in nodes {
+        for n in &block.nodes {
             match *n {
                 Node::Lit(ref lit) => {
                     self.visit_lit(lit);
@@ -747,7 +742,7 @@ impl<'a> Generator<'a> {
             buf.writeln(" {")?;
 
             self.prepare_ws(cond.block.ws);
-            arm_size += self.handle(ctx, &cond.block.nodes, buf, AstLevel::Nested)?;
+            arm_size += self.handle(ctx, &cond.block, buf, AstLevel::Nested)?;
             arm_sizes.push(arm_size);
             self.flush_ws(cond.block.ws);
         }
@@ -793,7 +788,7 @@ impl<'a> Generator<'a> {
             buf.writeln(" => {")?;
 
             self.prepare_ws(block.ws);
-            arm_size = self.handle(ctx, &block.nodes, buf, AstLevel::Nested)?;
+            arm_size = self.handle(ctx, block, buf, AstLevel::Nested)?;
             self.flush_ws(block.ws);
         }
 
@@ -857,7 +852,7 @@ impl<'a> Generator<'a> {
 
         buf.writeln("_did_loop = true;")?;
         self.prepare_ws(loop_block.body.ws);
-        let mut size_hint1 = self.handle(ctx, &loop_block.body.nodes, buf, AstLevel::Nested)?;
+        let mut size_hint1 = self.handle(ctx, &loop_block.body, buf, AstLevel::Nested)?;
         self.flush_ws(loop_block.body.ws);
         size_hint1 += self.write_buf_writable(buf)?;
         self.locals.pop();
@@ -866,8 +861,7 @@ impl<'a> Generator<'a> {
         buf.writeln("if !_did_loop {")?;
         self.locals.push();
         self.prepare_ws(loop_block.else_block.ws);
-        let mut size_hint2 =
-            self.handle(ctx, &loop_block.else_block.nodes, buf, AstLevel::Nested)?;
+        let mut size_hint2 = self.handle(ctx, &loop_block.else_block, buf, AstLevel::Nested)?;
         self.flush_ws(loop_block.else_block.ws);
         size_hint2 += self.write_buf_writable(buf)?;
         self.locals.pop();
@@ -963,7 +957,7 @@ impl<'a> Generator<'a> {
             buf.writeln(&format!("let ({}) = ({});", names.buf, values.buf))?;
         }
 
-        let mut size_hint = self.handle(own_ctx, &def.block.nodes, buf, AstLevel::Nested)?;
+        let mut size_hint = self.handle(own_ctx, &def.block, buf, AstLevel::Nested)?;
 
         self.flush_ws(def.block.ws);
         size_hint += self.write_buf_writable(buf)?;
@@ -1001,7 +995,7 @@ impl<'a> Generator<'a> {
             // Since nodes must not outlive the Generator, we instantiate
             // a nested Generator here to handle the include's nodes.
             let mut gen = self.child();
-            let mut size_hint = gen.handle(ctx, &block.nodes, buf, AstLevel::Nested)?;
+            let mut size_hint = gen.handle(ctx, &block, buf, AstLevel::Nested)?;
             size_hint += gen.write_buf_writable(buf)?;
             size_hint
         };
@@ -1123,7 +1117,7 @@ impl<'a> Generator<'a> {
         // Handle inner whitespace suppression spec and process block nodes
         self.prepare_ws(block.ws);
         self.locals.push();
-        let size_hint = self.handle(ctx, &block.nodes, buf, AstLevel::Block)?;
+        let size_hint = self.handle(ctx, block, buf, AstLevel::Block)?;
 
         if !self.locals.is_current_empty() {
             // Need to flush the buffer before popping the variable stack
