@@ -652,14 +652,12 @@ impl<'a> Generator<'a> {
                                 return Err("import blocks only allowed at the top level".into());
                             }
                         }
+                        Tag::Macro(_) => {
+                            if level != AstLevel::Top {
+                                return Err("macro blocks only allowed at the top level".into());
+                            }
+                        }
                     }
-                    self.prepare_ws(ws);
-                }
-                Node::Macro(ws, _) => {
-                    if level != AstLevel::Top {
-                        return Err("macro blocks only allowed at the top level".into());
-                    }
-                    self.flush_ws(ws);
                     self.prepare_ws(ws);
                 }
                 Node::Raw(ws, ref raw) => {

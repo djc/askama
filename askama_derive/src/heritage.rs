@@ -64,14 +64,16 @@ impl Context<'_> {
                             extends = Some(config.find_template(extends_path, Some(path))?);
                         }
                     },
-                    Node::Macro(_, m) if top => {
+                    Node::Tag(_, Tag::Macro(m)) if top => {
                         macros.insert(m.name, m);
                     }
                     Node::Tag(_, Tag::Import(import_path, scope)) if top => {
                         let path = config.find_template(import_path, Some(path))?;
                         imports.insert(*scope, path);
                     }
-                    Node::Extends(_) | Node::Macro(_, _) | Node::Tag(_, Tag::Import(_, _))
+                    Node::Extends(_)
+                    | Node::Tag(_, Tag::Macro(_))
+                    | Node::Tag(_, Tag::Import(_, _))
                         if !top =>
                     {
                         return Err(

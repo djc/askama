@@ -20,7 +20,6 @@ pub(crate) enum Node<'a> {
     Lit(Lit<'a>),
     Tag(Ws, Tag<'a>),
     Extends(&'a str),
-    Macro(Ws, Macro<'a>),
     Raw(Ws, Raw<'a>),
     Break(Ws),
     Continue(Ws),
@@ -39,6 +38,7 @@ pub(crate) enum Tag<'a> {
     BlockDef(BlockDef<'a>),
     Include(&'a str),
     Import(&'a str, &'a str),
+    Macro(Macro<'a>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -551,14 +551,14 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
     Ok((
         i,
-        Node::Macro(
+        Node::Tag(
             Ws(pws1, nws2),
-            Macro {
+            Tag::Macro(Macro {
                 name,
                 args: params,
                 nodes: contents,
                 ws: Ws(pws2, nws1),
-            },
+            }),
         ),
     ))
 }
