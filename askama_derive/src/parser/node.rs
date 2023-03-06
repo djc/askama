@@ -123,10 +123,8 @@ pub(crate) struct Loop<'a> {
     pub(crate) var: Target<'a>,
     pub(crate) iter: Expr<'a>,
     pub(crate) cond: Option<Expr<'a>>,
-    pub(crate) body: Vec<Node<'a>>,
-    pub(crate) body_ws: Ws,
-    pub(crate) else_block: Vec<Node<'a>>,
-    pub(crate) else_ws: Ws,
+    pub(crate) body: Block<'a>,
+    pub(crate) else_block: Block<'a>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -463,6 +461,14 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let (i, (pws1, _, (var, _, (iter, cond, nws1, _, (body, (_, pws2, else_block, _, nws2)))))) =
         p(i)?;
     let (nws3, else_block, pws3) = else_block.unwrap_or_default();
+    let body = Block {
+        nodes: body,
+        ws: Ws(pws2, nws1),
+    };
+    let else_block = Block {
+        nodes: else_block,
+        ws: Ws(pws3, nws3),
+    };
     Ok((
         i,
         Node::Tag(
@@ -472,9 +478,7 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
                 iter,
                 cond,
                 body,
-                body_ws: Ws(pws2, nws1),
                 else_block,
-                else_ws: Ws(pws3, nws3),
             }),
         ),
     ))

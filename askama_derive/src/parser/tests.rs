@@ -757,10 +757,14 @@ fn test_parse_loop() {
                 var: Target::Name("user"),
                 iter: Expr::Var("users"),
                 cond: None,
-                body: vec![],
-                body_ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
-                else_block: vec![],
-                else_ws: Ws(Some(Whitespace::Preserve), Some(Whitespace::Suppress)),
+                body: Block::with_whitespace(Ws(
+                    Some(Whitespace::Minimize),
+                    Some(Whitespace::Preserve),
+                )),
+                else_block: Block::with_whitespace(Ws(
+                    Some(Whitespace::Preserve),
+                    Some(Whitespace::Suppress),
+                )),
             }),
         )]
     );
@@ -772,10 +776,11 @@ fn test_parse_loop() {
                 var: Target::Name("user"),
                 iter: Expr::Var("users"),
                 cond: None,
-                body: vec![],
-                body_ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
-                else_block: vec![],
-                else_ws: Ws(None, None),
+                body: Block::with_whitespace(Ws(
+                    Some(Whitespace::Minimize),
+                    Some(Whitespace::Preserve),
+                )),
+                else_block: Block::with_whitespace(Ws(None, None)),
             }),
         )]
     );

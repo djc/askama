@@ -851,18 +851,19 @@ impl<'a> Generator<'a> {
         buf.writeln(", _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {")?;
 
         buf.writeln("_did_loop = true;")?;
-        self.prepare_ws(loop_block.body_ws);
-        let mut size_hint1 = self.handle(ctx, &loop_block.body, buf, AstLevel::Nested)?;
-        self.flush_ws(loop_block.body_ws);
+        self.prepare_ws(loop_block.body.ws);
+        let mut size_hint1 = self.handle(ctx, &loop_block.body.nodes, buf, AstLevel::Nested)?;
+        self.flush_ws(loop_block.body.ws);
         size_hint1 += self.write_buf_writable(buf)?;
         self.locals.pop();
         buf.writeln("}")?;
 
         buf.writeln("if !_did_loop {")?;
         self.locals.push();
-        self.prepare_ws(loop_block.else_ws);
-        let mut size_hint2 = self.handle(ctx, &loop_block.else_block, buf, AstLevel::Nested)?;
-        self.flush_ws(loop_block.else_ws);
+        self.prepare_ws(loop_block.else_block.ws);
+        let mut size_hint2 =
+            self.handle(ctx, &loop_block.else_block.nodes, buf, AstLevel::Nested)?;
+        self.flush_ws(loop_block.else_block.ws);
         size_hint2 += self.write_buf_writable(buf)?;
         self.locals.pop();
         buf.writeln("}")?;
