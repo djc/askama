@@ -642,7 +642,8 @@ impl<'a> Generator<'a> {
                     self.visit_lit(lit);
                 }
                 Node::Comment(ws) => {
-                    self.write_comment(ws);
+                    self.flush_ws(ws);
+                    self.prepare_ws(ws);
                 }
                 Node::Expr(ws, ref val) => {
                     self.write_expr(ws, val);
@@ -1311,10 +1312,6 @@ impl<'a> Generator<'a> {
         if !rws.is_empty() {
             self.next_ws = Some(rws);
         }
-    }
-
-    fn write_comment(&mut self, ws: Ws) {
-        self.handle_ws(ws);
     }
 
     /* Visitor methods for expression types */
