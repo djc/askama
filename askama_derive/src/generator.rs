@@ -627,6 +627,9 @@ impl<'a> Generator<'a> {
                     match tag {
                         Tag::Comment => {}
                         Tag::Expr(val) => self.write_expr(val),
+                        Tag::Call(Call { scope, name, args }) => {
+                            size_hint += self.write_call(ctx, buf, *scope, name, args)?;
+                        }
                     }
                     self.prepare_ws(ws);
                 }
@@ -663,18 +666,6 @@ impl<'a> Generator<'a> {
                 Node::Include(ws, path) => {
                     self.flush_ws(ws);
                     size_hint += self.handle_include(ctx, buf, path)?;
-                    self.prepare_ws(ws);
-                }
-                Node::Call(
-                    ws,
-                    Call {
-                        scope,
-                        name,
-                        ref args,
-                    },
-                ) => {
-                    self.flush_ws(ws);
-                    size_hint += self.write_call(ctx, buf, scope, name, args)?;
                     self.prepare_ws(ws);
                 }
                 Node::Macro(ws, _) => {

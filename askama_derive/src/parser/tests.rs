@@ -790,24 +790,24 @@ fn test_parse_call_statement() {
     let syntax = Syntax::default();
     assert_eq!(
         super::parse("{% call foo(bar) %}", &syntax).unwrap(),
-        vec![Node::Call(
+        vec![Node::Tag(
             Ws(None, None),
-            Call {
+            Tag::Call(Call {
                 scope: None,
                 name: "foo",
                 args: vec![Expr::Var("bar"),],
-            }
+            }),
         )],
     );
     assert_eq!(
         super::parse("{% call foo::bar() %}", &syntax).unwrap(),
-        vec![Node::Call(
+        vec![Node::Tag(
             Ws(None, None),
-            Call {
+            Tag::Call(Call {
                 scope: Some("foo"),
                 name: "bar",
                 args: vec![],
-            }
+            }),
         )],
     );
 }

@@ -19,7 +19,6 @@ use super::{
 pub(crate) enum Node<'a> {
     Lit(Lit<'a>),
     Tag(Ws, Tag<'a>),
-    Call(Ws, Call<'a>),
     LetDecl(Ws, Target<'a>),
     Let(Ws, Target<'a>, Expr<'a>),
     Cond(Ws, Vec<Cond<'a>>),
@@ -39,6 +38,7 @@ pub(crate) enum Node<'a> {
 pub(crate) enum Tag<'a> {
     Comment,
     Expr(Expr<'a>),
+    Call(Call<'a>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -190,8 +190,9 @@ fn block_call(i: &str) -> IResult<&str, Node<'_>> {
         ))),
     ));
     let (i, (pws, _, (scope, name, args, nws))) = p(i)?;
+    let ws = Ws(pws, nws);
     let scope = scope.map(|(scope, _)| scope);
-    Ok((i, Node::Call(Ws(pws, nws), Call { scope, name, args })))
+    Ok((i, Node::Tag(ws, Tag::Call(Call { scope, name, args }))))
 }
 
 fn cond_if(i: &str) -> IResult<&str, CondTest<'_>> {
