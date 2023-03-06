@@ -730,3 +730,17 @@ fn test_parse_raw_block() {
         )]
     );
 }
+
+#[test]
+fn test_parse_block_def() {
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse("{% block foo -%}{%~ endblock +%}", &syntax).unwrap(),
+        vec![Node::BlockDef(
+            Ws(None, Some(Whitespace::Suppress)),
+            "foo",
+            vec![],
+            Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
+        )],
+    );
+}
