@@ -719,8 +719,8 @@ impl<'a> Generator<'a> {
         let mut flushed = 0;
         let mut arm_sizes = Vec::new();
         let mut has_else = false;
-        for (i, &(cws, ref cond, ref nodes)) in conds.iter().enumerate() {
-            self.handle_ws(cws);
+        for (i, cond) in conds.iter().enumerate() {
+            self.handle_ws(cond.ws);
             flushed += self.write_buf_writable(buf)?;
             if i > 0 {
                 self.locals.pop();
@@ -728,7 +728,7 @@ impl<'a> Generator<'a> {
 
             self.locals.push();
             let mut arm_size = 0;
-            if let Some(CondTest { target, expr }) = cond {
+            if let Some(CondTest { target, expr }) = &cond.test {
                 if i == 0 {
                     buf.write("if ");
                 } else {
@@ -763,7 +763,7 @@ impl<'a> Generator<'a> {
 
             buf.writeln(" {")?;
 
-            arm_size += self.handle(ctx, nodes, buf, AstLevel::Nested)?;
+            arm_size += self.handle(ctx, &cond.block, buf, AstLevel::Nested)?;
             arm_sizes.push(arm_size);
         }
         self.handle_ws(ws);
