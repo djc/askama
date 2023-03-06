@@ -774,7 +774,7 @@ impl<'a> Generator<'a> {
 
         let mut arm_size = 0;
         for (i, arm) in arms.iter().enumerate() {
-            let When { ws, target, block } = arm;
+            let When { target, block } = arm;
 
             if i > 0 {
                 arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
@@ -787,9 +787,9 @@ impl<'a> Generator<'a> {
             self.visit_target(buf, true, true, target);
             buf.writeln(" => {")?;
 
-            self.prepare_ws(*ws);
-            arm_size = self.handle(ctx, block, buf, AstLevel::Nested)?;
-            self.flush_ws(*ws);
+            self.prepare_ws(block.ws);
+            arm_size = self.handle(ctx, &block.nodes, buf, AstLevel::Nested)?;
+            self.flush_ws(block.ws);
         }
 
         arm_sizes.push(arm_size + self.write_buf_writable(buf)?);

@@ -100,7 +100,7 @@ impl Context<'_> {
                     }
                     Node::Tag(_, Tag::Match(Match { arms, .. })) => {
                         for When { block, .. } in arms {
-                            nested.push(block);
+                            nested.push(&block.nodes);
                         }
                     }
                     _ => {}

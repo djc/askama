@@ -1,4 +1,4 @@
-use crate::parser::{Expr, Lit, Node, Syntax, Tag, Target, Whitespace, Ws};
+use crate::parser::{Block, Expr, Lit, Node, Syntax, Tag, Target, Whitespace, Ws};
 
 fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
     let Lit { lws, val, rws } = super::split_ws_parts(s);
@@ -592,14 +592,18 @@ fn test_parse_match() {
                 expr: Expr::Var("foo"),
                 arms: vec![
                     When {
-                        ws: Ws(Some(Whitespace::Suppress), Some(Whitespace::Minimize)),
                         target: Target::Path(vec!["Foo"]),
-                        block: vec![],
+                        block: Block::with_whitespace(Ws(
+                            Some(Whitespace::Suppress),
+                            Some(Whitespace::Minimize),
+                        )),
                     },
                     When {
-                        ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
                         target: Target::Name("_"),
-                        block: vec![],
+                        block: Block::with_whitespace(Ws(
+                            Some(Whitespace::Minimize),
+                            Some(Whitespace::Preserve),
+                        )),
                     },
                 ],
             }),

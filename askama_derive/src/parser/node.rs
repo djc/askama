@@ -16,6 +16,19 @@ use super::{
 };
 
 #[derive(Debug, PartialEq)]
+pub(crate) struct Block<'a> {
+    pub(crate) nodes: Vec<Node<'a>>,
+    pub(crate) ws: Ws,
+}
+
+impl<'a> Block<'a> {
+    #[cfg(test)]
+    pub(crate) fn with_whitespace(ws: Ws) -> Self {
+        Block { nodes: vec![], ws }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub(crate) enum Node<'a> {
     Lit(Lit<'a>),
     Tag(Ws, Tag<'a>),
@@ -99,11 +112,10 @@ pub(crate) struct Match<'a> {
 /// A single arm of a match statement.
 #[derive(Debug, PartialEq)]
 pub(crate) struct When<'a> {
-    pub(crate) ws: Ws,
     /// The target pattern to match.
     pub(crate) target: Target<'a>,
     /// Body of the match arm.
-    pub(crate) block: Vec<Node<'a>>,
+    pub(crate) block: Block<'a>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -297,11 +309,14 @@ fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>>
             cut(|i| parse_template(i, s)),
         ))),
     ));
-    let (i, (_, pws, _, (nws, _, block))) = p(i)?;
+    let (i, (_, pws, _, (nws, _, nodes))) = p(i)?;
+    let block = Block {
+        nodes,
+        ws: Ws(pws, nws),
+    };
     Ok((
         i,
         When {
-            ws: Ws(pws, nws),
             target: Target::Name("_"),
             block,
         },
@@ -320,15 +335,12 @@ fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
             cut(|i| parse_template(i, s)),
         ))),
     ));
-    let (i, (_, pws, _, (target, nws, _, block))) = p(i)?;
-    Ok((
-        i,
-        When {
-            ws: Ws(pws, nws),
-            target,
-            block,
-        },
-    ))
+    let (i, (_, pws, _, (target, nws, _, nodes))) = p(i)?;
+    let block = Block {
+        nodes,
+        ws: Ws(pws, nws),
+    };
+    Ok((i, When { target, block }))
 }
 
 fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
@@ -366,7 +378,7 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut cursor = pws2;
     let mut idx = arms.len() - 1;
     loop {
-        std::mem::swap(&mut cursor, &mut arms[idx].ws.0);
+        std::mem::swap(&mut cursor, &mut arms[idx].block.ws.0);
 
         if idx == 0 {
             break;
