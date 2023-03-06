@@ -39,6 +39,7 @@ pub(crate) enum Tag<'a> {
     Raw(Raw<'a>),
     Break,
     Continue,
+    Super,
 }
 
 #[derive(Debug, PartialEq)]
@@ -191,8 +192,15 @@ fn block_call(i: &str) -> IResult<&str, Node<'_>> {
     ));
     let (i, (pws, _, (scope, name, args, nws))) = p(i)?;
     let ws = Ws(pws, nws);
-    let scope = scope.map(|(scope, _)| scope);
-    Ok((i, Node::Tag(ws, Tag::Call(Call { scope, name, args }))))
+
+    let tag = match name {
+        "super" => Tag::Super,
+        _ => {
+            let scope = scope.map(|(scope, _)| scope);
+            Tag::Call(Call { scope, name, args })
+        }
+    };
+    Ok((i, Node::Tag(ws, tag)))
 }
 
 fn cond_if(i: &str) -> IResult<&str, CondTest<'_>> {

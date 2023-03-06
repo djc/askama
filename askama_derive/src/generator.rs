@@ -666,6 +666,9 @@ impl<'a> Generator<'a> {
                             self.write_buf_writable(buf)?;
                             buf.writeln("continue;")?;
                         }
+                        Tag::Super => {
+                            size_hint += self.write_block(buf, None)?;
+                        }
                     }
                     self.prepare_ws(ws);
                 }
@@ -875,10 +878,6 @@ impl<'a> Generator<'a> {
         call: &'a Call<'_>,
     ) -> Result<usize, CompileError> {
         let Call { scope, name, args } = call;
-
-        if *name == "super" {
-            return self.write_block(buf, None);
-        }
 
         let (def, own_ctx) = match *scope {
             Some(s) => {
