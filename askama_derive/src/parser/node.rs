@@ -20,7 +20,7 @@ pub(crate) enum Node<'a> {
     Lit(&'a str, &'a str, &'a str),
     Comment(Ws),
     Expr(Ws, Expr<'a>),
-    Call(Ws, Option<&'a str>, &'a str, Vec<Expr<'a>>),
+    Call(Ws, Call<'a>),
     LetDecl(Ws, Target<'a>),
     Let(Ws, Target<'a>, Expr<'a>),
     Cond(Vec<Cond<'a>>, Ws),
@@ -53,6 +53,17 @@ pub(crate) enum Whitespace {
     Preserve,
     Suppress,
     Minimize,
+}
+
+/// A macro call statement.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Call<'a> {
+    /// If the macro is imported, the scope name.
+    pub(crate) scope: Option<&'a str>,
+    /// The name of the macro to call.
+    pub(crate) name: &'a str,
+    /// The arguments to the macro.
+    pub(crate) args: Vec<Expr<'a>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -128,7 +139,7 @@ fn block_call(i: &str) -> IResult<&str, Node<'_>> {
     ));
     let (i, (pws, _, (scope, name, args, nws))) = p(i)?;
     let scope = scope.map(|(scope, _)| scope);
-    Ok((i, Node::Call(Ws(pws, nws), scope, name, args)))
+    Ok((i, Node::Call(Ws(pws, nws), Call { scope, name, args })))
 }
 
 fn cond_if(i: &str) -> IResult<&str, CondTest<'_>> {
