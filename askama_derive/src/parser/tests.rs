@@ -897,8 +897,10 @@ fn test_parse_cond() {
                     expr: Expr::Var("condition"),
                     target: None,
                 }),
-                block: vec![],
-                ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
+                block: Block::with_whitespace(Ws(
+                    Some(Whitespace::Minimize),
+                    Some(Whitespace::Suppress),
+                )),
             }]),
         )],
     );
@@ -911,8 +913,10 @@ fn test_parse_cond() {
                     expr: Expr::Var("condition"),
                     target: Some(Target::Tuple(vec!["Some"], vec![Target::Name("val")],)),
                 }),
-                block: vec![],
-                ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
+                block: Block::with_whitespace(Ws(
+                    Some(Whitespace::Minimize),
+                    Some(Whitespace::Suppress),
+                )),
             }]),
         )],
     );
@@ -930,21 +934,24 @@ fn test_parse_cond() {
                         expr: Expr::Var("condition"),
                         target: None,
                     }),
-                    block: vec![],
-                    ws: Ws(Some(Whitespace::Preserve), Some(Whitespace::Suppress)),
+                    block: Block::with_whitespace(Ws(
+                        Some(Whitespace::Preserve),
+                        Some(Whitespace::Suppress),
+                    )),
                 },
                 Cond {
                     test: Some(CondTest {
                         expr: Expr::Var("other"),
                         target: None,
                     }),
-                    block: vec![],
-                    ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
+                    block: Block::with_whitespace(Ws(
+                        Some(Whitespace::Minimize),
+                        Some(Whitespace::Suppress),
+                    )),
                 },
                 Cond {
                     test: None,
-                    block: vec![],
-                    ws: Ws(Some(Whitespace::Minimize), None),
+                    block: Block::with_whitespace(Ws(Some(Whitespace::Minimize), None)),
                 },
             ]),
         )],

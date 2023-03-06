@@ -150,11 +150,10 @@ pub(crate) struct Ws(pub(crate) Option<Whitespace>, pub(crate) Option<Whitespace
 /// A single branch of a conditional statement.
 #[derive(Debug, PartialEq)]
 pub(crate) struct Cond<'a> {
-    pub(crate) ws: Ws,
     /// The test for this branch, or `None` for the `else` branch.
     pub(crate) test: Option<CondTest<'a>>,
     /// Body of this conditional branch.
-    pub(crate) block: Vec<Node<'a>>,
+    pub(crate) block: Block<'a>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -239,15 +238,12 @@ fn cond_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Cond<'a>> {
             cut(|i| parse_template(i, s)),
         ))),
     ));
-    let (i, (_, pws, _, (test, nws, _, block))) = p(i)?;
-    Ok((
-        i,
-        Cond {
-            ws: Ws(pws, nws),
-            test,
-            block,
-        },
-    ))
+    let (i, (_, pws, _, (test, nws, _, nodes))) = p(i)?;
+    let block = Block {
+        nodes,
+        ws: Ws(pws, nws),
+    };
+    Ok((i, Cond { test, block }))
 }
 
 fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
@@ -269,10 +265,13 @@ fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             ))),
         ))),
     ));
-    let (i, (pws1, cond, (nws1, _, (block, elifs, (_, pws2, _, nws2))))) = p(i)?;
+    let (i, (pws1, cond, (nws1, _, (nodes, elifs, (_, pws2, _, nws2))))) = p(i)?;
+    let block = Block {
+        nodes,
+        ws: Ws(pws1, nws1),
+    };
 
     let mut res = vec![Cond {
-        ws: Ws(pws1, nws1),
         test: Some(cond),
         block,
     }];
@@ -283,7 +282,7 @@ fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut cursor = pws2;
     let mut idx = res.len() - 1;
     loop {
-        std::mem::swap(&mut cursor, &mut res[idx].ws.0);
+        std::mem::swap(&mut cursor, &mut res[idx].block.ws.0);
 
         if idx == 0 {
             break;

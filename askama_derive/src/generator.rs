@@ -741,10 +741,10 @@ impl<'a> Generator<'a> {
 
             buf.writeln(" {")?;
 
-            self.prepare_ws(cond.ws);
-            arm_size += self.handle(ctx, &cond.block, buf, AstLevel::Nested)?;
+            self.prepare_ws(cond.block.ws);
+            arm_size += self.handle(ctx, &cond.block.nodes, buf, AstLevel::Nested)?;
             arm_sizes.push(arm_size);
-            self.flush_ws(cond.ws);
+            self.flush_ws(cond.block.ws);
         }
         flushed += self.write_buf_writable(buf)?;
         buf.writeln("}")?;
