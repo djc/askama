@@ -635,12 +635,10 @@ impl<'a> Generator<'a> {
                         Tag::Cond(conds) => {
                             size_hint += self.write_cond(ctx, buf, conds)?;
                         }
+                        Tag::Match(Match { expr, arms }) => {
+                            size_hint += self.write_match(ctx, buf, expr, arms)?;
+                        }
                     }
-                    self.prepare_ws(ws);
-                }
-                Node::Match(ws, Match { ref expr, ref arms }) => {
-                    self.flush_ws(ws);
-                    size_hint += self.write_match(ctx, buf, expr, arms)?;
                     self.prepare_ws(ws);
                 }
                 Node::Loop(ws, ref loop_block) => {

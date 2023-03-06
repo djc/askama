@@ -94,7 +94,7 @@ impl Context<'_> {
                         nested.push(body);
                         nested.push(else_block);
                     }
-                    Node::Match(_, Match { arms, .. }) => {
+                    Node::Tag(_, Tag::Match(Match { arms, .. })) => {
                         for When { block, .. } in arms {
                             nested.push(block);
                         }

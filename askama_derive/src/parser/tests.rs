@@ -586,9 +586,9 @@ fn test_parse_match() {
             &syntax
         )
         .unwrap(),
-        vec![Node::Match(
+        vec![Node::Tag(
             Ws(Some(Whitespace::Preserve), None),
-            Match {
+            Tag::Match(Match {
                 expr: Expr::Var("foo"),
                 arms: vec![
                     When {
@@ -600,9 +600,9 @@ fn test_parse_match() {
                         ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
                         target: Target::Name("_"),
                         block: vec![],
-                    }
+                    },
                 ],
-            }
+            }),
         )],
     );
 }
