@@ -1,3 +1,15 @@
+//! Parser and syntax tree for Askama's template syntax.
+//!
+//! Askama template source is parsed into a [`node::Block`](./node/struct.Block.html),
+//! which contains a sequence of [`node::Node`s](./node/enum.Node.html).
+//! Each `Node` represents either a bit of literal text or one of three types of
+//! template tags: comments, expressions, or statements.  In turn, statements
+//! can contain nested `Block`s, which form a hierarchical structure.
+//!
+//! The main entry point to this crate is the [`parse()`](./fn.parse.html)
+//! method, which takes the template input `&str` and the configurable
+//! [`syntax::Syntax`](./syntax/struct.Syntax.html) to use for parsing.
+
 use std::cell::Cell;
 use std::str;
 
