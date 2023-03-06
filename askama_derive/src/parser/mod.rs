@@ -12,7 +12,9 @@ use nom::sequence::{delimited, pair, tuple};
 use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
 
 pub(crate) use self::expr::Expr;
-pub(crate) use self::node::{Cond, CondTest, Loop, Macro, Node, Target, When, Whitespace, Ws};
+pub(crate) use self::node::{
+    Call, Cond, CondTest, Loop, Macro, Node, Target, When, Whitespace, Ws,
+};
 use crate::config::Syntax;
 use crate::CompileError;
 

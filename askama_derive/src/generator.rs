@@ -1,7 +1,7 @@
 use crate::config::{get_template_source, read_config_file, Config, WhitespaceHandling};
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
-use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
+use crate::parser::{parse, Call, Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
 use crate::CompileError;
 
 use proc_macro::TokenStream;
@@ -665,7 +665,14 @@ impl<'a> Generator<'a> {
                 Node::Include(ws, path) => {
                     size_hint += self.handle_include(ctx, buf, ws, path)?;
                 }
-                Node::Call(ws, scope, name, ref args) => {
+                Node::Call(
+                    ws,
+                    Call {
+                        scope,
+                        name,
+                        ref args,
+                    },
+                ) => {
                     size_hint += self.write_call(ctx, buf, ws, scope, name, args)?;
                 }
                 Node::Macro(_, ref m) => {
