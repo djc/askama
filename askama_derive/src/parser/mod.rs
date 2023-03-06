@@ -13,7 +13,7 @@ use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
 
 pub(crate) use self::expr::Expr;
 pub(crate) use self::node::{
-    Call, Cond, CondTest, Lit, Loop, Macro, Match, Node, Target, When, Whitespace, Ws,
+    Call, Cond, CondTest, Lit, Loop, Macro, Match, Node, Raw, Target, When, Whitespace, Ws,
 };
 
 mod expr;

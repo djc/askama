@@ -31,7 +31,7 @@ pub(crate) enum Node<'a> {
     Include(Ws, &'a str),
     Import(Ws, &'a str, &'a str),
     Macro(Ws, Macro<'a>),
-    Raw(Ws, Lit<'a>, Ws),
+    Raw(Ws, Raw<'a>),
     Break(Ws),
     Continue(Ws),
 }
@@ -61,6 +61,13 @@ pub(crate) struct Lit<'a> {
     pub(crate) lws: &'a str,
     pub(crate) val: &'a str,
     pub(crate) rws: &'a str,
+}
+
+/// A raw block to output directly.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Raw<'a> {
+    pub(crate) lit: Lit<'a>,
+    pub(crate) ws: Ws,
 }
 
 /// A macro call statement.
@@ -530,9 +537,9 @@ fn block_raw<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
     let (_, (pws1, _, (nws1, _, (contents, (i, (_, pws2, _, nws2, _)))))) = p(i)?;
     let lit = split_ws_parts(contents);
-    let ws1 = Ws(pws1, nws1);
-    let ws2 = Ws(pws2, nws2);
-    Ok((i, Node::Raw(ws1, lit, ws2)))
+    let outer = Ws(pws1, nws2);
+    let ws = Ws(pws2, nws1);
+    Ok((i, Node::Raw(outer, Raw { lit, ws })))
 }
 
 fn break_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {

@@ -2,7 +2,7 @@ use crate::config::{get_template_source, read_config_file, Config, WhitespaceHan
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
 use crate::parser::{
-    parse, Call, Cond, CondTest, Expr, Lit, Loop, Match, Node, Target, When, Whitespace, Ws,
+    parse, Call, Cond, CondTest, Expr, Lit, Loop, Match, Node, Raw, Target, When, Whitespace, Ws,
 };
 use crate::CompileError;
 
@@ -671,10 +671,10 @@ impl<'a> Generator<'a> {
                     }
                     self.handle_ws(ws);
                 }
-                Node::Raw(ws1, ref lit, ws2) => {
-                    self.handle_ws(ws1);
-                    self.visit_lit(lit);
-                    self.handle_ws(ws2);
+                Node::Raw(ws, ref raw) => {
+                    self.flush_ws(ws);
+                    self.visit_raw(raw);
+                    self.prepare_ws(ws);
                 }
                 Node::Import(ws, _, _) => {
                     if level != AstLevel::Top {
@@ -1258,6 +1258,12 @@ impl<'a> Generator<'a> {
         buf.dedent()?;
         buf.writeln(")?;")?;
         Ok(size_hint)
+    }
+
+    fn visit_raw(&mut self, Raw { lit, ws }: &'a Raw<'_>) {
+        self.prepare_ws(*ws);
+        self.visit_lit(lit);
+        self.flush_ws(*ws);
     }
 
     fn visit_lit(&mut self, Lit { lws, val, rws }: &'a Lit<'_>) {
