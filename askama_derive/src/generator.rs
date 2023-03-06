@@ -632,7 +632,9 @@ impl<'a> Generator<'a> {
                     self.prepare_ws(ws);
                 }
                 Node::LetDecl(ws, ref var) => {
-                    self.write_let_decl(buf, ws, var)?;
+                    self.flush_ws(ws);
+                    self.write_let_decl(buf, var)?;
+                    self.prepare_ws(ws);
                 }
                 Node::Let(ws, ref var, ref val) => {
                     self.write_let(buf, ws, var, val)?;
@@ -1036,10 +1038,8 @@ impl<'a> Generator<'a> {
     fn write_let_decl(
         &mut self,
         buf: &mut Buffer,
-        ws: Ws,
         var: &'a Target<'_>,
     ) -> Result<(), CompileError> {
-        self.handle_ws(ws);
         self.write_buf_writable(buf)?;
         buf.write("let ");
         self.visit_target(buf, false, true, var);
