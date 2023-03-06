@@ -832,8 +832,10 @@ fn test_parse_macro_statement() {
             Tag::Macro(Macro {
                 name: "foo",
                 args: vec!["bar"],
-                nodes: vec![],
-                ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
+                block: Block::with_whitespace(Ws(
+                    Some(Whitespace::Minimize),
+                    Some(Whitespace::Suppress),
+                )),
             }),
         )]
     );

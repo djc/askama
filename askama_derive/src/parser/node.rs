@@ -131,8 +131,7 @@ pub(crate) struct Loop<'a> {
 pub(crate) struct Macro<'a> {
     pub(crate) name: &'a str,
     pub(crate) args: Vec<&'a str>,
-    pub(crate) nodes: Vec<Node<'a>>,
-    pub(crate) ws: Ws,
+    pub(crate) block: Block<'a>,
 }
 
 /// A block statement, either a definition or a reference.
@@ -569,7 +568,11 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             cut(tuple((opt(ws(keyword(name))), opt(expr_handle_ws)))),
         ))),
     )));
-    let (i, (contents, (_, pws2, _, (_, nws2)))) = end(i)?;
+    let (i, (nodes, (_, pws2, _, (_, nws2)))) = end(i)?;
+    let block = Block {
+        nodes,
+        ws: Ws(pws2, nws1),
+    };
 
     assert_ne!(name, "super", "invalid macro name 'super'");
 
@@ -580,8 +583,7 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             Tag::Macro(Macro {
                 name,
                 args: params,
-                nodes: contents,
-                ws: Ws(pws2, nws1),
+                block,
             }),
         ),
     ))

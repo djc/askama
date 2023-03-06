@@ -907,7 +907,7 @@ impl<'a> Generator<'a> {
         self.locals.push();
         self.write_buf_writable(buf)?;
         buf.writeln("{")?;
-        self.prepare_ws(def.ws);
+        self.prepare_ws(def.block.ws);
 
         let mut names = Buffer::new(0);
         let mut values = Buffer::new(0);
@@ -958,9 +958,9 @@ impl<'a> Generator<'a> {
             buf.writeln(&format!("let ({}) = ({});", names.buf, values.buf))?;
         }
 
-        let mut size_hint = self.handle(own_ctx, &def.nodes, buf, AstLevel::Nested)?;
+        let mut size_hint = self.handle(own_ctx, &def.block.nodes, buf, AstLevel::Nested)?;
 
-        self.flush_ws(def.ws);
+        self.flush_ws(def.block.ws);
         size_hint += self.write_buf_writable(buf)?;
         buf.writeln("}")?;
         self.locals.pop();
