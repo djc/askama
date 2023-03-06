@@ -28,7 +28,7 @@ pub(crate) enum Node<'a> {
     Match(Ws, Match<'a>),
     Loop(Loop<'a>),
     Extends(&'a str),
-    BlockDef(Ws, &'a str, Vec<Node<'a>>, Ws),
+    BlockDef(Ws, BlockDef<'a>),
     Include(Ws, &'a str),
     Import(Ws, &'a str, &'a str),
     Macro(Ws, Macro<'a>),
@@ -129,6 +129,14 @@ pub(crate) struct Macro<'a> {
     pub(crate) name: &'a str,
     pub(crate) args: Vec<&'a str>,
     pub(crate) nodes: Vec<Node<'a>>,
+    pub(crate) ws: Ws,
+}
+
+/// A block statement, either a definition or a reference.
+#[derive(Debug, PartialEq)]
+pub(crate) struct BlockDef<'a> {
+    pub(crate) name: &'a str,
+    pub(crate) block: Vec<Node<'a>>,
     pub(crate) ws: Ws,
 }
 
@@ -456,11 +464,18 @@ fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             cut(tuple((opt(ws(keyword(name))), opt(expr_handle_ws)))),
         ))),
     )));
-    let (i, (contents, (_, pws2, _, (_, nws2)))) = end(i)?;
+    let (i, (block, (_, pws2, _, (_, nws2)))) = end(i)?;
 
     Ok((
         i,
-        Node::BlockDef(Ws(pws1, nws1), name, contents, Ws(pws2, nws2)),
+        Node::BlockDef(
+            Ws(pws1, nws2),
+            BlockDef {
+                name,
+                block,
+                ws: Ws(pws2, nws1),
+            },
+        ),
     ))
 }
 

@@ -2,7 +2,8 @@ use crate::config::{get_template_source, read_config_file, Config, WhitespaceHan
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
 use crate::parser::{
-    parse, Call, Cond, CondTest, Expr, Lit, Loop, Match, Node, Raw, Target, When, Whitespace, Ws,
+    parse, BlockDef, Call, Cond, CondTest, Expr, Lit, Loop, Match, Node, Raw, Target, When,
+    Whitespace, Ws,
 };
 use crate::CompileError;
 
@@ -668,8 +669,8 @@ impl<'a> Generator<'a> {
                 Node::Loop(ref loop_block) => {
                     size_hint += self.write_loop(ctx, buf, loop_block)?;
                 }
-                Node::BlockDef(ws1, name, _, ws2) => {
-                    size_hint += self.write_block(buf, Some(name), Ws(ws1.0, ws2.1))?;
+                Node::BlockDef(ws, BlockDef { name, .. }) => {
+                    size_hint += self.write_block(buf, Some(name), ws)?;
                 }
                 Node::Include(ws, path) => {
                     size_hint += self.handle_include(ctx, buf, ws, path)?;
@@ -1175,16 +1176,12 @@ impl<'a> Generator<'a> {
         })?;
 
         // Get the nodes and whitespace suppression data from the block definition
-        let (ws1, nodes, ws2) = if let Node::BlockDef(ws1, _, nodes, ws2) = def {
-            (ws1, nodes, ws2)
-        } else {
-            unreachable!()
-        };
+        let BlockDef { block, ws, .. } = def;
 
         // Handle inner whitespace suppression spec and process block nodes
-        self.prepare_ws(*ws1);
+        self.prepare_ws(*ws);
         self.locals.push();
-        let size_hint = self.handle(ctx, nodes, buf, AstLevel::Block)?;
+        let size_hint = self.handle(ctx, block, buf, AstLevel::Block)?;
 
         if !self.locals.is_current_empty() {
             // Need to flush the buffer before popping the variable stack
@@ -1192,7 +1189,7 @@ impl<'a> Generator<'a> {
         }
 
         self.locals.pop();
-        self.flush_ws(*ws2);
+        self.flush_ws(*ws);
 
         // Restore original block context and set whitespace suppression for
         // succeeding whitespace according to the outer WS spec
