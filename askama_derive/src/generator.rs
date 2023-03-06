@@ -665,9 +665,9 @@ impl<'a> Generator<'a> {
                     size_hint += self.write_cond(ctx, buf, conds)?;
                     self.prepare_ws(ws);
                 }
-                Node::Match(ws, Match { ref expr, ref arms }) => {
+                Node::Match(ws, ref match_node) => {
                     self.flush_ws(ws);
-                    size_hint += self.write_match(ctx, buf, expr, arms)?;
+                    size_hint += self.write_match(ctx, buf, match_node)?;
                     self.prepare_ws(ws);
                 }
                 Node::Loop(ws, ref loop_block) => {
@@ -815,9 +815,10 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        expr: &Expr<'_>,
-        arms: &'a [When<'_>],
+        match_node: &'a Match<'_>,
     ) -> Result<usize, CompileError> {
+        let Match { expr, arms } = match_node;
+
         let flushed = self.write_buf_writable(buf)?;
         let mut arm_sizes = Vec::new();
 
