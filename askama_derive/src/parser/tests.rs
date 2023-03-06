@@ -702,3 +702,24 @@ fn test_parse_macro_statement() {
         )]
     );
 }
+
+#[test]
+fn test_parse_raw_block() {
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse(
+            "{% raw -%}{% if condition %}{{ result }}{% endif %}{%~ endraw +%}",
+            &syntax
+        )
+        .unwrap(),
+        vec![Node::Raw(
+            Ws(None, Some(Whitespace::Suppress)),
+            Lit {
+                lws: "",
+                val: "{% if condition %}{{ result }}{% endif %}",
+                rws: "",
+            },
+            Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
+        )]
+    );
+}
