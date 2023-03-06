@@ -205,7 +205,7 @@ fn find_used_templates(
     while let Some((path, source)) = check.pop() {
         for n in parse(&source, input.syntax)? {
             match n {
-                Node::Extends(extends) => {
+                Node::Tag(_, Tag::Extends(extends)) => {
                     let extends = input.config.find_template(extends, Some(&path))?;
                     let dependency_path = (path.clone(), extends.clone());
                     if dependency_graph.contains(&dependency_path) {
@@ -622,9 +622,17 @@ impl<'a> Generator<'a> {
                 Node::Lit(ref lit) => {
                     self.visit_lit(lit);
                 }
+                Node::Tag(_, Tag::Extends(_)) => {
+                    if level != AstLevel::Top {
+                        return Err("extend blocks only allowed at the top level".into());
+                    }
+                    // No whitespace handling: child template top-level is not used,
+                    // except for the blocks defined in it.
+                }
                 Node::Tag(ws, ref tag) => {
                     self.flush_ws(ws);
                     match tag {
+                        Tag::Extends(_) => unreachable!(),
                         Tag::Comment => {}
                         Tag::Expr(val) => self.write_expr(val),
                         Tag::Call(call) => {
@@ -671,13 +679,6 @@ impl<'a> Generator<'a> {
                         }
                     }
                     self.prepare_ws(ws);
-                }
-                Node::Extends(_) => {
-                    if level != AstLevel::Top {
-                        return Err("extend blocks only allowed at the top level".into());
-                    }
-                    // No whitespace handling: child template top-level is not used,
-                    // except for the blocks defined in it.
                 }
             }
         }

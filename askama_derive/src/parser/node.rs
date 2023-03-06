@@ -19,7 +19,6 @@ use super::{
 pub(crate) enum Node<'a> {
     Lit(Lit<'a>),
     Tag(Ws, Tag<'a>),
-    Extends(&'a str),
 }
 
 #[derive(Debug, PartialEq)]
@@ -35,6 +34,7 @@ pub(crate) enum Tag<'a> {
     BlockDef(BlockDef<'a>),
     Include(&'a str),
     Import(&'a str, &'a str),
+    Extends(&'a str),
     Macro(Macro<'a>),
     Raw(Raw<'a>),
     Break,
@@ -470,7 +470,7 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
 fn block_extends(i: &str) -> IResult<&str, Node<'_>> {
     let (i, (_, name)) = tuple((ws(keyword("extends")), ws(str_lit)))(i)?;
-    Ok((i, Node::Extends(name)))
+    Ok((i, Node::Tag(Ws(None, None), Tag::Extends(name))))
 }
 
 fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {

@@ -58,7 +58,7 @@ impl Context<'_> {
         while let Some(nodes) = nested.pop() {
             for n in nodes {
                 match n {
-                    Node::Extends(extends_path) if top => match extends {
+                    Node::Tag(_, Tag::Extends(extends_path)) if top => match extends {
                         Some(_) => return Err("multiple extend blocks found".into()),
                         None => {
                             extends = Some(config.find_template(extends_path, Some(path))?);
@@ -71,7 +71,7 @@ impl Context<'_> {
                         let path = config.find_template(import_path, Some(path))?;
                         imports.insert(*scope, path);
                     }
-                    Node::Extends(_)
+                    Node::Tag(_, Tag::Extends(_))
                     | Node::Tag(_, Tag::Macro(_))
                     | Node::Tag(_, Tag::Import(_, _))
                         if !top =>
