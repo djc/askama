@@ -20,7 +20,6 @@ pub(crate) enum Node<'a> {
     Lit(Lit<'a>),
     Tag(Ws, Tag<'a>),
     Extends(&'a str),
-    BlockDef(Ws, BlockDef<'a>),
     Include(Ws, &'a str),
     Import(Ws, &'a str, &'a str),
     Macro(Ws, Macro<'a>),
@@ -39,6 +38,7 @@ pub(crate) enum Tag<'a> {
     Cond(Vec<Cond<'a>>),
     Match(Match<'a>),
     Loop(Loop<'a>),
+    BlockDef(BlockDef<'a>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -488,13 +488,13 @@ fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
     Ok((
         i,
-        Node::BlockDef(
+        Node::Tag(
             Ws(pws1, nws2),
-            BlockDef {
+            Tag::BlockDef(BlockDef {
                 name,
                 block,
                 ws: Ws(pws2, nws1),
-            },
+            }),
         ),
     ))
 }

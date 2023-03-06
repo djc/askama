@@ -76,7 +76,7 @@ impl Context<'_> {
                             "extends, macro or import blocks not allowed below top level".into(),
                         );
                     }
-                    Node::BlockDef(_, def @ BlockDef { block, .. }) => {
+                    Node::Tag(_, Tag::BlockDef(def @ BlockDef { block, .. })) => {
                         blocks.push(def);
                         nested.push(block);
                     }

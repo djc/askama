@@ -860,13 +860,13 @@ fn test_parse_block_def() {
     let syntax = Syntax::default();
     assert_eq!(
         super::parse("{% block foo -%}{%~ endblock +%}", &syntax).unwrap(),
-        vec![Node::BlockDef(
+        vec![Node::Tag(
             Ws(None, Some(Whitespace::Preserve)),
-            BlockDef {
+            Tag::BlockDef(BlockDef {
                 name: "foo",
                 block: vec![],
                 ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
-            }
+            }),
         )],
     );
 }

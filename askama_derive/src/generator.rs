@@ -641,12 +641,10 @@ impl<'a> Generator<'a> {
                         Tag::Loop(loop_block) => {
                             size_hint += self.write_loop(ctx, buf, loop_block)?;
                         }
+                        Tag::BlockDef(BlockDef { name, .. }) => {
+                            size_hint += self.write_block(buf, Some(name))?;
+                        }
                     }
-                    self.prepare_ws(ws);
-                }
-                Node::BlockDef(ws, BlockDef { name, .. }) => {
-                    self.flush_ws(ws);
-                    size_hint += self.write_block(buf, Some(name))?;
                     self.prepare_ws(ws);
                 }
                 Node::Include(ws, path) => {
