@@ -30,7 +30,7 @@ pub(crate) enum Node<'a> {
     BlockDef(Ws, &'a str, Vec<Node<'a>>, Ws),
     Include(Ws, &'a str),
     Import(Ws, &'a str, &'a str),
-    Macro(&'a str, Macro<'a>),
+    Macro(Macro<'a>),
     Raw(Ws, Lit<'a>, Ws),
     Break(Ws),
     Continue(Ws),
@@ -108,6 +108,7 @@ pub(crate) struct Loop<'a> {
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct Macro<'a> {
+    pub(crate) name: &'a str,
     pub(crate) ws1: Ws,
     pub(crate) args: Vec<&'a str>,
     pub(crate) nodes: Vec<Node<'a>>,
@@ -497,15 +498,13 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
     Ok((
         i,
-        Node::Macro(
+        Node::Macro(Macro {
             name,
-            Macro {
-                ws1: Ws(pws1, nws1),
-                args: params,
-                nodes: contents,
-                ws2: Ws(pws2, nws2),
-            },
-        ),
+            ws1: Ws(pws1, nws1),
+            args: params,
+            nodes: contents,
+            ws2: Ws(pws2, nws2),
+        }),
     ))
 }
 
