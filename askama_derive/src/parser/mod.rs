@@ -139,6 +139,7 @@ pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax<'_>) -> Result<Block<'a
     }
 }
 
+/// An error encountered when parsing template source.
 #[derive(Debug)]
 pub(crate) struct ParseError {
     row: usize,
@@ -148,10 +149,12 @@ pub(crate) struct ParseError {
 
 #[cfg(test)]
 impl ParseError {
-    pub(crate) fn row(&self) -> usize {
+    /// The line number in the source where the error was identified.
+    pub(crate) fn line(&self) -> usize {
         self.row
     }
 
+    /// The column number in the source where the error was identified.
     pub(crate) fn column(&self) -> usize {
         self.column
     }

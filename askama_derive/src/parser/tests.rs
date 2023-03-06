@@ -800,7 +800,7 @@ fn test_missing_space_after_kw() {
         err.to_string(),
         "problems parsing template source at row 1, column 0 near:\n\"{%leta=b%}\""
     );
-    assert_eq!(err.row(), 1);
+    assert_eq!(err.line(), 1);
     assert_eq!(err.column(), 0);
 }
 
