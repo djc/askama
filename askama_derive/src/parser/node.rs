@@ -25,7 +25,7 @@ pub(crate) enum Node<'a> {
     Let(Ws, Target<'a>, Expr<'a>),
     Cond(Vec<Cond<'a>>, Ws),
     Match(Ws, Match<'a>),
-    Loop(Loop<'a>),
+    Loop(Ws, Loop<'a>),
     Extends(&'a str),
     BlockDef(Ws, BlockDef<'a>),
     Include(Ws, &'a str),
@@ -103,14 +103,13 @@ pub(crate) struct When<'a> {
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct Loop<'a> {
-    pub(crate) ws1: Ws,
     pub(crate) var: Target<'a>,
     pub(crate) iter: Expr<'a>,
     pub(crate) cond: Option<Expr<'a>>,
     pub(crate) body: Vec<Node<'a>>,
-    pub(crate) ws2: Ws,
+    pub(crate) body_ws: Ws,
     pub(crate) else_block: Vec<Node<'a>>,
-    pub(crate) ws3: Ws,
+    pub(crate) else_ws: Ws,
 }
 
 #[derive(Debug, PartialEq)]
@@ -415,16 +414,18 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let (nws3, else_block, pws3) = else_block.unwrap_or_default();
     Ok((
         i,
-        Node::Loop(Loop {
-            ws1: Ws(pws1, nws1),
-            var,
-            iter,
-            cond,
-            body,
-            ws2: Ws(pws2, nws3),
-            else_block,
-            ws3: Ws(pws3, nws2),
-        }),
+        Node::Loop(
+            Ws(pws1, nws2),
+            Loop {
+                var,
+                iter,
+                cond,
+                body,
+                body_ws: Ws(pws2, nws1),
+                else_block,
+                else_ws: Ws(pws3, nws3),
+            },
+        ),
     ))
 }
 
