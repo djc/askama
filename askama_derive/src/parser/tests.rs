@@ -875,8 +875,10 @@ fn test_parse_block_def() {
             Ws(None, Some(Whitespace::Preserve)),
             Tag::BlockDef(BlockDef {
                 name: "foo",
-                block: vec![],
-                ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
+                block: Block::with_whitespace(Ws(
+                    Some(Whitespace::Minimize),
+                    Some(Whitespace::Suppress),
+                )),
             }),
         )],
     );

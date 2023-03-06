@@ -138,8 +138,7 @@ pub(crate) struct Macro<'a> {
 #[derive(Debug, PartialEq)]
 pub(crate) struct BlockDef<'a> {
     pub(crate) name: &'a str,
-    pub(crate) block: Vec<Node<'a>>,
-    pub(crate) ws: Ws,
+    pub(crate) block: Block<'a>,
 }
 
 /// First field is "minus/plus sign was used on the left part of the item".
@@ -507,18 +506,15 @@ fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             cut(tuple((opt(ws(keyword(name))), opt(expr_handle_ws)))),
         ))),
     )));
-    let (i, (block, (_, pws2, _, (_, nws2)))) = end(i)?;
+    let (i, (nodes, (_, pws2, _, (_, nws2)))) = end(i)?;
+    let block = Block {
+        nodes,
+        ws: Ws(pws2, nws1),
+    };
 
     Ok((
         i,
-        Node::Tag(
-            Ws(pws1, nws2),
-            Tag::BlockDef(BlockDef {
-                name,
-                block,
-                ws: Ws(pws2, nws1),
-            }),
-        ),
+        Node::Tag(Ws(pws1, nws2), Tag::BlockDef(BlockDef { name, block })),
     ))
 }
 

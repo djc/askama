@@ -82,7 +82,7 @@ impl Context<'_> {
                     }
                     Node::Tag(_, Tag::BlockDef(def @ BlockDef { block, .. })) => {
                         blocks.push(def);
-                        nested.push(block);
+                        nested.push(&block.nodes);
                     }
                     Node::Tag(_, Tag::Cond(branches)) => {
                         for Cond { block, .. } in branches {
