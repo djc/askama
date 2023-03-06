@@ -76,6 +76,16 @@ pub(crate) struct Match<'a> {
     pub(crate) ws: Ws,
 }
 
+/// A single arm of a match statement.
+#[derive(Debug, PartialEq)]
+pub(crate) struct When<'a> {
+    pub(crate) ws: Ws,
+    /// The target pattern to match.
+    pub(crate) target: Target<'a>,
+    /// Body of the match arm.
+    pub(crate) block: Vec<Node<'a>>,
+}
+
 #[derive(Debug, PartialEq)]
 pub(crate) struct Loop<'a> {
     pub(crate) ws1: Ws,
@@ -87,8 +97,6 @@ pub(crate) struct Loop<'a> {
     pub(crate) else_block: Vec<Node<'a>>,
     pub(crate) ws3: Ws,
 }
-
-pub(crate) type When<'a> = (Ws, Target<'a>, Vec<Node<'a>>);
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct Macro<'a> {
@@ -222,7 +230,14 @@ fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>>
         ))),
     ));
     let (i, (_, pws, _, (nws, _, block))) = p(i)?;
-    Ok((i, (Ws(pws, nws), Target::Name("_"), block)))
+    Ok((
+        i,
+        When {
+            ws: Ws(pws, nws),
+            target: Target::Name("_"),
+            block,
+        },
+    ))
 }
 
 fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
@@ -238,7 +253,14 @@ fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
         ))),
     ));
     let (i, (_, pws, _, (target, nws, _, block))) = p(i)?;
-    Ok((i, (Ws(pws, nws), target, block)))
+    Ok((
+        i,
+        When {
+            ws: Ws(pws, nws),
+            target,
+            block,
+        },
+    ))
 }
 
 fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
