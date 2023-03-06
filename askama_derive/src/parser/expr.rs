@@ -1,3 +1,5 @@
+//! Nodes for Askama expression syntax trees
+
 use std::str;
 
 use nom::branch::alt;
@@ -12,25 +14,44 @@ use super::{
     bool_lit, char_lit, identifier, nested_parenthesis, not_ws, num_lit, path, str_lit, ws,
 };
 
+/// An Askama expression.
 #[derive(Debug, PartialEq)]
 pub(crate) enum Expr<'a> {
+    /// A boolean literal.
     BoolLit(&'a str),
+    /// A numeric literal.
     NumLit(&'a str),
+    /// A string literal.
     StrLit(&'a str),
+    /// A character literal.
     CharLit(&'a str),
+    /// A variable reference.
     Var(&'a str),
+    /// A path reference (e.g. `std::str::ToString`).
     Path(Vec<&'a str>),
+    /// An array of subexpressions.
     Array(Vec<Expr<'a>>),
+    /// A reference to an attribute of an expression (e.g. `object.field`).
     Attr(Box<Expr<'a>>, &'a str),
+    /// An index into an expression (e.g. `arr[0]`).
     Index(Box<Expr<'a>>, Box<Expr<'a>>),
+    /// An application of an Askama filter to another expression.
     Filter(&'a str, Vec<Expr<'a>>),
+    /// A unary operation on an expression.
     Unary(&'a str, Box<Expr<'a>>),
+    /// A binary operation on two expressions.
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
+    /// A range expression (e.g. `0..10`).
     Range(&'a str, Option<Box<Expr<'a>>>, Option<Box<Expr<'a>>>),
+    /// An expression grouped in parentheses.
     Group(Box<Expr<'a>>),
+    /// A tuple expression.
     Tuple(Vec<Expr<'a>>),
+    /// A function call.
     Call(Box<Expr<'a>>, Vec<Expr<'a>>),
+    /// A Rust macro application.
     RustMacro(&'a str, &'a str),
+    /// The Askama equivalent of Rust's try operator `?`.
     Try(Box<Expr<'a>>),
 }
 
