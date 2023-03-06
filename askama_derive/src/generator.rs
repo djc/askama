@@ -682,7 +682,8 @@ impl<'a> Generator<'a> {
                     if level != AstLevel::Top {
                         return Err("macro blocks only allowed at the top level".into());
                     }
-                    self.handle_ws(ws);
+                    self.flush_ws(ws);
+                    self.prepare_ws(ws);
                 }
                 Node::Raw(ws, ref raw) => {
                     self.flush_ws(ws);
@@ -693,7 +694,8 @@ impl<'a> Generator<'a> {
                     if level != AstLevel::Top {
                         return Err("import blocks only allowed at the top level".into());
                     }
-                    self.handle_ws(ws);
+                    self.flush_ws(ws);
+                    self.prepare_ws(ws);
                 }
                 Node::Extends(_) => {
                     if level != AstLevel::Top {
@@ -703,12 +705,14 @@ impl<'a> Generator<'a> {
                     // except for the blocks defined in it.
                 }
                 Node::Break(ws) => {
-                    self.handle_ws(ws);
+                    self.flush_ws(ws);
+                    self.prepare_ws(ws);
                     self.write_buf_writable(buf)?;
                     buf.writeln("break;")?;
                 }
                 Node::Continue(ws) => {
-                    self.handle_ws(ws);
+                    self.flush_ws(ws);
+                    self.prepare_ws(ws);
                     self.write_buf_writable(buf)?;
                     buf.writeln("continue;")?;
                 }
@@ -1846,13 +1850,6 @@ impl<'a> Generator<'a> {
     }
 
     /* Helper methods for dealing with whitespace nodes */
-
-    // Combines `flush_ws()` and `prepare_ws()` to handle both trailing whitespace from the
-    // preceding literal and leading whitespace from the succeeding literal.
-    fn handle_ws(&mut self, ws: Ws) {
-        self.flush_ws(ws);
-        self.prepare_ws(ws);
-    }
 
     fn should_trim_ws(&self, ws: Option<Whitespace>) -> WhitespaceHandling {
         match ws {
