@@ -14,7 +14,6 @@ use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
 pub(crate) use self::expr::Expr;
 pub(crate) use self::node::{
     Block, BlockDef, Call, Cond, CondTest, Lit, Loop, Macro, Match, Node, Raw, Tag, Target, When,
-    Whitespace, Ws,
 };
 
 mod expr;
@@ -44,6 +43,19 @@ impl Default for Syntax<'static> {
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum Whitespace {
+    Preserve,
+    Suppress,
+    Minimize,
+}
+
+/// First field is "minus/plus sign was used on the left part of the item".
+///
+/// Second field is "minus/plus sign was used on the right part of the item".
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Ws(pub(crate) Option<Whitespace>, pub(crate) Option<Whitespace>);
 
 struct State<'a> {
     syntax: &'a Syntax<'a>,

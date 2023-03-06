@@ -12,7 +12,7 @@ use nom::{error_position, IResult};
 use super::{
     bool_lit, char_lit, identifier, keyword, num_lit, path, skip_till, split_ws_parts, str_lit,
     tag_block_end, tag_block_start, tag_comment_end, tag_comment_start, tag_expr_end,
-    tag_expr_start, take_content, ws, Expr, State,
+    tag_expr_start, take_content, ws, Expr, State, Whitespace, Ws,
 };
 
 #[derive(Debug, PartialEq)]
@@ -71,13 +71,6 @@ pub(crate) enum Target<'a> {
     CharLit(&'a str),
     BoolLit(&'a str),
     Path(Vec<&'a str>),
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum Whitespace {
-    Preserve,
-    Suppress,
-    Minimize,
 }
 
 /// A literal bit of text to output directly.
@@ -146,12 +139,6 @@ pub(crate) struct BlockDef<'a> {
     pub(crate) name: &'a str,
     pub(crate) block: Block<'a>,
 }
-
-/// First field is "minus/plus sign was used on the left part of the item".
-///
-/// Second field is "minus/plus sign was used on the right part of the item".
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct Ws(pub(crate) Option<Whitespace>, pub(crate) Option<Whitespace>);
 
 /// A single branch of a conditional statement.
 #[derive(Debug, PartialEq)]
