@@ -1,7 +1,9 @@
 use crate::config::{get_template_source, read_config_file, Config, WhitespaceHandling};
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
-use crate::parser::{parse, Call, Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
+use crate::parser::{
+    parse, Call, Cond, CondTest, Expr, Loop, Match, Node, Target, When, Whitespace, Ws,
+};
 use crate::CompileError;
 
 use proc_macro::TokenStream;
@@ -634,8 +636,15 @@ impl<'a> Generator<'a> {
                 Node::Cond(ref conds, ws) => {
                     size_hint += self.write_cond(ctx, buf, conds, ws)?;
                 }
-                Node::Match(ws1, ref expr, ref arms, ws2) => {
-                    size_hint += self.write_match(ctx, buf, ws1, expr, arms, ws2)?;
+                Node::Match(
+                    ws1,
+                    Match {
+                        ref expr,
+                        ref arms,
+                        ws,
+                    },
+                ) => {
+                    size_hint += self.write_match(ctx, buf, ws1, expr, arms, ws)?;
                 }
                 Node::Loop(ref loop_block) => {
                     size_hint += self.write_loop(ctx, buf, loop_block)?;

@@ -24,7 +24,7 @@ pub(crate) enum Node<'a> {
     LetDecl(Ws, Target<'a>),
     Let(Ws, Target<'a>, Expr<'a>),
     Cond(Vec<Cond<'a>>, Ws),
-    Match(Ws, Expr<'a>, Vec<When<'a>>, Ws),
+    Match(Ws, Match<'a>),
     Loop(Loop<'a>),
     Extends(&'a str),
     BlockDef(Ws, &'a str, Vec<Node<'a>>, Ws),
@@ -64,6 +64,16 @@ pub(crate) struct Call<'a> {
     pub(crate) name: &'a str,
     /// The arguments to the macro.
     pub(crate) args: Vec<Expr<'a>>,
+}
+
+/// A match statement.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Match<'a> {
+    /// The expression to match against.
+    pub(crate) expr: Expr<'a>,
+    /// Each of the match arms, with a pattern and a body.
+    pub(crate) arms: Vec<When<'a>>,
+    pub(crate) ws: Ws,
 }
 
 #[derive(Debug, PartialEq)]
@@ -255,13 +265,14 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         ))),
     ));
     let (i, (pws1, _, (expr, nws1, _, (_, arms, (else_arm, (_, pws2, _, nws2)))))) = p(i)?;
+    let ws = Ws(pws2, nws2);
 
     let mut arms = arms;
     if let Some(arm) = else_arm {
         arms.push(arm);
     }
 
-    Ok((i, Node::Match(Ws(pws1, nws1), expr, arms, Ws(pws2, nws2))))
+    Ok((i, Node::Match(Ws(pws1, nws1), Match { expr, arms, ws })))
 }
 
 fn block_let(i: &str) -> IResult<&str, Node<'_>> {
