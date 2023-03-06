@@ -810,3 +810,70 @@ fn test_parse_block_def() {
         )],
     );
 }
+
+#[test]
+fn test_parse_cond() {
+    use super::{Cond, CondTest};
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse("{% if condition -%}{%~ endif +%}", &syntax).unwrap(),
+        vec![Node::Cond(
+            vec![Cond {
+                test: Some(CondTest {
+                    expr: Expr::Var("condition"),
+                    target: None,
+                }),
+                block: vec![],
+                ws: Ws(None, Some(Whitespace::Suppress)),
+            },],
+            Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
+        )],
+    );
+    assert_eq!(
+        super::parse("{% if let Some(val) = condition -%}{%~ endif +%}", &syntax).unwrap(),
+        vec![Node::Cond(
+            vec![Cond {
+                test: Some(CondTest {
+                    expr: Expr::Var("condition"),
+                    target: Some(Target::Tuple(vec!["Some"], vec![Target::Name("val")],)),
+                }),
+                block: vec![],
+                ws: Ws(None, Some(Whitespace::Suppress)),
+            },],
+            Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
+        )],
+    );
+    assert_eq!(
+        super::parse(
+            "{% if condition -%}{%+ else if other -%}{%~ else %}{%~ endif +%}",
+            &syntax
+        )
+        .unwrap(),
+        vec![Node::Cond(
+            vec![
+                Cond {
+                    test: Some(CondTest {
+                        expr: Expr::Var("condition"),
+                        target: None,
+                    }),
+                    block: vec![],
+                    ws: Ws(None, Some(Whitespace::Suppress)),
+                },
+                Cond {
+                    test: Some(CondTest {
+                        expr: Expr::Var("other"),
+                        target: None,
+                    }),
+                    block: vec![],
+                    ws: Ws(Some(Whitespace::Preserve), Some(Whitespace::Suppress)),
+                },
+                Cond {
+                    test: None,
+                    block: vec![],
+                    ws: Ws(Some(Whitespace::Minimize), None),
+                },
+            ],
+            Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
+        )],
+    );
+}
