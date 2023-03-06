@@ -51,8 +51,8 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     }
 
     let mut contexts = HashMap::new();
-    for (path, nodes) in &parsed {
-        contexts.insert(*path, Context::new(input.config, path, nodes)?);
+    for (path, block) in &parsed {
+        contexts.insert(*path, Context::new(input.config, path, block)?);
     }
 
     let ctx = &contexts[input.path.as_path()];
@@ -203,7 +203,7 @@ fn find_used_templates(
     let mut dependency_graph = Vec::new();
     let mut check = vec![(input.path.clone(), source)];
     while let Some((path, source)) = check.pop() {
-        for n in parse(&source, input.syntax)? {
+        for n in parse(&source, input.syntax)?.nodes {
             match n {
                 Node::Tag(_, Tag::Extends(extends)) => {
                     let extends = input.config.find_template(extends, Some(&path))?;
@@ -353,9 +353,14 @@ impl<'a> Generator<'a> {
         }
 
         let size_hint = if let Some(heritage) = self.heritage {
-            self.handle(heritage.root, heritage.root.nodes, buf, AstLevel::Top)
+            self.handle(
+                heritage.root,
+                &heritage.root.block.nodes,
+                buf,
+                AstLevel::Top,
+            )
         } else {
-            self.handle(ctx, ctx.nodes, buf, AstLevel::Top)
+            self.handle(ctx, &ctx.block.nodes, buf, AstLevel::Top)
         }?;
 
         self.flush_ws(Ws(None, None));
@@ -979,7 +984,7 @@ impl<'a> Generator<'a> {
             .config
             .find_template(path, Some(&self.input.path))?;
         let src = get_template_source(&path)?;
-        let nodes = parse(&src, self.input.syntax)?;
+        let block = parse(&src, self.input.syntax)?;
 
         // Make sure the compiler understands that the generated code depends on the template file.
         {
@@ -996,7 +1001,7 @@ impl<'a> Generator<'a> {
             // Since nodes must not outlive the Generator, we instantiate
             // a nested Generator here to handle the include's nodes.
             let mut gen = self.child();
-            let mut size_hint = gen.handle(ctx, &nodes, buf, AstLevel::Nested)?;
+            let mut size_hint = gen.handle(ctx, &block.nodes, buf, AstLevel::Nested)?;
             size_hint += gen.write_buf_writable(buf)?;
             size_hint
         };

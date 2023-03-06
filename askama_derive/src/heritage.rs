@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::config::Config;
-use crate::parser::{BlockDef, Cond, Loop, Macro, Match, Node, Tag, When};
+use crate::parser::{Block, BlockDef, Cond, Loop, Macro, Match, Node, Tag, When};
 use crate::CompileError;
 
 pub(crate) struct Heritage<'a> {
@@ -35,7 +35,7 @@ impl Heritage<'_> {
 type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a BlockDef<'a>)>>;
 
 pub(crate) struct Context<'a> {
-    pub(crate) nodes: &'a [Node<'a>],
+    pub(crate) block: &'a Block<'a>,
     pub(crate) extends: Option<PathBuf>,
     pub(crate) blocks: HashMap<&'a str, &'a BlockDef<'a>>,
     pub(crate) macros: HashMap<&'a str, &'a Macro<'a>>,
@@ -46,13 +46,13 @@ impl Context<'_> {
     pub(crate) fn new<'n>(
         config: &Config<'_>,
         path: &Path,
-        nodes: &'n [Node<'n>],
+        block: &'n Block<'n>,
     ) -> Result<Context<'n>, CompileError> {
         let mut extends = None;
         let mut blocks = Vec::new();
         let mut macros = HashMap::new();
         let mut imports = HashMap::new();
-        let mut nested = vec![nodes];
+        let mut nested = vec![&block.nodes];
         let mut top = true;
 
         while let Some(nodes) = nested.pop() {
@@ -118,7 +118,7 @@ impl Context<'_> {
             .collect();
 
         Ok(Context {
-            nodes,
+            block,
             extends,
             blocks,
             macros,

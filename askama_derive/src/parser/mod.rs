@@ -82,13 +82,14 @@ impl From<char> for Whitespace {
     }
 }
 
-pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax<'_>) -> Result<Vec<Node<'a>>, String> {
+pub(crate) fn parse<'a>(src: &'a str, syntax: &'a Syntax<'_>) -> Result<Block<'a>, String> {
     match Node::parse(src, &State::new(syntax)) {
-        Ok((left, res)) => {
+        Ok((left, nodes)) => {
             if !left.is_empty() {
                 Err(format!("unable to parse template:\n\n{left:?}"))
             } else {
-                Ok(res)
+                let ws = Ws(None, None);
+                Ok(Block { nodes, ws })
             }
         }
 

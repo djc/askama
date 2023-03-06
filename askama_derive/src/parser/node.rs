@@ -28,6 +28,12 @@ impl<'a> Block<'a> {
     }
 }
 
+impl<'a> PartialEq<Vec<Node<'a>>> for Block<'a> {
+    fn eq(&self, nodes: &Vec<Node<'a>>) -> bool {
+        &self.nodes == nodes
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub(crate) enum Node<'a> {
     Lit(Lit<'a>),
