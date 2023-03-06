@@ -18,7 +18,7 @@ use crate::config::WhitespaceHandling;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Node<'a> {
-    Lit(&'a str, &'a str, &'a str),
+    Lit(Lit<'a>),
     Comment(Ws),
     Expr(Ws, Expr<'a>),
     Call(Ws, Call<'a>),
@@ -32,7 +32,7 @@ pub(crate) enum Node<'a> {
     Include(Ws, &'a str),
     Import(Ws, &'a str, &'a str),
     Macro(&'a str, Macro<'a>),
-    Raw(Ws, &'a str, &'a str, &'a str, Ws),
+    Raw(Ws, Lit<'a>, Ws),
     Break(Ws),
     Continue(Ws),
 }
@@ -64,6 +64,14 @@ impl From<WhitespaceHandling> for Whitespace {
             WhitespaceHandling::Minimize => Whitespace::Minimize,
         }
     }
+}
+
+/// A literal bit of text to output directly.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Lit<'a> {
+    pub(crate) lws: &'a str,
+    pub(crate) val: &'a str,
+    pub(crate) rws: &'a str,
 }
 
 /// A macro call statement.
@@ -535,13 +543,10 @@ fn block_raw<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     ));
 
     let (_, (pws1, _, (nws1, _, (contents, (i, (_, pws2, _, nws2, _)))))) = p(i)?;
-    let (lws, val, rws) = match split_ws_parts(contents) {
-        Node::Lit(lws, val, rws) => (lws, val, rws),
-        _ => unreachable!(),
-    };
+    let lit = split_ws_parts(contents);
     let ws1 = Ws(pws1, nws1);
     let ws2 = Ws(pws2, nws2);
-    Ok((i, Node::Raw(ws1, lws, val, rws, ws2)))
+    Ok((i, Node::Raw(ws1, lit, ws2)))
 }
 
 fn break_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
