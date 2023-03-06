@@ -686,6 +686,11 @@ impl<'a> Generator<'a> {
         }
 
         if AstLevel::Top == level {
+            // Handle any pending whitespace.
+            if self.next_ws.is_some() {
+                self.flush_ws(Ws(Some(self.skip_ws.into()), None));
+            }
+
             size_hint += self.write_buf_writable(buf)?;
         }
         Ok(size_hint)
@@ -1247,9 +1252,7 @@ impl<'a> Generator<'a> {
         assert!(self.next_ws.is_none());
         if !lws.is_empty() {
             match self.skip_ws {
-                WhitespaceHandling::Suppress => {
-                    self.skip_ws = WhitespaceHandling::Preserve;
-                }
+                WhitespaceHandling::Suppress => {}
                 _ if val.is_empty() => {
                     assert!(rws.is_empty());
                     self.next_ws = Some(lws);
@@ -1260,12 +1263,13 @@ impl<'a> Generator<'a> {
                         .push(Writable::Lit(match lws.contains('\n') {
                             true => "\n",
                             false => " ",
-                        }))
+                        }));
                 }
             }
         }
 
         if !val.is_empty() {
+            self.skip_ws = WhitespaceHandling::Preserve;
             self.buf_writable.push(Writable::Lit(val));
         }
 
