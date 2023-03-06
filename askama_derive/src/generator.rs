@@ -616,6 +616,10 @@ impl<'a> Generator<'a> {
         buf: &mut Buffer,
         level: AstLevel,
     ) -> Result<usize, CompileError> {
+        if AstLevel::Top != level {
+            self.prepare_ws(block.ws);
+        }
+
         let mut size_hint = 0;
         for n in &block.nodes {
             match *n {
@@ -685,6 +689,8 @@ impl<'a> Generator<'a> {
 
         if AstLevel::Top == level {
             size_hint += self.write_buf_writable(buf)?;
+        } else {
+            self.flush_ws(block.ws);
         }
         Ok(size_hint)
     }
@@ -741,10 +747,8 @@ impl<'a> Generator<'a> {
 
             buf.writeln(" {")?;
 
-            self.prepare_ws(cond.block.ws);
             arm_size += self.handle(ctx, &cond.block, buf, AstLevel::Nested)?;
             arm_sizes.push(arm_size);
-            self.flush_ws(cond.block.ws);
         }
         flushed += self.write_buf_writable(buf)?;
         buf.writeln("}")?;
@@ -787,9 +791,7 @@ impl<'a> Generator<'a> {
             self.visit_target(buf, true, true, target);
             buf.writeln(" => {")?;
 
-            self.prepare_ws(block.ws);
             arm_size = self.handle(ctx, block, buf, AstLevel::Nested)?;
-            self.flush_ws(block.ws);
         }
 
         arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
@@ -851,18 +853,14 @@ impl<'a> Generator<'a> {
         buf.writeln(", _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {")?;
 
         buf.writeln("_did_loop = true;")?;
-        self.prepare_ws(loop_block.body.ws);
         let mut size_hint1 = self.handle(ctx, &loop_block.body, buf, AstLevel::Nested)?;
-        self.flush_ws(loop_block.body.ws);
         size_hint1 += self.write_buf_writable(buf)?;
         self.locals.pop();
         buf.writeln("}")?;
 
         buf.writeln("if !_did_loop {")?;
         self.locals.push();
-        self.prepare_ws(loop_block.else_block.ws);
         let mut size_hint2 = self.handle(ctx, &loop_block.else_block, buf, AstLevel::Nested)?;
-        self.flush_ws(loop_block.else_block.ws);
         size_hint2 += self.write_buf_writable(buf)?;
         self.locals.pop();
         buf.writeln("}")?;
@@ -906,7 +904,6 @@ impl<'a> Generator<'a> {
         self.locals.push();
         self.write_buf_writable(buf)?;
         buf.writeln("{")?;
-        self.prepare_ws(def.block.ws);
 
         let mut names = Buffer::new(0);
         let mut values = Buffer::new(0);
@@ -959,7 +956,6 @@ impl<'a> Generator<'a> {
 
         let mut size_hint = self.handle(own_ctx, &def.block, buf, AstLevel::Nested)?;
 
-        self.flush_ws(def.block.ws);
         size_hint += self.write_buf_writable(buf)?;
         buf.writeln("}")?;
         self.locals.pop();
@@ -1115,7 +1111,6 @@ impl<'a> Generator<'a> {
         let BlockDef { block, .. } = def;
 
         // Handle inner whitespace suppression spec and process block nodes
-        self.prepare_ws(block.ws);
         self.locals.push();
         let size_hint = self.handle(ctx, block, buf, AstLevel::Block)?;
 
@@ -1125,7 +1120,6 @@ impl<'a> Generator<'a> {
         }
 
         self.locals.pop();
-        self.flush_ws(block.ws);
 
         // Restore original block context
         self.super_block = prev_block;
