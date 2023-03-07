@@ -84,3 +84,27 @@ fn test_minimize_whitespace() {
     );
     test_template!(" \n1 \n{%~  if true  ~%} 2 {%~  endif  ~%}3 ", " \n1\n 2 3");
 }
+
+macro_rules! test_template_ws_config {
+    ($config:literal, $ws:literal, $source:literal, $rendered: literal) => {{
+        #[derive(Template)]
+        #[template(source = $source, ext = "txt", config = $config, whitespace = $ws)]
+        struct CondWs;
+
+        assert_eq!(CondWs.render().unwrap(), $rendered);
+    }};
+}
+
+#[test]
+fn test_template_whitespace_config() {
+    test_template_ws_config!("test_trim.toml", "preserve", "\t1{# #}\t2", "\t1\t2");
+    test_template_ws_config!("test_trim.toml", "minimize", " 1{# #}  2", " 1 2");
+    test_template_ws_config!("test_trim.toml", "suppress", " 1{# #}  2", " 12");
+    test_template_ws_config!(
+        "test_minimize.toml",
+        "preserve",
+        "\n1{# #}\n\n\n2",
+        "\n1\n\n\n2"
+    );
+    test_template_ws_config!("test_minimize.toml", "suppress", "\n1{# #}\n\n\n2", "\n12");
+}
