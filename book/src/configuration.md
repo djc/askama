@@ -57,6 +57,20 @@ character remaining will be a newline.
 If you want this to be the default behaviour, you can set `whitespace` to
 `"minimize"`.
 
+To be noted: you can also configure `whitespace` directly into the `template`
+derive proc macro:
+
+```rust
+#[derive(Template)]
+#[template(whitespace = "suppress")]
+pub struct SomeTemplate;
+```
+
+If you configure `whitespace` directly into the `template` derive proc-macro,
+it will take precedence over the one in your configuration file. So in this
+case, if you already set `whitespace = "minimize` into your configuration file,
+it will be replaced by `suppress` for this template.
+
 ## Custom syntaxes
 
 Here is an example that defines two custom syntaxes:
