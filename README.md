@@ -55,12 +55,10 @@ in a for-profit context, please consider supporting my open source work on
 How to get started
 ------------------
 
-First, add the following to your crate's `Cargo.toml`:
+First, add the Askama dependency to your crate's `Cargo.toml`:
 
-```toml
-# in section [dependencies]
-askama = "0.11.2"
-
+```sh
+cargo add askama
 ```
 
 Now create a directory called `templates` in your crate root.
