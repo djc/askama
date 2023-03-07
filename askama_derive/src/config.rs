@@ -549,4 +549,34 @@ mod tests {
         .unwrap();
         assert_eq!(config.whitespace, WhitespaceHandling::Minimize);
     }
+
+    #[cfg(feature = "toml")]
+    #[test]
+    fn test_whitespace_in_template() {
+        // Checking that template arguments have precedence over general configuration.
+        // So in here, in the template arguments, there is `whitespace = "minimize"` so
+        // the `WhitespaceHandling` should be `Minimize` as well.
+        let config = Config::new(
+            r#"
+            [general]
+            whitespace = "suppress"
+            "#,
+            Some(&"minimize".to_owned()),
+        )
+        .unwrap();
+        assert_eq!(config.whitespace, WhitespaceHandling::Minimize);
+
+        let config = Config::new(r#""#, Some(&"minimize".to_owned())).unwrap();
+        assert_eq!(config.whitespace, WhitespaceHandling::Minimize);
+    }
+
+    #[test]
+    fn test_config_whitespace_error() {
+        let config = Config::new(r#""#, Some(&"trim".to_owned()));
+        if let Err(err) = config {
+            assert_eq!(err.msg, "invalid value for `whitespace`: \"trim\"");
+        } else {
+            panic!("Config::new should have return an error");
+        }
+    }
 }
