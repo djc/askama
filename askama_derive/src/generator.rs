@@ -30,7 +30,7 @@ pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
 fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     let template_args = TemplateArgs::new(ast)?;
     let config_toml = read_config_file(template_args.config_path.as_deref())?;
-    let config = Config::new(&config_toml)?;
+    let config = Config::new(&config_toml, template_args.whitespace.as_ref())?;
     let input = TemplateInput::new(ast, &config, template_args)?;
     let source: String = match input.source {
         Source::Source(ref s) => s.clone(),
@@ -83,6 +83,7 @@ pub(crate) struct TemplateArgs {
     pub(crate) ext: Option<String>,
     pub(crate) syntax: Option<String>,
     pub(crate) config_path: Option<String>,
+    pub(crate) whitespace: Option<String>,
 }
 
 impl TemplateArgs {
@@ -180,6 +181,12 @@ impl TemplateArgs {
                     args.config_path = Some(s.value())
                 } else {
                     return Err("config value must be string literal".into());
+                }
+            } else if ident == "whitespace" {
+                if let syn::Lit::Str(ref s) = pair.lit {
+                    args.whitespace = Some(s.value())
+                } else {
+                    return Err("whitespace value must be string literal".into());
                 }
             } else {
                 return Err(format!("unsupported attribute key {ident:?} found").into());
