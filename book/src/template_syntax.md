@@ -87,6 +87,18 @@ This discards all whitespace inside the if/else block. If a literal
 includes only whitespace, whitespace suppression on either side will
 completely suppress that literal content.
 
+If the whitespace default control is set to "suppress" and you want
+to keep whitespace characters on one side of a block or of an
+expression, you need to use `+`. Example:
+
+```text
+<a href="/" {#+ #}
+   class="something">text</a>
+```
+
+In the above example, it allows to keep one whitespace character
+between the `href` and the `class` attributes.
+
 ## Template inheritance
 
 Template inheritance allows you to build a base template with common
