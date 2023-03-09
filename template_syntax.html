@@ -210,6 +210,14 @@ start delimiter or leading into an end delimiter.</p>
 (any part of the template not surrounded by <code>{% %}</code> or <code>{{ }}</code>)
 includes only whitespace, whitespace suppression on either side will
 completely suppress that literal content.</p>
+<p>If the whitespace default control is set to &quot;suppress&quot; and you want
+to keep whitespace characters on one side of a block or of an
+expression, you need to use <code>+</code>. Example:</p>
+<pre><code class="language-text">&lt;a href=&quot;/&quot; {#+ #}
+   class=&quot;something&quot;&gt;text&lt;/a&gt;
+</code></pre>
+<p>In the above example, it allows to keep one whitespace character
+between the <code>href</code> and the <code>class</code> attributes.</p>
 <h2 id="template-inheritance"><a class="header" href="#template-inheritance">Template inheritance</a></h2>
 <p>Template inheritance allows you to build a base template with common
 elements that can be shared by all inheriting templates.
