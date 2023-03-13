@@ -185,6 +185,18 @@ Hello
 character remaining will be a newline.</p>
 <p>If you want this to be the default behaviour, you can set <code>whitespace</code> to
 <code>&quot;minimize&quot;</code>.</p>
+<p>To be noted: you can also configure <code>whitespace</code> directly into the <code>template</code>
+derive proc macro:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Template)]
+#[template(whitespace = &quot;suppress&quot;)]
+pub struct SomeTemplate;
+<span class="boring">}</span></code></pre></pre>
+<p>If you configure <code>whitespace</code> directly into the <code>template</code> derive proc-macro,
+it will take precedence over the one in your configuration file. So in this
+case, if you already set <code>whitespace = &quot;minimize</code> into your configuration file,
+it will be replaced by <code>suppress</code> for this template.</p>
 <h2 id="custom-syntaxes"><a class="header" href="#custom-syntaxes">Custom syntaxes</a></h2>
 <p>Here is an example that defines two custom syntaxes:</p>
 <pre><code class="language-toml">[general]
