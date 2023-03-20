@@ -6,6 +6,7 @@ use crate::CompileError;
 
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
+use syn::punctuated::Punctuated;
 
 use std::collections::hash_map::{Entry, HashMap};
 use std::path::{Path, PathBuf};
@@ -92,25 +93,17 @@ impl TemplateArgs {
         // the proper type (list).
         let mut template_args = None;
         for attr in &ast.attrs {
-            let ident = match attr.path.get_ident() {
-                Some(ident) => ident,
-                None => continue,
-            };
-
-            if ident == "template" {
-                if template_args.is_some() {
-                    return Err("duplicated 'template' attribute".into());
-                }
-
-                match attr.parse_meta() {
-                    Ok(syn::Meta::List(syn::MetaList { nested, .. })) => {
-                        template_args = Some(nested);
-                    }
-                    Ok(_) => return Err("'template' attribute must be a list".into()),
-                    Err(e) => return Err(format!("unable to parse attribute: {e}").into()),
-                }
+            if !attr.path().is_ident("template") {
+                continue;
             }
+
+            match attr.parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated) {
+                Ok(args) if template_args.is_none() => template_args = Some(args),
+                Ok(_) => return Err("duplicated 'template' attribute".into()),
+                Err(e) => return Err(format!("unable to parse template arguments: {e}").into()),
+            };
         }
+
         let template_args =
             template_args.ok_or_else(|| CompileError::from("no attribute 'template' found"))?;
 
@@ -120,7 +113,7 @@ impl TemplateArgs {
         // `source` contains an enum that can represent `path` or `source`.
         for item in template_args {
             let pair = match item {
-                syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
+                syn::Meta::NameValue(pair) => pair,
                 _ => {
                     return Err(format!(
                         "unsupported attribute argument {:?}",
@@ -129,13 +122,19 @@ impl TemplateArgs {
                     .into())
                 }
             };
+
             let ident = match pair.path.get_ident() {
                 Some(ident) => ident,
                 None => unreachable!("not possible in syn::Meta::NameValue(…)"),
             };
 
+            let value = match pair.value {
+                syn::Expr::Lit(lit) => lit,
+                _ => return Err(format!("unsupported argument value type for {ident:?}").into()),
+            };
+
             if ident == "path" {
-                if let syn::Lit::Str(ref s) = pair.lit {
+                if let syn::Lit::Str(s) = value.lit {
                     if args.source.is_some() {
                         return Err("must specify 'source' or 'path', not both".into());
                     }
@@ -144,7 +143,7 @@ impl TemplateArgs {
                     return Err("template path must be string literal".into());
                 }
             } else if ident == "source" {
-                if let syn::Lit::Str(ref s) = pair.lit {
+                if let syn::Lit::Str(s) = value.lit {
                     if args.source.is_some() {
                         return Err("must specify 'source' or 'path', not both".into());
                     }
@@ -153,37 +152,37 @@ impl TemplateArgs {
                     return Err("template source must be string literal".into());
                 }
             } else if ident == "print" {
-                if let syn::Lit::Str(ref s) = pair.lit {
+                if let syn::Lit::Str(s) = value.lit {
                     args.print = s.value().parse()?;
                 } else {
                     return Err("print value must be string literal".into());
                 }
             } else if ident == "escape" {
-                if let syn::Lit::Str(ref s) = pair.lit {
+                if let syn::Lit::Str(s) = value.lit {
                     args.escaping = Some(s.value());
                 } else {
                     return Err("escape value must be string literal".into());
                 }
             } else if ident == "ext" {
-                if let syn::Lit::Str(ref s) = pair.lit {
+                if let syn::Lit::Str(s) = value.lit {
                     args.ext = Some(s.value());
                 } else {
                     return Err("ext value must be string literal".into());
                 }
             } else if ident == "syntax" {
-                if let syn::Lit::Str(ref s) = pair.lit {
+                if let syn::Lit::Str(s) = value.lit {
                     args.syntax = Some(s.value())
                 } else {
                     return Err("syntax value must be string literal".into());
                 }
             } else if ident == "config" {
-                if let syn::Lit::Str(ref s) = pair.lit {
+                if let syn::Lit::Str(s) = value.lit {
                     args.config_path = Some(s.value())
                 } else {
                     return Err("config value must be string literal".into());
                 }
             } else if ident == "whitespace" {
-                if let syn::Lit::Str(ref s) = pair.lit {
+                if let syn::Lit::Str(s) = value.lit {
                     args.whitespace = Some(s.value())
                 } else {
                     return Err("whitespace value must be string literal".into());
@@ -528,7 +527,7 @@ impl<'a> Generator<'a> {
     #[cfg(feature = "with-rocket")]
     fn impl_rocket_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         let lifetime = syn::Lifetime::new("'askama", proc_macro2::Span::call_site());
-        let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
+        let param = syn::GenericParam::Lifetime(syn::LifetimeParam::new(lifetime));
         self.write_header(
             buf,
             "::askama_rocket::Responder<'askama, 'askama>",
