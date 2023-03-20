@@ -130,6 +130,12 @@ impl TemplateArgs {
 
             let value = match pair.value {
                 syn::Expr::Lit(lit) => lit,
+                syn::Expr::Group(group) => match *group.expr {
+                    syn::Expr::Lit(lit) => lit,
+                    _ => {
+                        return Err(format!("unsupported argument value type for {ident:?}").into())
+                    }
+                },
                 _ => return Err(format!("unsupported argument value type for {ident:?}").into()),
             };
 
