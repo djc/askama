@@ -82,7 +82,8 @@ pub use crate::error::{Error, Result};
 pub trait Template: fmt::Display {
     /// Helper method which allocates a new `String` and renders into it
     fn render(&self) -> Result<String> {
-        let mut buf = String::with_capacity(Self::SIZE_HINT);
+        let mut buf = String::new();
+        let _ = buf.try_reserve(Self::SIZE_HINT);
         self.render_into(&mut buf)?;
         Ok(buf)
     }
