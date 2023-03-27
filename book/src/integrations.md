@@ -22,7 +22,7 @@ from the Askama test suite for more on how to integrate.
 
 ## Axum integration
 
-Enabling the `with-axum` feature appends an implementation of Axum's
+Enabling the `with-axum` feature and depending on the `askama_axum` crate appends an implementation of Axum's
 `IntoResponse` trait for each template type. This makes it easy to trivially
 return a value of that type in a Axum handler. See
 [the example](https://github.com/djc/askama/blob/main/askama_axum/tests/basic.rs)
