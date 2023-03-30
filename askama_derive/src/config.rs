@@ -309,6 +309,7 @@ static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
     (&["html", "htm", "xml"], "::askama::Html"),
     (&["md", "none", "txt", "yml", ""], "::askama::Text"),
     (&["j2", "jinja", "jinja2"], "::askama::Html"),
+    (&["bst", "bib", "sty", "tex"], "::askama::Latex"),
 ];
 
 #[cfg(test)]

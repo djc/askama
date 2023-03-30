@@ -150,6 +150,57 @@ impl Escaper for Text {
     }
 }
 
+pub struct Latex;
+
+impl Escaper for Latex {
+    fn write_escaped<W>(&self, mut fmt: W, string: &str) -> fmt::Result
+    where
+        W: Write,
+    {
+        let mut last = 0;
+        for (index, byte) in string.bytes().enumerate() {
+            const MIN_CHAR: u8 = b'"';
+            const MAX_CHAR: u8 = b'~';
+            const TABLE: [Option<&&str>; (MAX_CHAR - MIN_CHAR + 1) as usize] = {
+                let mut table = [None; (b'~' - b'"' + 1) as usize];
+                table[(b'"' - MIN_CHAR) as usize] = Some(&r#"{\textquotedbl}"#);
+                table[(b'#' - MIN_CHAR) as usize] = Some(&r#"{\char35}"#);
+                table[(b'$' - MIN_CHAR) as usize] = Some(&r#"{\textdollar}"#);
+                table[(b'%' - MIN_CHAR) as usize] = Some(&r#"{\char37}"#);
+                table[(b'&' - MIN_CHAR) as usize] = Some(&r#"{\char38}"#);
+                table[(b'\'' - MIN_CHAR) as usize] = Some(&r#"{\textquotesingle}"#);
+                table[(b',' - MIN_CHAR) as usize] = Some(&r#"{\char44}"#);
+                table[(b'-' - MIN_CHAR) as usize] = Some(&r#"{\char45}"#);
+                table[(b'<' - MIN_CHAR) as usize] = Some(&r#"{\textless}"#);
+                table[(b'>' - MIN_CHAR) as usize] = Some(&r#"{\textgreater}"#);
+                table[(b'[' - MIN_CHAR) as usize] = Some(&r#"{\char91}"#);
+                table[(b'\\' - MIN_CHAR) as usize] = Some(&r#"{\textbackslash}"#);
+                table[(b']' - MIN_CHAR) as usize] = Some(&r#"{\char93}"#);
+                table[(b'^' - MIN_CHAR) as usize] = Some(&r#"{\textasciicircum}"#);
+                table[(b'_' - MIN_CHAR) as usize] = Some(&r#"{\char95}"#);
+                table[(b'`' - MIN_CHAR) as usize] = Some(&r#"{\char96}"#);
+                table[(b'{' - MIN_CHAR) as usize] = Some(&r#"{\char123}"#);
+                table[(b'|' - MIN_CHAR) as usize] = Some(&r#"{\textbar}"#);
+                table[(b'}' - MIN_CHAR) as usize] = Some(&r#"{\char125}"#);
+                table[(b'~' - MIN_CHAR) as usize] = Some(&r#"{\textasciitilde}"#);
+                table
+            };
+
+            let escaped = match byte {
+                0x00..=0x1f | 0x7f => Some(&" "),
+                MIN_CHAR..=MAX_CHAR => TABLE[(byte - MIN_CHAR) as usize],
+                _ => None,
+            };
+            if let Some(escaped) = escaped {
+                fmt.write_str(&string[last..index])?;
+                fmt.write_str(escaped)?;
+                last = index + 1;
+            }
+        }
+        fmt.write_str(&string[last..])
+    }
+}
+
 #[derive(Debug, PartialEq)]
 enum DisplayValue<T>
 where
