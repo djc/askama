@@ -99,7 +99,15 @@ pub trait Template: fmt::Display {
     /// The template's extension, if provided
     const EXTENSION: Option<&'static str>;
 
-    /// Provides a conservative estimate of the expanded length of the rendered template
+    /// Provides a rough estimate of the expanded length of the rendered template. Larger
+    /// values result in higher memory usage but fewer reallocations. Smaller values result in the
+    /// opposite. This value only affects [`render`]. It does not take effect when calling
+    /// [`render_into`], [`write_into`], the [`fmt::Display`] implementation, or the blanket
+    /// [`ToString::to_string`] implementation.
+    ///
+    /// [`render`]: Template::render
+    /// [`render_into`]: Template::render_into
+    /// [`write_into`]: Template::write_into
     const SIZE_HINT: usize;
 
     /// The MIME type (Content-Type) of the data that gets rendered by this Template
