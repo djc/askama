@@ -113,21 +113,18 @@ impl Escaper for Html {
     {
         let mut last = 0;
         for (index, byte) in string.bytes().enumerate() {
-            macro_rules! go {
-                ($expr:expr) => {{
-                    fmt.write_str(&string[last..index])?;
-                    fmt.write_str($expr)?;
-                    last = index + 1;
-                }};
-            }
-
-            match byte {
-                b'<' => go!("&lt;"),
-                b'>' => go!("&gt;"),
-                b'&' => go!("&amp;"),
-                b'"' => go!("&quot;"),
-                b'\'' => go!("&#x27;"),
-                _ => {}
+            let escaped = match byte {
+                b'<' => Some(&"&lt;"),
+                b'>' => Some(&"&gt;"),
+                b'&' => Some(&"&amp;"),
+                b'"' => Some(&"&quot;"),
+                b'\'' => Some(&"&#x27;"),
+                _ => None,
+            };
+            if let Some(escaped) = escaped {
+                fmt.write_str(&string[last..index])?;
+                fmt.write_str(escaped)?;
+                last = index + 1;
             }
         }
         fmt.write_str(&string[last..])
@@ -181,20 +178,17 @@ impl std::io::Write for JsonEscapeBuffer {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
         let mut last = 0;
         for (index, byte) in bytes.iter().enumerate() {
-            macro_rules! go {
-                ($expr:expr) => {{
-                    self.0.extend(&bytes[last..index]);
-                    self.0.extend($expr);
-                    last = index + 1;
-                }};
-            }
-
-            match byte {
-                b'&' => go!(br#"\u0026"#),
-                b'\'' => go!(br#"\u0027"#),
-                b'<' => go!(br#"\u003c"#),
-                b'>' => go!(br#"\u003e"#),
-                _ => {}
+            let escaped = match byte {
+                b'&' => Some(br#"\u0026"#),
+                b'\'' => Some(br#"\u0027"#),
+                b'<' => Some(br#"\u003c"#),
+                b'>' => Some(br#"\u003e"#),
+                _ => None,
+            };
+            if let Some(escaped) = escaped {
+                self.0.extend(&bytes[last..index]);
+                self.0.extend(escaped);
+                last = index + 1;
             }
         }
         self.0.extend(&bytes[last..]);
