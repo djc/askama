@@ -70,7 +70,7 @@ pub mod helpers;
 use std::fmt;
 
 pub use askama_derive::Template;
-pub use askama_escape::{Html, MarkupDisplay, Text};
+pub use askama_escape::{Html, Latex, MarkupDisplay, Text};
 
 #[doc(hidden)]
 pub use crate as shared;
