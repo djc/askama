@@ -26,8 +26,19 @@ impl<'a> Config<'a> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default_dirs = vec![root.join("templates")];
 
+        let default_syntax = Syntax {
+            block_start: template_args.block_start.as_deref().unwrap_or(BLOCK_START),
+            block_end: template_args.block_end.as_deref().unwrap_or(BLOCK_END),
+            expr_start: template_args.expr_start.as_deref().unwrap_or(EXPR_START),
+            expr_end: template_args.expr_end.as_deref().unwrap_or(EXPR_END),
+            comment_start: template_args
+                .comment_start
+                .as_deref()
+                .unwrap_or(COMMENT_START),
+            comment_end: template_args.comment_end.as_deref().unwrap_or(COMMENT_END),
+        };
         let mut syntaxes = BTreeMap::new();
-        syntaxes.insert(DEFAULT_SYNTAX_NAME.to_string(), Syntax::default());
+        syntaxes.insert(DEFAULT_SYNTAX_NAME.to_string(), default_syntax);
 
         let raw = if s.is_empty() {
             RawConfig::default()
@@ -142,15 +153,22 @@ pub(crate) struct Syntax<'a> {
     pub(crate) comment_end: &'a str,
 }
 
+pub(crate) const BLOCK_START: &str = "{%";
+pub(crate) const BLOCK_END: &str = "%}";
+pub(crate) const EXPR_START: &str = "{{";
+pub(crate) const EXPR_END: &str = "}}";
+pub(crate) const COMMENT_START: &str = "{#";
+pub(crate) const COMMENT_END: &str = "#}";
+
 impl Default for Syntax<'static> {
     fn default() -> Self {
         Self {
-            block_start: "{%",
-            block_end: "%}",
-            expr_start: "{{",
-            expr_end: "}}",
-            comment_start: "{#",
-            comment_end: "#}",
+            block_start: BLOCK_START,
+            block_end: BLOCK_END,
+            expr_start: EXPR_START,
+            expr_end: EXPR_END,
+            comment_start: COMMENT_START,
+            comment_end: COMMENT_END,
         }
     }
 }
@@ -332,6 +350,12 @@ mod tests {
         syntax: None,
         config_path: None,
         whitespace: None,
+        block_start: None,
+        block_end: None,
+        expr_start: None,
+        expr_end: None,
+        comment_start: None,
+        comment_end: None,
     };
 
     #[test]

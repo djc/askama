@@ -85,6 +85,12 @@ pub(crate) struct TemplateArgs {
     pub(crate) syntax: Option<String>,
     pub(crate) config_path: Option<String>,
     pub(crate) whitespace: Option<String>,
+    pub(crate) block_start: Option<String>,
+    pub(crate) block_end: Option<String>,
+    pub(crate) expr_start: Option<String>,
+    pub(crate) expr_end: Option<String>,
+    pub(crate) comment_start: Option<String>,
+    pub(crate) comment_end: Option<String>,
 }
 
 impl TemplateArgs {
@@ -186,6 +192,12 @@ impl TemplateArgs {
                "syntax": args.syntax,
                "config": args.config_path,
                "whitespace": args.whitespace,
+               "block_start": args.block_start,
+               "block_end": args.block_end,
+               "expr_start": args.expr_start,
+               "expr_end": args.expr_end,
+               "comment_start": args.comment_start,
+               "comment_end": args.comment_end,
             ) {
                 return Err(format!("unsupported attribute key {ident:?} found").into());
             }
