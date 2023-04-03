@@ -105,8 +105,8 @@ The following keys can currently be used to customize template syntax:
 * `expr_start`, defaults to `{{`
 * `expr_end`, defaults to `}}`
 
-Values must be 2 characters long and start delimiters must all start with the same
-character. If a key is omitted, the value from the default syntax is used.
+Values must be at least two characters long.
+If a key is omitted, the value from the default syntax is used.
 
 Here is an example of a custom escaper:
 
