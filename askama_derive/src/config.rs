@@ -168,24 +168,29 @@ impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
             comment_end: raw.comment_end.unwrap_or(default.comment_end),
         };
 
-        if syntax.block_start.len() != 2
-            || syntax.block_end.len() != 2
-            || syntax.expr_start.len() != 2
-            || syntax.expr_end.len() != 2
-            || syntax.comment_start.len() != 2
-            || syntax.comment_end.len() != 2
-        {
-            return Err("length of delimiters must be two".into());
+        for s in [
+            syntax.block_start,
+            syntax.block_end,
+            syntax.expr_start,
+            syntax.expr_end,
+            syntax.comment_start,
+            syntax.comment_end,
+        ] {
+            if s.len() < 2 {
+                return Err("Delimiters must be at least two characters long".into());
+            } else if s.chars().any(|c| c.is_whitespace()) {
+                return Err("Delimiters may not contain white spaces".into());
+            }
         }
 
-        let bs = syntax.block_start.as_bytes()[0];
-        let be = syntax.block_start.as_bytes()[1];
-        let cs = syntax.comment_start.as_bytes()[0];
-        let ce = syntax.comment_start.as_bytes()[1];
-        let es = syntax.expr_start.as_bytes()[0];
-        let ee = syntax.expr_start.as_bytes()[1];
-        if !((bs == cs && bs == es) || (be == ce && be == ee)) {
-            return Err(format!("bad delimiters block_start: {}, comment_start: {}, expr_start: {}, needs one of the two characters in common", syntax.block_start, syntax.comment_start, syntax.expr_start).into());
+        for (s1, s2) in [
+            (syntax.block_start, syntax.expr_start),
+            (syntax.block_start, syntax.comment_start),
+            (syntax.expr_start, syntax.comment_start),
+        ] {
+            if s1.starts_with(s2) || s2.starts_with(s1) {
+                return Err("A delimiter may not be the prefix of another delimiter".into());
+            }
         }
 
         Ok(syntax)
@@ -450,6 +455,35 @@ mod tests {
         assert_eq!(bar.expr_end, default_syntax.expr_end);
         assert_eq!(bar.comment_start, default_syntax.comment_start);
         assert_eq!(bar.comment_end, default_syntax.comment_end);
+    }
+
+    #[cfg(feature = "config")]
+    #[test]
+    fn longer_delimiters() {
+        let raw_config = r#"
+        [[syntax]]
+        name = "emoji"
+        block_start = "👉🙂👉"
+        block_end = "👈🙃👈"
+        expr_start = "🤜🤜"
+        expr_end = "🤛🤛"
+        comment_start = "👎_(ツ)_👎"
+        comment_end = "👍:D👍"
+
+        [general]
+        default_syntax = "emoji"
+        "#;
+
+        let config = Config::new(raw_config, None).unwrap();
+        assert_eq!(config.default_syntax, "emoji");
+
+        let foo = config.syntaxes.get("emoji").unwrap();
+        assert_eq!(foo.block_start, "👉🙂👉");
+        assert_eq!(foo.block_end, "👈🙃👈");
+        assert_eq!(foo.expr_start, "🤜🤜");
+        assert_eq!(foo.expr_end, "🤛🤛");
+        assert_eq!(foo.comment_start, "👎_(ツ)_👎");
+        assert_eq!(foo.comment_end, "👍:D👍");
     }
 
     #[cfg(feature = "toml")]
