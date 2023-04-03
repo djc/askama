@@ -211,13 +211,36 @@ start delimiter or leading into an end delimiter.</p>
 includes only whitespace, whitespace suppression on either side will
 completely suppress that literal content.</p>
 <p>If the whitespace default control is set to &quot;suppress&quot; and you want
-to keep whitespace characters on one side of a block or of an
+to preserve whitespace characters on one side of a block or of an
 expression, you need to use <code>+</code>. Example:</p>
 <pre><code class="language-text">&lt;a href=&quot;/&quot; {#+ #}
    class=&quot;something&quot;&gt;text&lt;/a&gt;
 </code></pre>
-<p>In the above example, it allows to keep one whitespace character
+<p>In the above example, one whitespace character is kept
 between the <code>href</code> and the <code>class</code> attributes.</p>
+<p>There is a third possibility. In case you want to suppress all whitespace
+characters except one (<code>&quot;minimize&quot;</code>), you can use <code>~</code>:</p>
+<pre><code class="language-jinja">{% if something ~%}
+Hello
+{%~ endif %}
+</code></pre>
+<p>To be noted, if one of the trimmed characters is a newline, then the only
+character remaining will be a newline.</p>
+<p>Whitespace controls can also be defined by a 
+<a href="configuration.html">configuration file</a> or in the derive macro. 
+These definitions follow the global-to-local preference:</p>
+<ol>
+<li>Inline (<code>-</code>, <code>+</code>, <code>~</code>)</li>
+<li>Derive (<code>#[template(whitespace = &quot;suppress&quot;)]</code>)</li>
+<li>Configuration (in <code>askama.toml</code>, <code>whitespace = &quot;preserve&quot;</code>)</li>
+</ol>
+<p>Two inline whitespace controls may point to the same whitespace span. 
+In this case, they are resolved by the following preference.</p>
+<ol>
+<li>Suppress (<code>-</code>)</li>
+<li>Minimize (<code>~</code>)</li>
+<li>Preserve (<code>+</code>)</li>
+</ol>
 <h2 id="template-inheritance"><a class="header" href="#template-inheritance">Template inheritance</a></h2>
 <p>Template inheritance allows you to build a base template with common
 elements that can be shared by all inheriting templates.
