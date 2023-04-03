@@ -139,6 +139,23 @@ impl TemplateArgs {
                 _ => return Err(format!("unsupported argument value type for {ident:?}").into()),
             };
 
+            macro_rules! capture_str_lit {
+                ($($ident:literal: $dest:expr),+ $(,)?) => {{
+                    $(
+                    if ident == $ident {
+                        if $dest.is_some() {
+                            return Err(stringify!($ident, " cannot be specified twice").into());
+                        } else if let syn::Lit::Str(s) = value.lit {
+                            $dest = Some(s.value());
+                            true
+                        } else {
+                            return Err(stringify!($ident, " value must be string literal").into());
+                        }
+                    } else
+                    )+ { false }
+                }};
+            }
+
             if ident == "path" {
                 if let syn::Lit::Str(s) = value.lit {
                     if args.source.is_some() {
@@ -163,37 +180,13 @@ impl TemplateArgs {
                 } else {
                     return Err("print value must be string literal".into());
                 }
-            } else if ident == "escape" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.escaping = Some(s.value());
-                } else {
-                    return Err("escape value must be string literal".into());
-                }
-            } else if ident == "ext" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.ext = Some(s.value());
-                } else {
-                    return Err("ext value must be string literal".into());
-                }
-            } else if ident == "syntax" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.syntax = Some(s.value())
-                } else {
-                    return Err("syntax value must be string literal".into());
-                }
-            } else if ident == "config" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.config_path = Some(s.value())
-                } else {
-                    return Err("config value must be string literal".into());
-                }
-            } else if ident == "whitespace" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.whitespace = Some(s.value())
-                } else {
-                    return Err("whitespace value must be string literal".into());
-                }
-            } else {
+            } else if !capture_str_lit!(
+               "escape": args.escaping,
+               "ext": args.ext,
+               "syntax": args.syntax,
+               "config": args.config_path,
+               "whitespace": args.whitespace,
+            ) {
                 return Err(format!("unsupported attribute key {ident:?} found").into());
             }
         }
