@@ -66,21 +66,77 @@ macro_rules! test_template {
 fn test_minimize_whitespace() {
     test_template_minimize!(
         "\n1\r\n{%  if true  %}\n\n2\r\n\r\n{%  endif  %} 3\r\n\r\n\r\n",
-        "\n1\n\n2\n 3"
+        "\n1\n\n2\n 3\r\n\r\n\r\n"
     );
     test_template_minimize!(
         "\n1\r\n{%+  if true  %}\n\n2\r\n\r\n{%  endif  %} 3\r\n\r\n\r\n",
-        "\n1\r\n\n2\n 3"
+        "\n1\r\n\n2\n 3\r\n\r\n\r\n"
     );
     test_template_minimize!(
         "\n1\r\n{%-  if true  %}\n\n2\r\n\r\n{%  endif  %} 3\r\n\r\n\r\n",
-        "\n1\n2\n 3"
+        "\n1\n2\n 3\r\n\r\n\r\n"
     );
-    test_template_minimize!(" \n1 \n{%  if true  %} 2 {%  endif  %}3 ", " \n1\n 2 3");
+    test_template_minimize!(" \n1 \n{%  if true  %} 2 {%  endif  %}3 ", " \n1\n 2 3 ");
 
     test_template!(
         "\n1\r\n{%~  if true  ~%}\n\n2\r\n\r\n{%~  endif  ~%} 3\r\n\r\n\r\n",
-        "\n1\n\n2\n 3"
+        "\n1\n\n2\n 3\r\n\r\n\r\n"
     );
-    test_template!(" \n1 \n{%~  if true  ~%} 2 {%~  endif  ~%}3 ", " \n1\n 2 3");
+    test_template!(
+        " \n1 \n{%~  if true  ~%} 2 {%~  endif  ~%}3 ",
+        " \n1\n 2 3 "
+    );
+}
+
+macro_rules! test_template_config {
+    ($config:literal, $source:literal, $rendered: literal) => {{
+        #[derive(Template)]
+        #[template(source = $source, ext = "txt", config = $config)]
+        struct CondWs;
+
+        assert_eq!(CondWs.render().unwrap(), $rendered);
+    }};
+}
+
+#[test]
+fn test_outer_whitespace() {
+    test_template_config!("test_trim.toml", "\t1\t\t", "\t1\t\t");
+    test_template_config!("test_trim.toml", " 1 ", " 1 ");
+    test_template_config!("test_trim.toml", "\n1\n\n\n", "\n1\n\n\n");
+    test_template_config!("test_trim.toml", "\t1{# #}\t", "\t1");
+    test_template_config!("test_trim.toml", " 1{# #} ", " 1");
+    test_template_config!("test_trim.toml", "\n1{# #}\n\n\n", "\n1");
+    test_template_minimize!("\t1{# #} ", "\t1 ");
+    test_template_minimize!("\t1{# #}\t", "\t1 ");
+    test_template_minimize!("\t1{# #}  ", "\t1 ");
+    test_template_minimize!("\t1{# #}\t\t", "\t1 ");
+    test_template_minimize!(" 1{# #} ", " 1 ");
+    test_template_minimize!("\n1{# #}\n\n\n", "\n1\n");
+    test_template!("\t1{# #}\t", "\t1\t");
+    test_template!(" 1{# #} ", " 1 ");
+    test_template!("\n1{# #}\n\n\n", "\n1\n\n\n");
+}
+
+macro_rules! test_template_ws_config {
+    ($config:literal, $ws:literal, $source:literal, $rendered: literal) => {{
+        #[derive(Template)]
+        #[template(source = $source, ext = "txt", config = $config, whitespace = $ws)]
+        struct CondWs;
+
+        assert_eq!(CondWs.render().unwrap(), $rendered);
+    }};
+}
+
+#[test]
+fn test_template_whitespace_config() {
+    test_template_ws_config!("test_trim.toml", "preserve", "\t1{# #}\t2", "\t1\t2");
+    test_template_ws_config!("test_trim.toml", "minimize", " 1{# #}  2", " 1 2");
+    test_template_ws_config!("test_trim.toml", "suppress", " 1{# #}  2", " 12");
+    test_template_ws_config!(
+        "test_minimize.toml",
+        "preserve",
+        "\n1{# #}\n\n\n2",
+        "\n1\n\n\n2"
+    );
+    test_template_ws_config!("test_minimize.toml", "suppress", "\n1{# #}\n\n\n2", "\n12");
 }

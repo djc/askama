@@ -1,7 +1,8 @@
 [package]
 name = "askama_tide"
-version = "0.14.0"
-edition = "2018"
+version = "0.15.1"
+edition = "2021"
+rust-version = "1.58"
 description = "Tide integration for Askama templates"
 keywords = ["markup", "template", "html", "tide", "http-types"]
 homepage = "https://github.com/djc/askama"
@@ -12,7 +13,7 @@ workspace = ".."
 readme = "README.md"
 
 [dependencies]
-askama = { version = "0.11.2", path = "../askama", default-features = false, features = ["with-tide"] }
+askama = { version = "0.12", path = "../askama", default-features = false, features = ["with-tide"] }
 tide = { version = "0.16", default-features = false }
 
 [dev-dependencies]

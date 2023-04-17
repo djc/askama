@@ -44,7 +44,7 @@ impl TemplateInput<'_> {
         // of `ext` is merged into a synthetic `path` value here.
         let source = source.expect("template path or source not found in attributes");
         let path = match (&source, &ext) {
-            (&Source::Path(ref path), _) => config.find_template(path, None)?,
+            (Source::Path(path), _) => config.find_template(path, None)?,
             (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
             (&Source::Source(_), None) => {
                 return Err("must include 'ext' attribute when using 'source' attribute".into())
@@ -94,7 +94,7 @@ impl TemplateInput<'_> {
                 config
                     .syntaxes
                     .get(&s)
-                    .ok_or_else(|| CompileError::from(format!("attribute syntax {} not exist", s)))
+                    .ok_or_else(|| CompileError::from(format!("attribute syntax {s} not exist")))
             },
         )?;
 
@@ -116,7 +116,7 @@ impl TemplateInput<'_> {
         }
 
         let escaper = escaper.ok_or_else(|| {
-            CompileError::from(format!("no escaper defined for extension '{}'", escaping))
+            CompileError::from(format!("no escaper defined for extension '{escaping}'"))
         })?;
 
         let mime_type =
@@ -186,7 +186,7 @@ impl FromStr for Print {
             "ast" => Ast,
             "code" => Code,
             "none" => None,
-            v => return Err(format!("invalid value for print option: {}", v,).into()),
+            v => return Err(format!("invalid value for print option: {v}",).into()),
         })
     }
 }

@@ -56,8 +56,7 @@ where
                     fmt,
                     escaper: &self.escaper
                 },
-                "{}",
-                t
+                "{t}"
             ),
             DisplayValue::Safe(ref t) => t.fmt(fmt),
         }
@@ -114,21 +113,26 @@ impl Escaper for Html {
     {
         let mut last = 0;
         for (index, byte) in string.bytes().enumerate() {
-            macro_rules! go {
-                ($expr:expr) => {{
-                    fmt.write_str(&string[last..index])?;
-                    fmt.write_str($expr)?;
-                    last = index + 1;
-                }};
-            }
+            const MIN_CHAR: u8 = b'"';
+            const MAX_CHAR: u8 = b'>';
+            const TABLE: [Option<&&str>; (MAX_CHAR - MIN_CHAR + 1) as usize] = {
+                let mut table = [None; (MAX_CHAR - MIN_CHAR + 1) as usize];
+                table[(b'<' - MIN_CHAR) as usize] = Some(&"&lt;");
+                table[(b'>' - MIN_CHAR) as usize] = Some(&"&gt;");
+                table[(b'&' - MIN_CHAR) as usize] = Some(&"&amp;");
+                table[(b'"' - MIN_CHAR) as usize] = Some(&"&quot;");
+                table[(b'\'' - MIN_CHAR) as usize] = Some(&"&#x27;");
+                table
+            };
 
-            match byte {
-                b'<' => go!("&lt;"),
-                b'>' => go!("&gt;"),
-                b'&' => go!("&amp;"),
-                b'"' => go!("&quot;"),
-                b'\'' => go!("&#x27;"),
-                _ => {}
+            let escaped = match byte {
+                MIN_CHAR..=MAX_CHAR => TABLE[(byte - MIN_CHAR) as usize],
+                _ => None,
+            };
+            if let Some(escaped) = escaped {
+                fmt.write_str(&string[last..index])?;
+                fmt.write_str(escaped)?;
+                last = index + 1;
             }
         }
         fmt.write_str(&string[last..])
@@ -182,20 +186,17 @@ impl std::io::Write for JsonEscapeBuffer {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
         let mut last = 0;
         for (index, byte) in bytes.iter().enumerate() {
-            macro_rules! go {
-                ($expr:expr) => {{
-                    self.0.extend(&bytes[last..index]);
-                    self.0.extend($expr);
-                    last = index + 1;
-                }};
-            }
-
-            match byte {
-                b'&' => go!(br#"\u0026"#),
-                b'\'' => go!(br#"\u0027"#),
-                b'<' => go!(br#"\u003c"#),
-                b'>' => go!(br#"\u003e"#),
-                _ => {}
+            let escaped = match byte {
+                b'&' => Some(br#"\u0026"#),
+                b'\'' => Some(br#"\u0027"#),
+                b'<' => Some(br#"\u003c"#),
+                b'>' => Some(br#"\u003e"#),
+                _ => None,
+            };
+            if let Some(escaped) = escaped {
+                self.0.extend(&bytes[last..index]);
+                self.0.extend(escaped);
+                last = index + 1;
             }
         }
         self.0.extend(&bytes[last..]);

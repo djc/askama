@@ -87,6 +87,43 @@ This discards all whitespace inside the if/else block. If a literal
 includes only whitespace, whitespace suppression on either side will
 completely suppress that literal content.
 
+If the whitespace default control is set to "suppress" and you want
+to preserve whitespace characters on one side of a block or of an
+expression, you need to use `+`. Example:
+
+```text
+<a href="/" {#+ #}
+   class="something">text</a>
+```
+
+In the above example, one whitespace character is kept
+between the `href` and the `class` attributes.
+
+There is a third possibility. In case you want to suppress all whitespace
+characters except one (`"minimize"`), you can use `~`:
+
+```jinja
+{% if something ~%}
+Hello
+{%~ endif %}
+```
+
+To be noted, if one of the trimmed characters is a newline, then the only
+character remaining will be a newline.
+
+Whitespace controls can also be defined by a 
+[configuration file](configuration.md) or in the derive macro. 
+These definitions follow the global-to-local preference:
+1. Inline (`-`, `+`, `~`)
+2. Derive (`#[template(whitespace = "suppress")]`)
+3. Configuration (in `askama.toml`, `whitespace = "preserve"`)
+
+Two inline whitespace controls may point to the same whitespace span. 
+In this case, they are resolved by the following preference.
+1. Suppress (`-`)
+2. Minimize (`~`)
+3. Preserve (`+`)
+
 ## Template inheritance
 
 Template inheritance allows you to build a base template with common

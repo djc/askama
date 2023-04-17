@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::config::Config;
-use crate::parser::{Expr, Loop, Macro, Node};
+use crate::parser::{Loop, Macro, Node};
 use crate::CompileError;
 
 pub(crate) struct Heritage<'a> {
@@ -58,7 +58,7 @@ impl Context<'_> {
         while let Some(nodes) = nested.pop() {
             for n in nodes {
                 match n {
-                    Node::Extends(Expr::StrLit(extends_path)) if top => match extends {
+                    Node::Extends(extends_path) if top => match extends {
                         Some(_) => return Err("multiple extend blocks found".into()),
                         None => {
                             extends = Some(config.find_template(extends_path, Some(path))?);

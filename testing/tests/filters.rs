@@ -44,7 +44,8 @@ fn filter_opt_escaper_none() {
         r#"<h1 class="title">Foo Bar</h1>
 &lt;h1 class=&quot;title&quot;&gt;Foo Bar&lt;/h1&gt;
 <h1 class="title">Foo Bar</h1>
-<h1 class="title">Foo Bar</h1>"#
+<h1 class="title">Foo Bar</h1>
+"#
     );
 }
 
@@ -68,7 +69,8 @@ fn filter_opt_escaper_html() {
         r#"<h1 class="title">Foo Bar</h1>
 &lt;h1 class=&quot;title&quot;&gt;Foo Bar&lt;/h1&gt;
 &lt;h1 class=&quot;title&quot;&gt;Foo Bar&lt;/h1&gt;
-&lt;h1 class=&quot;title&quot;&gt;Foo Bar&lt;/h1&gt;"#
+&lt;h1 class=&quot;title&quot;&gt;Foo Bar&lt;/h1&gt;
+"#
     );
 }
 
@@ -122,8 +124,7 @@ mod filters {
     }
     // for test_nested_filter_ref
     pub fn mytrim(s: &dyn (::std::fmt::Display)) -> ::askama::Result<String> {
-        let s = format!("{}", s);
-        Ok(s.trim().to_owned())
+        Ok(s.to_string().trim().to_owned())
     }
 }
 

@@ -6,6 +6,7 @@ use crate::CompileError;
 
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
+use syn::punctuated::Punctuated;
 
 use std::collections::hash_map::{Entry, HashMap};
 use std::path::{Path, PathBuf};
@@ -30,7 +31,7 @@ pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
 fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     let template_args = TemplateArgs::new(ast)?;
     let config_toml = read_config_file(template_args.config_path.as_deref())?;
-    let config = Config::new(&config_toml)?;
+    let config = Config::new(&config_toml, template_args.whitespace.as_ref())?;
     let input = TemplateInput::new(ast, &config, template_args)?;
     let source: String = match input.source {
         Source::Source(ref s) => s.clone(),
@@ -70,7 +71,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     )
     .build(&contexts[input.path.as_path()])?;
     if input.print == Print::Code || input.print == Print::All {
-        eprintln!("{}", code);
+        eprintln!("{code}");
     }
     Ok(code)
 }
@@ -83,6 +84,7 @@ pub(crate) struct TemplateArgs {
     pub(crate) ext: Option<String>,
     pub(crate) syntax: Option<String>,
     pub(crate) config_path: Option<String>,
+    pub(crate) whitespace: Option<String>,
 }
 
 impl TemplateArgs {
@@ -91,25 +93,17 @@ impl TemplateArgs {
         // the proper type (list).
         let mut template_args = None;
         for attr in &ast.attrs {
-            let ident = match attr.path.get_ident() {
-                Some(ident) => ident,
-                None => continue,
-            };
-
-            if ident == "template" {
-                if template_args.is_some() {
-                    return Err("duplicated 'template' attribute".into());
-                }
-
-                match attr.parse_meta() {
-                    Ok(syn::Meta::List(syn::MetaList { nested, .. })) => {
-                        template_args = Some(nested);
-                    }
-                    Ok(_) => return Err("'template' attribute must be a list".into()),
-                    Err(e) => return Err(format!("unable to parse attribute: {}", e).into()),
-                }
+            if !attr.path().is_ident("template") {
+                continue;
             }
+
+            match attr.parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated) {
+                Ok(args) if template_args.is_none() => template_args = Some(args),
+                Ok(_) => return Err("duplicated 'template' attribute".into()),
+                Err(e) => return Err(format!("unable to parse template arguments: {e}").into()),
+            };
         }
+
         let template_args =
             template_args.ok_or_else(|| CompileError::from("no attribute 'template' found"))?;
 
@@ -119,7 +113,7 @@ impl TemplateArgs {
         // `source` contains an enum that can represent `path` or `source`.
         for item in template_args {
             let pair = match item {
-                syn::NestedMeta::Meta(syn::Meta::NameValue(ref pair)) => pair,
+                syn::Meta::NameValue(pair) => pair,
                 _ => {
                     return Err(format!(
                         "unsupported attribute argument {:?}",
@@ -128,13 +122,25 @@ impl TemplateArgs {
                     .into())
                 }
             };
+
             let ident = match pair.path.get_ident() {
                 Some(ident) => ident,
                 None => unreachable!("not possible in syn::Meta::NameValue(…)"),
             };
 
+            let value = match pair.value {
+                syn::Expr::Lit(lit) => lit,
+                syn::Expr::Group(group) => match *group.expr {
+                    syn::Expr::Lit(lit) => lit,
+                    _ => {
+                        return Err(format!("unsupported argument value type for {ident:?}").into())
+                    }
+                },
+                _ => return Err(format!("unsupported argument value type for {ident:?}").into()),
+            };
+
             if ident == "path" {
-                if let syn::Lit::Str(ref s) = pair.lit {
+                if let syn::Lit::Str(s) = value.lit {
                     if args.source.is_some() {
                         return Err("must specify 'source' or 'path', not both".into());
                     }
@@ -143,7 +149,7 @@ impl TemplateArgs {
                     return Err("template path must be string literal".into());
                 }
             } else if ident == "source" {
-                if let syn::Lit::Str(ref s) = pair.lit {
+                if let syn::Lit::Str(s) = value.lit {
                     if args.source.is_some() {
                         return Err("must specify 'source' or 'path', not both".into());
                     }
@@ -152,37 +158,43 @@ impl TemplateArgs {
                     return Err("template source must be string literal".into());
                 }
             } else if ident == "print" {
-                if let syn::Lit::Str(ref s) = pair.lit {
+                if let syn::Lit::Str(s) = value.lit {
                     args.print = s.value().parse()?;
                 } else {
                     return Err("print value must be string literal".into());
                 }
             } else if ident == "escape" {
-                if let syn::Lit::Str(ref s) = pair.lit {
+                if let syn::Lit::Str(s) = value.lit {
                     args.escaping = Some(s.value());
                 } else {
                     return Err("escape value must be string literal".into());
                 }
             } else if ident == "ext" {
-                if let syn::Lit::Str(ref s) = pair.lit {
+                if let syn::Lit::Str(s) = value.lit {
                     args.ext = Some(s.value());
                 } else {
                     return Err("ext value must be string literal".into());
                 }
             } else if ident == "syntax" {
-                if let syn::Lit::Str(ref s) = pair.lit {
+                if let syn::Lit::Str(s) = value.lit {
                     args.syntax = Some(s.value())
                 } else {
                     return Err("syntax value must be string literal".into());
                 }
             } else if ident == "config" {
-                if let syn::Lit::Str(ref s) = pair.lit {
+                if let syn::Lit::Str(s) = value.lit {
                     args.config_path = Some(s.value())
                 } else {
                     return Err("config value must be string literal".into());
                 }
+            } else if ident == "whitespace" {
+                if let syn::Lit::Str(s) = value.lit {
+                    args.whitespace = Some(s.value())
+                } else {
+                    return Err("whitespace value must be string literal".into());
+                }
             } else {
-                return Err(format!("unsupported attribute key {:?} found", ident).into());
+                return Err(format!("unsupported attribute key {ident:?} found").into());
             }
         }
 
@@ -200,12 +212,12 @@ fn find_used_templates(
     while let Some((path, source)) = check.pop() {
         for n in parse(&source, input.syntax)? {
             match n {
-                Node::Extends(Expr::StrLit(extends)) => {
+                Node::Extends(extends) => {
                     let extends = input.config.find_template(extends, Some(&path))?;
                     let dependency_path = (path.clone(), extends.clone());
                     if dependency_graph.contains(&dependency_path) {
                         return Err(format!(
-                            "cyclic dependecy in graph {:#?}",
+                            "cyclic dependency in graph {:#?}",
                             dependency_graph
                                 .iter()
                                 .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
@@ -362,7 +374,7 @@ impl<'a> Generator<'a> {
         buf.writeln(";")?;
 
         buf.writeln("const SIZE_HINT: ::std::primitive::usize = ")?;
-        buf.writeln(&format!("{}", size_hint))?;
+        buf.writeln(&format!("{size_hint}"))?;
         buf.writeln(";")?;
 
         buf.writeln("const MIME_TYPE: &'static ::std::primitive::str = ")?;
@@ -426,12 +438,13 @@ impl<'a> Generator<'a> {
         buf.writeln("}")
     }
 
-    // Implement `From<Template> for hyper::Response<Body>`.
+    // Implement `From<Template> for hyper::Response<Body>` and `From<Template> for hyper::Body.
     #[cfg(feature = "with-hyper")]
     fn impl_hyper_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         let (impl_generics, orig_ty_generics, where_clause) =
             self.input.ast.generics.split_for_impl();
         let ident = &self.input.ast.ident;
+        // From<Template> for hyper::Response<Body>
         buf.writeln(&format!(
             "{} {{",
             quote!(
@@ -446,6 +459,25 @@ impl<'a> Generator<'a> {
             quote!(fn from(value: &#ident #orig_ty_generics) -> Self)
         ))?;
         buf.writeln("::askama_hyper::respond(value)")?;
+        buf.writeln("}")?;
+        buf.writeln("}")?;
+
+        // TryFrom<Template> for hyper::Body
+        buf.writeln(&format!(
+            "{} {{",
+            quote!(
+                impl #impl_generics ::core::convert::TryFrom<&#ident #orig_ty_generics>
+                for ::askama_hyper::hyper::Body
+                #where_clause
+            )
+        ))?;
+        buf.writeln("type Error = ::askama::Error;")?;
+        buf.writeln("#[inline]")?;
+        buf.writeln(&format!(
+            "{} {{",
+            quote!(fn try_from(value: &#ident #orig_ty_generics) -> Result<Self, Self::Error>)
+        ))?;
+        buf.writeln("::askama::Template::render(value).map(Into::into)")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
@@ -478,7 +510,7 @@ impl<'a> Generator<'a> {
         buf.writeln(
             format!(
                 "{} {} for {} {} {{",
-                quote!(impl#impl_generics),
+                quote!(impl #impl_generics),
                 "::mendes::application::IntoResponse<A>",
                 self.input.ast.ident,
                 quote!(#orig_ty_generics #where_clause),
@@ -501,7 +533,7 @@ impl<'a> Generator<'a> {
     #[cfg(feature = "with-rocket")]
     fn impl_rocket_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         let lifetime = syn::Lifetime::new("'askama", proc_macro2::Span::call_site());
-        let param = syn::GenericParam::Lifetime(syn::LifetimeDef::new(lifetime));
+        let param = syn::GenericParam::Lifetime(syn::LifetimeParam::new(lifetime));
         self.write_header(
             buf,
             "::askama_rocket::Responder<'askama, 'askama>",
@@ -573,7 +605,7 @@ impl<'a> Generator<'a> {
         buf.writeln(
             format!(
                 "{} {} for {}{} {{",
-                quote!(impl#impl_generics),
+                quote!(impl #impl_generics),
                 target,
                 self.input.ast.ident,
                 quote!(#orig_ty_generics #where_clause),
@@ -610,16 +642,16 @@ impl<'a> Generator<'a> {
                     self.write_let(buf, ws, var, val)?;
                 }
                 Node::Cond(ref conds, ws) => {
-                    self.write_cond(ctx, buf, conds, ws)?;
+                    size_hint += self.write_cond(ctx, buf, conds, ws)?;
                 }
                 Node::Match(ws1, ref expr, ref arms, ws2) => {
-                    self.write_match(ctx, buf, ws1, expr, arms, ws2)?;
+                    size_hint += self.write_match(ctx, buf, ws1, expr, arms, ws2)?;
                 }
                 Node::Loop(ref loop_block) => {
-                    self.write_loop(ctx, buf, loop_block)?;
+                    size_hint += self.write_loop(ctx, buf, loop_block)?;
                 }
                 Node::BlockDef(ws1, name, _, ws2) => {
-                    self.write_block(buf, Some(name), Ws(ws1.0, ws2.1))?;
+                    size_hint += self.write_block(buf, Some(name), Ws(ws1.0, ws2.1))?;
                 }
                 Node::Include(ws, path) => {
                     size_hint += self.handle_include(ctx, buf, ws, path)?;
@@ -666,6 +698,11 @@ impl<'a> Generator<'a> {
         }
 
         if AstLevel::Top == level {
+            // Handle any pending whitespace.
+            if self.next_ws.is_some() {
+                self.flush_ws(Ws(Some(self.skip_ws.into()), None));
+            }
+
             size_hint += self.write_buf_writable(buf)?;
         }
         Ok(size_hint)
@@ -755,7 +792,7 @@ impl<'a> Generator<'a> {
         let mut arm_sizes = Vec::new();
 
         let expr_code = self.visit_expr_root(expr)?;
-        buf.writeln(&format!("match &{} {{", expr_code))?;
+        buf.writeln(&format!("match &{expr_code} {{"))?;
 
         let mut arm_size = 0;
         for (i, arm) in arms.iter().enumerate() {
@@ -802,24 +839,24 @@ impl<'a> Generator<'a> {
         buf.writeln("{")?;
         buf.writeln("let mut _did_loop = false;")?;
         match loop_block.iter {
-            Expr::Range(_, _, _) => buf.writeln(&format!("let _iter = {};", expr_code)),
-            Expr::Array(..) => buf.writeln(&format!("let _iter = {}.iter();", expr_code)),
+            Expr::Range(_, _, _) => buf.writeln(&format!("let _iter = {expr_code};")),
+            Expr::Array(..) => buf.writeln(&format!("let _iter = {expr_code}.iter();")),
             // If `iter` is a call then we assume it's something that returns
             // an iterator. If not then the user can explicitly add the needed
             // call without issues.
             Expr::Call(..) | Expr::Index(..) => {
-                buf.writeln(&format!("let _iter = ({}).into_iter();", expr_code))
+                buf.writeln(&format!("let _iter = ({expr_code}).into_iter();"))
             }
             // If accessing `self` then it most likely needs to be
             // borrowed, to prevent an attempt of moving.
             _ if expr_code.starts_with("self.") => {
-                buf.writeln(&format!("let _iter = (&{}).into_iter();", expr_code))
+                buf.writeln(&format!("let _iter = (&{expr_code}).into_iter();"))
             }
             // If accessing a field then it most likely needs to be
             // borrowed, to prevent an attempt of moving.
-            Expr::Attr(..) => buf.writeln(&format!("let _iter = (&{}).into_iter();", expr_code)),
+            Expr::Attr(..) => buf.writeln(&format!("let _iter = (&{expr_code}).into_iter();")),
             // Otherwise, we borrow `iter` assuming that it implements `IntoIterator`.
-            _ => buf.writeln(&format!("let _iter = ({}).into_iter();", expr_code)),
+            _ => buf.writeln(&format!("let _iter = ({expr_code}).into_iter();")),
         }?;
         if let Some(cond) = &loop_block.cond {
             self.locals.push();
@@ -872,13 +909,14 @@ impl<'a> Generator<'a> {
         let (def, own_ctx) = match scope {
             Some(s) => {
                 let path = ctx.imports.get(s).ok_or_else(|| {
-                    CompileError::from(format!("no import found for scope {:?}", s))
+                    CompileError::from(format!("no import found for scope {s:?}"))
                 })?;
-                let mctx = self.contexts.get(path.as_path()).ok_or_else(|| {
-                    CompileError::from(format!("context for {:?} not found", path))
-                })?;
+                let mctx = self
+                    .contexts
+                    .get(path.as_path())
+                    .ok_or_else(|| CompileError::from(format!("context for {path:?} not found")))?;
                 let def = mctx.macros.get(name).ok_or_else(|| {
-                    CompileError::from(format!("macro {:?} not found in scope {:?}", name, s))
+                    CompileError::from(format!("macro {name:?} not found in scope {s:?}"))
                 })?;
                 (def, mctx)
             }
@@ -886,7 +924,7 @@ impl<'a> Generator<'a> {
                 let def = ctx
                     .macros
                     .get(name)
-                    .ok_or_else(|| CompileError::from(format!("macro {:?} not found", name)))?;
+                    .ok_or_else(|| CompileError::from(format!("macro {name:?} not found")))?;
                 (def, ctx)
             }
         };
@@ -902,7 +940,7 @@ impl<'a> Generator<'a> {
         let mut is_first_variable = true;
         for (i, arg) in def.args.iter().enumerate() {
             let expr = args.get(i).ok_or_else(|| {
-                CompileError::from(format!("macro {:?} takes more than {} arguments", name, i))
+                CompileError::from(format!("macro {name:?} takes more than {i} arguments"))
             })?;
 
             match expr {
@@ -1089,7 +1127,7 @@ impl<'a> Generator<'a> {
             (Some(cur_name), None) => (cur_name, 0),
             // A block definition contains a block definition of the same name
             (Some(cur_name), Some((prev_name, _))) if cur_name == prev_name => {
-                return Err(format!("cannot define recursive blocks ({})", cur_name).into());
+                return Err(format!("cannot define recursive blocks ({cur_name})").into());
             }
             // A block definition contains a definition of another block
             (Some(cur_name), Some((_, _))) => (cur_name, 0),
@@ -1108,7 +1146,7 @@ impl<'a> Generator<'a> {
         let (ctx, def) = heritage.blocks[cur.0].get(cur.1).ok_or_else(|| {
             CompileError::from(match name {
                 None => format!("no super() block found for block '{}'", cur.0),
-                Some(name) => format!("no block found for name '{}'", name),
+                Some(name) => format!("no block found for name '{name}'"),
             })
         })?;
 
@@ -1188,12 +1226,12 @@ impl<'a> Generator<'a> {
                     };
 
                     let id = match expr_cache.entry(expression.clone()) {
-                        Entry::Occupied(e) if s.is_cachable() => *e.get(),
+                        Entry::Occupied(e) if s.is_cacheable() => *e.get(),
                         e => {
                             let id = self.named;
                             self.named += 1;
 
-                            buf_expr.write(&format!("expr{} = ", id));
+                            buf_expr.write(&format!("expr{id} = "));
                             buf_expr.write("&");
                             buf_expr.write(&expression);
                             buf_expr.writeln(",")?;
@@ -1206,7 +1244,7 @@ impl<'a> Generator<'a> {
                         }
                     };
 
-                    buf_format.write(&format!("{{expr{}}}", id));
+                    buf_format.write(&format!("{{expr{id}}}"));
                     size_hint += 3;
                 }
             }
@@ -1226,9 +1264,7 @@ impl<'a> Generator<'a> {
         assert!(self.next_ws.is_none());
         if !lws.is_empty() {
             match self.skip_ws {
-                WhitespaceHandling::Suppress => {
-                    self.skip_ws = WhitespaceHandling::Preserve;
-                }
+                WhitespaceHandling::Suppress => {}
                 _ if val.is_empty() => {
                     assert!(rws.is_empty());
                     self.next_ws = Some(lws);
@@ -1239,12 +1275,13 @@ impl<'a> Generator<'a> {
                         .push(Writable::Lit(match lws.contains('\n') {
                             true => "\n",
                             false => " ",
-                        }))
+                        }));
                 }
             }
         }
 
         if !val.is_empty() {
+            self.skip_ws = WhitespaceHandling::Preserve;
             self.buf_writable.push(Writable::Lit(val));
         }
 
@@ -1428,9 +1465,9 @@ impl<'a> Generator<'a> {
                 name, self.input.escaper
             ));
         } else if crate::BUILT_IN_FILTERS.contains(&name) {
-            buf.write(&format!("::askama::filters::{}(", name));
+            buf.write(&format!("::askama::filters::{name}("));
         } else {
-            buf.write(&format!("filters::{}(", name));
+            buf.write(&format!("filters::{name}("));
         }
 
         self._visit_args(buf, args)?;
@@ -1634,7 +1671,7 @@ impl<'a> Generator<'a> {
                     }
                     _ => return Err("loop.cycle(…) expects exactly one argument".into()),
                 },
-                s => return Err(format!("unknown loop method: {:?}", s).into()),
+                s => return Err(format!("unknown loop method: {s:?}").into()),
             },
             left => {
                 match left {
@@ -1691,7 +1728,7 @@ impl<'a> Generator<'a> {
         right: &Expr<'_>,
     ) -> Result<DisplayWrap, CompileError> {
         self.visit_expr(buf, left)?;
-        buf.write(&format!(" {} ", op));
+        buf.write(&format!(" {op} "));
         self.visit_expr(buf, right)?;
         Ok(DisplayWrap::Unwrapped)
     }
@@ -1766,12 +1803,12 @@ impl<'a> Generator<'a> {
     }
 
     fn visit_str_lit(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
-        buf.write(&format!("\"{}\"", s));
+        buf.write(&format!("\"{s}\""));
         DisplayWrap::Unwrapped
     }
 
     fn visit_char_lit(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
-        buf.write(&format!("'{}'", s));
+        buf.write(&format!("'{s}'"));
         DisplayWrap::Unwrapped
     }
 
@@ -2065,8 +2102,7 @@ impl MapChain<'_, &str, LocalMeta> {
 
     fn resolve_or_self(&self, name: &str) -> String {
         let name = normalize_identifier(name);
-        self.resolve(name)
-            .unwrap_or_else(|| format!("self.{}", name))
+        self.resolve(name).unwrap_or_else(|| format!("self.{name}"))
     }
 }
 
