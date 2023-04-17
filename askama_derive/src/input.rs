@@ -62,7 +62,7 @@ impl TemplateInput<'_> {
                         .iter()
                         .filter(|&f| f.ident.is_some())
                         .flat_map(
-                            |f| match f.attrs.iter().any(|a| a.path.is_ident("locale")) {
+                            |f| match f.attrs.iter().any(|a| a.path().is_ident("locale")) {
                                 true => Some(f.ident.as_ref()?.to_string()),
                                 false => None,
                             },
