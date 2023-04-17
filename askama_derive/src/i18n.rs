@@ -19,7 +19,7 @@ use serde::Deserialize;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::{parse2, Visibility};
-use toml::from_str;
+use basic_toml::from_str;
 
 use crate::CompileError;
 
