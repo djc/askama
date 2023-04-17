@@ -7,6 +7,8 @@ use nom::combinator::{cut, map, not, opt, peek, recognize};
 use nom::multi::{fold_many0, many0, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::IResult;
+use nom::error_position;
+use nom::error::ErrorKind;
 
 use super::{
     bool_lit, char_lit, identifier, nested_parenthesis, not_ws, num_lit, path, str_lit, ws,
@@ -111,8 +113,8 @@ impl Expr<'_> {
             Expr::Tuple(args) => args.iter().all(|arg| arg.is_cacheable()),
             #[cfg(feature = "i18n")]
             Expr::Localize(msg_id, args) => {
-                msg_id.is_cachable() && args.iter().all(|(_, arg)| arg.is_cachable())
-            }
+                msg_id.is_cacheable() && args.iter().all(|(_, arg)| arg.is_cacheable())
+            },
             // We have too little information to tell if the expression is pure:
             Expr::Call(_, _) => false,
             Expr::RustMacro(_, _) => false,
@@ -391,6 +393,7 @@ expr_prec_layer!(expr_or, expr_and, "||");
 fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
     let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(expr_or))(i);
     alt((
+        expr_localize,
         map(range_right, |(op, right)| {
             Expr::Range(op, None, right.map(Box::new))
         }),
