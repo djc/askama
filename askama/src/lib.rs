@@ -82,7 +82,8 @@ pub use crate::error::{Error, Result};
 pub trait Template: fmt::Display {
     /// Helper method which allocates a new `String` and renders into it
     fn render(&self) -> Result<String> {
-        let mut buf = String::with_capacity(Self::SIZE_HINT);
+        let mut buf = String::new();
+        let _ = buf.try_reserve(Self::SIZE_HINT);
         self.render_into(&mut buf)?;
         Ok(buf)
     }
@@ -99,7 +100,15 @@ pub trait Template: fmt::Display {
     /// The template's extension, if provided
     const EXTENSION: Option<&'static str>;
 
-    /// Provides a conservative estimate of the expanded length of the rendered template
+    /// Provides a rough estimate of the expanded length of the rendered template. Larger
+    /// values result in higher memory usage but fewer reallocations. Smaller values result in the
+    /// opposite. This value only affects [`render`]. It does not take effect when calling
+    /// [`render_into`], [`write_into`], the [`fmt::Display`] implementation, or the blanket
+    /// [`ToString::to_string`] implementation.
+    ///
+    /// [`render`]: Template::render
+    /// [`render_into`]: Template::render_into
+    /// [`write_into`]: Template::write_into
     const SIZE_HINT: usize;
 
     /// The MIME type (Content-Type) of the data that gets rendered by this Template

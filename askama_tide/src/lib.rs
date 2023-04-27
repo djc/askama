@@ -5,7 +5,7 @@
 pub use askama;
 pub use tide;
 
-use askama::*;
+pub use askama::*;
 use tide::{Body, Response};
 
 pub fn try_into_body<T: Template>(t: &T) -> Result<Body> {

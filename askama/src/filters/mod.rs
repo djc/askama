@@ -377,12 +377,13 @@ where
             relaxed_tasklist_matching: false,
         },
         render: ComrakRenderOptions {
-            unsafe_: false,
             escape: true,
             // default:
             hardbreaks: false,
             github_pre_lang: false,
+            full_info_string: false,
             width: 0,
+            unsafe_: false,
             list_style: ListStyleType::Dash,
         },
     };
