@@ -16,7 +16,7 @@ rust-version = "1.58"
 maintenance = { status = "actively-developed" }
 
 [dev-dependencies]
-criterion = "0.4"
+criterion = "0.5"
 
 [features]
 json = []
