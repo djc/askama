@@ -461,3 +461,32 @@ fn test_define_string_var() {
     let template = DefineStringVar;
     assert_eq!(template.render().unwrap(), "");
 }
+
+#[derive(askama::Template)]
+#[template(
+    source = "👉🙂👉 if index % 2 == 0 👈🙃👈 {{-even-}} 👉🙂👉 else -👈🙃👈 {{odd}} 👉🙂👉- endif 👈🙃👈",
+    ext = "txt",
+    block_start = "👉🙂👉",
+    block_end = "👈🙃👈"
+)]
+struct EvenOdd {
+    index: usize,
+    even: &'static str,
+    odd: &'static str,
+}
+
+#[test]
+fn test_block_start() {
+    let template = EvenOdd {
+        index: 1,
+        even: "even",
+        odd: "odd",
+    };
+    assert_eq!(template.render().unwrap(), "odd");
+    let template = EvenOdd {
+        index: 2,
+        even: "even",
+        odd: "odd",
+    };
+    assert_eq!(template.render().unwrap(), "even");
+}

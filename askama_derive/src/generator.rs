@@ -31,8 +31,8 @@ pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
 fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     let template_args = TemplateArgs::new(ast)?;
     let config_toml = read_config_file(template_args.config_path.as_deref())?;
-    let config = Config::new(&config_toml, template_args.whitespace.as_ref())?;
-    let input = TemplateInput::new(ast, &config, template_args)?;
+    let config = Config::new(&config_toml, &template_args)?;
+    let input = TemplateInput::new(ast, &config, &template_args)?;
     let source: String = match input.source {
         Source::Source(ref s) => s.clone(),
         Source::Path(_) => get_template_source(&input.path)?,
@@ -85,6 +85,12 @@ pub(crate) struct TemplateArgs {
     pub(crate) syntax: Option<String>,
     pub(crate) config_path: Option<String>,
     pub(crate) whitespace: Option<String>,
+    pub(crate) block_start: Option<String>,
+    pub(crate) block_end: Option<String>,
+    pub(crate) expr_start: Option<String>,
+    pub(crate) expr_end: Option<String>,
+    pub(crate) comment_start: Option<String>,
+    pub(crate) comment_end: Option<String>,
 }
 
 impl TemplateArgs {
@@ -139,6 +145,23 @@ impl TemplateArgs {
                 _ => return Err(format!("unsupported argument value type for {ident:?}").into()),
             };
 
+            macro_rules! capture_str_lit {
+                ($($ident:literal: $dest:expr),+ $(,)?) => {{
+                    $(
+                    if ident == $ident {
+                        if $dest.is_some() {
+                            return Err(stringify!($ident, " cannot be specified twice").into());
+                        } else if let syn::Lit::Str(s) = value.lit {
+                            $dest = Some(s.value());
+                            true
+                        } else {
+                            return Err(stringify!($ident, " value must be string literal").into());
+                        }
+                    } else
+                    )+ { false }
+                }};
+            }
+
             if ident == "path" {
                 if let syn::Lit::Str(s) = value.lit {
                     if args.source.is_some() {
@@ -163,37 +186,19 @@ impl TemplateArgs {
                 } else {
                     return Err("print value must be string literal".into());
                 }
-            } else if ident == "escape" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.escaping = Some(s.value());
-                } else {
-                    return Err("escape value must be string literal".into());
-                }
-            } else if ident == "ext" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.ext = Some(s.value());
-                } else {
-                    return Err("ext value must be string literal".into());
-                }
-            } else if ident == "syntax" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.syntax = Some(s.value())
-                } else {
-                    return Err("syntax value must be string literal".into());
-                }
-            } else if ident == "config" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.config_path = Some(s.value())
-                } else {
-                    return Err("config value must be string literal".into());
-                }
-            } else if ident == "whitespace" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.whitespace = Some(s.value())
-                } else {
-                    return Err("whitespace value must be string literal".into());
-                }
-            } else {
+            } else if !capture_str_lit!(
+               "escape": args.escaping,
+               "ext": args.ext,
+               "syntax": args.syntax,
+               "config": args.config_path,
+               "whitespace": args.whitespace,
+               "block_start": args.block_start,
+               "block_end": args.block_end,
+               "expr_start": args.expr_start,
+               "expr_end": args.expr_end,
+               "comment_start": args.comment_start,
+               "comment_end": args.comment_end,
+            ) {
                 return Err(format!("unsupported attribute key {ident:?} found").into());
             }
         }
