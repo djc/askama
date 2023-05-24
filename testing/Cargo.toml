@@ -18,7 +18,7 @@ comrak = { version = "0.18", default-features = false, optional = true }
 serde_json = { version = "1.0", optional = true }
 
 [dev-dependencies]
-criterion = "0.4"
+criterion = "0.5"
 trybuild = "1.0.76"
 version_check = "0.9"
 
