@@ -226,8 +226,8 @@ names this syntax in the project.</p>
 <li><code>expr_start</code>, defaults to <code>{{</code></li>
 <li><code>expr_end</code>, defaults to <code>}}</code></li>
 </ul>
-<p>Values must be 2 characters long and start delimiters must all start with the same
-character. If a key is omitted, the value from the default syntax is used.</p>
+<p>Values must be at least two characters long.
+If a key is omitted, the value from the default syntax is used.</p>
 <p>Here is an example of a custom escaper:</p>
 <pre><code class="language-toml">[[escaper]]
 path = &quot;::tex_escape::Tex&quot;
