@@ -13,6 +13,16 @@ fn test_macro() {
 }
 
 #[derive(Template)]
+#[template(path = "macro-no-args.html")]
+struct MacroNoArgsTemplate;
+
+#[test]
+fn test_macro_no_args() {
+    let t = MacroNoArgsTemplate;
+    assert_eq!(t.render().unwrap(), "11the best thing111we've ever done11");
+}
+
+#[derive(Template)]
 #[template(path = "import.html")]
 struct ImportTemplate<'a> {
     s: &'a str,
