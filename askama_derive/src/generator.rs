@@ -54,7 +54,15 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
 
     let ctx = &contexts[input.path.as_path()];
     let heritage = if !ctx.blocks.is_empty() || ctx.extends.is_some() {
-        Some(Heritage::new(ctx, &contexts))
+        let heritage = Heritage::new(ctx, &contexts);
+
+        if let Some(block_name) = input.block.as_deref() {
+            if !heritage.blocks.contains_key(block_name) {
+                return Err(format!("cannot find block {}", block_name).into());
+            }
+        }
+
+        Some(heritage)
     } else {
         None
     };
@@ -1241,7 +1249,6 @@ impl<'a> Generator<'a> {
         // Handle inner whitespace suppression spec and process block nodes
         self.prepare_ws(*ws1);
         self.locals.push();
-
         let size_hint = self.handle(ctx, nodes, buf, AstLevel::Block)?;
 
         if !self.locals.is_current_empty() {
@@ -1255,7 +1262,6 @@ impl<'a> Generator<'a> {
         // Restore original block context and set whitespace suppression for
         // succeeding whitespace according to the outer WS spec
         self.super_block = prev_block;
-
         self.prepare_ws(outer);
         Ok(size_hint)
     }
@@ -1345,7 +1351,6 @@ impl<'a> Generator<'a> {
 
     fn visit_lit(&mut self, lws: &'a str, val: &'a str, rws: &'a str) {
         assert!(self.next_ws.is_none());
-
         if !lws.is_empty() {
             match self.skip_ws {
                 WhitespaceHandling::Suppress => {}
