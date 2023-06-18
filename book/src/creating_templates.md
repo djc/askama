@@ -75,6 +75,9 @@ recognized:
   #[template(path = "hello.html", print = "all")]
   struct HelloTemplate<'a> { ... }
   ```
+* `block` (as `block = "block"`): renders a block by itself, useful for partial
+  rendering in certain web frameworks. Expressions outside of the block are not
+  required by the struct, and inheritance is also supported.
 * `escape` (as `escape = "none"`): override the template's extension used for
   the purpose of determining the escaper for this template. See the section
   on configuring custom escapers for more information.
