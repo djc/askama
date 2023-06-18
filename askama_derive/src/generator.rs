@@ -9,6 +9,7 @@ use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 
 use std::collections::hash_map::{Entry, HashMap};
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::{cmp, hash, mem, str};
 
@@ -68,6 +69,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
         heritage.as_ref(),
         MapChain::new(),
         config.whitespace,
+        input.block.is_some(),
     )
     .build(&contexts[input.path.as_path()])?;
     if input.print == Print::Code || input.print == Print::All {
@@ -249,11 +251,62 @@ fn find_used_templates(
     Ok(())
 }
 
+#[derive(Default, Clone, Copy, PartialEq)]
+enum WritableBufferOutput {
+    #[default]
+    Write,
+    Discard,
+}
+
+#[derive(Default)]
+struct WritableBuffer<'a> {
+    inner: Vec<Writable<'a>>,
+    discard: bool,
+}
+
+impl<'a> WritableBuffer<'a> {
+    fn new(discard: bool) -> Self {
+        Self {
+            inner: vec![],
+            discard,
+        }
+    }
+
+    fn set_discarding(&mut self, discard: bool) {
+        self.discard = discard;
+    }
+
+    fn is_discarding(&self) -> bool {
+        self.discard
+    }
+
+    fn push(&mut self, writable: Writable<'a>) {
+        if !self.discard {
+            self.inner.push(writable);
+        }
+    }
+}
+
+impl<'a> IntoIterator for WritableBuffer<'a> {
+    type Item = Writable<'a>;
+    type IntoIter = <Vec<Writable<'a>> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.into_iter()
+    }
+}
+
+impl<'a> Deref for WritableBuffer<'a> {
+    type Target = [Writable<'a>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner[..]
+    }
+}
+
 struct Generator<'a> {
     // The template input state: original struct AST and attributes
     input: &'a TemplateInput<'a>,
-    // Disables writing literal output
-    block_lit_write: bool,
     // All contexts, keyed by the package-relative template path
     contexts: &'a HashMap<&'a Path, Context<'a>>,
     // The heritage contains references to blocks and their ancestry
@@ -269,8 +322,8 @@ struct Generator<'a> {
     skip_ws: WhitespaceHandling,
     // If currently in a block, this will contain the name of a potential parent block
     super_block: Option<(&'a str, usize)>,
-    // buffer for writable
-    buf_writable: Vec<Writable<'a>>,
+    // Buffer for writable
+    buf_writable: WritableBuffer<'a>,
     // Counter for write! hash named arguments
     named: usize,
     // If set to `suppress`, the whitespace characters will be removed by default unless `+` is
@@ -285,17 +338,17 @@ impl<'a> Generator<'a> {
         heritage: Option<&'n Heritage<'_>>,
         locals: MapChain<'n, &'n str, LocalMeta>,
         whitespace: WhitespaceHandling,
+        discard_output: bool,
     ) -> Generator<'n> {
         Generator {
             input,
-            block_lit_write: input.block.is_none(),
             contexts,
             heritage,
             locals,
             next_ws: None,
             skip_ws: WhitespaceHandling::Preserve,
             super_block: None,
-            buf_writable: vec![],
+            buf_writable: WritableBuffer::new(discard_output),
             named: 0,
             whitespace,
         }
@@ -309,6 +362,7 @@ impl<'a> Generator<'a> {
             self.heritage,
             locals,
             self.whitespace,
+            self.buf_writable.discard,
         )
     }
 
@@ -670,7 +724,15 @@ impl<'a> Generator<'a> {
                     size_hint += self.write_loop(ctx, buf, loop_block)?;
                 }
                 Node::BlockDef(ws1, name, _, ws2) => {
-                    size_hint += self.write_block(buf, Some(name), Ws(ws1.0, ws2.1))?;
+                    let found_block = self.input.block.as_deref() == Some(name);
+
+                    if found_block && self.buf_writable.is_discarding() {
+                        self.buf_writable.set_discarding(false);
+                        size_hint += self.write_block(buf, Some(name), Ws(ws1.0, ws2.1))?;
+                        self.buf_writable.set_discarding(true);
+                    } else {
+                        size_hint += self.write_block(buf, Some(name), Ws(ws1.0, ws2.1))?;
+                    }
                 }
                 Node::Include(ws, path) => {
                     size_hint += self.handle_include(ctx, buf, ws, path)?;
@@ -1180,21 +1242,6 @@ impl<'a> Generator<'a> {
         self.prepare_ws(*ws1);
         self.locals.push();
 
-        let reblock = if !self.block_lit_write {
-            if let Some(block_name) = &self.input.block {
-                if block_name == cur.0 {
-                    self.block_lit_write = true;
-                    true
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-
         let size_hint = self.handle(ctx, nodes, buf, AstLevel::Block)?;
 
         if !self.locals.is_current_empty() {
@@ -1208,10 +1255,6 @@ impl<'a> Generator<'a> {
         // Restore original block context and set whitespace suppression for
         // succeeding whitespace according to the outer WS spec
         self.super_block = prev_block;
-
-        if reblock {
-            self.block_lit_write = false;
-        }
 
         self.prepare_ws(outer);
         Ok(size_hint)
@@ -1302,10 +1345,6 @@ impl<'a> Generator<'a> {
 
     fn visit_lit(&mut self, lws: &'a str, val: &'a str, rws: &'a str) {
         assert!(self.next_ws.is_none());
-
-        if !self.block_lit_write {
-            return;
-        }
 
         if !lws.is_empty() {
             match self.skip_ws {
