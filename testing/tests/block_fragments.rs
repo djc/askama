@@ -33,6 +33,7 @@ struct FragmentUnusedExpr<'a> {
     required: &'a str,
 }
 
+/// Tests a simple base-inherited template with block fragment rendering.
 #[test]
 fn test_fragment_simple() {
     let simple = FragmentSimple { name: "world" };
@@ -43,6 +44,8 @@ fn test_fragment_simple() {
     );
 }
 
+/// Tests a case where a block fragment rendering calls the parent.
+/// Single inheritance only.
 #[test]
 fn test_fragment_super() {
     let sup = FragmentSuper { name: "world" };
@@ -53,6 +56,7 @@ fn test_fragment_super() {
     );
 }
 
+/// Tests rendering a block fragment inside of a block.
 #[test]
 fn test_fragment_nested_block() {
     let nested_block = FragmentNestedBlock {};
@@ -63,6 +67,8 @@ fn test_fragment_nested_block() {
     );
 }
 
+/// Tests rendering a block fragment with multiple inheritance.
+/// The middle parent adds square brackets around the base.
 #[test]
 fn test_fragment_nested_super() {
     let nested_sup = FragmentNestedSuper { name: "world" };
@@ -73,6 +79,8 @@ fn test_fragment_nested_super() {
     );
 }
 
+/// Tests a case where an expression is defined outside of a block fragment
+/// Ideally, the struct isn't required to define that field.
 #[test]
 fn test_fragment_unused_expression() {
     let unused_expr = FragmentUnusedExpr { required: "Required" };
