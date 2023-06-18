@@ -79,6 +79,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
 #[derive(Default)]
 pub(crate) struct TemplateArgs {
     pub(crate) source: Option<Source>,
+    pub(crate) block: Option<String>,
     pub(crate) print: Print,
     pub(crate) escaping: Option<String>,
     pub(crate) ext: Option<String>,
@@ -156,6 +157,12 @@ impl TemplateArgs {
                     args.source = Some(Source::Source(s.value()));
                 } else {
                     return Err("template source must be string literal".into());
+                }
+            } else if ident == "block" {
+                if let syn::Lit::Str(s) = value.lit {
+                    args.block = Some(s.value());
+                } else {
+                    return Err("block value must be string literal".into());
                 }
             } else if ident == "print" {
                 if let syn::Lit::Str(s) = value.lit {
@@ -245,6 +252,8 @@ fn find_used_templates(
 struct Generator<'a> {
     // The template input state: original struct AST and attributes
     input: &'a TemplateInput<'a>,
+    // Disables writing literal output
+    block_lit_write: bool,
     // All contexts, keyed by the package-relative template path
     contexts: &'a HashMap<&'a Path, Context<'a>>,
     // The heritage contains references to blocks and their ancestry
@@ -279,6 +288,7 @@ impl<'a> Generator<'a> {
     ) -> Generator<'n> {
         Generator {
             input,
+            block_lit_write: input.block.is_none(),
             contexts,
             heritage,
             locals,
@@ -1169,6 +1179,22 @@ impl<'a> Generator<'a> {
         // Handle inner whitespace suppression spec and process block nodes
         self.prepare_ws(*ws1);
         self.locals.push();
+
+        let reblock = if !self.block_lit_write {
+            if let Some(block_name) = &self.input.block {
+                if block_name == cur.0 {
+                    self.block_lit_write = true;
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
         let size_hint = self.handle(ctx, nodes, buf, AstLevel::Block)?;
 
         if !self.locals.is_current_empty() {
@@ -1182,6 +1208,11 @@ impl<'a> Generator<'a> {
         // Restore original block context and set whitespace suppression for
         // succeeding whitespace according to the outer WS spec
         self.super_block = prev_block;
+
+        if reblock {
+            self.block_lit_write = false;
+        }
+
         self.prepare_ws(outer);
         Ok(size_hint)
     }
@@ -1271,6 +1302,11 @@ impl<'a> Generator<'a> {
 
     fn visit_lit(&mut self, lws: &'a str, val: &'a str, rws: &'a str) {
         assert!(self.next_ws.is_none());
+
+        if !self.block_lit_write {
+            return;
+        }
+
         if !lws.is_empty() {
             match self.skip_ws {
                 WhitespaceHandling::Suppress => {}

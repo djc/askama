@@ -9,6 +9,7 @@ use mime::Mime;
 
 pub(crate) struct TemplateInput<'a> {
     pub(crate) ast: &'a syn::DeriveInput,
+    pub(crate) block: Option<String>,
     pub(crate) config: &'a Config<'a>,
     pub(crate) syntax: &'a Syntax<'a>,
     pub(crate) source: Source,
@@ -30,6 +31,7 @@ impl TemplateInput<'_> {
     ) -> Result<TemplateInput<'n>, CompileError> {
         let TemplateArgs {
             source,
+            block,
             print,
             escaping,
             ext,
@@ -87,6 +89,7 @@ impl TemplateInput<'_> {
 
         Ok(TemplateInput {
             ast,
+            block,
             config,
             syntax,
             source,
