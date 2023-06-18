@@ -259,13 +259,6 @@ fn find_used_templates(
     Ok(())
 }
 
-#[derive(Default, Clone, Copy, PartialEq)]
-enum WritableBufferOutput {
-    #[default]
-    Write,
-    Discard,
-}
-
 #[derive(Default)]
 struct WritableBuffer<'a> {
     inner: Vec<Writable<'a>>,
