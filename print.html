@@ -578,7 +578,7 @@ A base template defines <strong>blocks</strong> that child templates can overrid
   &lt;/head&gt;
   &lt;body&gt;
     &lt;div id=&quot;content&quot;&gt;
-      {% block content %}{% endblock %}
+      {% block content %}&lt;p&gt;Placeholder content&lt;/p&gt;{% endblock %}
     &lt;/div&gt;
   &lt;/body&gt;
 &lt;/html&gt;
@@ -603,6 +603,7 @@ bodies.</p>
 {% block content %}
   &lt;h1&gt;Index&lt;/h1&gt;
   &lt;p&gt;Hello, world!&lt;/p&gt;
+  {% call super() %}
 {% endblock %}
 </code></pre>
 <p>The <code>extends</code> tag tells the code generator that this template inherits
