@@ -10,14 +10,13 @@ use syn::punctuated::Punctuated;
 
 use std::collections::hash_map::{Entry, HashMap};
 use std::path::{Path, PathBuf};
-use std::{cmp, hash, mem, str};
+use std::{cmp, env, hash, io, mem, str};
 
 /// The actual implementation for askama_derive::Template
 pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
-    let ast: syn::DeriveInput = syn::parse(input).unwrap();
-    match build_template(&ast) {
+    match build_template(input) {
         Ok(source) => source.parse().unwrap(),
-        Err(e) => e.into_compile_error(),
+        Err(e) => return e.into_compile_error(),
     }
 }
 
@@ -28,15 +27,33 @@ pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
 /// parsed, and the parse tree is fed to the code generator. Will print
 /// the parse tree and/or generated source according to the `print` key's
 /// value as passed to the `template()` attribute.
-fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
-    let template_args = TemplateArgs::new(ast)?;
+fn build_template(tokens: TokenStream) -> Result<String, CompileError> {
+    let ast: syn::DeriveInput = syn::parse(tokens.clone()).unwrap();
+
+    let template_args = TemplateArgs::new(&ast)?;
     let config_toml = read_config_file(template_args.config_path.as_deref())?;
     let config = Config::new(&config_toml, template_args.whitespace.as_ref())?;
-    let input = TemplateInput::new(ast, &config, template_args)?;
+    let input = TemplateInput::new(&ast, &config, template_args)?;
     let source: String = match input.source {
         Source::Source(ref s) => s.clone(),
         Source::Path(_) => get_template_source(&input.path)?,
     };
+
+    #[cfg(feature = "cache")]
+    let digest = {
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(tokens.to_string().as_bytes());
+        hasher.update(source.as_bytes());
+        hash_features(&mut hasher);
+        let hash = hasher.finalize();
+
+        hash.to_hex()
+    };
+
+    #[cfg(feature = "cache")]
+    if let Some(source) = find_cached_template(&digest) {
+        return Ok(source);
+    }
 
     let mut sources = HashMap::new();
     find_used_templates(&input, &mut sources, source)?;
@@ -73,7 +90,71 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     if input.print == Print::Code || input.print == Print::All {
         eprintln!("{code}");
     }
+
+    #[cfg(feature = "cache")]
+    cache_template(&digest, &code).unwrap();
+
     Ok(code)
+}
+
+#[cfg(feature = "cache")]
+fn find_cached_template(digest: &str) -> Option<String> {
+    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let cache_dir = root.join(".askama");
+    let path = cache_dir.join(digest);
+
+    if path.exists() {
+        let source = std::fs::read_to_string(path).unwrap();
+        Some(source)
+    } else {
+        None
+    }
+}
+
+#[cfg(feature = "cache")]
+fn cache_template(digest: &str, source: &str) -> io::Result<()> {
+    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let cache_dir = root.join(".askama");
+
+    if !cache_dir.exists() {
+        std::fs::create_dir(&cache_dir).unwrap();
+    }
+
+    let path = cache_dir.join(digest);
+
+    std::fs::write(path, source)
+}
+
+#[cfg(feature = "cache")]
+fn hash_features(hasher: &mut blake3::Hasher) {
+    #[cfg(feature = "humansize")]
+    hasher.update(b"humansize");
+    #[cfg(feature = "markdown")]
+    hasher.update(b"markdown");
+    #[cfg(feature = "num-traits")]
+    hasher.update(b"num-traits");
+    #[cfg(feature = "serde-json")]
+    hasher.update(b"serde-json");
+    #[cfg(feature = "serde-yaml")]
+    hasher.update(b"serde-yaml");
+    #[cfg(feature = "urlencode")]
+    hasher.update(b"urlencode");
+    #[cfg(feature = "with-actix-web")]
+    hasher.update(b"with-actix-web");
+    #[cfg(feature = "with-axum")]
+    hasher.update(b"with-axum");
+    #[cfg(feature = "with-gotham")]
+    hasher.update(b"with-gotham");
+    #[cfg(feature = "with-hyper")]
+    hasher.update(b"with-hyper");
+    #[cfg(feature = "with-mendes")]
+    hasher.update(b"with-mendes");
+    #[cfg(feature = "with-rocket")]
+    hasher.update(b"with-rocket");
+    #[cfg(feature = "with-tide")]
+    hasher.update(b"with-tide");
+    #[cfg(feature = "with-warp")]
+    hasher.update(b"with-warp");
 }
 
 #[derive(Default)]
