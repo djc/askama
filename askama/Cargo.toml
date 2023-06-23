@@ -17,12 +17,12 @@ rust-version = "1.58"
 maintenance = { status = "actively-developed" }
 
 [features]
+cache = ["askama_derive/cache"]
 default = ["config", "humansize", "num-traits", "urlencode"]
 config = ["askama_derive/config"]
 humansize = ["askama_derive/humansize", "dep_humansize"]
 markdown = ["askama_derive/markdown", "comrak"]
 num-traits = ["askama_derive/num-traits", "dep_num_traits"]
-cache = ["askama_derive/cache"]
 serde-json = ["askama_derive/serde-json", "askama_escape/json", "serde", "serde_json"]
 serde-yaml = ["askama_derive/serde-yaml", "serde", "serde_yaml"]
 urlencode = ["askama_derive/urlencode", "percent-encoding"]
