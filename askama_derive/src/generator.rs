@@ -28,6 +28,9 @@ pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
 /// the parse tree and/or generated source according to the `print` key's
 /// value as passed to the `template()` attribute.
 fn build_template(tokens: TokenStream) -> Result<String, CompileError> {
+    #[cfg(not(feature = "cache"))]
+    let ast: syn::DeriveInput = syn::parse(tokens).unwrap();
+    #[cfg(feature = "cache")]
     let ast: syn::DeriveInput = syn::parse(tokens.clone()).unwrap();
 
     let template_args = TemplateArgs::new(&ast)?;
