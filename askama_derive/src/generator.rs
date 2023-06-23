@@ -16,7 +16,7 @@ use std::{cmp, hash, mem, str};
 pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
     match build_template(input) {
         Ok(source) => source.parse().unwrap(),
-        Err(e) => return e.into_compile_error(),
+        Err(e) => e.into_compile_error(),
     }
 }
 
