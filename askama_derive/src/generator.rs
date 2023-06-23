@@ -99,7 +99,7 @@ fn build_template(tokens: TokenStream) -> Result<String, CompileError> {
 
 #[cfg(feature = "cache")]
 fn find_cached_template(digest: &str) -> Option<String> {
-    let root = PathBuf::from(env!("OUT_DIR"));
+    let root = PathBuf::from(option_env!("OUT_DIR")?);
     let path = root.join(digest);
 
     path.exists()
@@ -109,7 +109,9 @@ fn find_cached_template(digest: &str) -> Option<String> {
 
 #[cfg(feature = "cache")]
 fn cache_template(digest: &str, source: &str) -> Result<(), CompileError> {
-    let root = PathBuf::from(env!("OUT_DIR"));
+    let root =
+        PathBuf::from(option_env!("OUT_DIR").ok_or(CompileError::from("OUT_DIR is not defined"))?);
+
     let path = root.join(digest);
 
     std::fs::write(path, source)
