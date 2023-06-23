@@ -17,8 +17,8 @@ rust-version = "1.58"
 maintenance = { status = "actively-developed" }
 
 [features]
-cache = ["askama_derive/cache"]
 default = ["config", "humansize", "num-traits", "urlencode"]
+cache = ["askama_derive/cache"]
 config = ["askama_derive/config"]
 humansize = ["askama_derive/humansize", "dep_humansize"]
 markdown = ["askama_derive/markdown", "comrak"]
