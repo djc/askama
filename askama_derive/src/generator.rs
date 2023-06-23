@@ -10,7 +10,7 @@ use syn::punctuated::Punctuated;
 
 use std::collections::hash_map::{Entry, HashMap};
 use std::path::{Path, PathBuf};
-use std::{cmp, env, hash, io, mem, str};
+use std::{cmp, hash, mem, str};
 
 /// The actual implementation for askama_derive::Template
 pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
@@ -92,37 +92,28 @@ fn build_template(tokens: TokenStream) -> Result<String, CompileError> {
     }
 
     #[cfg(feature = "cache")]
-    cache_template(&digest, &code).unwrap();
+    cache_template(&digest, &code)?;
 
     Ok(code)
 }
 
 #[cfg(feature = "cache")]
 fn find_cached_template(digest: &str) -> Option<String> {
-    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let cache_dir = root.join(".askama");
-    let path = cache_dir.join(digest);
+    let root = PathBuf::from(env!("OUT_DIR"));
+    let path = root.join(digest);
 
-    if path.exists() {
-        let source = std::fs::read_to_string(path).unwrap();
-        Some(source)
-    } else {
-        None
-    }
+    path.exists()
+        .then(|| std::fs::read_to_string(path).ok())
+        .flatten()
 }
 
 #[cfg(feature = "cache")]
-fn cache_template(digest: &str, source: &str) -> io::Result<()> {
-    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let cache_dir = root.join(".askama");
-
-    if !cache_dir.exists() {
-        std::fs::create_dir(&cache_dir).unwrap();
-    }
-
-    let path = cache_dir.join(digest);
+fn cache_template(digest: &str, source: &str) -> Result<(), CompileError> {
+    let root = PathBuf::from(env!("OUT_DIR"));
+    let path = root.join(digest);
 
     std::fs::write(path, source)
+        .map_err(|err| CompileError::from(format!("failed to write template cache: {}", err)))
 }
 
 #[cfg(feature = "cache")]
