@@ -266,15 +266,26 @@ struct WritableBuffer<'a> {
 }
 
 impl<'a> WritableBuffer<'a> {
-    fn new(discard: bool) -> Self {
+    fn new() -> Self {
         Self {
             inner: vec![],
-            discard,
+            discard: false,
         }
     }
 
-    fn set_discarding(&mut self, discard: bool) {
-        self.discard = discard;
+    fn new_discarding() -> Self {
+        Self {
+            inner: vec![],
+            discard: true,
+        }
+    }
+
+    fn discard_write(&mut self) {
+        self.discard = true;
+    }
+
+    fn allow_write(&mut self) {
+        self.discard = false;
     }
 
     fn is_discarding(&self) -> bool {
@@ -341,6 +352,12 @@ impl<'a> Generator<'a> {
         whitespace: WhitespaceHandling,
         discard_output: bool,
     ) -> Generator<'n> {
+        let buf_writable = if discard_output {
+            WritableBuffer::new_discarding()
+        } else {
+            WritableBuffer::new()
+        };
+
         Generator {
             input,
             contexts,
@@ -349,7 +366,7 @@ impl<'a> Generator<'a> {
             next_ws: None,
             skip_ws: WhitespaceHandling::Preserve,
             super_block: None,
-            buf_writable: WritableBuffer::new(discard_output),
+            buf_writable,
             named: 0,
             whitespace,
         }
@@ -725,15 +742,7 @@ impl<'a> Generator<'a> {
                     size_hint += self.write_loop(ctx, buf, loop_block)?;
                 }
                 Node::BlockDef(ws1, name, _, ws2) => {
-                    let found_block = self.input.block.as_deref() == Some(name);
-
-                    if found_block && self.buf_writable.is_discarding() {
-                        self.buf_writable.set_discarding(false);
-                        size_hint += self.write_block(buf, Some(name), Ws(ws1.0, ws2.1))?;
-                        self.buf_writable.set_discarding(true);
-                    } else {
-                        size_hint += self.write_block(buf, Some(name), Ws(ws1.0, ws2.1))?;
-                    }
+                    size_hint += self.write_block(buf, Some(name), Ws(ws1.0, ws2.1))?;
                 }
                 Node::Include(ws, path) => {
                     size_hint += self.handle_include(ctx, buf, ws, path)?;
@@ -1200,6 +1209,14 @@ impl<'a> Generator<'a> {
         name: Option<&'a str>,
         outer: Ws,
     ) -> Result<usize, CompileError> {
+        let block_fragment_write =
+            self.input.block.as_deref() == name && self.buf_writable.is_discarding();
+
+        // Allow writing to the buffer if we're in the block fragment
+        if block_fragment_write {
+            self.buf_writable.allow_write();
+        }
+
         // Flush preceding whitespace according to the outer WS spec
         self.flush_ws(outer);
 
@@ -1256,6 +1273,12 @@ impl<'a> Generator<'a> {
         // succeeding whitespace according to the outer WS spec
         self.super_block = prev_block;
         self.prepare_ws(outer);
+
+        // Restore the original buffer discarding state
+        if block_fragment_write {
+            self.buf_writable.discard_write();
+        }
+
         Ok(size_hint)
     }
 
