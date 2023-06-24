@@ -119,37 +119,33 @@ fn cache_template(digest: &str, source: &str) -> Result<(), CompileError> {
     std::fs::write(path, source)
         .map_err(|err| CompileError::from(format!("failed to write template cache: {}", err)))
 }
-
 #[cfg(feature = "cache")]
 fn hash_features(hasher: &mut blake3::Hasher) {
-    #[cfg(feature = "humansize")]
-    hasher.update(b"humansize");
-    #[cfg(feature = "markdown")]
-    hasher.update(b"markdown");
-    #[cfg(feature = "num-traits")]
-    hasher.update(b"num-traits");
-    #[cfg(feature = "serde-json")]
-    hasher.update(b"serde-json");
-    #[cfg(feature = "serde-yaml")]
-    hasher.update(b"serde-yaml");
-    #[cfg(feature = "urlencode")]
-    hasher.update(b"urlencode");
-    #[cfg(feature = "with-actix-web")]
-    hasher.update(b"with-actix-web");
-    #[cfg(feature = "with-axum")]
-    hasher.update(b"with-axum");
-    #[cfg(feature = "with-gotham")]
-    hasher.update(b"with-gotham");
-    #[cfg(feature = "with-hyper")]
-    hasher.update(b"with-hyper");
-    #[cfg(feature = "with-mendes")]
-    hasher.update(b"with-mendes");
-    #[cfg(feature = "with-rocket")]
-    hasher.update(b"with-rocket");
-    #[cfg(feature = "with-tide")]
-    hasher.update(b"with-tide");
-    #[cfg(feature = "with-warp")]
-    hasher.update(b"with-warp");
+    macro_rules! hash_features {
+        ($($feature:literal,)*) => {
+            $(
+                #[cfg(feature = $feature)]
+                hasher.update(concat!("feature=", $feature).as_bytes());
+            )*
+        };
+    }
+
+    hash_features!(
+        "humansize",
+        "markdown",
+        "num-traits",
+        "serde-json",
+        "serde-yaml",
+        "urlencode",
+        "with-actix-web",
+        "with-axum",
+        "with-gotham",
+        "with-hyper",
+        "with-mendes",
+        "with-rocket",
+        "with-tide",
+        "with-warp",
+    );
 }
 
 #[derive(Default)]
