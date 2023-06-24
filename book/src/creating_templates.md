@@ -75,12 +75,14 @@ recognized:
   #[template(path = "hello.html", print = "all")]
   struct HelloTemplate<'a> { ... }
   ```
-* `block` (as `block = "block"`): renders a block by itself, useful for partial
-  rendering in certain web frameworks. Expressions outside of the block are not
-  required by the struct, and inheritance is also supported.
+* `block` (as `block = "block_name"`): renders the block by itself.
+  Expressions outside of the block are not required by the struct, and
+  inheritance is also supported. This can be useful when you need to
+  decompose your template for partial rendering, without needing to
+  extract the partial into a seperate template or macro.
   ```rust
   #[derive(Template)]
-  #[template(path = "hello.html", block = "block")]
+  #[template(path = "hello.html", block = "hello")]
   struct HelloTemplate<'a> { ... }
   ```
 * `escape` (as `escape = "none"`): override the template's extension used for
