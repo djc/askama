@@ -10,7 +10,7 @@ use syn::punctuated::Punctuated;
 
 use std::collections::hash_map::{Entry, HashMap};
 use std::path::{Path, PathBuf};
-use std::{cmp, hash, mem, str, env, fs};
+use std::{cmp, hash, mem, str};
 
 /// The actual implementation for askama_derive::Template
 pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
@@ -102,6 +102,8 @@ fn build_template(tokens: TokenStream) -> Result<String, CompileError> {
 
 #[cfg(feature = "cache")]
 fn get_or_create_cache_dir() -> Result<PathBuf, CompileError> {
+    use std::{env, fs};
+
     let dir = if let Ok(dir) = env::var("ASKAMA_CACHE_DIR") {
         PathBuf::from(dir)
     } else {
@@ -110,9 +112,7 @@ fn get_or_create_cache_dir() -> Result<PathBuf, CompileError> {
         } else {
             PathBuf::from("./target")
         };
-
         let dir = root.join("askama");
-
         fs::create_dir_all(&dir).map_err(|err| {
             CompileError::from(format!("couldn't create cache directory: {}", err))
         })?;
