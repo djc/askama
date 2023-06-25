@@ -10,7 +10,7 @@ use syn::punctuated::Punctuated;
 
 use std::collections::hash_map::{Entry, HashMap};
 use std::path::{Path, PathBuf};
-use std::{cmp, hash, mem, str};
+use std::{cmp, hash, mem, str, env, fs};
 
 /// The actual implementation for askama_derive::Template
 pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
@@ -101,8 +101,31 @@ fn build_template(tokens: TokenStream) -> Result<String, CompileError> {
 }
 
 #[cfg(feature = "cache")]
+fn get_or_create_cache_dir() -> Result<PathBuf, CompileError> {
+    let dir = if let Ok(dir) = env::var("ASKAMA_CACHE_DIR") {
+        PathBuf::from(dir)
+    } else {
+        let root = if let Ok(dir) = env::var("CARGO_TARGET_DIR") {
+            PathBuf::from(dir)
+        } else {
+            PathBuf::from("./target")
+        };
+
+        let dir = root.join("askama");
+
+        fs::create_dir_all(&dir).map_err(|err| {
+            CompileError::from(format!("couldn't create cache directory: {}", err))
+        })?;
+
+        dir
+    };
+
+    Ok(dir)
+}
+
+#[cfg(feature = "cache")]
 fn find_cached_template(digest: &str) -> Option<String> {
-    let root = PathBuf::from(env!("OUT_DIR"));
+    let root = get_or_create_cache_dir().ok()?;
     let path = root.join(digest);
 
     path.exists()
@@ -112,13 +135,13 @@ fn find_cached_template(digest: &str) -> Option<String> {
 
 #[cfg(feature = "cache")]
 fn cache_template(digest: &str, source: &str) -> Result<(), CompileError> {
-    let root = PathBuf::from(env!("OUT_DIR"));
-
+    let root = get_or_create_cache_dir()?;
     let path = root.join(digest);
 
     std::fs::write(path, source)
         .map_err(|err| CompileError::from(format!("failed to write template cache: {}", err)))
 }
+
 #[cfg(feature = "cache")]
 fn hash_features(hasher: &mut blake3::Hasher) {
     macro_rules! hash_features {
