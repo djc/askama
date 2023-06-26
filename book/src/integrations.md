@@ -44,6 +44,36 @@ In case of a run-time error occurring during templating, the response will be of
 signature, with a status code of `500 Internal Server Error`, mime `*/*`, and an empty `Body`.
 This preserves the response chain if any custom error handling needs to occur.
 
+## Hyper integration
+
+Enabling the `with-hyper` feature appends `From<Template> for hyper::Response<hyper::Body>` and
+`TryFrom<Template> for hyper::Body` implementations for each template type. These
+provide the ability for Hyper apps to build a response directly from
+a template, or to create a templated hyper body to be used further in building a
+`Response`. See [the example](https://github.com/djc/askama/blob/main/askama_hyper/tests/basic.rs)
+from the Askama test suite for more on how to integrate.
+
+When using `Template::from()` (or `Template::into()`),
+the returned type is `hyper::Response<hyper::Body>`.
+On the success of run-time rendering, the response consists of the status code `200`, the MIME type associated with the
+template, and the body, created from the rendered String.
+On the failure of run-time rendering, the response consists of the status code `500`, and an empty
+body. The returned value can be seen being created in the integration's public `respond` function
+in the
+[integration's source](https://github.com/djc/askama/blob/main/askama_hyper/src/lib.rs).
+
+When using `Template::try_from()` (or `Template::try_into()`),
+the returned type is `Result<hyper::Body, askama::Error>`.
+The generated code for the template does much less in this case, returning either a `hyper::Body`
+when rendering was successful or the `askama::Error` when it was not. This is meant to allow the
+caller more flexibility in how a response is built and in actions taken when rendering fails.
+
+The
+[integration's source](https://github.com/djc/askama/blob/main/askama_hyper/src/lib.rs)
+also provides a public `try_respond` function that some may find useful to work with or work from.
+It should not be confused with the `TryFrom` generated impl however; the generated impl
+does not use either of the functions found in that source.
+
 ## Warp integration
 
 Enabling the `with-warp` feature appends an implementation of Warp's `Reply`
