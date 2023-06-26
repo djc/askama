@@ -101,31 +101,31 @@ fn build_template(tokens: TokenStream) -> Result<String, CompileError> {
 }
 
 #[cfg(feature = "cache")]
-fn get_or_create_cache_dir() -> Result<PathBuf, CompileError> {
+fn cache_dir() -> Result<PathBuf, CompileError> {
     use std::{env, fs};
 
-    let dir = if let Ok(dir) = env::var("ASKAMA_CACHE_DIR") {
+    if let Ok(dir) = env::var("ASKAMA_CACHE_DIR") {
+        return Ok(PathBuf::from(dir));
+    }
+
+    let root = if let Ok(dir) = env::var("CARGO_TARGET_DIR") {
         PathBuf::from(dir)
     } else {
-        let root = if let Ok(dir) = env::var("CARGO_TARGET_DIR") {
-            PathBuf::from(dir)
-        } else {
-            PathBuf::from("./target")
-        };
-        let dir = root.join("askama");
-        fs::create_dir_all(&dir).map_err(|err| {
-            CompileError::from(format!("couldn't create cache directory: {}", err))
-        })?;
-
-        dir
+        PathBuf::from("./target")
     };
+
+    let dir = root.join("askama");
+
+    fs::create_dir_all(&dir).map_err(|err| {
+        CompileError::from(format!("couldn't create cache directory: {}", err))
+    })?;
 
     Ok(dir)
 }
 
 #[cfg(feature = "cache")]
 fn find_cached_template(digest: &str) -> Option<String> {
-    let root = get_or_create_cache_dir().ok()?;
+    let root = cache_dir().ok()?;
     let path = root.join(digest);
 
     path.exists()
@@ -135,7 +135,7 @@ fn find_cached_template(digest: &str) -> Option<String> {
 
 #[cfg(feature = "cache")]
 fn cache_template(digest: &str, source: &str) -> Result<(), CompileError> {
-    let root = get_or_create_cache_dir()?;
+    let root = cache_dir()?;
     let path = root.join(digest);
 
     std::fs::write(path, source)
