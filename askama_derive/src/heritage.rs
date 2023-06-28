@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::config::Config;
-use crate::parser::{Loop, Macro, Node};
+use crate::parser::{BlockDef, Cond, Loop, Macro, Match, Node, When};
 use crate::CompileError;
 
 pub(crate) struct Heritage<'a> {
@@ -32,12 +32,12 @@ impl Heritage<'_> {
     }
 }
 
-type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a Node<'a>)>>;
+type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a BlockDef<'a>)>>;
 
 pub(crate) struct Context<'a> {
     pub(crate) nodes: &'a [Node<'a>],
     pub(crate) extends: Option<PathBuf>,
-    pub(crate) blocks: HashMap<&'a str, &'a Node<'a>>,
+    pub(crate) blocks: HashMap<&'a str, &'a BlockDef<'a>>,
     pub(crate) macros: HashMap<&'a str, &'a Macro<'a>>,
     pub(crate) imports: HashMap<&'a str, PathBuf>,
 }
@@ -64,8 +64,8 @@ impl Context<'_> {
                             extends = Some(config.find_template(extends_path, Some(path))?);
                         }
                     },
-                    Node::Macro(name, m) if top => {
-                        macros.insert(*name, m);
+                    Node::Macro(_, m) if top => {
+                        macros.insert(m.name, m);
                     }
                     Node::Import(_, import_path, scope) if top => {
                         let path = config.find_template(import_path, Some(path))?;
@@ -76,26 +76,27 @@ impl Context<'_> {
                             "extends, macro or import blocks not allowed below top level".into(),
                         );
                     }
-                    def @ Node::BlockDef(_, _, _, _) => {
+                    Node::BlockDef(_, def @ BlockDef { block, .. }) => {
                         blocks.push(def);
-                        if let Node::BlockDef(_, _, nodes, _) = def {
-                            nested.push(nodes);
+                        nested.push(block);
+                    }
+                    Node::Cond(_, branches) => {
+                        for Cond { block, .. } in branches {
+                            nested.push(block);
                         }
                     }
-                    Node::Cond(branches, _) => {
-                        for (_, _, nodes) in branches {
-                            nested.push(nodes);
-                        }
-                    }
-                    Node::Loop(Loop {
-                        body, else_block, ..
-                    }) => {
+                    Node::Loop(
+                        _,
+                        Loop {
+                            body, else_block, ..
+                        },
+                    ) => {
                         nested.push(body);
                         nested.push(else_block);
                     }
-                    Node::Match(_, _, arms, _) => {
-                        for (_, _, arm) in arms {
-                            nested.push(arm);
+                    Node::Match(_, Match { arms, .. }) => {
+                        for When { block, .. } in arms {
+                            nested.push(block);
                         }
                     }
                     _ => {}
@@ -107,11 +108,8 @@ impl Context<'_> {
         let blocks: HashMap<_, _> = blocks
             .iter()
             .map(|def| {
-                if let Node::BlockDef(_, name, _, _) = def {
-                    (*name, *def)
-                } else {
-                    unreachable!()
-                }
+                let BlockDef { name, .. } = def;
+                (*name, *def)
             })
             .collect();
 

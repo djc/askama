@@ -1,17 +1,11 @@
 use crate::config::Syntax;
-use crate::parser::{Expr, Node, Whitespace, Ws};
+use crate::parser::{Expr, Lit, Node, Target, Whitespace, Ws};
 
 fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
-    match super::split_ws_parts(s) {
-        Node::Lit(lws, s, rws) => {
-            assert_eq!(lws, res.0);
-            assert_eq!(s, res.1);
-            assert_eq!(rws, res.2);
-        }
-        _ => {
-            panic!("fail");
-        }
-    }
+    let Lit { lws, val, rws } = super::split_ws_parts(s);
+    assert_eq!(lws, res.0);
+    assert_eq!(val, res.1);
+    assert_eq!(rws, res.2);
 }
 
 #[test]
@@ -539,6 +533,37 @@ fn test_parse_comments() {
 }
 
 #[test]
+fn test_parse_match() {
+    use super::{Match, When};
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse(
+            "{%+ match foo %}{% when Foo ~%}{%- else +%}{%~ endmatch %}",
+            &syntax
+        )
+        .unwrap(),
+        vec![Node::Match(
+            Ws(Some(Whitespace::Preserve), None),
+            Match {
+                expr: Expr::Var("foo"),
+                arms: vec![
+                    When {
+                        ws: Ws(Some(Whitespace::Suppress), Some(Whitespace::Minimize)),
+                        target: Target::Path(vec!["Foo"]),
+                        block: vec![],
+                    },
+                    When {
+                        ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
+                        target: Target::Name("_"),
+                        block: vec![],
+                    }
+                ],
+            }
+        )],
+    );
+}
+
+#[test]
 fn test_parse_tuple() {
     use super::Expr::*;
     let syntax = Syntax::default();
@@ -658,6 +683,42 @@ fn test_parse_tuple() {
 }
 
 #[test]
+fn test_parse_loop() {
+    use super::{Expr, Loop, Target};
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse("{% for user in users +%}{%~ else -%}{%+ endfor %}", &syntax).unwrap(),
+        vec![Node::Loop(
+            Ws(None, None),
+            Loop {
+                var: Target::Name("user"),
+                iter: Expr::Var("users"),
+                cond: None,
+                body: vec![],
+                body_ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
+                else_block: vec![],
+                else_ws: Ws(Some(Whitespace::Preserve), Some(Whitespace::Suppress)),
+            },
+        )]
+    );
+    assert_eq!(
+        super::parse("{% for user in users +%}{%~ endfor -%}", &syntax).unwrap(),
+        vec![Node::Loop(
+            Ws(None, Some(Whitespace::Suppress)),
+            Loop {
+                var: Target::Name("user"),
+                iter: Expr::Var("users"),
+                cond: None,
+                body: vec![],
+                body_ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Preserve)),
+                else_block: vec![],
+                else_ws: Ws(None, None),
+            },
+        )]
+    );
+}
+
+#[test]
 fn test_missing_space_after_kw() {
     let syntax = Syntax::default();
     let err = super::parse("{%leta=b%}", &syntax).unwrap_err();
@@ -665,4 +726,158 @@ fn test_missing_space_after_kw() {
         &*err.msg,
         "unable to parse template:\n\n\"{%leta=b%}\""
     ));
+}
+
+#[test]
+fn test_parse_call_statement() {
+    use super::Call;
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse("{% call foo(bar) %}", &syntax).unwrap(),
+        vec![Node::Call(
+            Ws(None, None),
+            Call {
+                scope: None,
+                name: "foo",
+                args: vec![Expr::Var("bar"),],
+            }
+        )],
+    );
+    assert_eq!(
+        super::parse("{% call foo::bar() %}", &syntax).unwrap(),
+        vec![Node::Call(
+            Ws(None, None),
+            Call {
+                scope: Some("foo"),
+                name: "bar",
+                args: vec![],
+            }
+        )],
+    );
+}
+
+#[test]
+fn test_parse_macro_statement() {
+    use super::Macro;
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse("{% macro foo(bar) -%}{%~ endmacro +%}", &syntax).unwrap(),
+        vec![Node::Macro(
+            Ws(None, Some(Whitespace::Preserve)),
+            Macro {
+                name: "foo",
+                args: vec!["bar"],
+                nodes: vec![],
+                ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
+            },
+        )]
+    );
+}
+
+#[test]
+fn test_parse_raw_block() {
+    use super::Raw;
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse(
+            "{% raw -%}{% if condition %}{{ result }}{% endif %}{%~ endraw +%}",
+            &syntax
+        )
+        .unwrap(),
+        vec![Node::Raw(
+            Ws(None, Some(Whitespace::Preserve)),
+            Raw {
+                lit: Lit {
+                    lws: "",
+                    val: "{% if condition %}{{ result }}{% endif %}",
+                    rws: "",
+                },
+                ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
+            }
+        )]
+    );
+}
+
+#[test]
+fn test_parse_block_def() {
+    use super::BlockDef;
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse("{% block foo -%}{%~ endblock +%}", &syntax).unwrap(),
+        vec![Node::BlockDef(
+            Ws(None, Some(Whitespace::Preserve)),
+            BlockDef {
+                name: "foo",
+                block: vec![],
+                ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
+            }
+        )],
+    );
+}
+
+#[test]
+fn test_parse_cond() {
+    use super::{Cond, CondTest};
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse("{% if condition -%}{%~ endif +%}", &syntax).unwrap(),
+        vec![Node::Cond(
+            Ws(None, Some(Whitespace::Preserve)),
+            vec![Cond {
+                test: Some(CondTest {
+                    expr: Expr::Var("condition"),
+                    target: None,
+                }),
+                block: vec![],
+                ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
+            },],
+        )],
+    );
+    assert_eq!(
+        super::parse("{% if let Some(val) = condition -%}{%~ endif +%}", &syntax).unwrap(),
+        vec![Node::Cond(
+            Ws(None, Some(Whitespace::Preserve)),
+            vec![Cond {
+                test: Some(CondTest {
+                    expr: Expr::Var("condition"),
+                    target: Some(Target::Tuple(vec!["Some"], vec![Target::Name("val")],)),
+                }),
+                block: vec![],
+                ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
+            },],
+        )],
+    );
+    assert_eq!(
+        super::parse(
+            "{% if condition -%}{%+ else if other -%}{%~ else %}{%~ endif +%}",
+            &syntax
+        )
+        .unwrap(),
+        vec![Node::Cond(
+            Ws(None, Some(Whitespace::Preserve)),
+            vec![
+                Cond {
+                    test: Some(CondTest {
+                        expr: Expr::Var("condition"),
+                        target: None,
+                    }),
+                    block: vec![],
+                    ws: Ws(Some(Whitespace::Preserve), Some(Whitespace::Suppress)),
+                },
+                Cond {
+                    test: Some(CondTest {
+                        expr: Expr::Var("other"),
+                        target: None,
+                    }),
+                    block: vec![],
+                    ws: Ws(Some(Whitespace::Minimize), Some(Whitespace::Suppress)),
+                },
+                Cond {
+                    test: None,
+                    block: vec![],
+                    ws: Ws(Some(Whitespace::Minimize), None),
+                },
+            ],
+        )],
+    );
 }

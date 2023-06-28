@@ -18,21 +18,21 @@ use crate::config::WhitespaceHandling;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Node<'a> {
-    Lit(&'a str, &'a str, &'a str),
+    Lit(Lit<'a>),
     Comment(Ws),
     Expr(Ws, Expr<'a>),
-    Call(Ws, Option<&'a str>, &'a str, Vec<Expr<'a>>),
+    Call(Ws, Call<'a>),
     LetDecl(Ws, Target<'a>),
     Let(Ws, Target<'a>, Expr<'a>),
-    Cond(Vec<Cond<'a>>, Ws),
-    Match(Ws, Expr<'a>, Vec<When<'a>>, Ws),
-    Loop(Loop<'a>),
+    Cond(Ws, Vec<Cond<'a>>),
+    Match(Ws, Match<'a>),
+    Loop(Ws, Loop<'a>),
     Extends(&'a str),
-    BlockDef(Ws, &'a str, Vec<Node<'a>>, Ws),
+    BlockDef(Ws, BlockDef<'a>),
     Include(Ws, &'a str),
     Import(Ws, &'a str, &'a str),
-    Macro(&'a str, Macro<'a>),
-    Raw(Ws, &'a str, &'a str, &'a str, Ws),
+    Macro(Ws, Macro<'a>),
+    Raw(Ws, Raw<'a>),
     Break(Ws),
     Continue(Ws),
 }
@@ -66,26 +66,76 @@ impl From<WhitespaceHandling> for Whitespace {
     }
 }
 
+/// A literal bit of text to output directly.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Lit<'a> {
+    pub(crate) lws: &'a str,
+    pub(crate) val: &'a str,
+    pub(crate) rws: &'a str,
+}
+
+/// A raw block to output directly.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Raw<'a> {
+    pub(crate) lit: Lit<'a>,
+    pub(crate) ws: Ws,
+}
+
+/// A macro call statement.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Call<'a> {
+    /// If the macro is imported, the scope name.
+    pub(crate) scope: Option<&'a str>,
+    /// The name of the macro to call.
+    pub(crate) name: &'a str,
+    /// The arguments to the macro.
+    pub(crate) args: Vec<Expr<'a>>,
+}
+
+/// A match statement.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Match<'a> {
+    /// The expression to match against.
+    pub(crate) expr: Expr<'a>,
+    /// Each of the match arms, with a pattern and a body.
+    pub(crate) arms: Vec<When<'a>>,
+}
+
+/// A single arm of a match statement.
+#[derive(Debug, PartialEq)]
+pub(crate) struct When<'a> {
+    pub(crate) ws: Ws,
+    /// The target pattern to match.
+    pub(crate) target: Target<'a>,
+    /// Body of the match arm.
+    pub(crate) block: Vec<Node<'a>>,
+}
+
 #[derive(Debug, PartialEq)]
 pub(crate) struct Loop<'a> {
-    pub(crate) ws1: Ws,
     pub(crate) var: Target<'a>,
     pub(crate) iter: Expr<'a>,
     pub(crate) cond: Option<Expr<'a>>,
     pub(crate) body: Vec<Node<'a>>,
-    pub(crate) ws2: Ws,
+    pub(crate) body_ws: Ws,
     pub(crate) else_block: Vec<Node<'a>>,
-    pub(crate) ws3: Ws,
+    pub(crate) else_ws: Ws,
 }
-
-pub(crate) type When<'a> = (Ws, Target<'a>, Vec<Node<'a>>);
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct Macro<'a> {
-    pub(crate) ws1: Ws,
+    pub(crate) name: &'a str,
     pub(crate) args: Vec<&'a str>,
     pub(crate) nodes: Vec<Node<'a>>,
-    pub(crate) ws2: Ws,
+    pub(crate) ws: Ws,
+}
+
+/// A block statement, either a definition or a reference.
+#[derive(Debug, PartialEq)]
+pub(crate) struct BlockDef<'a> {
+    pub(crate) name: &'a str,
+    pub(crate) block: Vec<Node<'a>>,
+    pub(crate) ws: Ws,
 }
 
 /// First field is "minus/plus sign was used on the left part of the item".
@@ -94,7 +144,15 @@ pub(crate) struct Macro<'a> {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Ws(pub(crate) Option<Whitespace>, pub(crate) Option<Whitespace>);
 
-pub(crate) type Cond<'a> = (Ws, Option<CondTest<'a>>, Vec<Node<'a>>);
+/// A single branch of a conditional statement.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Cond<'a> {
+    pub(crate) ws: Ws,
+    /// The test for this branch, or `None` for the `else` branch.
+    pub(crate) test: Option<CondTest<'a>>,
+    /// Body of this conditional branch.
+    pub(crate) block: Vec<Node<'a>>,
+}
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct CondTest<'a> {
@@ -140,7 +198,7 @@ fn block_call(i: &str) -> IResult<&str, Node<'_>> {
     let (i, (pws, _, (scope, name, args, nws))) = p(i)?;
     let scope = scope.map(|(scope, _)| scope);
     let args = args.unwrap_or_default();
-    Ok((i, Node::Call(Ws(pws, nws), scope, name, args)))
+    Ok((i, Node::Call(Ws(pws, nws), Call { scope, name, args })))
 }
 
 fn cond_if(i: &str) -> IResult<&str, CondTest<'_>> {
@@ -171,8 +229,15 @@ fn cond_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Cond<'a>> {
             cut(|i| parse_template(i, s)),
         ))),
     ));
-    let (i, (_, pws, _, (cond, nws, _, block))) = p(i)?;
-    Ok((i, (Ws(pws, nws), cond, block)))
+    let (i, (_, pws, _, (test, nws, _, block))) = p(i)?;
+    Ok((
+        i,
+        Cond {
+            ws: Ws(pws, nws),
+            test,
+            block,
+        },
+    ))
 }
 
 fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
@@ -196,9 +261,27 @@ fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     ));
     let (i, (pws1, cond, (nws1, _, (block, elifs, (_, pws2, _, nws2))))) = p(i)?;
 
-    let mut res = vec![(Ws(pws1, nws1), Some(cond), block)];
+    let mut res = vec![Cond {
+        ws: Ws(pws1, nws1),
+        test: Some(cond),
+        block,
+    }];
     res.extend(elifs);
-    Ok((i, Node::Cond(res, Ws(pws2, nws2))))
+
+    let outer = Ws(pws1, nws2);
+
+    let mut cursor = pws2;
+    let mut idx = res.len() - 1;
+    loop {
+        std::mem::swap(&mut cursor, &mut res[idx].ws.0);
+
+        if idx == 0 {
+            break;
+        }
+        idx -= 1;
+    }
+
+    Ok((i, Node::Cond(outer, res)))
 }
 
 fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
@@ -213,7 +296,14 @@ fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>>
         ))),
     ));
     let (i, (_, pws, _, (nws, _, block))) = p(i)?;
-    Ok((i, (Ws(pws, nws), Target::Name("_"), block)))
+    Ok((
+        i,
+        When {
+            ws: Ws(pws, nws),
+            target: Target::Name("_"),
+            block,
+        },
+    ))
 }
 
 fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
@@ -229,7 +319,14 @@ fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
         ))),
     ));
     let (i, (_, pws, _, (target, nws, _, block))) = p(i)?;
-    Ok((i, (Ws(pws, nws), target, block)))
+    Ok((
+        i,
+        When {
+            ws: Ws(pws, nws),
+            target,
+            block,
+        },
+    ))
 }
 
 fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
@@ -255,14 +352,27 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             ))),
         ))),
     ));
-    let (i, (pws1, _, (expr, nws1, _, (_, arms, (else_arm, (_, pws2, _, nws2)))))) = p(i)?;
+    let (i, (pws1, _, (expr, _, _, (_, arms, (else_arm, (_, pws2, _, nws2)))))) = p(i)?;
 
     let mut arms = arms;
     if let Some(arm) = else_arm {
         arms.push(arm);
     }
 
-    Ok((i, Node::Match(Ws(pws1, nws1), expr, arms, Ws(pws2, nws2))))
+    let outer = Ws(pws1, nws2);
+
+    let mut cursor = pws2;
+    let mut idx = arms.len() - 1;
+    loop {
+        std::mem::swap(&mut cursor, &mut arms[idx].ws.0);
+
+        if idx == 0 {
+            break;
+        }
+        idx -= 1;
+    }
+
+    Ok((i, Node::Match(outer, Match { expr, arms })))
 }
 
 fn block_let(i: &str) -> IResult<&str, Node<'_>> {
@@ -341,16 +451,18 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let (nws3, else_block, pws3) = else_block.unwrap_or_default();
     Ok((
         i,
-        Node::Loop(Loop {
-            ws1: Ws(pws1, nws1),
-            var,
-            iter,
-            cond,
-            body,
-            ws2: Ws(pws2, nws3),
-            else_block,
-            ws3: Ws(pws3, nws2),
-        }),
+        Node::Loop(
+            Ws(pws1, nws2),
+            Loop {
+                var,
+                iter,
+                cond,
+                body,
+                body_ws: Ws(pws2, nws1),
+                else_block,
+                else_ws: Ws(pws3, nws3),
+            },
+        ),
     ))
 }
 
@@ -378,11 +490,18 @@ fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             cut(tuple((opt(ws(keyword(name))), opt(expr_handle_ws)))),
         ))),
     )));
-    let (i, (contents, (_, pws2, _, (_, nws2)))) = end(i)?;
+    let (i, (block, (_, pws2, _, (_, nws2)))) = end(i)?;
 
     Ok((
         i,
-        Node::BlockDef(Ws(pws1, nws1), name, contents, Ws(pws2, nws2)),
+        Node::BlockDef(
+            Ws(pws1, nws2),
+            BlockDef {
+                name,
+                block,
+                ws: Ws(pws2, nws1),
+            },
+        ),
     ))
 }
 
@@ -441,12 +560,12 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     Ok((
         i,
         Node::Macro(
-            name,
+            Ws(pws1, nws2),
             Macro {
-                ws1: Ws(pws1, nws1),
+                name,
                 args: params,
                 nodes: contents,
-                ws2: Ws(pws2, nws2),
+                ws: Ws(pws2, nws1),
             },
         ),
     ))
@@ -472,13 +591,10 @@ fn block_raw<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     ));
 
     let (_, (pws1, _, (nws1, _, (contents, (i, (_, pws2, _, nws2, _)))))) = p(i)?;
-    let (lws, val, rws) = match split_ws_parts(contents) {
-        Node::Lit(lws, val, rws) => (lws, val, rws),
-        _ => unreachable!(),
-    };
-    let ws1 = Ws(pws1, nws1);
-    let ws2 = Ws(pws2, nws2);
-    Ok((i, Node::Raw(ws1, lws, val, rws, ws2)))
+    let lit = split_ws_parts(contents);
+    let outer = Ws(pws1, nws2);
+    let ws = Ws(pws2, nws1);
+    Ok((i, Node::Raw(outer, Raw { lit, ws })))
 }
 
 fn break_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {

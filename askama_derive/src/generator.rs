@@ -1,7 +1,10 @@
 use crate::config::{get_template_source, read_config_file, Config, WhitespaceHandling};
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
-use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
+use crate::parser::{
+    parse, BlockDef, Call, Cond, CondTest, Expr, Lit, Loop, Match, Node, Raw, Target, When,
+    Whitespace, Ws,
+};
 use crate::CompileError;
 
 use proc_macro::TokenStream;
@@ -635,56 +638,76 @@ impl<'a> Generator<'a> {
         let mut size_hint = 0;
         for n in nodes {
             match *n {
-                Node::Lit(lws, val, rws) => {
-                    self.visit_lit(lws, val, rws);
+                Node::Lit(ref lit) => {
+                    self.visit_lit(lit);
                 }
                 Node::Comment(ws) => {
-                    self.write_comment(ws);
+                    self.flush_ws(ws);
+                    self.prepare_ws(ws);
                 }
                 Node::Expr(ws, ref val) => {
-                    self.write_expr(ws, val);
+                    self.flush_ws(ws);
+                    self.write_expr(val);
+                    self.prepare_ws(ws);
                 }
                 Node::LetDecl(ws, ref var) => {
-                    self.write_let_decl(buf, ws, var)?;
+                    self.flush_ws(ws);
+                    self.write_let_decl(buf, var)?;
+                    self.prepare_ws(ws);
                 }
                 Node::Let(ws, ref var, ref val) => {
-                    self.write_let(buf, ws, var, val)?;
+                    self.flush_ws(ws);
+                    self.write_let(buf, var, val)?;
+                    self.prepare_ws(ws);
                 }
-                Node::Cond(ref conds, ws) => {
-                    size_hint += self.write_cond(ctx, buf, conds, ws)?;
+                Node::Cond(ws, ref conds) => {
+                    self.flush_ws(ws);
+                    size_hint += self.write_cond(ctx, buf, conds)?;
+                    self.prepare_ws(ws);
                 }
-                Node::Match(ws1, ref expr, ref arms, ws2) => {
-                    size_hint += self.write_match(ctx, buf, ws1, expr, arms, ws2)?;
+                Node::Match(ws, ref match_node) => {
+                    self.flush_ws(ws);
+                    size_hint += self.write_match(ctx, buf, match_node)?;
+                    self.prepare_ws(ws);
                 }
-                Node::Loop(ref loop_block) => {
+                Node::Loop(ws, ref loop_block) => {
+                    self.flush_ws(ws);
                     size_hint += self.write_loop(ctx, buf, loop_block)?;
+                    self.prepare_ws(ws);
                 }
-                Node::BlockDef(ws1, name, _, ws2) => {
-                    size_hint += self.write_block(buf, Some(name), Ws(ws1.0, ws2.1))?;
+                Node::BlockDef(ws, BlockDef { name, .. }) => {
+                    self.flush_ws(ws);
+                    size_hint += self.write_block(buf, Some(name))?;
+                    self.prepare_ws(ws);
                 }
                 Node::Include(ws, path) => {
-                    size_hint += self.handle_include(ctx, buf, ws, path)?;
+                    self.flush_ws(ws);
+                    size_hint += self.handle_include(ctx, buf, path)?;
+                    self.prepare_ws(ws);
                 }
-                Node::Call(ws, scope, name, ref args) => {
-                    size_hint += self.write_call(ctx, buf, ws, scope, name, args)?;
+                Node::Call(ws, ref call) => {
+                    self.flush_ws(ws);
+                    size_hint += self.write_call(ctx, buf, call)?;
+                    self.prepare_ws(ws);
                 }
-                Node::Macro(_, ref m) => {
+                Node::Macro(ws, _) => {
                     if level != AstLevel::Top {
                         return Err("macro blocks only allowed at the top level".into());
                     }
-                    self.flush_ws(m.ws1);
-                    self.prepare_ws(m.ws2);
+                    self.flush_ws(ws);
+                    self.prepare_ws(ws);
                 }
-                Node::Raw(ws1, lws, val, rws, ws2) => {
-                    self.handle_ws(ws1);
-                    self.visit_lit(lws, val, rws);
-                    self.handle_ws(ws2);
+                Node::Raw(ws, ref raw) => {
+                    self.flush_ws(ws);
+                    self.visit_raw(raw);
+                    self.prepare_ws(ws);
                 }
                 Node::Import(ws, _, _) => {
                     if level != AstLevel::Top {
                         return Err("import blocks only allowed at the top level".into());
                     }
-                    self.handle_ws(ws);
+                    self.flush_ws(ws);
+                    self.prepare_ws(ws);
                 }
                 Node::Extends(_) => {
                     if level != AstLevel::Top {
@@ -694,12 +717,14 @@ impl<'a> Generator<'a> {
                     // except for the blocks defined in it.
                 }
                 Node::Break(ws) => {
-                    self.handle_ws(ws);
+                    self.flush_ws(ws);
+                    self.prepare_ws(ws);
                     self.write_buf_writable(buf)?;
                     buf.writeln("break;")?;
                 }
                 Node::Continue(ws) => {
-                    self.handle_ws(ws);
+                    self.flush_ws(ws);
+                    self.prepare_ws(ws);
                     self.write_buf_writable(buf)?;
                     buf.writeln("continue;")?;
                 }
@@ -722,13 +747,11 @@ impl<'a> Generator<'a> {
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
         conds: &'a [Cond<'_>],
-        ws: Ws,
     ) -> Result<usize, CompileError> {
         let mut flushed = 0;
         let mut arm_sizes = Vec::new();
         let mut has_else = false;
-        for (i, &(cws, ref cond, ref nodes)) in conds.iter().enumerate() {
-            self.handle_ws(cws);
+        for (i, cond) in conds.iter().enumerate() {
             flushed += self.write_buf_writable(buf)?;
             if i > 0 {
                 self.locals.pop();
@@ -736,7 +759,7 @@ impl<'a> Generator<'a> {
 
             self.locals.push();
             let mut arm_size = 0;
-            if let Some(CondTest { target, expr }) = cond {
+            if let Some(CondTest { target, expr }) = &cond.test {
                 if i == 0 {
                     buf.write("if ");
                 } else {
@@ -771,10 +794,11 @@ impl<'a> Generator<'a> {
 
             buf.writeln(" {")?;
 
-            arm_size += self.handle(ctx, nodes, buf, AstLevel::Nested)?;
+            self.prepare_ws(cond.ws);
+            arm_size += self.handle(ctx, &cond.block, buf, AstLevel::Nested)?;
             arm_sizes.push(arm_size);
+            self.flush_ws(cond.ws);
         }
-        self.handle_ws(ws);
         flushed += self.write_buf_writable(buf)?;
         buf.writeln("}")?;
 
@@ -791,12 +815,10 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        ws1: Ws,
-        expr: &Expr<'_>,
-        arms: &'a [When<'_>],
-        ws2: Ws,
+        match_node: &'a Match<'_>,
     ) -> Result<usize, CompileError> {
-        self.flush_ws(ws1);
+        let Match { expr, arms } = match_node;
+
         let flushed = self.write_buf_writable(buf)?;
         let mut arm_sizes = Vec::new();
 
@@ -805,8 +827,7 @@ impl<'a> Generator<'a> {
 
         let mut arm_size = 0;
         for (i, arm) in arms.iter().enumerate() {
-            let &(ws, ref target, ref body) = arm;
-            self.handle_ws(ws);
+            let When { ws, target, block } = arm;
 
             if i > 0 {
                 arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
@@ -819,10 +840,11 @@ impl<'a> Generator<'a> {
             self.visit_target(buf, true, true, target);
             buf.writeln(" => {")?;
 
-            arm_size = self.handle(ctx, body, buf, AstLevel::Nested)?;
+            self.prepare_ws(*ws);
+            arm_size = self.handle(ctx, block, buf, AstLevel::Nested)?;
+            self.flush_ws(*ws);
         }
 
-        self.handle_ws(ws2);
         arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
         buf.writeln("}")?;
         self.locals.pop();
@@ -839,7 +861,6 @@ impl<'a> Generator<'a> {
         buf: &mut Buffer,
         loop_block: &'a Loop<'_>,
     ) -> Result<usize, CompileError> {
-        self.handle_ws(loop_block.ws1);
         self.locals.push();
 
         let expr_code = self.visit_expr_root(&loop_block.iter)?;
@@ -883,16 +904,18 @@ impl<'a> Generator<'a> {
         buf.writeln(", _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {")?;
 
         buf.writeln("_did_loop = true;")?;
+        self.prepare_ws(loop_block.body_ws);
         let mut size_hint1 = self.handle(ctx, &loop_block.body, buf, AstLevel::Nested)?;
-        self.handle_ws(loop_block.ws2);
+        self.flush_ws(loop_block.body_ws);
         size_hint1 += self.write_buf_writable(buf)?;
         self.locals.pop();
         buf.writeln("}")?;
 
         buf.writeln("if !_did_loop {")?;
         self.locals.push();
+        self.prepare_ws(loop_block.else_ws);
         let mut size_hint2 = self.handle(ctx, &loop_block.else_block, buf, AstLevel::Nested)?;
-        self.handle_ws(loop_block.ws3);
+        self.flush_ws(loop_block.else_ws);
         size_hint2 += self.write_buf_writable(buf)?;
         self.locals.pop();
         buf.writeln("}")?;
@@ -906,16 +929,15 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        ws: Ws,
-        scope: Option<&str>,
-        name: &str,
-        args: &[Expr<'_>],
+        call: &'a Call<'_>,
     ) -> Result<usize, CompileError> {
-        if name == "super" {
-            return self.write_block(buf, None, ws);
+        let Call { scope, name, args } = call;
+
+        if *name == "super" {
+            return self.write_block(buf, None);
         }
 
-        let (def, own_ctx) = match scope {
+        let (def, own_ctx) = match *scope {
             Some(s) => {
                 let path = ctx.imports.get(s).ok_or_else(|| {
                     CompileError::from(format!("no import found for scope {s:?}"))
@@ -938,11 +960,10 @@ impl<'a> Generator<'a> {
             }
         };
 
-        self.flush_ws(ws); // Cannot handle_ws() here: whitespace from macro definition comes first
         self.locals.push();
         self.write_buf_writable(buf)?;
         buf.writeln("{")?;
-        self.prepare_ws(def.ws1);
+        self.prepare_ws(def.ws);
 
         let mut names = Buffer::new(0);
         let mut values = Buffer::new(0);
@@ -995,11 +1016,10 @@ impl<'a> Generator<'a> {
 
         let mut size_hint = self.handle(own_ctx, &def.nodes, buf, AstLevel::Nested)?;
 
-        self.flush_ws(def.ws2);
+        self.flush_ws(def.ws);
         size_hint += self.write_buf_writable(buf)?;
         buf.writeln("}")?;
         self.locals.pop();
-        self.prepare_ws(ws);
         Ok(size_hint)
     }
 
@@ -1007,10 +1027,8 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        ws: Ws,
         path: &str,
     ) -> Result<usize, CompileError> {
-        self.flush_ws(ws);
         self.write_buf_writable(buf)?;
         let path = self
             .input
@@ -1038,17 +1056,14 @@ impl<'a> Generator<'a> {
             size_hint += gen.write_buf_writable(buf)?;
             size_hint
         };
-        self.prepare_ws(ws);
         Ok(size_hint)
     }
 
     fn write_let_decl(
         &mut self,
         buf: &mut Buffer,
-        ws: Ws,
         var: &'a Target<'_>,
     ) -> Result<(), CompileError> {
-        self.handle_ws(ws);
         self.write_buf_writable(buf)?;
         buf.write("let ");
         self.visit_target(buf, false, true, var);
@@ -1093,11 +1108,9 @@ impl<'a> Generator<'a> {
     fn write_let(
         &mut self,
         buf: &mut Buffer,
-        ws: Ws,
         var: &'a Target<'_>,
         val: &Expr<'_>,
     ) -> Result<(), CompileError> {
-        self.handle_ws(ws);
         let mut expr_buf = Buffer::new(0);
         self.visit_expr(&mut expr_buf, val)?;
 
@@ -1125,11 +1138,7 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         name: Option<&'a str>,
-        outer: Ws,
     ) -> Result<usize, CompileError> {
-        // Flush preceding whitespace according to the outer WS spec
-        self.flush_ws(outer);
-
         let prev_block = self.super_block;
         let cur = match (name, prev_block) {
             // The top-level context contains a block definition
@@ -1160,16 +1169,12 @@ impl<'a> Generator<'a> {
         })?;
 
         // Get the nodes and whitespace suppression data from the block definition
-        let (ws1, nodes, ws2) = if let Node::BlockDef(ws1, _, nodes, ws2) = def {
-            (ws1, nodes, ws2)
-        } else {
-            unreachable!()
-        };
+        let BlockDef { block, ws, .. } = def;
 
         // Handle inner whitespace suppression spec and process block nodes
-        self.prepare_ws(*ws1);
+        self.prepare_ws(*ws);
         self.locals.push();
-        let size_hint = self.handle(ctx, nodes, buf, AstLevel::Block)?;
+        let size_hint = self.handle(ctx, block, buf, AstLevel::Block)?;
 
         if !self.locals.is_current_empty() {
             // Need to flush the buffer before popping the variable stack
@@ -1177,17 +1182,14 @@ impl<'a> Generator<'a> {
         }
 
         self.locals.pop();
-        self.flush_ws(*ws2);
+        self.flush_ws(*ws);
 
-        // Restore original block context and set whitespace suppression for
-        // succeeding whitespace according to the outer WS spec
+        // Restore original block context
         self.super_block = prev_block;
-        self.prepare_ws(outer);
         Ok(size_hint)
     }
 
-    fn write_expr(&mut self, ws: Ws, s: &'a Expr<'a>) {
-        self.handle_ws(ws);
+    fn write_expr(&mut self, s: &'a Expr<'a>) {
         self.buf_writable.push(Writable::Expr(s));
     }
 
@@ -1269,7 +1271,13 @@ impl<'a> Generator<'a> {
         Ok(size_hint)
     }
 
-    fn visit_lit(&mut self, lws: &'a str, val: &'a str, rws: &'a str) {
+    fn visit_raw(&mut self, Raw { lit, ws }: &'a Raw<'_>) {
+        self.prepare_ws(*ws);
+        self.visit_lit(lit);
+        self.flush_ws(*ws);
+    }
+
+    fn visit_lit(&mut self, Lit { lws, val, rws }: &'a Lit<'_>) {
         assert!(self.next_ws.is_none());
         if !lws.is_empty() {
             match self.skip_ws {
@@ -1297,10 +1305,6 @@ impl<'a> Generator<'a> {
         if !rws.is_empty() {
             self.next_ws = Some(rws);
         }
-    }
-
-    fn write_comment(&mut self, ws: Ws) {
-        self.handle_ws(ws);
     }
 
     /* Visitor methods for expression types */
@@ -1863,13 +1867,6 @@ impl<'a> Generator<'a> {
     }
 
     /* Helper methods for dealing with whitespace nodes */
-
-    // Combines `flush_ws()` and `prepare_ws()` to handle both trailing whitespace from the
-    // preceding literal and leading whitespace from the succeeding literal.
-    fn handle_ws(&mut self, ws: Ws) {
-        self.flush_ws(ws);
-        self.prepare_ws(ws);
-    }
 
     fn should_trim_ws(&self, ws: Option<Whitespace>) -> WhitespaceHandling {
         match ws {

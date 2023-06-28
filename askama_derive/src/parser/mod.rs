@@ -12,7 +12,10 @@ use nom::sequence::{delimited, pair, tuple};
 use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
 
 pub(crate) use self::expr::Expr;
-pub(crate) use self::node::{Cond, CondTest, Loop, Macro, Node, Target, When, Whitespace, Ws};
+pub(crate) use self::node::{
+    BlockDef, Call, Cond, CondTest, Lit, Loop, Macro, Match, Node, Raw, Target, When, Whitespace,
+    Ws,
+};
 use crate::config::Syntax;
 use crate::CompileError;
 
@@ -111,11 +114,13 @@ fn ws<'a, O>(
     delimited(take_till(not_ws), inner, take_till(not_ws))
 }
 
-fn split_ws_parts(s: &str) -> Node<'_> {
+fn split_ws_parts(s: &str) -> Lit<'_> {
     let trimmed_start = s.trim_start_matches(is_ws);
     let len_start = s.len() - trimmed_start.len();
-    let trimmed = trimmed_start.trim_end_matches(is_ws);
-    Node::Lit(&s[..len_start], trimmed, &trimmed_start[trimmed.len()..])
+    let val = trimmed_start.trim_end_matches(is_ws);
+    let lws = &s[..len_start];
+    let rws = &trimmed_start[val.len()..];
+    Lit { lws, val, rws }
 }
 
 /// Skips input until `end` was found, but does not consume it.
@@ -289,7 +294,7 @@ fn take_content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         Some(content) => (i, content),
         None => ("", i), // there is no {block,comment,expr}_start: take everything
     };
-    Ok((i, split_ws_parts(content)))
+    Ok((i, Node::Lit(split_ws_parts(content))))
 }
 
 fn tag_block_start<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
