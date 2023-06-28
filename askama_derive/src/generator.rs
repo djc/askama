@@ -1,7 +1,7 @@
 use crate::config::{get_template_source, read_config_file, Config, WhitespaceHandling};
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
-use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
+use crate::parser::{Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
 use crate::CompileError;
 
 use proc_macro::TokenStream;
@@ -1047,8 +1047,19 @@ impl<'a> Generator<'a> {
             .input
             .config
             .find_template(path, Some(&self.input.path))?;
-        let src = get_template_source(&path)?;
-        let nodes = parse(&src, self.input.syntax)?;
+
+        enum CowNodes<'a> {
+            Owned(Parsed),
+            Borrowed(&'a [Node<'a>]),
+        }
+
+        let nodes = match self.contexts.get(path.as_path()) {
+            Some(ctx) => CowNodes::Borrowed(&ctx.nodes),
+            None => {
+                let src = get_template_source(&path)?;
+                CowNodes::Owned(Parsed::new(src, self.input.syntax)?)
+            }
+        };
 
         // Make sure the compiler understands that the generated code depends on the template file.
         {
@@ -1065,7 +1076,15 @@ impl<'a> Generator<'a> {
             // Since nodes must not outlive the Generator, we instantiate
             // a nested Generator here to handle the include's nodes.
             let mut gen = self.child();
-            let mut size_hint = gen.handle(ctx, &nodes, buf, AstLevel::Nested)?;
+            let mut size_hint = gen.handle(
+                ctx,
+                match &nodes {
+                    CowNodes::Owned(parsed) => parsed.nodes(),
+                    CowNodes::Borrowed(nodes) => nodes,
+                },
+                buf,
+                AstLevel::Nested,
+            )?;
             size_hint += gen.write_buf_writable(buf)?;
             size_hint
         };
