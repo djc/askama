@@ -84,7 +84,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="askama.html"><strong aria-hidden="true">1.</strong> Askama</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="creating_templates.html"><strong aria-hidden="true">3.</strong> Creating templates</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">4.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="template_syntax.html"><strong aria-hidden="true">6.</strong> Template syntax</a></li><li class="chapter-item expanded "><a href="filters.html"><strong aria-hidden="true">7.</strong> Filters</a></li><li class="chapter-item expanded "><a href="integrations.html"><strong aria-hidden="true">8.</strong> Integrations</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="askama.html"><strong aria-hidden="true">1.</strong> Askama</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="creating_templates.html"><strong aria-hidden="true">3.</strong> Creating templates</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">4.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="template_syntax.html"><strong aria-hidden="true">6.</strong> Template syntax</a></li><li class="chapter-item expanded "><a href="filters.html"><strong aria-hidden="true">7.</strong> Filters</a></li><li class="chapter-item expanded "><a href="integrations.html"><strong aria-hidden="true">8.</strong> Integrations</a></li><li class="chapter-item expanded "><a href="performance.html"><strong aria-hidden="true">9.</strong> Performance</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -1147,6 +1147,19 @@ provides the ability for tide apps to build a response directly from
 a template, or to append a templated body to an existing
 <code>Response</code>. See <a href="https://github.com/djc/askama/blob/main/askama_tide/tests/tide.rs">the example</a>
 from the Askama test suite for more on how to integrate.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="performance"><a class="header" href="#performance">Performance</a></h1>
+<h2 id="slow-debug-recompilations"><a class="header" href="#slow-debug-recompilations">Slow Debug Recompilations</a></h2>
+<p>If you experience slow compile times when iterating with lots of templates,
+you can compile Askama's derive macros with a higher optimization level.
+This can speed up recompilation times dramatically.</p>
+<p>Add the following to <code>Cargo.toml</code> or <code>.cargo/config.toml</code>:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>[profile.dev.package.askama_derive]
+opt-level = 3
+<span class="boring">}</span></code></pre></pre>
+<p>This may affect clean compile times in debug mode, but incremental compiles
+will be faster.</p>
 
                     </main>
 
