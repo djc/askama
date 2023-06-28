@@ -322,17 +322,6 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn child(&mut self) -> Generator<'_> {
-        let locals = MapChain::with_parent(&self.locals);
-        Self::new(
-            self.input,
-            self.contexts,
-            self.heritage,
-            locals,
-            self.whitespace,
-        )
-    }
-
     // Takes a Context and generates the relevant implementations.
     fn build(mut self, ctx: &'a Context<'_>) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
@@ -1072,23 +1061,30 @@ impl<'a> Generator<'a> {
             )?;
         }
 
-        let size_hint = {
-            // Since nodes must not outlive the Generator, we instantiate
-            // a nested Generator here to handle the include's nodes.
-            let mut gen = self.child();
-            let mut size_hint = gen.handle(
-                ctx,
-                match &nodes {
-                    CowNodes::Owned(parsed) => parsed.nodes(),
-                    CowNodes::Borrowed(nodes) => nodes,
-                },
-                buf,
-                AstLevel::Nested,
-            )?;
-            size_hint += gen.write_buf_writable(buf)?;
-            size_hint
-        };
+        // Since nodes must not outlive the Generator, we instantiate
+        // a nested Generator here to handle the include's nodes.
+
+        let locals = MapChain::with_parent(&self.locals);
+        let mut child = Self::new(
+            self.input,
+            self.contexts,
+            self.heritage,
+            locals,
+            self.whitespace,
+        );
+
+        let mut size_hint = child.handle(
+            ctx,
+            match &nodes {
+                CowNodes::Owned(parsed) => parsed.nodes(),
+                CowNodes::Borrowed(nodes) => nodes,
+            },
+            buf,
+            AstLevel::Nested,
+        )?;
+        size_hint += child.write_buf_writable(buf)?;
         self.prepare_ws(ws);
+
         Ok(size_hint)
     }
 
