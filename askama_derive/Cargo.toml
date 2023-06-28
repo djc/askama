@@ -34,6 +34,7 @@ with-warp = []
 mime = "0.3"
 mime_guess = "2"
 nom = "7"
+ouroboros = "0.17"
 proc-macro2 = "1"
 quote = "1"
 serde = { version = "1.0", optional = true, features = ["derive"] }

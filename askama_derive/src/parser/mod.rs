@@ -58,10 +58,29 @@ impl From<char> for Whitespace {
     }
 }
 
-pub(crate) fn parse<'a>(
-    src: &'a str,
-    syntax: &'a Syntax<'_>,
-) -> Result<Vec<Node<'a>>, CompileError> {
+#[ouroboros::self_referencing]
+struct ParseTreeInner {
+    source: String,
+    #[borrows(source)]
+    #[covariant]
+    node: Vec<Node<'this>>,
+}
+
+pub(crate) struct ParseTree(ParseTreeInner);
+
+impl ParseTree {
+    pub(crate) fn new(source: String, syntax: &Syntax<'_>) -> Result<Self, CompileError> {
+        Ok(Self(ParseTreeInner::try_new(source, |source| {
+            parse(source, syntax)
+        })?))
+    }
+
+    pub(crate) fn nodes(&self) -> &Vec<Node<'_>> {
+        self.0.borrow_node()
+    }
+}
+
+fn parse<'a>(src: &'a str, syntax: &Syntax<'_>) -> Result<Vec<Node<'a>>, CompileError> {
     match Node::parse(src, &State::new(syntax)) {
         Ok((left, res)) => {
             if !left.is_empty() {

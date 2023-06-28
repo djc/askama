@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::config::Config;
-use crate::parser::{Loop, Macro, Node};
+use crate::parser::{Loop, Macro, Node, ParseTree};
 use crate::CompileError;
 
 pub(crate) struct Heritage<'a> {
@@ -40,6 +40,7 @@ pub(crate) struct Context<'a> {
     pub(crate) blocks: HashMap<&'a str, &'a Node<'a>>,
     pub(crate) macros: HashMap<&'a str, &'a Macro<'a>>,
     pub(crate) imports: HashMap<&'a str, PathBuf>,
+    pub(crate) parsed: &'a HashMap<PathBuf, ParseTree>,
 }
 
 impl Context<'_> {
@@ -47,6 +48,7 @@ impl Context<'_> {
         config: &Config<'_>,
         path: &Path,
         nodes: &'n [Node<'n>],
+        parsed: &'n HashMap<PathBuf, ParseTree>,
     ) -> Result<Context<'n>, CompileError> {
         let mut extends = None;
         let mut blocks = Vec::new();
@@ -121,6 +123,7 @@ impl Context<'_> {
             blocks,
             macros,
             imports,
+            parsed,
         })
     }
 }

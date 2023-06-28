@@ -1,7 +1,7 @@
 use crate::config::{get_template_source, read_config_file, Config, WhitespaceHandling};
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
-use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
+use crate::parser::{Cond, CondTest, Expr, Loop, Node, ParseTree, Target, When, Whitespace, Ws};
 use crate::CompileError;
 
 use proc_macro::TokenStream;
@@ -38,17 +38,15 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
         Source::Path(_) => get_template_source(&input.path)?,
     };
 
-    let mut sources = HashMap::new();
-    find_used_templates(&input, &mut sources, source)?;
-
     let mut parsed = HashMap::new();
-    for (path, src) in &sources {
-        parsed.insert(path.as_path(), parse(src, input.syntax)?);
-    }
+    find_used_templates(&input, &mut parsed, source)?;
 
     let mut contexts = HashMap::new();
     for (path, nodes) in &parsed {
-        contexts.insert(*path, Context::new(input.config, path, nodes)?);
+        contexts.insert(
+            path.as_path(),
+            Context::new(input.config, path, nodes.nodes(), &parsed)?,
+        );
     }
 
     let ctx = &contexts[input.path.as_path()];
@@ -59,7 +57,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     };
 
     if input.print == Print::Ast || input.print == Print::All {
-        eprintln!("{:?}", parsed[input.path.as_path()]);
+        eprintln!("{:?}", parsed[input.path.as_path()].nodes());
     }
 
     let code = Generator::new(
@@ -204,13 +202,18 @@ impl TemplateArgs {
 
 fn find_used_templates(
     input: &TemplateInput<'_>,
-    map: &mut HashMap<PathBuf, String>,
+    parsed: &mut HashMap<PathBuf, ParseTree>,
     source: String,
 ) -> Result<(), CompileError> {
     let mut dependency_graph = Vec::new();
     let mut check = vec![(input.path.clone(), source)];
     while let Some((path, source)) = check.pop() {
-        for n in parse(&source, input.syntax)? {
+        if parsed.contains_key(&path) {
+            continue;
+        }
+        let parse_tree = ParseTree::new(source, input.syntax)?;
+        let mut nodes: Vec<&Node<'_>> = parse_tree.nodes().iter().collect();
+        while let Some(n) = nodes.pop() {
             match n {
                 Node::Extends(extends) => {
                     let extends = input.config.find_template(extends, Some(&path))?;
@@ -229,15 +232,39 @@ fn find_used_templates(
                     let source = get_template_source(&extends)?;
                     check.push((extends, source));
                 }
-                Node::Import(_, import, _) => {
+                Node::Import(_, import, _) | Node::Include(_, import) => {
                     let import = input.config.find_template(import, Some(&path))?;
                     let source = get_template_source(&import)?;
                     check.push((import, source));
                 }
-                _ => {}
+                // enter recursion
+                Node::Cond(n, _) => {
+                    nodes.extend(n.iter().flat_map(|(_, _, n)| n));
+                }
+                Node::Match(_, _, n, _) => {
+                    nodes.extend(n.iter().flat_map(|(_, _, n)| n));
+                }
+                Node::BlockDef(_, _, n, _) => nodes.extend(n),
+                Node::Macro(_, n) => {
+                    nodes.extend(n.nodes.iter());
+                }
+                Node::Loop(n) => {
+                    nodes.extend(n.body.iter());
+                    nodes.extend(n.else_block.iter());
+                }
+                // not nested
+                Node::Lit(..)
+                | Node::Comment(_)
+                | Node::Expr(..)
+                | Node::Call(..)
+                | Node::LetDecl(..)
+                | Node::Let(..)
+                | Node::Raw(..)
+                | Node::Break(_)
+                | Node::Continue(_) => (),
             }
         }
-        map.insert(path, source);
+        parsed.insert(path, parse_tree);
     }
     Ok(())
 }
@@ -1016,8 +1043,10 @@ impl<'a> Generator<'a> {
             .input
             .config
             .find_template(path, Some(&self.input.path))?;
-        let src = get_template_source(&path)?;
-        let nodes = parse(&src, self.input.syntax)?;
+        let parse_tree = match ctx.parsed.get(&path) {
+            Some(parse_tree) => parse_tree,
+            None => unreachable!("could not find {path:?} in parsed sources"),
+        };
 
         // Make sure the compiler understands that the generated code depends on the template file.
         {
@@ -1034,7 +1063,7 @@ impl<'a> Generator<'a> {
             // Since nodes must not outlive the Generator, we instantiate
             // a nested Generator here to handle the include's nodes.
             let mut gen = self.child();
-            let mut size_hint = gen.handle(ctx, &nodes, buf, AstLevel::Nested)?;
+            let mut size_hint = gen.handle(ctx, parse_tree.nodes(), buf, AstLevel::Nested)?;
             size_hint += gen.write_buf_writable(buf)?;
             size_hint
         };
