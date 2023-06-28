@@ -38,17 +38,15 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
         Source::Path(_) => get_template_source(&input.path)?,
     };
 
-    let mut sources = HashMap::new();
-    find_used_templates(&input, &mut sources, source)?;
-
-    let mut parsed = HashMap::new();
-    for (path, src) in &sources {
-        parsed.insert(path.as_path(), parse(src, input.syntax)?);
-    }
+    let mut templates = HashMap::new();
+    find_used_templates(&input, &mut templates, source)?;
 
     let mut contexts = HashMap::new();
-    for (path, nodes) in &parsed {
-        contexts.insert(*path, Context::new(input.config, path, nodes)?);
+    for (path, parsed) in &templates {
+        contexts.insert(
+            path.as_path(),
+            Context::new(input.config, path, parsed.nodes())?,
+        );
     }
 
     let ctx = &contexts[input.path.as_path()];
@@ -59,7 +57,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     };
 
     if input.print == Print::Ast || input.print == Print::All {
-        eprintln!("{:?}", parsed[input.path.as_path()]);
+        eprintln!("{:?}", templates[input.path.as_path()].nodes());
     }
 
     let code = Generator::new(
@@ -204,13 +202,14 @@ impl TemplateArgs {
 
 fn find_used_templates(
     input: &TemplateInput<'_>,
-    map: &mut HashMap<PathBuf, String>,
+    map: &mut HashMap<PathBuf, Parsed>,
     source: String,
 ) -> Result<(), CompileError> {
     let mut dependency_graph = Vec::new();
     let mut check = vec![(input.path.clone(), source)];
     while let Some((path, source)) = check.pop() {
-        for n in parse(&source, input.syntax)? {
+        let parsed = Parsed::new(source, input.syntax)?;
+        for n in parsed.nodes() {
             match n {
                 Node::Extends(extends) => {
                     let extends = input.config.find_template(extends, Some(&path))?;
@@ -237,10 +236,42 @@ fn find_used_templates(
                 _ => {}
             }
         }
-        map.insert(path, source);
+        map.insert(path, parsed);
     }
     Ok(())
 }
+
+mod _parsed {
+    use std::mem;
+
+    use crate::config::Syntax;
+    use crate::parser::{parse, Node};
+    use crate::CompileError;
+
+    pub(super) struct Parsed {
+        #[allow(dead_code)]
+        source: String,
+        nodes: Vec<Node<'static>>,
+    }
+
+    impl Parsed {
+        pub(super) fn new(source: String, syntax: &Syntax<'_>) -> Result<Self, CompileError> {
+            // Self-referential borrowing: `self` will keep the source alive as `String`,
+            // internally we will transmute it to `&'static str` to satisfy the compiler.
+            // However, we only expose the nodes with a lifetime limited to `self`.
+            let src = unsafe { mem::transmute::<&str, &'static str>(source.as_str()) };
+            let nodes = parse(src, syntax)?;
+            Ok(Self { source, nodes })
+        }
+
+        // The return value's lifetime must be limited to `self` to uphold the unsafe invariant.
+        pub(super) fn nodes(&self) -> &[Node<'_>] {
+            &self.nodes
+        }
+    }
+}
+
+use _parsed::Parsed;
 
 struct Generator<'a> {
     // The template input state: original struct AST and attributes
