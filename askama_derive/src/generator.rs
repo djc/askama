@@ -280,6 +280,8 @@ struct Generator<'a> {
     contexts: &'a HashMap<&'a Path, Context<'a>>,
     // The heritage contains references to blocks and their ancestry
     heritage: Option<&'a Heritage<'a>>,
+    // Cache ASTs for included templates
+    includes: HashMap<PathBuf, Parsed>,
     // Variables accessible directly from the current scope (not redirected to context)
     locals: MapChain<'a, &'a str, LocalMeta>,
     // Suffix whitespace from the previous literal. Will be flushed to the
@@ -312,6 +314,7 @@ impl<'a> Generator<'a> {
             input,
             contexts,
             heritage,
+            includes: HashMap::default(),
             locals,
             next_ws: None,
             skip_ws: WhitespaceHandling::Preserve,
@@ -1037,19 +1040,6 @@ impl<'a> Generator<'a> {
             .config
             .find_template(path, Some(&self.input.path))?;
 
-        enum CowNodes<'a> {
-            Owned(Parsed),
-            Borrowed(&'a [Node<'a>]),
-        }
-
-        let nodes = match self.contexts.get(path.as_path()) {
-            Some(ctx) => CowNodes::Borrowed(&ctx.nodes),
-            None => {
-                let src = get_template_source(&path)?;
-                CowNodes::Owned(Parsed::new(src, self.input.syntax)?)
-            }
-        };
-
         // Make sure the compiler understands that the generated code depends on the template file.
         {
             let path = path.to_str().unwrap();
@@ -1061,8 +1051,8 @@ impl<'a> Generator<'a> {
             )?;
         }
 
-        // Since nodes must not outlive the Generator, we instantiate
-        // a nested Generator here to handle the include's nodes.
+        // Since nodes must not outlive the Generator, we instantiate a nested `Generator` here to
+        // handle the include's nodes. Unfortunately we can't easily share the `includes` cache.
 
         let locals = MapChain::with_parent(&self.locals);
         let mut child = Self::new(
@@ -1073,15 +1063,18 @@ impl<'a> Generator<'a> {
             self.whitespace,
         );
 
-        let mut size_hint = child.handle(
-            ctx,
-            match &nodes {
-                CowNodes::Owned(parsed) => parsed.nodes(),
-                CowNodes::Borrowed(nodes) => nodes,
+        let nodes = match self.contexts.get(path.as_path()) {
+            Some(ctx) => ctx.nodes,
+            None => match self.includes.entry(path) {
+                Entry::Occupied(entry) => entry.into_mut().nodes(),
+                Entry::Vacant(entry) => {
+                    let src = get_template_source(entry.key())?;
+                    entry.insert(Parsed::new(src, self.input.syntax)?).nodes()
+                }
             },
-            buf,
-            AstLevel::Nested,
-        )?;
+        };
+
+        let mut size_hint = child.handle(ctx, nodes, buf, AstLevel::Nested)?;
         size_hint += child.write_buf_writable(buf)?;
         self.prepare_ws(ws);
 
