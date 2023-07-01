@@ -1277,7 +1277,7 @@ impl<'a> Generator<'a> {
                     };
 
                     let id = match expr_cache.entry(expression.clone()) {
-                        Entry::Occupied(e) if s.is_cacheable() => *e.get(),
+                        Entry::Occupied(e) if is_cacheable(s) => *e.get(),
                         e => {
                             let id = self.named;
                             self.named += 1;
@@ -1596,7 +1596,7 @@ impl<'a> Generator<'a> {
                 buf.write(", ");
             }
 
-            let borrow = !arg.is_copyable();
+            let borrow = !is_copyable(arg);
             if borrow {
                 buf.write("&(");
             }
@@ -2121,6 +2121,75 @@ impl MapChain<'_, &str, LocalMeta> {
     fn resolve_or_self(&self, name: &str) -> String {
         let name = normalize_identifier(name);
         self.resolve(name).unwrap_or_else(|| format!("self.{name}"))
+    }
+}
+
+/// Returns `true` if enough assumptions can be made,
+/// to determine that `self` is copyable.
+fn is_copyable(expr: &Expr<'_>) -> bool {
+    is_copyable_within_op(expr, false)
+}
+
+fn is_copyable_within_op(expr: &Expr<'_>, within_op: bool) -> bool {
+    use Expr::*;
+    match expr {
+        BoolLit(_) | NumLit(_) | StrLit(_) | CharLit(_) => true,
+        Unary(.., expr) => is_copyable_within_op(expr, true),
+        BinOp(_, lhs, rhs) => is_copyable_within_op(lhs, true) && is_copyable_within_op(rhs, true),
+        Range(..) => true,
+        // The result of a call likely doesn't need to be borrowed,
+        // as in that case the call is more likely to return a
+        // reference in the first place then.
+        Call(..) | Path(..) => true,
+        // If the `expr` is within a `Unary` or `BinOp` then
+        // an assumption can be made that the operand is copy.
+        // If not, then the value is moved and adding `.clone()`
+        // will solve that issue. However, if the operand is
+        // implicitly borrowed, then it's likely not even possible
+        // to get the template to compile.
+        _ => within_op && is_attr_self(expr),
+    }
+}
+
+/// Returns `true` if this is an `Attr` where the `obj` is `"self"`.
+pub(crate) fn is_attr_self(expr: &Expr<'_>) -> bool {
+    match expr {
+        Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Var("self")) => true,
+        Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Attr(..)) => is_attr_self(expr),
+        _ => false,
+    }
+}
+
+/// Returns `true` if the outcome of this expression may be used multiple times in the same
+/// `write!()` call, without evaluating the expression again, i.e. the expression should be
+/// side-effect free.
+pub(crate) fn is_cacheable(expr: &Expr<'_>) -> bool {
+    match expr {
+        // Literals are the definition of pure:
+        Expr::BoolLit(_) => true,
+        Expr::NumLit(_) => true,
+        Expr::StrLit(_) => true,
+        Expr::CharLit(_) => true,
+        // fmt::Display should have no effects:
+        Expr::Var(_) => true,
+        Expr::Path(_) => true,
+        // Check recursively:
+        Expr::Array(args) => args.iter().all(is_cacheable),
+        Expr::Attr(lhs, _) => is_cacheable(lhs),
+        Expr::Index(lhs, rhs) => is_cacheable(lhs) && is_cacheable(rhs),
+        Expr::Filter(_, args) => args.iter().all(is_cacheable),
+        Expr::Unary(_, arg) => is_cacheable(arg),
+        Expr::BinOp(_, lhs, rhs) => is_cacheable(lhs) && is_cacheable(rhs),
+        Expr::Range(_, lhs, rhs) => {
+            lhs.as_ref().map_or(true, |v| is_cacheable(v))
+                && rhs.as_ref().map_or(true, |v| is_cacheable(v))
+        }
+        Expr::Group(arg) => is_cacheable(arg),
+        Expr::Tuple(args) => args.iter().all(is_cacheable),
+        // We have too little information to tell if the expression is pure:
+        Expr::Call(_, _) => false,
+        Expr::RustMacro(_, _) => false,
+        Expr::Try(_) => false,
     }
 }
 
