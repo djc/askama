@@ -12,6 +12,7 @@ mod generator;
 mod heritage;
 mod input;
 mod parser;
+use parser::ParseError;
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
@@ -45,6 +46,13 @@ impl fmt::Display for CompileError {
     #[inline]
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.write_str(&self.msg)
+    }
+}
+
+impl From<ParseError> for CompileError {
+    #[inline]
+    fn from(e: ParseError) -> Self {
+        Self::new(e.to_string(), Span::call_site())
     }
 }
 

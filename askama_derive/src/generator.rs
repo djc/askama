@@ -259,7 +259,11 @@ mod _parsed {
             // internally we will transmute it to `&'static str` to satisfy the compiler.
             // However, we only expose the nodes with a lifetime limited to `self`.
             let src = unsafe { mem::transmute::<&str, &'static str>(source.as_str()) };
-            let nodes = parse(src, syntax)?;
+            let nodes = match parse(src, syntax) {
+                Ok(nodes) => nodes,
+                Err(e) => return Err(e.to_string().into()),
+            };
+
             Ok(Self { source, nodes })
         }
 
