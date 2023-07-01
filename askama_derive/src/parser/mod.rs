@@ -1,5 +1,5 @@
 use std::cell::Cell;
-use std::str;
+use std::{fmt, str};
 
 use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_till};
@@ -13,7 +13,6 @@ use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
 
 pub(crate) use self::expr::Expr;
 pub(crate) use self::node::{Cond, CondTest, Loop, Macro, Node, Target, When, Whitespace, Ws};
-use crate::CompileError;
 
 mod expr;
 mod node;
@@ -57,11 +56,11 @@ impl From<char> for Whitespace {
     }
 }
 
-pub(crate) fn parse<'a>(src: &'a str, syntax: &Syntax<'_>) -> Result<Vec<Node<'a>>, CompileError> {
+pub(crate) fn parse<'a>(src: &'a str, syntax: &Syntax<'_>) -> Result<Vec<Node<'a>>, ParseError> {
     match Node::parse(src, &State::new(syntax)) {
         Ok((left, res)) => {
             if !left.is_empty() {
-                Err(format!("unable to parse template:\n\n{left:?}").into())
+                Err(ParseError(format!("unable to parse template:\n\n{left:?}")))
             } else {
                 Ok(res)
             }
@@ -86,10 +85,22 @@ pub(crate) fn parse<'a>(src: &'a str, syntax: &Syntax<'_>) -> Result<Vec<Node<'a
                 column,
                 source_after,
             );
-            Err(msg.into())
+
+            Err(ParseError(msg))
         }
 
-        Err(nom::Err::Incomplete(_)) => Err("parsing incomplete".into()),
+        Err(nom::Err::Incomplete(_)) => Err(ParseError("parsing incomplete".into())),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ParseError(String);
+
+impl std::error::Error for ParseError {}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
     }
 }
 
