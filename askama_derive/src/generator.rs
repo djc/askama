@@ -338,8 +338,8 @@ impl<'a> Generator<'a> {
             skip_ws: WhitespaceHandling::Preserve,
             super_block: None,
             buf_writable: WritableBuffer {
-                buf: Vec::new(),
                 discard,
+                ..Default::default()
             },
             named: 0,
             whitespace,
