@@ -1,7 +1,7 @@
 use crate::config::{get_template_source, read_config_file, Config, WhitespaceHandling};
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
-use crate::parser::{Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
+use crate::parser::{Cond, CondTest, Expr, Loop, Node, Parsed, Target, When, Whitespace, Ws};
 use crate::CompileError;
 
 use proc_macro::TokenStream;
@@ -240,41 +240,6 @@ fn find_used_templates(
     }
     Ok(())
 }
-
-mod _parsed {
-    use std::mem;
-
-    use crate::parser::{parse, Node, Syntax};
-    use crate::CompileError;
-
-    pub(super) struct Parsed {
-        #[allow(dead_code)]
-        source: String,
-        nodes: Vec<Node<'static>>,
-    }
-
-    impl Parsed {
-        pub(super) fn new(source: String, syntax: &Syntax<'_>) -> Result<Self, CompileError> {
-            // Self-referential borrowing: `self` will keep the source alive as `String`,
-            // internally we will transmute it to `&'static str` to satisfy the compiler.
-            // However, we only expose the nodes with a lifetime limited to `self`.
-            let src = unsafe { mem::transmute::<&str, &'static str>(source.as_str()) };
-            let nodes = match parse(src, syntax) {
-                Ok(nodes) => nodes,
-                Err(e) => return Err(e.to_string().into()),
-            };
-
-            Ok(Self { source, nodes })
-        }
-
-        // The return value's lifetime must be limited to `self` to uphold the unsafe invariant.
-        pub(super) fn nodes(&self) -> &[Node<'_>] {
-            &self.nodes
-        }
-    }
-}
-
-use _parsed::Parsed;
 
 struct Generator<'a> {
     // The template input state: original struct AST and attributes

@@ -56,6 +56,40 @@ impl From<char> for Whitespace {
     }
 }
 
+mod _parsed {
+    use std::mem;
+
+    use super::{parse, Node, ParseError, Syntax};
+
+    pub(crate) struct Parsed {
+        #[allow(dead_code)]
+        source: String,
+        nodes: Vec<Node<'static>>,
+    }
+
+    impl Parsed {
+        pub(crate) fn new(source: String, syntax: &Syntax<'_>) -> Result<Self, ParseError> {
+            // Self-referential borrowing: `self` will keep the source alive as `String`,
+            // internally we will transmute it to `&'static str` to satisfy the compiler.
+            // However, we only expose the nodes with a lifetime limited to `self`.
+            let src = unsafe { mem::transmute::<&str, &'static str>(source.as_str()) };
+            let nodes = match parse(src, syntax) {
+                Ok(nodes) => nodes,
+                Err(e) => return Err(e),
+            };
+
+            Ok(Self { source, nodes })
+        }
+
+        // The return value's lifetime must be limited to `self` to uphold the unsafe invariant.
+        pub(crate) fn nodes(&self) -> &[Node<'_>] {
+            &self.nodes
+        }
+    }
+}
+
+pub(crate) use _parsed::Parsed;
+
 pub(crate) fn parse<'a>(src: &'a str, syntax: &Syntax<'_>) -> Result<Vec<Node<'a>>, ParseError> {
     match Node::parse(src, &State::new(syntax)) {
         Ok((left, res)) => {
