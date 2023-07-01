@@ -5,8 +5,8 @@ use std::{env, fs};
 #[cfg(feature = "serde")]
 use serde::Deserialize;
 
-use crate::parser::{Syntax, Whitespace};
 use crate::CompileError;
+use parser::{Syntax, Whitespace};
 
 #[derive(Debug)]
 pub(crate) struct Config<'a> {
