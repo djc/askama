@@ -38,10 +38,7 @@ struct FragmentUnusedExpr<'a> {
 fn test_fragment_simple() {
     let simple = FragmentSimple { name: "world" };
 
-    assert_eq!(
-        simple.render().unwrap(),
-        "\n\n<p>Hello world!</p>\n"
-    );
+    assert_eq!(simple.render().unwrap(), "\n\n<p>Hello world!</p>\n");
 }
 
 /// Tests a case where a block fragment rendering calls the parent.
@@ -83,10 +80,9 @@ fn test_fragment_nested_super() {
 /// Ideally, the struct isn't required to define that field.
 #[test]
 fn test_fragment_unused_expression() {
-    let unused_expr = FragmentUnusedExpr { required: "Required" };
+    let unused_expr = FragmentUnusedExpr {
+        required: "Required",
+    };
 
-    assert_eq!(
-        unused_expr.render().unwrap(),
-        "\n\n<p>Required</p>\n"
-    );
+    assert_eq!(unused_expr.render().unwrap(), "\n\n<p>Required</p>\n");
 }
