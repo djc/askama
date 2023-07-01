@@ -290,63 +290,6 @@ mod _parsed {
 
 use _parsed::Parsed;
 
-#[derive(Default)]
-struct WritableBuffer<'a> {
-    inner: Vec<Writable<'a>>,
-    discard: bool,
-}
-
-impl<'a> WritableBuffer<'a> {
-    fn new() -> Self {
-        Self {
-            inner: vec![],
-            discard: false,
-        }
-    }
-
-    fn new_discarding() -> Self {
-        Self {
-            inner: vec![],
-            discard: true,
-        }
-    }
-
-    fn discard_write(&mut self) {
-        self.discard = true;
-    }
-
-    fn allow_write(&mut self) {
-        self.discard = false;
-    }
-
-    fn is_discarding(&self) -> bool {
-        self.discard
-    }
-
-    fn push(&mut self, writable: Writable<'a>) {
-        if !self.discard {
-            self.inner.push(writable);
-        }
-    }
-}
-
-impl<'a> IntoIterator for WritableBuffer<'a> {
-    type Item = Writable<'a>;
-    type IntoIter = <Vec<Writable<'a>> as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.inner.into_iter()
-    }
-}
-
-impl<'a> Deref for WritableBuffer<'a> {
-    type Target = [Writable<'a>];
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner[..]
-    }
-}
-
 struct Generator<'a> {
     // The template input state: original struct AST and attributes
     input: &'a TemplateInput<'a>,
@@ -383,14 +326,8 @@ impl<'a> Generator<'a> {
         heritage: Option<&'n Heritage<'_>>,
         locals: MapChain<'n, &'n str, LocalMeta>,
         whitespace: WhitespaceHandling,
-        discard_output: bool,
+        discard: bool,
     ) -> Generator<'n> {
-        let buf_writable = if discard_output {
-            WritableBuffer::new_discarding()
-        } else {
-            WritableBuffer::new()
-        };
-
         Generator {
             input,
             contexts,
@@ -400,7 +337,10 @@ impl<'a> Generator<'a> {
             next_ws: None,
             skip_ws: WhitespaceHandling::Preserve,
             super_block: None,
-            buf_writable,
+            buf_writable: WritableBuffer {
+                buf: Vec::new(),
+                discard,
+            },
             named: 0,
             whitespace,
         }
@@ -1248,12 +1188,11 @@ impl<'a> Generator<'a> {
         name: Option<&'a str>,
         outer: Ws,
     ) -> Result<usize, CompileError> {
-        let block_fragment_write =
-            self.input.block.as_deref() == name && self.buf_writable.is_discarding();
+        let block_fragment_write = self.input.block.as_deref() == name && self.buf_writable.discard;
 
         // Allow writing to the buffer if we're in the block fragment
         if block_fragment_write {
-            self.buf_writable.allow_write();
+            self.buf_writable.discard = false;
         }
 
         // Flush preceding whitespace according to the outer WS spec
@@ -1315,7 +1254,7 @@ impl<'a> Generator<'a> {
 
         // Restore the original buffer discarding state
         if block_fragment_write {
-            self.buf_writable.discard_write();
+            self.buf_writable.discard = true;
         }
 
         Ok(size_hint)
@@ -2237,6 +2176,37 @@ enum AstLevel {
 enum DisplayWrap {
     Wrapped,
     Unwrapped,
+}
+
+#[derive(Default, Debug)]
+struct WritableBuffer<'a> {
+    buf: Vec<Writable<'a>>,
+    discard: bool,
+}
+
+impl<'a> WritableBuffer<'a> {
+    fn push(&mut self, writable: Writable<'a>) {
+        if !self.discard {
+            self.buf.push(writable);
+        }
+    }
+}
+
+impl<'a> IntoIterator for WritableBuffer<'a> {
+    type Item = Writable<'a>;
+    type IntoIter = <Vec<Writable<'a>> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.buf.into_iter()
+    }
+}
+
+impl<'a> Deref for WritableBuffer<'a> {
+    type Target = [Writable<'a>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.buf[..]
+    }
 }
 
 #[derive(Debug)]
