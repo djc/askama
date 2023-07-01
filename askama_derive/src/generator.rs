@@ -1,7 +1,7 @@
 use crate::config::{get_template_source, read_config_file, Config, WhitespaceHandling};
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
-use crate::parser::{parse, Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
+use crate::parser::{Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
 use crate::CompileError;
 
 use proc_macro::TokenStream;
@@ -39,17 +39,15 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
         Source::Path(_) => get_template_source(&input.path)?,
     };
 
-    let mut sources = HashMap::new();
-    find_used_templates(&input, &mut sources, source)?;
-
-    let mut parsed = HashMap::new();
-    for (path, src) in &sources {
-        parsed.insert(path.as_path(), parse(src, input.syntax)?);
-    }
+    let mut templates = HashMap::new();
+    find_used_templates(&input, &mut templates, source)?;
 
     let mut contexts = HashMap::new();
-    for (path, nodes) in &parsed {
-        contexts.insert(*path, Context::new(input.config, path, nodes)?);
+    for (path, parsed) in &templates {
+        contexts.insert(
+            path.as_path(),
+            Context::new(input.config, path, parsed.nodes())?,
+        );
     }
 
     let ctx = &contexts[input.path.as_path()];
@@ -68,7 +66,7 @@ fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     };
 
     if input.print == Print::Ast || input.print == Print::All {
-        eprintln!("{:?}", parsed[input.path.as_path()]);
+        eprintln!("{:?}", templates[input.path.as_path()].nodes());
     }
 
     let code = Generator::new(
@@ -221,13 +219,14 @@ impl TemplateArgs {
 
 fn find_used_templates(
     input: &TemplateInput<'_>,
-    map: &mut HashMap<PathBuf, String>,
+    map: &mut HashMap<PathBuf, Parsed>,
     source: String,
 ) -> Result<(), CompileError> {
     let mut dependency_graph = Vec::new();
     let mut check = vec![(input.path.clone(), source)];
     while let Some((path, source)) = check.pop() {
-        for n in parse(&source, input.syntax)? {
+        let parsed = Parsed::new(source, input.syntax)?;
+        for n in parsed.nodes() {
             match n {
                 Node::Extends(extends) => {
                     let extends = input.config.find_template(extends, Some(&path))?;
@@ -254,10 +253,42 @@ fn find_used_templates(
                 _ => {}
             }
         }
-        map.insert(path, source);
+        map.insert(path, parsed);
     }
     Ok(())
 }
+
+mod _parsed {
+    use std::mem;
+
+    use crate::config::Syntax;
+    use crate::parser::{parse, Node};
+    use crate::CompileError;
+
+    pub(super) struct Parsed {
+        #[allow(dead_code)]
+        source: String,
+        nodes: Vec<Node<'static>>,
+    }
+
+    impl Parsed {
+        pub(super) fn new(source: String, syntax: &Syntax<'_>) -> Result<Self, CompileError> {
+            // Self-referential borrowing: `self` will keep the source alive as `String`,
+            // internally we will transmute it to `&'static str` to satisfy the compiler.
+            // However, we only expose the nodes with a lifetime limited to `self`.
+            let src = unsafe { mem::transmute::<&str, &'static str>(source.as_str()) };
+            let nodes = parse(src, syntax)?;
+            Ok(Self { source, nodes })
+        }
+
+        // The return value's lifetime must be limited to `self` to uphold the unsafe invariant.
+        pub(super) fn nodes(&self) -> &[Node<'_>] {
+            &self.nodes
+        }
+    }
+}
+
+use _parsed::Parsed;
 
 #[derive(Default)]
 struct WritableBuffer<'a> {
@@ -323,6 +354,8 @@ struct Generator<'a> {
     contexts: &'a HashMap<&'a Path, Context<'a>>,
     // The heritage contains references to blocks and their ancestry
     heritage: Option<&'a Heritage<'a>>,
+    // Cache ASTs for included templates
+    includes: HashMap<PathBuf, Parsed>,
     // Variables accessible directly from the current scope (not redirected to context)
     locals: MapChain<'a, &'a str, LocalMeta>,
     // Suffix whitespace from the previous literal. Will be flushed to the
@@ -362,6 +395,7 @@ impl<'a> Generator<'a> {
             input,
             contexts,
             heritage,
+            includes: HashMap::default(),
             locals,
             next_ws: None,
             skip_ws: WhitespaceHandling::Preserve,
@@ -370,18 +404,6 @@ impl<'a> Generator<'a> {
             named: 0,
             whitespace,
         }
-    }
-
-    fn child(&mut self) -> Generator<'_> {
-        let locals = MapChain::with_parent(&self.locals);
-        Self::new(
-            self.input,
-            self.contexts,
-            self.heritage,
-            locals,
-            self.whitespace,
-            self.buf_writable.discard,
-        )
     }
 
     // Takes a Context and generates the relevant implementations.
@@ -1098,8 +1120,6 @@ impl<'a> Generator<'a> {
             .input
             .config
             .find_template(path, Some(&self.input.path))?;
-        let src = get_template_source(&path)?;
-        let nodes = parse(&src, self.input.syntax)?;
 
         // Make sure the compiler understands that the generated code depends on the template file.
         {
@@ -1112,15 +1132,34 @@ impl<'a> Generator<'a> {
             )?;
         }
 
-        let size_hint = {
-            // Since nodes must not outlive the Generator, we instantiate
-            // a nested Generator here to handle the include's nodes.
-            let mut gen = self.child();
-            let mut size_hint = gen.handle(ctx, &nodes, buf, AstLevel::Nested)?;
-            size_hint += gen.write_buf_writable(buf)?;
-            size_hint
+        // Since nodes must not outlive the Generator, we instantiate a nested `Generator` here to
+        // handle the include's nodes. Unfortunately we can't easily share the `includes` cache.
+
+        let locals = MapChain::with_parent(&self.locals);
+        let mut child = Self::new(
+            self.input,
+            self.contexts,
+            self.heritage,
+            locals,
+            self.whitespace,
+            self.buf_writable.discard,
+        );
+
+        let nodes = match self.contexts.get(path.as_path()) {
+            Some(ctx) => ctx.nodes,
+            None => match self.includes.entry(path) {
+                Entry::Occupied(entry) => entry.into_mut().nodes(),
+                Entry::Vacant(entry) => {
+                    let src = get_template_source(entry.key())?;
+                    entry.insert(Parsed::new(src, self.input.syntax)?).nodes()
+                }
+            },
         };
+
+        let mut size_hint = child.handle(ctx, nodes, buf, AstLevel::Nested)?;
+        size_hint += child.write_buf_writable(buf)?;
         self.prepare_ws(ws);
+
         Ok(size_hint)
     }
 
@@ -1430,7 +1469,7 @@ impl<'a> Generator<'a> {
             }
             Expr::Group(ref inner) => self.visit_group(buf, inner)?,
             Expr::Call(ref obj, ref args) => self.visit_call(buf, obj, args)?,
-            Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
+            Expr::RustMacro(ref path, args) => self.visit_rust_macro(buf, path, args),
             Expr::Try(ref expr) => self.visit_try(buf, expr.as_ref())?,
             Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
         })
@@ -1447,8 +1486,8 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Unwrapped)
     }
 
-    fn visit_rust_macro(&mut self, buf: &mut Buffer, name: &str, args: &str) -> DisplayWrap {
-        buf.write(name);
+    fn visit_rust_macro(&mut self, buf: &mut Buffer, path: &[&str], args: &str) -> DisplayWrap {
+        self.visit_path(buf, path);
         buf.write("!(");
         buf.write(args);
         buf.write(")");

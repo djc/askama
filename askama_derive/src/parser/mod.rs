@@ -58,10 +58,7 @@ impl From<char> for Whitespace {
     }
 }
 
-pub(crate) fn parse<'a>(
-    src: &'a str,
-    syntax: &'a Syntax<'_>,
-) -> Result<Vec<Node<'a>>, CompileError> {
+pub(crate) fn parse<'a>(src: &'a str, syntax: &Syntax<'_>) -> Result<Vec<Node<'a>>, CompileError> {
     match Node::parse(src, &State::new(syntax)) {
         Ok((left, res)) => {
             if !left.is_empty() {

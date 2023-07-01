@@ -4,9 +4,10 @@ use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till};
 use nom::character::complete::char;
 use nom::combinator::{cut, map, not, opt, peek, recognize};
+use nom::error::ErrorKind;
 use nom::multi::{fold_many0, many0, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
-use nom::IResult;
+use nom::{error_position, IResult};
 
 use super::{
     bool_lit, char_lit, identifier, nested_parenthesis, not_ws, num_lit, path, str_lit, ws,
@@ -30,7 +31,7 @@ pub(crate) enum Expr<'a> {
     Group(Box<Expr<'a>>),
     Tuple(Vec<Expr<'a>>),
     Call(Box<Expr<'a>>, Vec<Expr<'a>>),
-    RustMacro(&'a str, &'a str),
+    RustMacro(Vec<&'a str>, &'a str),
     Try(Box<Expr<'a>>),
 }
 
@@ -183,7 +184,6 @@ fn expr_single(i: &str) -> IResult<&str, Expr<'_>> {
         expr_str_lit,
         expr_char_lit,
         expr_path,
-        expr_rust_macro,
         expr_array_lit,
         expr_var,
         expr_group,
@@ -194,6 +194,8 @@ enum Suffix<'a> {
     Attr(&'a str),
     Index(Expr<'a>),
     Call(Vec<Expr<'a>>),
+    // The value is the arguments of the macro call.
+    MacroCall(&'a str),
     Try,
 }
 
@@ -216,6 +218,16 @@ fn expr_index(i: &str) -> IResult<&str, Suffix<'_>> {
 
 fn expr_call(i: &str) -> IResult<&str, Suffix<'_>> {
     map(arguments, Suffix::Call)(i)
+}
+
+fn expr_macro(i: &str) -> IResult<&str, Suffix<'_>> {
+    preceded(
+        pair(ws(char('!')), char('(')),
+        cut(terminated(
+            map(recognize(nested_parenthesis), Suffix::MacroCall),
+            char(')'),
+        )),
+    )(i)
 }
 
 fn expr_try(i: &str) -> IResult<&str, Suffix<'_>> {
@@ -256,26 +268,24 @@ fn expr_prefix(i: &str) -> IResult<&str, Expr<'_>> {
 fn expr_suffix(i: &str) -> IResult<&str, Expr<'_>> {
     let (mut i, mut expr) = expr_single(i)?;
     loop {
-        let (j, suffix) = opt(alt((expr_attr, expr_index, expr_call, expr_try)))(i)?;
-        i = j;
+        let (j, suffix) = opt(alt((
+            expr_attr, expr_index, expr_call, expr_try, expr_macro,
+        )))(i)?;
         match suffix {
             Some(Suffix::Attr(attr)) => expr = Expr::Attr(expr.into(), attr),
             Some(Suffix::Index(index)) => expr = Expr::Index(expr.into(), index.into()),
             Some(Suffix::Call(args)) => expr = Expr::Call(expr.into(), args),
             Some(Suffix::Try) => expr = Expr::Try(expr.into()),
+            Some(Suffix::MacroCall(args)) => match expr {
+                Expr::Path(path) => expr = Expr::RustMacro(path, args),
+                Expr::Var(name) => expr = Expr::RustMacro(vec![name], args),
+                _ => return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag))),
+            },
             None => break,
         }
+        i = j;
     }
     Ok((i, expr))
-}
-
-fn macro_arguments(i: &str) -> IResult<&str, &str> {
-    delimited(char('('), recognize(nested_parenthesis), char(')'))(i)
-}
-
-fn expr_rust_macro(i: &str) -> IResult<&str, Expr<'_>> {
-    let (i, (mname, _, args)) = tuple((identifier, char('!'), macro_arguments))(i)?;
-    Ok((i, Expr::RustMacro(mname, args)))
 }
 
 macro_rules! expr_prec_layer {
