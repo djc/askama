@@ -14,7 +14,7 @@ use super::{
 };
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum Expr<'a> {
+pub enum Expr<'a> {
     BoolLit(&'a str),
     NumLit(&'a str),
     StrLit(&'a str),

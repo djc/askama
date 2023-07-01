@@ -7,12 +7,12 @@ use std::fmt;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 
+use parser::ParseError;
+
 mod config;
 mod generator;
 mod heritage;
 mod input;
-mod parser;
-use parser::ParseError;
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {

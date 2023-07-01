@@ -1,3 +1,6 @@
+#![deny(unreachable_pub)]
+#![deny(elided_lifetimes_in_paths)]
+
 use std::cell::Cell;
 use std::{fmt, str};
 
@@ -11,8 +14,8 @@ use nom::multi::separated_list1;
 use nom::sequence::{delimited, pair, tuple};
 use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
 
-pub(crate) use self::expr::Expr;
-pub(crate) use self::node::{Cond, CondTest, Loop, Macro, Node, Target, When, Whitespace, Ws};
+pub use self::expr::Expr;
+pub use self::node::{Cond, CondTest, Loop, Macro, Node, Target, When, Whitespace, Ws};
 
 mod expr;
 mod node;
@@ -61,14 +64,14 @@ mod _parsed {
 
     use super::{parse, Node, ParseError, Syntax};
 
-    pub(crate) struct Parsed {
+    pub struct Parsed {
         #[allow(dead_code)]
         source: String,
         nodes: Vec<Node<'static>>,
     }
 
     impl Parsed {
-        pub(crate) fn new(source: String, syntax: &Syntax<'_>) -> Result<Self, ParseError> {
+        pub fn new(source: String, syntax: &Syntax<'_>) -> Result<Self, ParseError> {
             // Self-referential borrowing: `self` will keep the source alive as `String`,
             // internally we will transmute it to `&'static str` to satisfy the compiler.
             // However, we only expose the nodes with a lifetime limited to `self`.
@@ -82,15 +85,15 @@ mod _parsed {
         }
 
         // The return value's lifetime must be limited to `self` to uphold the unsafe invariant.
-        pub(crate) fn nodes(&self) -> &[Node<'_>] {
+        pub fn nodes(&self) -> &[Node<'_>] {
             &self.nodes
         }
     }
 }
 
-pub(crate) use _parsed::Parsed;
+pub use _parsed::Parsed;
 
-pub(crate) fn parse<'a>(src: &'a str, syntax: &Syntax<'_>) -> Result<Vec<Node<'a>>, ParseError> {
+pub fn parse<'a>(src: &'a str, syntax: &Syntax<'_>) -> Result<Vec<Node<'a>>, ParseError> {
     match Node::parse(src, &State::new(syntax)) {
         Ok((left, res)) => {
             if !left.is_empty() {
@@ -128,7 +131,7 @@ pub(crate) fn parse<'a>(src: &'a str, syntax: &Syntax<'_>) -> Result<Vec<Node<'a
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ParseError(String);
+pub struct ParseError(String);
 
 impl std::error::Error for ParseError {}
 
@@ -358,13 +361,13 @@ fn tag_expr_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
 }
 
 #[derive(Debug)]
-pub(crate) struct Syntax<'a> {
-    pub(crate) block_start: &'a str,
-    pub(crate) block_end: &'a str,
-    pub(crate) expr_start: &'a str,
-    pub(crate) expr_end: &'a str,
-    pub(crate) comment_start: &'a str,
-    pub(crate) comment_end: &'a str,
+pub struct Syntax<'a> {
+    pub block_start: &'a str,
+    pub block_end: &'a str,
+    pub expr_start: &'a str,
+    pub expr_end: &'a str,
+    pub comment_start: &'a str,
+    pub comment_end: &'a str,
 }
 
 impl Default for Syntax<'static> {
