@@ -244,8 +244,7 @@ fn find_used_templates(
 mod _parsed {
     use std::mem;
 
-    use crate::config::Syntax;
-    use crate::parser::{parse, Node};
+    use crate::parser::{parse, Node, Syntax};
     use crate::CompileError;
 
     pub(super) struct Parsed {

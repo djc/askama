@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, HashSet};
-use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 #[cfg(feature = "serde")]
 use serde::Deserialize;
 
+use crate::parser::Syntax;
 use crate::CompileError;
 
 #[derive(Debug)]
@@ -66,7 +66,7 @@ impl<'a> Config<'a> {
                 let name = raw_s.name;
 
                 if syntaxes
-                    .insert(name.to_string(), Syntax::try_from(raw_s)?)
+                    .insert(name.to_string(), raw_s.try_into()?)
                     .is_some()
                 {
                     return Err(format!("syntax \"{name}\" is already defined").into());
@@ -131,41 +131,18 @@ impl<'a> Config<'a> {
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct Syntax<'a> {
-    pub(crate) block_start: &'a str,
-    pub(crate) block_end: &'a str,
-    pub(crate) expr_start: &'a str,
-    pub(crate) expr_end: &'a str,
-    pub(crate) comment_start: &'a str,
-    pub(crate) comment_end: &'a str,
-}
-
-impl Default for Syntax<'static> {
-    fn default() -> Self {
-        Self {
-            block_start: "{%",
-            block_end: "%}",
-            expr_start: "{{",
-            expr_end: "}}",
-            comment_start: "{#",
-            comment_end: "#}",
-        }
-    }
-}
-
-impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
+impl<'a> TryInto<Syntax<'a>> for RawSyntax<'a> {
     type Error = CompileError;
 
-    fn try_from(raw: RawSyntax<'a>) -> std::result::Result<Self, Self::Error> {
+    fn try_into(self) -> Result<Syntax<'a>, Self::Error> {
         let default = Syntax::default();
-        let syntax = Self {
-            block_start: raw.block_start.unwrap_or(default.block_start),
-            block_end: raw.block_end.unwrap_or(default.block_end),
-            expr_start: raw.expr_start.unwrap_or(default.expr_start),
-            expr_end: raw.expr_end.unwrap_or(default.expr_end),
-            comment_start: raw.comment_start.unwrap_or(default.comment_start),
-            comment_end: raw.comment_end.unwrap_or(default.comment_end),
+        let syntax = Syntax {
+            block_start: self.block_start.unwrap_or(default.block_start),
+            block_end: self.block_end.unwrap_or(default.block_end),
+            expr_start: self.expr_start.unwrap_or(default.expr_start),
+            expr_end: self.expr_end.unwrap_or(default.expr_end),
+            comment_start: self.comment_start.unwrap_or(default.comment_start),
+            comment_end: self.comment_end.unwrap_or(default.comment_end),
         };
 
         for s in [

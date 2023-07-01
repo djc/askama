@@ -1,5 +1,4 @@
-use crate::config::Syntax;
-use crate::parser::{Expr, Node, Whitespace, Ws};
+use super::{Expr, Node, Syntax, Whitespace, Ws};
 
 fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
     match super::split_ws_parts(s) {
