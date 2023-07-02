@@ -14,7 +14,6 @@ use super::{
     tag_block_end, tag_block_start, tag_comment_end, tag_comment_start, tag_expr_end,
     tag_expr_start, take_content, ws, Expr, State,
 };
-use crate::config::WhitespaceHandling;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Node<'a> {
@@ -54,16 +53,6 @@ pub(crate) enum Whitespace {
     Preserve,
     Suppress,
     Minimize,
-}
-
-impl From<WhitespaceHandling> for Whitespace {
-    fn from(ws: WhitespaceHandling) -> Self {
-        match ws {
-            WhitespaceHandling::Suppress => Whitespace::Suppress,
-            WhitespaceHandling::Preserve => Whitespace::Preserve,
-            WhitespaceHandling::Minimize => Whitespace::Minimize,
-        }
-    }
 }
 
 #[derive(Debug, PartialEq)]
