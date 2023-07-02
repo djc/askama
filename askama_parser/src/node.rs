@@ -55,6 +55,17 @@ pub enum Whitespace {
     Minimize,
 }
 
+impl From<char> for Whitespace {
+    fn from(c: char) -> Self {
+        match c {
+            '+' => Self::Preserve,
+            '-' => Self::Suppress,
+            '~' => Self::Minimize,
+            _ => panic!("unsupported `Whitespace` conversion"),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Loop<'a> {
     pub ws1: Ws,
