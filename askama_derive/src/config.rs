@@ -5,7 +5,7 @@ use std::{env, fs};
 #[cfg(feature = "serde")]
 use serde::Deserialize;
 
-use crate::parser::Syntax;
+use crate::parser::{Syntax, Whitespace};
 use crate::CompileError;
 
 #[derive(Debug)]
@@ -213,6 +213,16 @@ pub(crate) enum WhitespaceHandling {
     /// If there is a newline character, the preserved character in the trimmed characters, it will
     /// the one preserved.
     Minimize,
+}
+
+impl From<WhitespaceHandling> for Whitespace {
+    fn from(ws: WhitespaceHandling) -> Self {
+        match ws {
+            WhitespaceHandling::Suppress => Whitespace::Suppress,
+            WhitespaceHandling::Preserve => Whitespace::Preserve,
+            WhitespaceHandling::Minimize => Whitespace::Minimize,
+        }
+    }
 }
 
 impl Default for WhitespaceHandling {
