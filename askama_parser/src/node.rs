@@ -35,6 +35,12 @@ pub enum Node<'a> {
     Continue(Ws),
 }
 
+impl Node<'_> {
+    pub(super) fn parse<'i>(i: &'i str, s: &State<'_>) -> IResult<&'i str, Vec<Node<'i>>> {
+        parse_template(i, s)
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Target<'a> {
     Name(&'a str),
@@ -45,6 +51,12 @@ pub enum Target<'a> {
     CharLit(&'a str),
     BoolLit(&'a str),
     Path(Vec<&'a str>),
+}
+
+impl Target<'_> {
+    pub(super) fn parse(i: &str) -> IResult<&str, Target<'_>> {
+        target(i)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -99,18 +111,6 @@ pub type Cond<'a> = (Ws, Option<CondTest<'a>>, Vec<Node<'a>>);
 pub struct CondTest<'a> {
     pub target: Option<Target<'a>>,
     pub expr: Expr<'a>,
-}
-
-impl Node<'_> {
-    pub(super) fn parse<'i>(i: &'i str, s: &State<'_>) -> IResult<&'i str, Vec<Node<'i>>> {
-        parse_template(i, s)
-    }
-}
-
-impl Target<'_> {
-    pub(super) fn parse(i: &str) -> IResult<&str, Target<'_>> {
-        target(i)
-    }
 }
 
 fn expr_handle_ws(i: &str) -> IResult<&str, Whitespace> {
