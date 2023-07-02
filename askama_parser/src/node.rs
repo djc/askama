@@ -53,9 +53,95 @@ pub enum Target<'a> {
     Path(Vec<&'a str>),
 }
 
-impl Target<'_> {
-    pub(super) fn parse(i: &str) -> IResult<&str, Target<'_>> {
-        target(i)
+impl<'a> Target<'a> {
+    pub(super) fn parse(i: &'a str) -> IResult<&'a str, Self> {
+        let mut opt_opening_paren = map(opt(ws(char('('))), |o| o.is_some());
+        let mut opt_closing_paren = map(opt(ws(char(')'))), |o| o.is_some());
+        let mut opt_opening_brace = map(opt(ws(char('{'))), |o| o.is_some());
+
+        let (i, lit) = opt(Self::lit)(i)?;
+        if let Some(lit) = lit {
+            return Ok((i, lit));
+        }
+
+        // match tuples and unused parentheses
+        let (i, target_is_tuple) = opt_opening_paren(i)?;
+        if target_is_tuple {
+            let (i, is_empty_tuple) = opt_closing_paren(i)?;
+            if is_empty_tuple {
+                return Ok((i, Self::Tuple(Vec::new(), Vec::new())));
+            }
+
+            let (i, first_target) = Self::parse(i)?;
+            let (i, is_unused_paren) = opt_closing_paren(i)?;
+            if is_unused_paren {
+                return Ok((i, first_target));
+            }
+
+            let mut targets = vec![first_target];
+            let (i, _) = cut(tuple((
+                fold_many0(
+                    preceded(ws(char(',')), Self::parse),
+                    || (),
+                    |_, target| {
+                        targets.push(target);
+                    },
+                ),
+                opt(ws(char(','))),
+                ws(cut(char(')'))),
+            )))(i)?;
+            return Ok((i, Self::Tuple(Vec::new(), targets)));
+        }
+
+        // match structs
+        let (i, path) = opt(path)(i)?;
+        if let Some(path) = path {
+            let i_before_matching_with = i;
+            let (i, _) = opt(ws(keyword("with")))(i)?;
+
+            let (i, is_unnamed_struct) = opt_opening_paren(i)?;
+            if is_unnamed_struct {
+                let (i, targets) = alt((
+                    map(char(')'), |_| Vec::new()),
+                    terminated(
+                        cut(separated_list1(ws(char(',')), Self::parse)),
+                        pair(opt(ws(char(','))), ws(cut(char(')')))),
+                    ),
+                ))(i)?;
+                return Ok((i, Self::Tuple(path, targets)));
+            }
+
+            let (i, is_named_struct) = opt_opening_brace(i)?;
+            if is_named_struct {
+                let (i, targets) = alt((
+                    map(char('}'), |_| Vec::new()),
+                    terminated(
+                        cut(separated_list1(ws(char(',')), Self::named)),
+                        pair(opt(ws(char(','))), ws(cut(char('}')))),
+                    ),
+                ))(i)?;
+                return Ok((i, Self::Struct(path, targets)));
+            }
+
+            return Ok((i_before_matching_with, Self::Path(path)));
+        }
+
+        // neither literal nor struct nor path
+        map(identifier, Self::Name)(i)
+    }
+
+    fn lit(i: &'a str) -> IResult<&'a str, Self> {
+        alt((
+            map(str_lit, Self::StrLit),
+            map(char_lit, Self::CharLit),
+            map(num_lit, Self::NumLit),
+            map(bool_lit, Self::BoolLit),
+        ))(i)
+    }
+
+    fn named(i: &'a str) -> IResult<&str, (&str, Self)> {
+        let (i, (src, target)) = pair(identifier, opt(preceded(ws(char(':')), Self::parse)))(i)?;
+        Ok((i, (src, target.unwrap_or(Self::Name(src)))))
     }
 }
 
@@ -64,6 +150,12 @@ pub enum Whitespace {
     Preserve,
     Suppress,
     Minimize,
+}
+
+impl Whitespace {
+    fn parse(i: &str) -> IResult<&str, Self> {
+        alt((char('-'), char('+'), char('~')))(i).map(|(s, r)| (s, Self::from(r)))
+    }
 }
 
 impl From<char> for Whitespace {
@@ -113,10 +205,6 @@ pub struct CondTest<'a> {
     pub expr: Expr<'a>,
 }
 
-fn expr_handle_ws(i: &str) -> IResult<&str, Whitespace> {
-    alt((char('-'), char('+'), char('~')))(i).map(|(s, r)| (s, Whitespace::from(r)))
-}
-
 fn parameters(i: &str) -> IResult<&str, Vec<&str>> {
     delimited(
         ws(char('(')),
@@ -127,13 +215,13 @@ fn parameters(i: &str) -> IResult<&str, Vec<&str>> {
 
 fn block_call(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         ws(keyword("call")),
         cut(tuple((
             opt(tuple((ws(identifier), ws(tag("::"))))),
             ws(identifier),
             opt(ws(Expr::parse_arguments)),
-            opt(expr_handle_ws),
+            opt(Whitespace::parse),
         ))),
     ));
     let (i, (pws, _, (scope, name, args, nws))) = p(i)?;
@@ -161,11 +249,11 @@ fn cond_if(i: &str) -> IResult<&str, CondTest<'_>> {
 fn cond_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Cond<'a>> {
     let mut p = tuple((
         |i| s.tag_block_start(i),
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         ws(keyword("else")),
         cut(tuple((
             opt(cond_if),
-            opt(expr_handle_ws),
+            opt(Whitespace::parse),
             |i| s.tag_block_end(i),
             cut(|i| parse_template(i, s)),
         ))),
@@ -176,19 +264,19 @@ fn cond_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Cond<'a>> {
 
 fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         cond_if,
         cut(tuple((
-            opt(expr_handle_ws),
+            opt(Whitespace::parse),
             |i| s.tag_block_end(i),
             cut(tuple((
                 |i| parse_template(i, s),
                 many0(|i| cond_block(i, s)),
                 cut(tuple((
                     |i| s.tag_block_start(i),
-                    opt(expr_handle_ws),
+                    opt(Whitespace::parse),
                     ws(keyword("endif")),
-                    opt(expr_handle_ws),
+                    opt(Whitespace::parse),
                 ))),
             ))),
         ))),
@@ -203,10 +291,10 @@ fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
     let mut p = tuple((
         |i| s.tag_block_start(i),
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         ws(keyword("else")),
         cut(tuple((
-            opt(expr_handle_ws),
+            opt(Whitespace::parse),
             |i| s.tag_block_end(i),
             cut(|i| parse_template(i, s)),
         ))),
@@ -218,11 +306,11 @@ fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>>
 fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
     let mut p = tuple((
         |i| s.tag_block_start(i),
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         ws(keyword("when")),
         cut(tuple((
             ws(Target::parse),
-            opt(expr_handle_ws),
+            opt(Whitespace::parse),
             |i| s.tag_block_end(i),
             cut(|i| parse_template(i, s)),
         ))),
@@ -233,11 +321,11 @@ fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
 
 fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         ws(keyword("match")),
         cut(tuple((
             ws(Expr::parse),
-            opt(expr_handle_ws),
+            opt(Whitespace::parse),
             |i| s.tag_block_end(i),
             cut(tuple((
                 ws(many0(ws(value((), |i| block_comment(i, s))))),
@@ -246,9 +334,9 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
                     opt(|i| match_else_block(i, s)),
                     cut(tuple((
                         ws(|i| s.tag_block_start(i)),
-                        opt(expr_handle_ws),
+                        opt(Whitespace::parse),
                         ws(keyword("endmatch")),
-                        opt(expr_handle_ws),
+                        opt(Whitespace::parse),
                     ))),
                 ))),
             ))),
@@ -266,12 +354,12 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
 fn block_let(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         ws(alt((keyword("let"), keyword("set")))),
         cut(tuple((
             ws(Target::parse),
             opt(tuple((ws(char('=')), ws(Expr::parse)))),
-            opt(expr_handle_ws),
+            opt(Whitespace::parse),
         ))),
     ));
     let (i, (pws, _, (var, val, nws))) = p(i)?;
@@ -299,20 +387,20 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         let mut p = preceded(
             ws(keyword("else")),
             cut(tuple((
-                opt(expr_handle_ws),
+                opt(Whitespace::parse),
                 delimited(
                     |i| s.tag_block_end(i),
                     |i| parse_template(i, s),
                     |i| s.tag_block_start(i),
                 ),
-                opt(expr_handle_ws),
+                opt(Whitespace::parse),
             ))),
         );
         let (i, (pws, nodes, nws)) = p(i)?;
         Ok((i, (pws, nodes, nws)))
     };
     let mut p = tuple((
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         ws(keyword("for")),
         cut(tuple((
             ws(Target::parse),
@@ -320,16 +408,16 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             cut(tuple((
                 ws(Expr::parse),
                 opt(if_cond),
-                opt(expr_handle_ws),
+                opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
                 cut(tuple((
                     |i| parse_loop_content(i, s),
                     cut(tuple((
                         |i| s.tag_block_start(i),
-                        opt(expr_handle_ws),
+                        opt(Whitespace::parse),
                         opt(else_block),
                         ws(keyword("endfor")),
-                        opt(expr_handle_ws),
+                        opt(Whitespace::parse),
                     ))),
                 ))),
             ))),
@@ -360,9 +448,9 @@ fn block_extends(i: &str) -> IResult<&str, Node<'_>> {
 
 fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut start = tuple((
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         ws(keyword("block")),
-        cut(tuple((ws(identifier), opt(expr_handle_ws), |i| {
+        cut(tuple((ws(identifier), opt(Whitespace::parse), |i| {
             s.tag_block_end(i)
         }))),
     ));
@@ -372,9 +460,9 @@ fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         |i| parse_template(i, s),
         cut(tuple((
             |i| s.tag_block_start(i),
-            opt(expr_handle_ws),
+            opt(Whitespace::parse),
             ws(keyword("endblock")),
-            cut(tuple((opt(ws(keyword(name))), opt(expr_handle_ws)))),
+            cut(tuple((opt(ws(keyword(name))), opt(Whitespace::parse)))),
         ))),
     )));
     let (i, (contents, (_, pws2, _, (_, nws2)))) = end(i)?;
@@ -387,9 +475,9 @@ fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
 fn block_include(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         ws(keyword("include")),
-        cut(pair(ws(str_lit), opt(expr_handle_ws))),
+        cut(pair(ws(str_lit), opt(Whitespace::parse))),
     ));
     let (i, (pws, _, (name, nws))) = p(i)?;
     Ok((i, Node::Include(Ws(pws, nws), name)))
@@ -397,12 +485,12 @@ fn block_include(i: &str) -> IResult<&str, Node<'_>> {
 
 fn block_import(i: &str) -> IResult<&str, Node<'_>> {
     let mut p = tuple((
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         ws(keyword("import")),
         cut(tuple((
             ws(str_lit),
             ws(keyword("as")),
-            cut(pair(ws(identifier), opt(expr_handle_ws))),
+            cut(pair(ws(identifier), opt(Whitespace::parse))),
         ))),
     ));
     let (i, (pws, _, (name, _, (scope, nws)))) = p(i)?;
@@ -411,12 +499,12 @@ fn block_import(i: &str) -> IResult<&str, Node<'_>> {
 
 fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut start = tuple((
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         ws(keyword("macro")),
         cut(tuple((
             ws(identifier),
             opt(ws(parameters)),
-            opt(expr_handle_ws),
+            opt(Whitespace::parse),
             |i| s.tag_block_end(i),
         ))),
     ));
@@ -426,9 +514,9 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         |i| parse_template(i, s),
         cut(tuple((
             |i| s.tag_block_start(i),
-            opt(expr_handle_ws),
+            opt(Whitespace::parse),
             ws(keyword("endmacro")),
-            cut(tuple((opt(ws(keyword(name))), opt(expr_handle_ws)))),
+            cut(tuple((opt(ws(keyword(name))), opt(Whitespace::parse)))),
         ))),
     )));
     let (i, (contents, (_, pws2, _, (_, nws2)))) = end(i)?;
@@ -454,17 +542,17 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 fn block_raw<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let endraw = tuple((
         |i| s.tag_block_start(i),
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         ws(keyword("endraw")),
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         peek(|i| s.tag_block_end(i)),
     ));
 
     let mut p = tuple((
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         ws(keyword("raw")),
         cut(tuple((
-            opt(expr_handle_ws),
+            opt(Whitespace::parse),
             |i| s.tag_block_end(i),
             consumed(skip_till(endraw)),
         ))),
@@ -482,9 +570,9 @@ fn block_raw<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
 fn break_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         ws(keyword("break")),
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
     ));
     let (j, (pws, _, nws)) = p(i)?;
     if !s.is_in_loop() {
@@ -495,9 +583,9 @@ fn break_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> 
 
 fn continue_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
         ws(keyword("continue")),
-        opt(expr_handle_ws),
+        opt(Whitespace::parse),
     ));
     let (j, (pws, _, nws)) = p(i)?;
     if !s.is_in_loop() {
@@ -552,7 +640,7 @@ fn block_comment<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
         |i| s.tag_comment_start(i),
         cut(tuple((
-            opt(expr_handle_ws),
+            opt(Whitespace::parse),
             |i| block_comment_body(i, s),
             |i| s.tag_comment_end(i),
         ))),
@@ -574,9 +662,9 @@ fn expr_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
         |i| s.tag_expr_start(i),
         cut(tuple((
-            opt(expr_handle_ws),
+            opt(Whitespace::parse),
             ws(Expr::parse),
-            opt(expr_handle_ws),
+            opt(Whitespace::parse),
             |i| s.tag_expr_end(i),
         ))),
     ));
@@ -591,94 +679,4 @@ fn parse_template<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a
         complete(|i| expr_node(i, s)),
         complete(|i| block_node(i, s)),
     )))(i)
-}
-
-fn variant_lit(i: &str) -> IResult<&str, Target<'_>> {
-    alt((
-        map(str_lit, Target::StrLit),
-        map(char_lit, Target::CharLit),
-        map(num_lit, Target::NumLit),
-        map(bool_lit, Target::BoolLit),
-    ))(i)
-}
-
-fn target(i: &str) -> IResult<&str, Target<'_>> {
-    let mut opt_opening_paren = map(opt(ws(char('('))), |o| o.is_some());
-    let mut opt_closing_paren = map(opt(ws(char(')'))), |o| o.is_some());
-    let mut opt_opening_brace = map(opt(ws(char('{'))), |o| o.is_some());
-
-    let (i, lit) = opt(variant_lit)(i)?;
-    if let Some(lit) = lit {
-        return Ok((i, lit));
-    }
-
-    // match tuples and unused parentheses
-    let (i, target_is_tuple) = opt_opening_paren(i)?;
-    if target_is_tuple {
-        let (i, is_empty_tuple) = opt_closing_paren(i)?;
-        if is_empty_tuple {
-            return Ok((i, Target::Tuple(Vec::new(), Vec::new())));
-        }
-
-        let (i, first_target) = target(i)?;
-        let (i, is_unused_paren) = opt_closing_paren(i)?;
-        if is_unused_paren {
-            return Ok((i, first_target));
-        }
-
-        let mut targets = vec![first_target];
-        let (i, _) = cut(tuple((
-            fold_many0(
-                preceded(ws(char(',')), target),
-                || (),
-                |_, target| {
-                    targets.push(target);
-                },
-            ),
-            opt(ws(char(','))),
-            ws(cut(char(')'))),
-        )))(i)?;
-        return Ok((i, Target::Tuple(Vec::new(), targets)));
-    }
-
-    // match structs
-    let (i, path) = opt(path)(i)?;
-    if let Some(path) = path {
-        let i_before_matching_with = i;
-        let (i, _) = opt(ws(keyword("with")))(i)?;
-
-        let (i, is_unnamed_struct) = opt_opening_paren(i)?;
-        if is_unnamed_struct {
-            let (i, targets) = alt((
-                map(char(')'), |_| Vec::new()),
-                terminated(
-                    cut(separated_list1(ws(char(',')), target)),
-                    pair(opt(ws(char(','))), ws(cut(char(')')))),
-                ),
-            ))(i)?;
-            return Ok((i, Target::Tuple(path, targets)));
-        }
-
-        let (i, is_named_struct) = opt_opening_brace(i)?;
-        if is_named_struct {
-            let (i, targets) = alt((
-                map(char('}'), |_| Vec::new()),
-                terminated(
-                    cut(separated_list1(ws(char(',')), named_target)),
-                    pair(opt(ws(char(','))), ws(cut(char('}')))),
-                ),
-            ))(i)?;
-            return Ok((i, Target::Struct(path, targets)));
-        }
-
-        return Ok((i_before_matching_with, Target::Path(path)));
-    }
-
-    // neither literal nor struct nor path
-    map(identifier, Target::Name)(i)
-}
-
-fn named_target(i: &str) -> IResult<&str, (&str, Target<'_>)> {
-    let (i, (src, target)) = pair(identifier, opt(preceded(ws(char(':')), target)))(i)?;
-    Ok((i, (src, target.unwrap_or(Target::Name(src)))))
 }
