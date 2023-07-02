@@ -63,40 +63,35 @@ pub struct Ast<'a> {
 
 impl<'a> Ast<'a> {
     pub fn from_str(src: &'a str, syntax: &Syntax<'_>) -> Result<Self, ParseError> {
-        match Node::parse(src, &State::new(syntax)) {
-            Ok((left, nodes)) => {
-                if !left.is_empty() {
-                    Err(ParseError(format!("unable to parse template:\n\n{left:?}")))
-                } else {
-                    Ok(Self { nodes })
-                }
-            }
+        let err = match Node::parse(src, &State::new(syntax)) {
+            Ok((left, nodes)) => match left.is_empty() {
+                true => return Ok(Self { nodes }),
+                false => return Err(ParseError(format!("unable to parse template:\n\n{left:?}"))),
+            },
+            Err(nom::Err::Error(err)) | Err(nom::Err::Failure(err)) => err,
+            Err(nom::Err::Incomplete(_)) => return Err(ParseError("parsing incomplete".into())),
+        };
 
-            Err(nom::Err::Error(err)) | Err(nom::Err::Failure(err)) => {
-                let nom::error::Error { input, .. } = err;
-                let offset = src.len() - input.len();
-                let (source_before, source_after) = src.split_at(offset);
+        let nom::error::Error { input, .. } = err;
+        let offset = src.len() - input.len();
+        let (source_before, source_after) = src.split_at(offset);
 
-                let source_after = match source_after.char_indices().enumerate().take(41).last() {
-                    Some((40, (i, _))) => format!("{:?}...", &source_after[..i]),
-                    _ => format!("{source_after:?}"),
-                };
+        let source_after = match source_after.char_indices().enumerate().take(41).last() {
+            Some((40, (i, _))) => format!("{:?}...", &source_after[..i]),
+            _ => format!("{source_after:?}"),
+        };
 
-                let (row, last_line) = source_before.lines().enumerate().last().unwrap();
-                let column = last_line.chars().count();
+        let (row, last_line) = source_before.lines().enumerate().last().unwrap();
+        let column = last_line.chars().count();
 
-                let msg = format!(
-                    "problems parsing template source at row {}, column {} near:\n{}",
-                    row + 1,
-                    column,
-                    source_after,
-                );
+        let msg = format!(
+            "problems parsing template source at row {}, column {} near:\n{}",
+            row + 1,
+            column,
+            source_after,
+        );
 
-                Err(ParseError(msg))
-            }
-
-            Err(nom::Err::Incomplete(_)) => Err(ParseError("parsing incomplete".into())),
-        }
+        Err(ParseError(msg))
     }
 }
 
