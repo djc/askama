@@ -196,21 +196,21 @@ fn keyword<'a>(k: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
 }
 
 fn identifier(input: &str) -> IResult<&str, &str> {
-    recognize(pair(identifier_start, opt(identifier_tail)))(input)
-}
+    fn start(s: &str) -> IResult<&str, &str> {
+        s.split_at_position1_complete(
+            |c| !(c.is_alpha() || c == '_' || c >= '\u{0080}'),
+            nom::error::ErrorKind::Alpha,
+        )
+    }
 
-fn identifier_start(s: &str) -> IResult<&str, &str> {
-    s.split_at_position1_complete(
-        |c| !(c.is_alpha() || c == '_' || c >= '\u{0080}'),
-        nom::error::ErrorKind::Alpha,
-    )
-}
+    fn tail(s: &str) -> IResult<&str, &str> {
+        s.split_at_position1_complete(
+            |c| !(c.is_alphanum() || c == '_' || c >= '\u{0080}'),
+            nom::error::ErrorKind::Alpha,
+        )
+    }
 
-fn identifier_tail(s: &str) -> IResult<&str, &str> {
-    s.split_at_position1_complete(
-        |c| !(c.is_alphanum() || c == '_' || c >= '\u{0080}'),
-        nom::error::ErrorKind::Alpha,
-    )
+    recognize(pair(start, opt(tail)))(input)
 }
 
 fn bool_lit(i: &str) -> IResult<&str, &str> {
