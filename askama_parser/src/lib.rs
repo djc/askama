@@ -25,12 +25,12 @@ mod tests;
 mod _parsed {
     use std::mem;
 
-    use super::{parse, Node, ParseError, Syntax};
+    use super::{Ast, Node, ParseError, Syntax};
 
     pub struct Parsed {
         #[allow(dead_code)]
         source: String,
-        nodes: Vec<Node<'static>>,
+        ast: Ast<'static>,
     }
 
     impl Parsed {
@@ -39,57 +39,64 @@ mod _parsed {
             // internally we will transmute it to `&'static str` to satisfy the compiler.
             // However, we only expose the nodes with a lifetime limited to `self`.
             let src = unsafe { mem::transmute::<&str, &'static str>(source.as_str()) };
-            let nodes = match parse(src, syntax) {
-                Ok(nodes) => nodes,
+            let ast = match Ast::from_str(src, syntax) {
+                Ok(ast) => ast,
                 Err(e) => return Err(e),
             };
 
-            Ok(Self { source, nodes })
+            Ok(Self { source, ast })
         }
 
         // The return value's lifetime must be limited to `self` to uphold the unsafe invariant.
         pub fn nodes(&self) -> &[Node<'_>] {
-            &self.nodes
+            &self.ast.nodes
         }
     }
 }
 
 pub use _parsed::Parsed;
 
-pub fn parse<'a>(src: &'a str, syntax: &Syntax<'_>) -> Result<Vec<Node<'a>>, ParseError> {
-    match Node::parse(src, &State::new(syntax)) {
-        Ok((left, res)) => {
-            if !left.is_empty() {
-                Err(ParseError(format!("unable to parse template:\n\n{left:?}")))
-            } else {
-                Ok(res)
+#[derive(Debug)]
+pub struct Ast<'a> {
+    nodes: Vec<Node<'a>>,
+}
+
+impl<'a> Ast<'a> {
+    pub fn from_str(src: &'a str, syntax: &Syntax<'_>) -> Result<Self, ParseError> {
+        match Node::parse(src, &State::new(syntax)) {
+            Ok((left, nodes)) => {
+                if !left.is_empty() {
+                    Err(ParseError(format!("unable to parse template:\n\n{left:?}")))
+                } else {
+                    Ok(Self { nodes })
+                }
             }
+
+            Err(nom::Err::Error(err)) | Err(nom::Err::Failure(err)) => {
+                let nom::error::Error { input, .. } = err;
+                let offset = src.len() - input.len();
+                let (source_before, source_after) = src.split_at(offset);
+
+                let source_after = match source_after.char_indices().enumerate().take(41).last() {
+                    Some((40, (i, _))) => format!("{:?}...", &source_after[..i]),
+                    _ => format!("{source_after:?}"),
+                };
+
+                let (row, last_line) = source_before.lines().enumerate().last().unwrap();
+                let column = last_line.chars().count();
+
+                let msg = format!(
+                    "problems parsing template source at row {}, column {} near:\n{}",
+                    row + 1,
+                    column,
+                    source_after,
+                );
+
+                Err(ParseError(msg))
+            }
+
+            Err(nom::Err::Incomplete(_)) => Err(ParseError("parsing incomplete".into())),
         }
-
-        Err(nom::Err::Error(err)) | Err(nom::Err::Failure(err)) => {
-            let nom::error::Error { input, .. } = err;
-            let offset = src.len() - input.len();
-            let (source_before, source_after) = src.split_at(offset);
-
-            let source_after = match source_after.char_indices().enumerate().take(41).last() {
-                Some((40, (i, _))) => format!("{:?}...", &source_after[..i]),
-                _ => format!("{source_after:?}"),
-            };
-
-            let (row, last_line) = source_before.lines().enumerate().last().unwrap();
-            let column = last_line.chars().count();
-
-            let msg = format!(
-                "problems parsing template source at row {}, column {} near:\n{}",
-                row + 1,
-                column,
-                source_after,
-            );
-
-            Err(ParseError(msg))
-        }
-
-        Err(nom::Err::Incomplete(_)) => Err(ParseError("parsing incomplete".into())),
     }
 }
 
