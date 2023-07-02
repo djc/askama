@@ -10,9 +10,8 @@ use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{error_position, IResult};
 
 use super::{
-    bool_lit, char_lit, identifier, keyword, num_lit, path, skip_till, split_ws_parts, str_lit,
-    tag_block_end, tag_block_start, tag_comment_end, tag_comment_start, tag_expr_end,
-    tag_expr_start, take_content, ws, Expr, State,
+    bool_lit, char_lit, identifier, keyword, num_lit, path, skip_till, split_ws_parts, str_lit, ws,
+    Expr, State,
 };
 
 #[derive(Debug, PartialEq)]
@@ -103,7 +102,7 @@ pub struct CondTest<'a> {
 }
 
 impl Node<'_> {
-    pub(super) fn parse<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {
+    pub(super) fn parse<'i>(i: &'i str, s: &State<'_>) -> IResult<&'i str, Vec<Node<'i>>> {
         parse_template(i, s)
     }
 }
@@ -161,13 +160,13 @@ fn cond_if(i: &str) -> IResult<&str, CondTest<'_>> {
 
 fn cond_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Cond<'a>> {
     let mut p = tuple((
-        |i| tag_block_start(i, s),
+        |i| s.tag_block_start(i),
         opt(expr_handle_ws),
         ws(keyword("else")),
         cut(tuple((
             opt(cond_if),
             opt(expr_handle_ws),
-            |i| tag_block_end(i, s),
+            |i| s.tag_block_end(i),
             cut(|i| parse_template(i, s)),
         ))),
     ));
@@ -181,12 +180,12 @@ fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         cond_if,
         cut(tuple((
             opt(expr_handle_ws),
-            |i| tag_block_end(i, s),
+            |i| s.tag_block_end(i),
             cut(tuple((
                 |i| parse_template(i, s),
                 many0(|i| cond_block(i, s)),
                 cut(tuple((
-                    |i| tag_block_start(i, s),
+                    |i| s.tag_block_start(i),
                     opt(expr_handle_ws),
                     ws(keyword("endif")),
                     opt(expr_handle_ws),
@@ -203,12 +202,12 @@ fn block_if<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
 fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
     let mut p = tuple((
-        |i| tag_block_start(i, s),
+        |i| s.tag_block_start(i),
         opt(expr_handle_ws),
         ws(keyword("else")),
         cut(tuple((
             opt(expr_handle_ws),
-            |i| tag_block_end(i, s),
+            |i| s.tag_block_end(i),
             cut(|i| parse_template(i, s)),
         ))),
     ));
@@ -218,13 +217,13 @@ fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>>
 
 fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
     let mut p = tuple((
-        |i| tag_block_start(i, s),
+        |i| s.tag_block_start(i),
         opt(expr_handle_ws),
         ws(keyword("when")),
         cut(tuple((
             ws(Target::parse),
             opt(expr_handle_ws),
-            |i| tag_block_end(i, s),
+            |i| s.tag_block_end(i),
             cut(|i| parse_template(i, s)),
         ))),
     ));
@@ -239,14 +238,14 @@ fn block_match<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         cut(tuple((
             ws(Expr::parse),
             opt(expr_handle_ws),
-            |i| tag_block_end(i, s),
+            |i| s.tag_block_end(i),
             cut(tuple((
                 ws(many0(ws(value((), |i| block_comment(i, s))))),
                 many1(|i| when_block(i, s)),
                 cut(tuple((
                     opt(|i| match_else_block(i, s)),
                     cut(tuple((
-                        ws(|i| tag_block_start(i, s)),
+                        ws(|i| s.tag_block_start(i)),
                         opt(expr_handle_ws),
                         ws(keyword("endmatch")),
                         opt(expr_handle_ws),
@@ -302,9 +301,9 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             cut(tuple((
                 opt(expr_handle_ws),
                 delimited(
-                    |i| tag_block_end(i, s),
+                    |i| s.tag_block_end(i),
                     |i| parse_template(i, s),
-                    |i| tag_block_start(i, s),
+                    |i| s.tag_block_start(i),
                 ),
                 opt(expr_handle_ws),
             ))),
@@ -322,11 +321,11 @@ fn block_for<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
                 ws(Expr::parse),
                 opt(if_cond),
                 opt(expr_handle_ws),
-                |i| tag_block_end(i, s),
+                |i| s.tag_block_end(i),
                 cut(tuple((
                     |i| parse_loop_content(i, s),
                     cut(tuple((
-                        |i| tag_block_start(i, s),
+                        |i| s.tag_block_start(i),
                         opt(expr_handle_ws),
                         opt(else_block),
                         ws(keyword("endfor")),
@@ -364,7 +363,7 @@ fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         opt(expr_handle_ws),
         ws(keyword("block")),
         cut(tuple((ws(identifier), opt(expr_handle_ws), |i| {
-            tag_block_end(i, s)
+            s.tag_block_end(i)
         }))),
     ));
     let (i, (pws1, _, (name, nws1, _))) = start(i)?;
@@ -372,7 +371,7 @@ fn block_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut end = cut(tuple((
         |i| parse_template(i, s),
         cut(tuple((
-            |i| tag_block_start(i, s),
+            |i| s.tag_block_start(i),
             opt(expr_handle_ws),
             ws(keyword("endblock")),
             cut(tuple((opt(ws(keyword(name))), opt(expr_handle_ws)))),
@@ -418,7 +417,7 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             ws(identifier),
             opt(ws(parameters)),
             opt(expr_handle_ws),
-            |i| tag_block_end(i, s),
+            |i| s.tag_block_end(i),
         ))),
     ));
     let (i, (pws1, _, (name, params, nws1, _))) = start(i)?;
@@ -426,7 +425,7 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut end = cut(tuple((
         |i| parse_template(i, s),
         cut(tuple((
-            |i| tag_block_start(i, s),
+            |i| s.tag_block_start(i),
             opt(expr_handle_ws),
             ws(keyword("endmacro")),
             cut(tuple((opt(ws(keyword(name))), opt(expr_handle_ws)))),
@@ -454,11 +453,11 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
 fn block_raw<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let endraw = tuple((
-        |i| tag_block_start(i, s),
+        |i| s.tag_block_start(i),
         opt(expr_handle_ws),
         ws(keyword("endraw")),
         opt(expr_handle_ws),
-        peek(|i| tag_block_end(i, s)),
+        peek(|i| s.tag_block_end(i)),
     ));
 
     let mut p = tuple((
@@ -466,7 +465,7 @@ fn block_raw<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         ws(keyword("raw")),
         cut(tuple((
             opt(expr_handle_ws),
-            |i| tag_block_end(i, s),
+            |i| s.tag_block_end(i),
             consumed(skip_till(endraw)),
         ))),
     ));
@@ -509,7 +508,7 @@ fn continue_statement<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a
 
 fn block_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
-        |i| tag_block_start(i, s),
+        |i| s.tag_block_start(i),
         alt((
             block_call,
             block_let,
@@ -525,7 +524,7 @@ fn block_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
             |i| break_statement(i, s),
             |i| continue_statement(i, s),
         )),
-        cut(|i| tag_block_end(i, s)),
+        cut(|i| s.tag_block_end(i)),
     ));
     let (i, (_, contents, _)) = p(i)?;
     Ok((i, contents))
@@ -551,11 +550,11 @@ fn block_comment_body<'a>(mut i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a
 
 fn block_comment<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
-        |i| tag_comment_start(i, s),
+        |i| s.tag_comment_start(i),
         cut(tuple((
             opt(expr_handle_ws),
             |i| block_comment_body(i, s),
-            |i| tag_comment_end(i, s),
+            |i| s.tag_comment_end(i),
         ))),
     ));
     let (i, (_, (pws, tail, _))) = p(i)?;
@@ -573,12 +572,12 @@ fn block_comment<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
 fn expr_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let mut p = tuple((
-        |i| tag_expr_start(i, s),
+        |i| s.tag_expr_start(i),
         cut(tuple((
             opt(expr_handle_ws),
             ws(Expr::parse),
             opt(expr_handle_ws),
-            |i| tag_expr_end(i, s),
+            |i| s.tag_expr_end(i),
         ))),
     ));
     let (i, (_, (pws, expr, nws, _))) = p(i)?;
@@ -587,7 +586,7 @@ fn expr_node<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
 
 fn parse_template<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {
     many0(alt((
-        complete(|i| take_content(i, s)),
+        complete(|i| s.take_content(i)),
         complete(|i| block_comment(i, s)),
         complete(|i| expr_node(i, s)),
         complete(|i| block_node(i, s)),

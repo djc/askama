@@ -22,32 +22,6 @@ mod node;
 #[cfg(test)]
 mod tests;
 
-struct State<'a> {
-    syntax: &'a Syntax<'a>,
-    loop_depth: Cell<usize>,
-}
-
-impl<'a> State<'a> {
-    fn new(syntax: &'a Syntax<'a>) -> State<'a> {
-        State {
-            syntax,
-            loop_depth: Cell::new(0),
-        }
-    }
-
-    fn enter_loop(&self) {
-        self.loop_depth.set(self.loop_depth.get() + 1);
-    }
-
-    fn leave_loop(&self) {
-        self.loop_depth.set(self.loop_depth.get() - 1);
-    }
-
-    fn is_in_loop(&self) -> bool {
-        self.loop_depth.get() > 0
-    }
-}
-
 mod _parsed {
     use std::mem;
 
@@ -305,48 +279,74 @@ fn path(i: &str) -> IResult<&str, Vec<&str>> {
     }
 }
 
-fn take_content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
-    let p_start = alt((
-        tag(s.syntax.block_start),
-        tag(s.syntax.comment_start),
-        tag(s.syntax.expr_start),
-    ));
+struct State<'a> {
+    syntax: &'a Syntax<'a>,
+    loop_depth: Cell<usize>,
+}
 
-    let (i, _) = not(eof)(i)?;
-    let (i, content) = opt(recognize(skip_till(p_start)))(i)?;
-    let (i, content) = match content {
-        Some("") => {
-            // {block,comment,expr}_start follows immediately.
-            return Err(nom::Err::Error(error_position!(i, ErrorKind::TakeUntil)));
+impl<'a> State<'a> {
+    fn new(syntax: &'a Syntax<'a>) -> State<'a> {
+        State {
+            syntax,
+            loop_depth: Cell::new(0),
         }
-        Some(content) => (i, content),
-        None => ("", i), // there is no {block,comment,expr}_start: take everything
-    };
-    Ok((i, split_ws_parts(content)))
-}
+    }
 
-fn tag_block_start<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.block_start)(i)
-}
+    fn take_content<'i>(&self, i: &'i str) -> IResult<&'i str, Node<'i>> {
+        let p_start = alt((
+            tag(self.syntax.block_start),
+            tag(self.syntax.comment_start),
+            tag(self.syntax.expr_start),
+        ));
 
-fn tag_block_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.block_end)(i)
-}
+        let (i, _) = not(eof)(i)?;
+        let (i, content) = opt(recognize(skip_till(p_start)))(i)?;
+        let (i, content) = match content {
+            Some("") => {
+                // {block,comment,expr}_start follows immediately.
+                return Err(nom::Err::Error(error_position!(i, ErrorKind::TakeUntil)));
+            }
+            Some(content) => (i, content),
+            None => ("", i), // there is no {block,comment,expr}_start: take everything
+        };
+        Ok((i, split_ws_parts(content)))
+    }
 
-fn tag_comment_start<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.comment_start)(i)
-}
+    fn tag_block_start<'i>(&self, i: &'i str) -> IResult<&'i str, &'i str> {
+        tag(self.syntax.block_start)(i)
+    }
 
-fn tag_comment_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.comment_end)(i)
-}
+    fn tag_block_end<'i>(&self, i: &'i str) -> IResult<&'i str, &'i str> {
+        tag(self.syntax.block_end)(i)
+    }
 
-fn tag_expr_start<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.expr_start)(i)
-}
+    fn tag_comment_start<'i>(&self, i: &'i str) -> IResult<&'i str, &'i str> {
+        tag(self.syntax.comment_start)(i)
+    }
 
-fn tag_expr_end<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    tag(s.syntax.expr_end)(i)
+    fn tag_comment_end<'i>(&self, i: &'i str) -> IResult<&'i str, &'i str> {
+        tag(self.syntax.comment_end)(i)
+    }
+
+    fn tag_expr_start<'i>(&self, i: &'i str) -> IResult<&'i str, &'i str> {
+        tag(self.syntax.expr_start)(i)
+    }
+
+    fn tag_expr_end<'i>(&self, i: &'i str) -> IResult<&'i str, &'i str> {
+        tag(self.syntax.expr_end)(i)
+    }
+
+    fn enter_loop(&self) {
+        self.loop_depth.set(self.loop_depth.get() + 1);
+    }
+
+    fn leave_loop(&self) {
+        self.loop_depth.set(self.loop_depth.get() - 1);
+    }
+
+    fn is_in_loop(&self) -> bool {
+        self.loop_depth.get() > 0
+    }
 }
 
 #[derive(Debug)]
