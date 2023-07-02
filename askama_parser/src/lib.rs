@@ -48,17 +48,6 @@ impl<'a> State<'a> {
     }
 }
 
-impl From<char> for Whitespace {
-    fn from(c: char) -> Self {
-        match c {
-            '+' => Self::Preserve,
-            '-' => Self::Suppress,
-            '~' => Self::Minimize,
-            _ => panic!("unsupported `Whitespace` conversion"),
-        }
-    }
-}
-
 mod _parsed {
     use std::mem;
 
