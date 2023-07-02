@@ -8,7 +8,7 @@ use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_till};
 use nom::character::complete::char;
 use nom::character::complete::{anychar, digit1};
-use nom::combinator::{eof, map, not, opt, recognize, value};
+use nom::combinator::{map, opt, recognize, value};
 use nom::error::ErrorKind;
 use nom::multi::separated_list1;
 use nom::sequence::{delimited, pair, tuple};
@@ -63,7 +63,7 @@ pub struct Ast<'a> {
 
 impl<'a> Ast<'a> {
     pub fn from_str(src: &'a str, syntax: &Syntax<'_>) -> Result<Self, ParseError> {
-        let err = match Node::parse(src, &State::new(syntax)) {
+        let err = match Node::many(src, &State::new(syntax)) {
             Ok((left, nodes)) => match left.is_empty() {
                 true => return Ok(Self { nodes }),
                 false => return Err(ParseError(format!("unable to parse template:\n\n{left:?}"))),
@@ -244,26 +244,6 @@ impl<'a> State<'a> {
             syntax,
             loop_depth: Cell::new(0),
         }
-    }
-
-    fn take_content<'i>(&self, i: &'i str) -> IResult<&'i str, Node<'i>> {
-        let p_start = alt((
-            tag(self.syntax.block_start),
-            tag(self.syntax.comment_start),
-            tag(self.syntax.expr_start),
-        ));
-
-        let (i, _) = not(eof)(i)?;
-        let (i, content) = opt(recognize(skip_till(p_start)))(i)?;
-        let (i, content) = match content {
-            Some("") => {
-                // {block,comment,expr}_start follows immediately.
-                return Err(nom::Err::Error(error_position!(i, ErrorKind::TakeUntil)));
-            }
-            Some(content) => (i, content),
-            None => ("", i), // there is no {block,comment,expr}_start: take everything
-        };
-        Ok((i, split_ws_parts(content)))
     }
 
     fn tag_block_start<'i>(&self, i: &'i str) -> IResult<&'i str, &'i str> {
