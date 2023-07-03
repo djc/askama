@@ -126,80 +126,80 @@ impl<'a> Expr<'a> {
         }
         Ok((i, expr))
     }
-}
 
-fn expr_bool_lit(i: &str) -> IResult<&str, Expr<'_>> {
-    map(bool_lit, Expr::BoolLit)(i)
-}
-
-fn expr_num_lit(i: &str) -> IResult<&str, Expr<'_>> {
-    map(num_lit, Expr::NumLit)(i)
-}
-
-fn expr_array_lit(i: &str) -> IResult<&str, Expr<'_>> {
-    delimited(
-        ws(char('[')),
-        map(separated_list1(ws(char(',')), Expr::parse), Expr::Array),
-        ws(char(']')),
-    )(i)
-}
-
-fn expr_str_lit(i: &str) -> IResult<&str, Expr<'_>> {
-    map(str_lit, Expr::StrLit)(i)
-}
-
-fn expr_char_lit(i: &str) -> IResult<&str, Expr<'_>> {
-    map(char_lit, Expr::CharLit)(i)
-}
-
-fn expr_var(i: &str) -> IResult<&str, Expr<'_>> {
-    map(identifier, Expr::Var)(i)
-}
-
-fn expr_path(i: &str) -> IResult<&str, Expr<'_>> {
-    let (i, path) = path(i)?;
-    Ok((i, Expr::Path(path)))
-}
-
-fn expr_group(i: &str) -> IResult<&str, Expr<'_>> {
-    let (i, expr) = preceded(ws(char('(')), opt(Expr::parse))(i)?;
-    let expr = match expr {
-        Some(expr) => expr,
-        None => {
-            let (i, _) = char(')')(i)?;
-            return Ok((i, Expr::Tuple(vec![])));
-        }
-    };
-
-    let (i, comma) = ws(opt(peek(char(','))))(i)?;
-    if comma.is_none() {
-        let (i, _) = char(')')(i)?;
-        return Ok((i, Expr::Group(Box::new(expr))));
+    fn single(i: &'a str) -> IResult<&'a str, Self> {
+        alt((
+            Self::bool,
+            Self::num,
+            Self::str,
+            Self::char,
+            Self::path,
+            Self::array,
+            Self::var,
+            Self::group,
+        ))(i)
     }
 
-    let mut exprs = vec![expr];
-    let (i, _) = fold_many0(
-        preceded(char(','), ws(Expr::parse)),
-        || (),
-        |_, expr| {
-            exprs.push(expr);
-        },
-    )(i)?;
-    let (i, _) = pair(ws(opt(char(','))), char(')'))(i)?;
-    Ok((i, Expr::Tuple(exprs)))
-}
+    fn group(i: &'a str) -> IResult<&'a str, Self> {
+        let (i, expr) = preceded(ws(char('(')), opt(Self::parse))(i)?;
+        let expr = match expr {
+            Some(expr) => expr,
+            None => {
+                let (i, _) = char(')')(i)?;
+                return Ok((i, Self::Tuple(vec![])));
+            }
+        };
 
-fn expr_single(i: &str) -> IResult<&str, Expr<'_>> {
-    alt((
-        expr_bool_lit,
-        expr_num_lit,
-        expr_str_lit,
-        expr_char_lit,
-        expr_path,
-        expr_array_lit,
-        expr_var,
-        expr_group,
-    ))(i)
+        let (i, comma) = ws(opt(peek(char(','))))(i)?;
+        if comma.is_none() {
+            let (i, _) = char(')')(i)?;
+            return Ok((i, Self::Group(Box::new(expr))));
+        }
+
+        let mut exprs = vec![expr];
+        let (i, _) = fold_many0(
+            preceded(char(','), ws(Self::parse)),
+            || (),
+            |_, expr| {
+                exprs.push(expr);
+            },
+        )(i)?;
+        let (i, _) = pair(ws(opt(char(','))), char(')'))(i)?;
+        Ok((i, Self::Tuple(exprs)))
+    }
+
+    fn array(i: &'a str) -> IResult<&'a str, Self> {
+        delimited(
+            ws(char('[')),
+            map(separated_list1(ws(char(',')), Self::parse), Self::Array),
+            ws(char(']')),
+        )(i)
+    }
+
+    fn path(i: &'a str) -> IResult<&'a str, Self> {
+        let (i, path) = path(i)?;
+        Ok((i, Self::Path(path)))
+    }
+
+    fn var(i: &'a str) -> IResult<&'a str, Self> {
+        map(identifier, Self::Var)(i)
+    }
+
+    fn str(i: &'a str) -> IResult<&'a str, Self> {
+        map(str_lit, Self::StrLit)(i)
+    }
+
+    fn num(i: &'a str) -> IResult<&'a str, Self> {
+        map(num_lit, Self::NumLit)(i)
+    }
+
+    fn char(i: &'a str) -> IResult<&'a str, Self> {
+        map(char_lit, Self::CharLit)(i)
+    }
+
+    fn bool(i: &'a str) -> IResult<&'a str, Self> {
+        map(bool_lit, Self::BoolLit)(i)
+    }
 }
 
 enum Suffix<'a> {
@@ -213,7 +213,7 @@ enum Suffix<'a> {
 
 impl<'a> Suffix<'a> {
     fn parse(i: &'a str) -> IResult<&'a str, Expr<'a>> {
-        let (mut i, mut expr) = expr_single(i)?;
+        let (mut i, mut expr) = Expr::single(i)?;
         loop {
             let (j, suffix) = opt(alt((
                 Self::attr,
