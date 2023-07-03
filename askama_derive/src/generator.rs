@@ -762,7 +762,7 @@ impl<'a> Generator<'a> {
 
             buf.writeln(" {")?;
 
-            arm_size += self.handle(ctx, &cond.block, buf, AstLevel::Nested)?;
+            arm_size += self.handle(ctx, &cond.nodes, buf, AstLevel::Nested)?;
             arm_sizes.push(arm_size);
         }
         self.handle_ws(ws);
@@ -809,7 +809,7 @@ impl<'a> Generator<'a> {
             self.visit_target(buf, true, true, &arm.target);
             buf.writeln(" => {")?;
 
-            arm_size = self.handle(ctx, &arm.block, buf, AstLevel::Nested)?;
+            arm_size = self.handle(ctx, &arm.nodes, buf, AstLevel::Nested)?;
         }
 
         self.handle_ws(ws2);
@@ -881,7 +881,7 @@ impl<'a> Generator<'a> {
 
         buf.writeln("if !_did_loop {")?;
         self.locals.push();
-        let mut size_hint2 = self.handle(ctx, &loop_block.else_block, buf, AstLevel::Nested)?;
+        let mut size_hint2 = self.handle(ctx, &loop_block.else_nodes, buf, AstLevel::Nested)?;
         self.handle_ws(loop_block.ws3);
         size_hint2 += self.write_buf_writable(buf)?;
         self.locals.pop();

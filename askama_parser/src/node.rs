@@ -147,14 +147,15 @@ impl<'a> Node<'a> {
                 ))),
             ))),
         ));
-        let (i, (pws1, cond, (nws1, _, (block, elifs, (_, pws2, _, nws2))))) = p(i)?;
 
+        let (i, (pws1, cond, (nws1, _, (nodes, elifs, (_, pws2, _, nws2))))) = p(i)?;
         let mut res = vec![Cond {
             ws: Ws(pws1, nws1),
             cond: Some(cond),
-            block,
+            nodes,
         }];
         res.extend(elifs);
+
         Ok((i, Self::Cond(res, Ws(pws2, nws2))))
     }
 
@@ -219,7 +220,7 @@ impl<'a> Node<'a> {
                 cond,
                 body,
                 ws2: Ws(pws2, nws3),
-                else_block,
+                else_nodes: else_block,
                 ws3: Ws(pws3, nws2),
             }),
         ))
@@ -582,7 +583,7 @@ impl<'a> Target<'a> {
 pub struct When<'a> {
     pub ws: Ws,
     pub target: Target<'a>,
-    pub block: Vec<Node<'a>>,
+    pub nodes: Vec<Node<'a>>,
 }
 
 impl<'a> When<'a> {
@@ -597,13 +598,13 @@ impl<'a> When<'a> {
                 cut(|i| Node::many(i, s)),
             ))),
         ));
-        let (i, (_, pws, _, (nws, _, block))) = p(i)?;
+        let (i, (_, pws, _, (nws, _, nodes))) = p(i)?;
         Ok((
             i,
             Self {
                 ws: Ws(pws, nws),
                 target: Target::Name("_"),
-                block,
+                nodes,
             },
         ))
     }
@@ -621,13 +622,13 @@ impl<'a> When<'a> {
                 cut(|i| Node::many(i, s)),
             ))),
         ));
-        let (i, (_, pws, _, (target, nws, _, block))) = p(i)?;
+        let (i, (_, pws, _, (target, nws, _, nodes))) = p(i)?;
         Ok((
             i,
             Self {
                 ws: Ws(pws, nws),
                 target,
-                block,
+                nodes,
             },
         ))
     }
@@ -637,7 +638,7 @@ impl<'a> When<'a> {
 pub struct Cond<'a> {
     pub ws: Ws,
     pub cond: Option<CondTest<'a>>,
-    pub block: Vec<Node<'a>>,
+    pub nodes: Vec<Node<'a>>,
 }
 
 impl<'a> Cond<'a> {
@@ -653,13 +654,13 @@ impl<'a> Cond<'a> {
                 cut(|i| Node::many(i, s)),
             ))),
         ));
-        let (i, (_, pws, _, (cond, nws, _, block))) = p(i)?;
+        let (i, (_, pws, _, (cond, nws, _, nodes))) = p(i)?;
         Ok((
             i,
             Self {
                 ws: Ws(pws, nws),
                 cond,
-                block,
+                nodes,
             },
         ))
     }
@@ -721,7 +722,7 @@ pub struct Loop<'a> {
     pub cond: Option<Expr<'a>>,
     pub body: Vec<Node<'a>>,
     pub ws2: Ws,
-    pub else_block: Vec<Node<'a>>,
+    pub else_nodes: Vec<Node<'a>>,
     pub ws3: Ws,
 }
 

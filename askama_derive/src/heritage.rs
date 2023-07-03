@@ -84,18 +84,20 @@ impl Context<'_> {
                     }
                     Node::Cond(branches, _) => {
                         for cond in branches {
-                            nested.push(&cond.block);
+                            nested.push(&cond.nodes);
                         }
                     }
                     Node::Loop(Loop {
-                        body, else_block, ..
+                        body,
+                        else_nodes: else_block,
+                        ..
                     }) => {
                         nested.push(body);
                         nested.push(else_block);
                     }
                     Node::Match(_, _, arms, _) => {
                         for arm in arms {
-                            nested.push(&arm.block);
+                            nested.push(&arm.nodes);
                         }
                     }
                     _ => {}
