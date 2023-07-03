@@ -228,9 +228,9 @@ impl<'a> Node<'a> {
                 |i| s.tag_block_end(i),
                 cut(tuple((
                     ws(many0(ws(value((), |i| Self::comment(i, s))))),
-                    many1(|i| when_block(i, s)),
+                    many1(|i| When::when(i, s)),
                     cut(tuple((
-                        opt(|i| match_else_block(i, s)),
+                        opt(|i| When::r#match(i, s)),
                         cut(tuple((
                             ws(|i| s.tag_block_start(i)),
                             opt(Whitespace::parse),
@@ -588,6 +588,54 @@ pub struct When<'a> {
     pub block: Vec<Node<'a>>,
 }
 
+impl<'a> When<'a> {
+    fn r#match(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+        let mut p = tuple((
+            |i| s.tag_block_start(i),
+            opt(Whitespace::parse),
+            ws(keyword("else")),
+            cut(tuple((
+                opt(Whitespace::parse),
+                |i| s.tag_block_end(i),
+                cut(|i| Node::many(i, s)),
+            ))),
+        ));
+        let (i, (_, pws, _, (nws, _, block))) = p(i)?;
+        Ok((
+            i,
+            Self {
+                ws: Ws(pws, nws),
+                target: Target::Name("_"),
+                block,
+            },
+        ))
+    }
+
+    #[allow(clippy::self_named_constructors)]
+    fn when(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+        let mut p = tuple((
+            |i| s.tag_block_start(i),
+            opt(Whitespace::parse),
+            ws(keyword("when")),
+            cut(tuple((
+                ws(Target::parse),
+                opt(Whitespace::parse),
+                |i| s.tag_block_end(i),
+                cut(|i| Node::many(i, s)),
+            ))),
+        ));
+        let (i, (_, pws, _, (target, nws, _, block))) = p(i)?;
+        Ok((
+            i,
+            Self {
+                ws: Ws(pws, nws),
+                target,
+                block,
+            },
+        ))
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Macro<'a> {
     pub ws1: Ws,
@@ -657,51 +705,6 @@ fn cond_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Cond<'a>> {
         Cond {
             ws: Ws(pws, nws),
             cond,
-            block,
-        },
-    ))
-}
-
-fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
-    let mut p = tuple((
-        |i| s.tag_block_start(i),
-        opt(Whitespace::parse),
-        ws(keyword("else")),
-        cut(tuple((
-            opt(Whitespace::parse),
-            |i| s.tag_block_end(i),
-            cut(|i| Node::many(i, s)),
-        ))),
-    ));
-    let (i, (_, pws, _, (nws, _, block))) = p(i)?;
-    Ok((
-        i,
-        When {
-            ws: Ws(pws, nws),
-            target: Target::Name("_"),
-            block,
-        },
-    ))
-}
-
-fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
-    let mut p = tuple((
-        |i| s.tag_block_start(i),
-        opt(Whitespace::parse),
-        ws(keyword("when")),
-        cut(tuple((
-            ws(Target::parse),
-            opt(Whitespace::parse),
-            |i| s.tag_block_end(i),
-            cut(|i| Node::many(i, s)),
-        ))),
-    ));
-    let (i, (_, pws, _, (target, nws, _, block))) = p(i)?;
-    Ok((
-        i,
-        When {
-            ws: Ws(pws, nws),
-            target,
             block,
         },
     ))
