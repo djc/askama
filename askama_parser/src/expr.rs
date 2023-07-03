@@ -126,35 +126,70 @@ enum Suffix<'a> {
     Try,
 }
 
-fn expr_attr(i: &str) -> IResult<&str, Suffix<'_>> {
-    map(
+impl<'a> Suffix<'a> {
+    fn parse(i: &'a str) -> IResult<&'a str, Expr<'a>> {
+        let (mut i, mut expr) = expr_single(i)?;
+        loop {
+            let (j, suffix) = opt(alt((
+                Self::attr,
+                Self::index,
+                Self::call,
+                Self::r#try,
+                Self::r#macro,
+            )))(i)?;
+
+            match suffix {
+                Some(Self::Attr(attr)) => expr = Expr::Attr(expr.into(), attr),
+                Some(Self::Index(index)) => expr = Expr::Index(expr.into(), index.into()),
+                Some(Self::Call(args)) => expr = Expr::Call(expr.into(), args),
+                Some(Self::Try) => expr = Expr::Try(expr.into()),
+                Some(Self::MacroCall(args)) => match expr {
+                    Expr::Path(path) => expr = Expr::RustMacro(path, args),
+                    Expr::Var(name) => expr = Expr::RustMacro(vec![name], args),
+                    _ => return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag))),
+                },
+                None => break,
+            }
+
+            i = j;
+        }
+        Ok((i, expr))
+    }
+
+    fn r#macro(i: &'a str) -> IResult<&'a str, Self> {
         preceded(
-            ws(pair(char('.'), not(char('.')))),
-            cut(alt((num_lit, identifier))),
-        ),
-        Suffix::Attr,
-    )(i)
-}
+            pair(ws(char('!')), char('(')),
+            cut(terminated(
+                map(recognize(nested_parenthesis), Self::MacroCall),
+                char(')'),
+            )),
+        )(i)
+    }
 
-fn expr_index(i: &str) -> IResult<&str, Suffix<'_>> {
-    map(
-        preceded(ws(char('[')), cut(terminated(expr_any, ws(char(']'))))),
-        Suffix::Index,
-    )(i)
-}
+    fn attr(i: &'a str) -> IResult<&'a str, Self> {
+        map(
+            preceded(
+                ws(pair(char('.'), not(char('.')))),
+                cut(alt((num_lit, identifier))),
+            ),
+            Self::Attr,
+        )(i)
+    }
 
-fn expr_call(i: &str) -> IResult<&str, Suffix<'_>> {
-    map(arguments, Suffix::Call)(i)
-}
+    fn index(i: &'a str) -> IResult<&'a str, Self> {
+        map(
+            preceded(ws(char('[')), cut(terminated(expr_any, ws(char(']'))))),
+            Self::Index,
+        )(i)
+    }
 
-fn expr_macro(i: &str) -> IResult<&str, Suffix<'_>> {
-    preceded(
-        pair(ws(char('!')), char('(')),
-        cut(terminated(
-            map(recognize(nested_parenthesis), Suffix::MacroCall),
-            char(')'),
-        )),
-    )(i)
+    fn call(i: &'a str) -> IResult<&'a str, Self> {
+        map(arguments, Self::Call)(i)
+    }
+
+    fn r#try(i: &'a str) -> IResult<&'a str, Self> {
+        map(preceded(take_till(not_ws), char('?')), |_| Self::Try)(i)
+    }
 }
 
 fn nested_parenthesis(i: &str) -> IResult<&str, ()> {
@@ -205,10 +240,6 @@ fn nested_parenthesis(i: &str) -> IResult<&str, ()> {
     }
 }
 
-fn expr_try(i: &str) -> IResult<&str, Suffix<'_>> {
-    map(preceded(take_till(not_ws), char('?')), |_| Suffix::Try)(i)
-}
-
 fn filter(i: &str) -> IResult<&str, (&str, Option<Vec<Expr<'_>>>)> {
     let (i, (_, fname, args)) = tuple((char('|'), ws(identifier), opt(arguments)))(i)?;
     Ok((i, (fname, args)))
@@ -233,32 +264,9 @@ fn expr_filtered(i: &str) -> IResult<&str, Expr<'_>> {
 }
 
 fn expr_prefix(i: &str) -> IResult<&str, Expr<'_>> {
-    let (i, (ops, mut expr)) = pair(many0(ws(alt((tag("!"), tag("-"))))), expr_suffix)(i)?;
+    let (i, (ops, mut expr)) = pair(many0(ws(alt((tag("!"), tag("-"))))), Suffix::parse)(i)?;
     for op in ops.iter().rev() {
         expr = Expr::Unary(op, Box::new(expr));
-    }
-    Ok((i, expr))
-}
-
-fn expr_suffix(i: &str) -> IResult<&str, Expr<'_>> {
-    let (mut i, mut expr) = expr_single(i)?;
-    loop {
-        let (j, suffix) = opt(alt((
-            expr_attr, expr_index, expr_call, expr_try, expr_macro,
-        )))(i)?;
-        match suffix {
-            Some(Suffix::Attr(attr)) => expr = Expr::Attr(expr.into(), attr),
-            Some(Suffix::Index(index)) => expr = Expr::Index(expr.into(), index.into()),
-            Some(Suffix::Call(args)) => expr = Expr::Call(expr.into(), args),
-            Some(Suffix::Try) => expr = Expr::Try(expr.into()),
-            Some(Suffix::MacroCall(args)) => match expr {
-                Expr::Path(path) => expr = Expr::RustMacro(path, args),
-                Expr::Var(name) => expr = Expr::RustMacro(vec![name], args),
-                _ => return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag))),
-            },
-            None => break,
-        }
-        i = j;
     }
     Ok((i, expr))
 }
