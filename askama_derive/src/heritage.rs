@@ -94,8 +94,8 @@ impl Context<'_> {
                         nested.push(else_block);
                     }
                     Node::Match(_, _, arms, _) => {
-                        for (_, _, arm) in arms {
-                            nested.push(arm);
+                        for arm in arms {
+                            nested.push(&arm.block);
                         }
                     }
                     _ => {}

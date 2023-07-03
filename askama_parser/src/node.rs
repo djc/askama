@@ -581,7 +581,12 @@ pub struct Loop<'a> {
     pub ws3: Ws,
 }
 
-pub type When<'a> = (Ws, Target<'a>, Vec<Node<'a>>);
+#[derive(Debug, PartialEq)]
+pub struct When<'a> {
+    pub ws: Ws,
+    pub target: Target<'a>,
+    pub block: Vec<Node<'a>>,
+}
 
 #[derive(Debug, PartialEq)]
 pub struct Macro<'a> {
@@ -669,7 +674,14 @@ fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>>
         ))),
     ));
     let (i, (_, pws, _, (nws, _, block))) = p(i)?;
-    Ok((i, (Ws(pws, nws), Target::Name("_"), block)))
+    Ok((
+        i,
+        When {
+            ws: Ws(pws, nws),
+            target: Target::Name("_"),
+            block,
+        },
+    ))
 }
 
 fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
@@ -685,7 +697,14 @@ fn when_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {
         ))),
     ));
     let (i, (_, pws, _, (target, nws, _, block))) = p(i)?;
-    Ok((i, (Ws(pws, nws), target, block)))
+    Ok((
+        i,
+        When {
+            ws: Ws(pws, nws),
+            target,
+            block,
+        },
+    ))
 }
 
 fn parse_loop_content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {
