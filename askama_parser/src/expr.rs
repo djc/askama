@@ -33,13 +33,29 @@ pub enum Expr<'a> {
     Try(Box<Expr<'a>>),
 }
 
-impl Expr<'_> {
-    pub(super) fn parse(i: &str) -> IResult<&str, Expr<'_>> {
-        expr_any(i)
+impl<'a> Expr<'a> {
+    pub(super) fn arguments(i: &'a str) -> IResult<&'a str, Vec<Self>> {
+        delimited(
+            ws(char('(')),
+            separated_list0(char(','), ws(Self::parse)),
+            ws(char(')')),
+        )(i)
     }
 
-    pub(super) fn parse_arguments(i: &str) -> IResult<&str, Vec<Expr<'_>>> {
-        arguments(i)
+    pub(super) fn parse(i: &'a str) -> IResult<&'a str, Self> {
+        let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(expr_or))(i);
+        alt((
+            map(range_right, |(op, right)| {
+                Self::Range(op, None, right.map(Box::new))
+            }),
+            map(
+                pair(expr_or, opt(range_right)),
+                |(left, right)| match right {
+                    Some((op, right)) => Self::Range(op, Some(Box::new(left)), right.map(Box::new)),
+                    None => left,
+                },
+            ),
+        ))(i)
     }
 }
 
@@ -54,7 +70,7 @@ fn expr_num_lit(i: &str) -> IResult<&str, Expr<'_>> {
 fn expr_array_lit(i: &str) -> IResult<&str, Expr<'_>> {
     delimited(
         ws(char('[')),
-        map(separated_list1(ws(char(',')), expr_any), Expr::Array),
+        map(separated_list1(ws(char(',')), Expr::parse), Expr::Array),
         ws(char(']')),
     )(i)
 }
@@ -77,7 +93,7 @@ fn expr_path(i: &str) -> IResult<&str, Expr<'_>> {
 }
 
 fn expr_group(i: &str) -> IResult<&str, Expr<'_>> {
-    let (i, expr) = preceded(ws(char('(')), opt(expr_any))(i)?;
+    let (i, expr) = preceded(ws(char('(')), opt(Expr::parse))(i)?;
     let expr = match expr {
         Some(expr) => expr,
         None => {
@@ -94,7 +110,7 @@ fn expr_group(i: &str) -> IResult<&str, Expr<'_>> {
 
     let mut exprs = vec![expr];
     let (i, _) = fold_many0(
-        preceded(char(','), ws(expr_any)),
+        preceded(char(','), ws(Expr::parse)),
         || (),
         |_, expr| {
             exprs.push(expr);
@@ -178,13 +194,13 @@ impl<'a> Suffix<'a> {
 
     fn index(i: &'a str) -> IResult<&'a str, Self> {
         map(
-            preceded(ws(char('[')), cut(terminated(expr_any, ws(char(']'))))),
+            preceded(ws(char('[')), cut(terminated(Expr::parse, ws(char(']'))))),
             Self::Index,
         )(i)
     }
 
     fn call(i: &'a str) -> IResult<&'a str, Self> {
-        map(arguments, Self::Call)(i)
+        map(Expr::arguments, Self::Call)(i)
     }
 
     fn r#try(i: &'a str) -> IResult<&'a str, Self> {
@@ -241,7 +257,7 @@ fn nested_parenthesis(i: &str) -> IResult<&str, ()> {
 }
 
 fn filter(i: &str) -> IResult<&str, (&str, Option<Vec<Expr<'_>>>)> {
-    let (i, (_, fname, args)) = tuple((char('|'), ws(identifier), opt(arguments)))(i)?;
+    let (i, (_, fname, args)) = tuple((char('|'), ws(identifier), opt(Expr::arguments)))(i)?;
     Ok((i, (fname, args)))
 }
 
@@ -313,27 +329,3 @@ expr_prec_layer!(expr_bor, expr_bxor, "|");
 expr_prec_layer!(expr_compare, expr_bor, "==", "!=", ">=", ">", "<=", "<");
 expr_prec_layer!(expr_and, expr_compare, "&&");
 expr_prec_layer!(expr_or, expr_and, "||");
-
-fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
-    let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(expr_or))(i);
-    alt((
-        map(range_right, |(op, right)| {
-            Expr::Range(op, None, right.map(Box::new))
-        }),
-        map(
-            pair(expr_or, opt(range_right)),
-            |(left, right)| match right {
-                Some((op, right)) => Expr::Range(op, Some(Box::new(left)), right.map(Box::new)),
-                None => left,
-            },
-        ),
-    ))(i)
-}
-
-fn arguments(i: &str) -> IResult<&str, Vec<Expr<'_>>> {
-    delimited(
-        ws(char('(')),
-        separated_list0(char(','), ws(expr_any)),
-        ws(char(')')),
-    )(i)
-}
