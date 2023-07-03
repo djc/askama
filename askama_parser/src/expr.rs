@@ -11,6 +11,39 @@ use nom::{error_position, IResult};
 
 use super::{bool_lit, char_lit, identifier, not_ws, num_lit, path, str_lit, ws};
 
+macro_rules! expr_prec_layer {
+    ( $name:ident, $inner:ident, $op:expr ) => {
+        fn $name(i: &'a str) -> IResult<&'a str, Self> {
+            let (i, left) = Self::$inner(i)?;
+            let (i, right) = many0(pair(
+                ws(tag($op)),
+                Self::$inner,
+            ))(i)?;
+            Ok((
+                i,
+                right.into_iter().fold(left, |left, (op, right)| {
+                    Self::BinOp(op, Box::new(left), Box::new(right))
+                }),
+            ))
+        }
+    };
+    ( $name:ident, $inner:ident, $( $op:expr ),+ ) => {
+        fn $name(i: &'a str) -> IResult<&'a str, Self> {
+            let (i, left) = Self::$inner(i)?;
+            let (i, right) = many0(pair(
+                ws(alt(($( tag($op) ),+,))),
+                Self::$inner,
+            ))(i)?;
+            Ok((
+                i,
+                right.into_iter().fold(left, |left, (op, right)| {
+                    Self::BinOp(op, Box::new(left), Box::new(right))
+                }),
+            ))
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Expr<'a> {
     BoolLit(&'a str),
@@ -43,19 +76,55 @@ impl<'a> Expr<'a> {
     }
 
     pub(super) fn parse(i: &'a str) -> IResult<&'a str, Self> {
-        let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(expr_or))(i);
+        let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(Self::or))(i);
         alt((
             map(range_right, |(op, right)| {
                 Self::Range(op, None, right.map(Box::new))
             }),
             map(
-                pair(expr_or, opt(range_right)),
+                pair(Self::or, opt(range_right)),
                 |(left, right)| match right {
                     Some((op, right)) => Self::Range(op, Some(Box::new(left)), right.map(Box::new)),
                     None => left,
                 },
             ),
         ))(i)
+    }
+
+    expr_prec_layer!(or, and, "||");
+    expr_prec_layer!(and, compare, "&&");
+    expr_prec_layer!(compare, bor, "==", "!=", ">=", ">", "<=", "<");
+    expr_prec_layer!(bor, bxor, "|");
+    expr_prec_layer!(bxor, band, "^");
+    expr_prec_layer!(band, shifts, "&");
+    expr_prec_layer!(shifts, addsub, ">>", "<<");
+    expr_prec_layer!(addsub, muldivmod, "+", "-");
+    expr_prec_layer!(muldivmod, filtered, "*", "/", "%");
+
+    fn filtered(i: &'a str) -> IResult<&'a str, Self> {
+        let (i, (obj, filters)) = tuple((Self::prefix, many0(filter)))(i)?;
+
+        let mut res = obj;
+        for (fname, args) in filters {
+            res = Self::Filter(fname, {
+                let mut args = match args {
+                    Some(inner) => inner,
+                    None => Vec::new(),
+                };
+                args.insert(0, res);
+                args
+            });
+        }
+
+        Ok((i, res))
+    }
+
+    fn prefix(i: &'a str) -> IResult<&'a str, Self> {
+        let (i, (ops, mut expr)) = pair(many0(ws(alt((tag("!"), tag("-"))))), Suffix::parse)(i)?;
+        for op in ops.iter().rev() {
+            expr = Self::Unary(op, Box::new(expr));
+        }
+        Ok((i, expr))
     }
 }
 
@@ -260,72 +329,3 @@ fn filter(i: &str) -> IResult<&str, (&str, Option<Vec<Expr<'_>>>)> {
     let (i, (_, fname, args)) = tuple((char('|'), ws(identifier), opt(Expr::arguments)))(i)?;
     Ok((i, (fname, args)))
 }
-
-fn expr_filtered(i: &str) -> IResult<&str, Expr<'_>> {
-    let (i, (obj, filters)) = tuple((expr_prefix, many0(filter)))(i)?;
-
-    let mut res = obj;
-    for (fname, args) in filters {
-        res = Expr::Filter(fname, {
-            let mut args = match args {
-                Some(inner) => inner,
-                None => Vec::new(),
-            };
-            args.insert(0, res);
-            args
-        });
-    }
-
-    Ok((i, res))
-}
-
-fn expr_prefix(i: &str) -> IResult<&str, Expr<'_>> {
-    let (i, (ops, mut expr)) = pair(many0(ws(alt((tag("!"), tag("-"))))), Suffix::parse)(i)?;
-    for op in ops.iter().rev() {
-        expr = Expr::Unary(op, Box::new(expr));
-    }
-    Ok((i, expr))
-}
-
-macro_rules! expr_prec_layer {
-    ( $name:ident, $inner:ident, $op:expr ) => {
-        fn $name(i: &str) -> IResult<&str, Expr<'_>> {
-            let (i, left) = $inner(i)?;
-            let (i, right) = many0(pair(
-                ws(tag($op)),
-                $inner,
-            ))(i)?;
-            Ok((
-                i,
-                right.into_iter().fold(left, |left, (op, right)| {
-                    Expr::BinOp(op, Box::new(left), Box::new(right))
-                }),
-            ))
-        }
-    };
-    ( $name:ident, $inner:ident, $( $op:expr ),+ ) => {
-        fn $name(i: &str) -> IResult<&str, Expr<'_>> {
-            let (i, left) = $inner(i)?;
-            let (i, right) = many0(pair(
-                ws(alt(($( tag($op) ),+,))),
-                $inner,
-            ))(i)?;
-            Ok((
-                i,
-                right.into_iter().fold(left, |left, (op, right)| {
-                    Expr::BinOp(op, Box::new(left), Box::new(right))
-                }),
-            ))
-        }
-    }
-}
-
-expr_prec_layer!(expr_muldivmod, expr_filtered, "*", "/", "%");
-expr_prec_layer!(expr_addsub, expr_muldivmod, "+", "-");
-expr_prec_layer!(expr_shifts, expr_addsub, ">>", "<<");
-expr_prec_layer!(expr_band, expr_shifts, "&");
-expr_prec_layer!(expr_bxor, expr_band, "^");
-expr_prec_layer!(expr_bor, expr_bxor, "|");
-expr_prec_layer!(expr_compare, expr_bor, "==", "!=", ">=", ">", "<=", "<");
-expr_prec_layer!(expr_and, expr_compare, "&&");
-expr_prec_layer!(expr_or, expr_and, "||");
