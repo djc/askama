@@ -131,13 +131,13 @@ impl<'a> Node<'a> {
     fn r#if(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
-            cond_if,
+            CondTest::parse,
             cut(tuple((
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
                 cut(tuple((
                     |i| Node::many(i, s),
-                    many0(|i| cond_block(i, s)),
+                    many0(|i| Cond::parse(i, s)),
                     cut(tuple((
                         |i| s.tag_block_start(i),
                         opt(Whitespace::parse),
@@ -690,47 +690,51 @@ pub struct Cond<'a> {
     pub block: Vec<Node<'a>>,
 }
 
+impl<'a> Cond<'a> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+        let mut p = tuple((
+            |i| s.tag_block_start(i),
+            opt(Whitespace::parse),
+            ws(keyword("else")),
+            cut(tuple((
+                opt(CondTest::parse),
+                opt(Whitespace::parse),
+                |i| s.tag_block_end(i),
+                cut(|i| Node::many(i, s)),
+            ))),
+        ));
+        let (i, (_, pws, _, (cond, nws, _, block))) = p(i)?;
+        Ok((
+            i,
+            Self {
+                ws: Ws(pws, nws),
+                cond,
+                block,
+            },
+        ))
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct CondTest<'a> {
     pub target: Option<Target<'a>>,
     pub expr: Expr<'a>,
 }
 
-fn cond_if(i: &str) -> IResult<&str, CondTest<'_>> {
-    let mut p = preceded(
-        ws(keyword("if")),
-        cut(tuple((
-            opt(delimited(
-                ws(alt((keyword("let"), keyword("set")))),
-                ws(Target::parse),
-                ws(char('=')),
-            )),
-            ws(Expr::parse),
-        ))),
-    );
-    let (i, (target, expr)) = p(i)?;
-    Ok((i, CondTest { target, expr }))
-}
-
-fn cond_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Cond<'a>> {
-    let mut p = tuple((
-        |i| s.tag_block_start(i),
-        opt(Whitespace::parse),
-        ws(keyword("else")),
-        cut(tuple((
-            opt(cond_if),
-            opt(Whitespace::parse),
-            |i| s.tag_block_end(i),
-            cut(|i| Node::many(i, s)),
-        ))),
-    ));
-    let (i, (_, pws, _, (cond, nws, _, block))) = p(i)?;
-    Ok((
-        i,
-        Cond {
-            ws: Ws(pws, nws),
-            cond,
-            block,
-        },
-    ))
+impl<'a> CondTest<'a> {
+    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+        let mut p = preceded(
+            ws(keyword("if")),
+            cut(tuple((
+                opt(delimited(
+                    ws(alt((keyword("let"), keyword("set")))),
+                    ws(Target::parse),
+                    ws(char('=')),
+                )),
+                ws(Expr::parse),
+            ))),
+        );
+        let (i, (target, expr)) = p(i)?;
+        Ok((i, Self { target, expr }))
+    }
 }
