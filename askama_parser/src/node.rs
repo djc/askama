@@ -578,42 +578,6 @@ impl<'a> Target<'a> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Whitespace {
-    Preserve,
-    Suppress,
-    Minimize,
-}
-
-impl Whitespace {
-    fn parse(i: &str) -> IResult<&str, Self> {
-        alt((char('-'), char('+'), char('~')))(i).map(|(s, r)| (s, Self::from(r)))
-    }
-}
-
-impl From<char> for Whitespace {
-    fn from(c: char) -> Self {
-        match c {
-            '+' => Self::Preserve,
-            '-' => Self::Suppress,
-            '~' => Self::Minimize,
-            _ => panic!("unsupported `Whitespace` conversion"),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Loop<'a> {
-    pub ws1: Ws,
-    pub var: Target<'a>,
-    pub iter: Expr<'a>,
-    pub cond: Option<Expr<'a>>,
-    pub body: Vec<Node<'a>>,
-    pub ws2: Ws,
-    pub else_block: Vec<Node<'a>>,
-    pub ws3: Ws,
-}
-
 #[derive(Debug, PartialEq)]
 pub struct When<'a> {
     pub ws: Ws,
@@ -670,20 +634,6 @@ impl<'a> When<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Macro<'a> {
-    pub ws1: Ws,
-    pub args: Vec<&'a str>,
-    pub nodes: Vec<Node<'a>>,
-    pub ws2: Ws,
-}
-
-/// First field is "minus/plus sign was used on the left part of the item".
-///
-/// Second field is "minus/plus sign was used on the right part of the item".
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Ws(pub Option<Whitespace>, pub Option<Whitespace>);
-
-#[derive(Debug, PartialEq)]
 pub struct Cond<'a> {
     pub ws: Ws,
     pub cond: Option<CondTest<'a>>,
@@ -738,3 +688,53 @@ impl<'a> CondTest<'a> {
         Ok((i, Self { target, expr }))
     }
 }
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Whitespace {
+    Preserve,
+    Suppress,
+    Minimize,
+}
+
+impl Whitespace {
+    fn parse(i: &str) -> IResult<&str, Self> {
+        alt((char('-'), char('+'), char('~')))(i).map(|(s, r)| (s, Self::from(r)))
+    }
+}
+
+impl From<char> for Whitespace {
+    fn from(c: char) -> Self {
+        match c {
+            '+' => Self::Preserve,
+            '-' => Self::Suppress,
+            '~' => Self::Minimize,
+            _ => panic!("unsupported `Whitespace` conversion"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Loop<'a> {
+    pub ws1: Ws,
+    pub var: Target<'a>,
+    pub iter: Expr<'a>,
+    pub cond: Option<Expr<'a>>,
+    pub body: Vec<Node<'a>>,
+    pub ws2: Ws,
+    pub else_block: Vec<Node<'a>>,
+    pub ws3: Ws,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Macro<'a> {
+    pub ws1: Ws,
+    pub args: Vec<&'a str>,
+    pub nodes: Vec<Node<'a>>,
+    pub ws2: Ws,
+}
+
+/// First field is "minus/plus sign was used on the left part of the item".
+///
+/// Second field is "minus/plus sign was used on the right part of the item".
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Ws(pub Option<Whitespace>, pub Option<Whitespace>);
