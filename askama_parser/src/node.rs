@@ -159,6 +159,13 @@ impl<'a> Node<'a> {
     }
 
     fn r#for(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+        fn content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {
+            s.enter_loop();
+            let result = Node::many(i, s);
+            s.leave_loop();
+            result
+        }
+
         let if_cond = preceded(ws(keyword("if")), cut(ws(Expr::parse)));
         let else_block = |i| {
             let mut p = preceded(
@@ -188,7 +195,7 @@ impl<'a> Node<'a> {
                     opt(Whitespace::parse),
                     |i| s.tag_block_end(i),
                     cut(tuple((
-                        |i| parse_loop_content(i, s),
+                        |i| content(i, s),
                         cut(tuple((
                             |i| s.tag_block_start(i),
                             opt(Whitespace::parse),
@@ -308,6 +315,14 @@ impl<'a> Node<'a> {
     }
 
     fn r#macro(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+        fn parameters(i: &str) -> IResult<&str, Vec<&str>> {
+            delimited(
+                ws(char('(')),
+                separated_list0(char(','), ws(identifier)),
+                ws(char(')')),
+            )(i)
+        }
+
         let mut start = tuple((
             opt(Whitespace::parse),
             ws(keyword("macro")),
@@ -419,11 +434,29 @@ impl<'a> Node<'a> {
     }
 
     fn comment(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+        fn body<'a>(mut i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
+            let mut level = 0;
+            loop {
+                let (end, tail) = take_until(s.syntax.comment_end)(i)?;
+                match take_until::<_, _, Error<_>>(s.syntax.comment_start)(i) {
+                    Ok((start, _)) if start.as_ptr() < end.as_ptr() => {
+                        level += 1;
+                        i = &start[2..];
+                    }
+                    _ if level > 0 => {
+                        level -= 1;
+                        i = &end[2..];
+                    }
+                    _ => return Ok((end, tail)),
+                }
+            }
+        }
+
         let mut p = tuple((
             |i| s.tag_comment_start(i),
             cut(tuple((
                 opt(Whitespace::parse),
-                |i| block_comment_body(i, s),
+                |i| body(i, s),
                 |i| s.tag_comment_end(i),
             ))),
         ));
@@ -663,14 +696,6 @@ pub struct CondTest<'a> {
     pub expr: Expr<'a>,
 }
 
-fn parameters(i: &str) -> IResult<&str, Vec<&str>> {
-    delimited(
-        ws(char('(')),
-        separated_list0(char(','), ws(identifier)),
-        ws(char(')')),
-    )(i)
-}
-
 fn cond_if(i: &str) -> IResult<&str, CondTest<'_>> {
     let mut p = preceded(
         ws(keyword("if")),
@@ -708,29 +733,4 @@ fn cond_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Cond<'a>> {
             block,
         },
     ))
-}
-
-fn parse_loop_content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {
-    s.enter_loop();
-    let result = Node::many(i, s);
-    s.leave_loop();
-    result
-}
-
-fn block_comment_body<'a>(mut i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-    let mut level = 0;
-    loop {
-        let (end, tail) = take_until(s.syntax.comment_end)(i)?;
-        match take_until::<_, _, Error<_>>(s.syntax.comment_start)(i) {
-            Ok((start, _)) if start.as_ptr() < end.as_ptr() => {
-                level += 1;
-                i = &start[2..];
-            }
-            _ if level > 0 => {
-                level -= 1;
-                i = &end[2..];
-            }
-            _ => return Ok((end, tail)),
-        }
-    }
 }
