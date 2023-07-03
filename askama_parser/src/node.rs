@@ -96,7 +96,7 @@ impl<'a> Node<'a> {
             cut(tuple((
                 opt(tuple((ws(identifier), ws(tag("::"))))),
                 ws(identifier),
-                opt(ws(Expr::parse_arguments)),
+                opt(ws(Expr::arguments)),
                 opt(Whitespace::parse),
             ))),
         ));
