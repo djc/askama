@@ -149,7 +149,11 @@ impl<'a> Node<'a> {
         ));
         let (i, (pws1, cond, (nws1, _, (block, elifs, (_, pws2, _, nws2))))) = p(i)?;
 
-        let mut res = vec![(Ws(pws1, nws1), Some(cond), block)];
+        let mut res = vec![Cond {
+            ws: Ws(pws1, nws1),
+            cond: Some(cond),
+            block,
+        }];
         res.extend(elifs);
         Ok((i, Self::Cond(res, Ws(pws2, nws2))))
     }
@@ -593,7 +597,12 @@ pub struct Macro<'a> {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Ws(pub Option<Whitespace>, pub Option<Whitespace>);
 
-pub type Cond<'a> = (Ws, Option<CondTest<'a>>, Vec<Node<'a>>);
+#[derive(Debug, PartialEq)]
+pub struct Cond<'a> {
+    pub ws: Ws,
+    pub cond: Option<CondTest<'a>>,
+    pub block: Vec<Node<'a>>,
+}
 
 #[derive(Debug, PartialEq)]
 pub struct CondTest<'a> {
@@ -638,7 +647,14 @@ fn cond_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Cond<'a>> {
         ))),
     ));
     let (i, (_, pws, _, (cond, nws, _, block))) = p(i)?;
-    Ok((i, (Ws(pws, nws), cond, block)))
+    Ok((
+        i,
+        Cond {
+            ws: Ws(pws, nws),
+            cond,
+            block,
+        },
+    ))
 }
 
 fn match_else_block<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, When<'a>> {

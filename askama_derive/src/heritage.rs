@@ -83,8 +83,8 @@ impl Context<'_> {
                         }
                     }
                     Node::Cond(branches, _) => {
-                        for (_, _, nodes) in branches {
-                            nested.push(nodes);
+                        for cond in branches {
+                            nested.push(&cond.block);
                         }
                     }
                     Node::Loop(Loop {
