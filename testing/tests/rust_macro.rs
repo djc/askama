@@ -17,13 +17,13 @@ fn main() {
 }
 
 mod foo {
-    macro_rules! hello {
+    macro_rules! hello2 {
         () => {
             "world"
         };
     }
 
-    pub(crate) use hello;
+    pub(crate) use hello2;
 }
 
 #[derive(Template)]
