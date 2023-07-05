@@ -222,6 +222,25 @@ fn test_parse_root_path() {
 }
 
 #[test]
+fn test_parse_rust_macro() {
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse("{{ vec!(1, 2, 3) }}", &syntax).unwrap(),
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::RustMacro(vec!["vec"], "1, 2, 3",),
+        )],
+    );
+    assert_eq!(
+        super::parse("{{ alloc::vec!(1, 2, 3) }}", &syntax).unwrap(),
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::RustMacro(vec!["alloc", "vec"], "1, 2, 3",),
+        )],
+    );
+}
+
+#[test]
 fn change_delimiters_parse_filter() {
     let syntax = Syntax {
         expr_start: "{=",

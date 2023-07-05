@@ -30,7 +30,7 @@ pub(crate) enum Expr<'a> {
     Group(Box<Expr<'a>>),
     Tuple(Vec<Expr<'a>>),
     Call(Box<Expr<'a>>, Vec<Expr<'a>>),
-    RustMacro(&'a str, &'a str),
+    RustMacro(Vec<&'a str>, &'a str),
     Try(Box<Expr<'a>>),
 }
 
@@ -182,8 +182,8 @@ fn expr_single(i: &str) -> IResult<&str, Expr<'_>> {
         expr_num_lit,
         expr_str_lit,
         expr_char_lit,
-        expr_path,
         expr_rust_macro,
+        expr_path,
         expr_array_lit,
         expr_var,
         expr_group,
@@ -274,8 +274,12 @@ fn macro_arguments(i: &str) -> IResult<&str, &str> {
 }
 
 fn expr_rust_macro(i: &str) -> IResult<&str, Expr<'_>> {
-    let (i, (mname, _, args)) = tuple((identifier, char('!'), macro_arguments))(i)?;
-    Ok((i, Expr::RustMacro(mname, args)))
+    let (i, (path_vec, _, args)) = tuple((
+        alt((path, map(identifier, |id| vec![id]))),
+        char('!'),
+        macro_arguments,
+    ))(i)?;
+    Ok((i, Expr::RustMacro(path_vec, args)))
 }
 
 macro_rules! expr_prec_layer {

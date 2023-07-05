@@ -1373,7 +1373,7 @@ impl<'a> Generator<'a> {
             }
             Expr::Group(ref inner) => self.visit_group(buf, inner)?,
             Expr::Call(ref obj, ref args) => self.visit_call(buf, obj, args)?,
-            Expr::RustMacro(name, args) => self.visit_rust_macro(buf, name, args),
+            Expr::RustMacro(ref path, args) => self.visit_rust_macro(buf, path, args),
             Expr::Try(ref expr) => self.visit_try(buf, expr.as_ref())?,
             Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
         })
@@ -1390,8 +1390,8 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Unwrapped)
     }
 
-    fn visit_rust_macro(&mut self, buf: &mut Buffer, name: &str, args: &str) -> DisplayWrap {
-        buf.write(name);
+    fn visit_rust_macro(&mut self, buf: &mut Buffer, path: &[&str], args: &str) -> DisplayWrap {
+        self.visit_path(buf, path);
         buf.write("!(");
         buf.write(args);
         buf.write(")");
