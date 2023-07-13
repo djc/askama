@@ -222,7 +222,7 @@ fn test_parse_root_path() {
 }
 
 #[test]
-fn test_parse_rust_macro() {
+fn test_rust_macro() {
     let syntax = Syntax::default();
     assert_eq!(
         super::parse("{{ vec!(1, 2, 3) }}", &syntax).unwrap(),
@@ -237,6 +237,32 @@ fn test_parse_rust_macro() {
             Ws(None, None),
             Expr::RustMacro(vec!["alloc", "vec"], "1, 2, 3",),
         )],
+    );
+    assert_eq!(
+        super::parse("{{a!()}}", &syntax).unwrap(),
+        [Node::Expr(Ws(None, None), Expr::RustMacro(vec!["a"], ""))],
+    );
+    assert_eq!(
+        super::parse("{{a !()}}", &syntax).unwrap(),
+        [Node::Expr(Ws(None, None), Expr::RustMacro(vec!["a"], ""))],
+    );
+    assert_eq!(
+        super::parse("{{a! ()}}", &syntax).unwrap(),
+        [Node::Expr(Ws(None, None), Expr::RustMacro(vec!["a"], ""))],
+    );
+    assert_eq!(
+        super::parse("{{a ! ()}}", &syntax).unwrap(),
+        [Node::Expr(Ws(None, None), Expr::RustMacro(vec!["a"], ""))],
+    );
+    assert_eq!(
+        super::parse("{{A!()}}", &syntax).unwrap(),
+        [Node::Expr(Ws(None, None), Expr::RustMacro(vec!["A"], ""),)],
+    );
+    assert_eq!(
+        &*super::parse("{{a.b.c!( hello )}}", &syntax)
+            .unwrap_err()
+            .msg,
+        "problems parsing template source at row 1, column 7 near:\n\"!( hello )}}\"",
     );
 }
 

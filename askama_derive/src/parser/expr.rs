@@ -4,9 +4,10 @@ use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till};
 use nom::character::complete::char;
 use nom::combinator::{cut, map, not, opt, peek, recognize};
+use nom::error::ErrorKind;
 use nom::multi::{fold_many0, many0, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
-use nom::IResult;
+use nom::{error_position, IResult};
 
 use super::{
     bool_lit, char_lit, identifier, nested_parenthesis, not_ws, num_lit, path, str_lit, ws,
@@ -218,8 +219,14 @@ fn expr_call(i: &str) -> IResult<&str, Suffix<'_>> {
     map(arguments, Suffix::Call)(i)
 }
 
-fn expr_macro_call(i: &str) -> IResult<&str, Suffix<'_>> {
-    map(macro_arguments, Suffix::MacroCall)(i)
+fn expr_macro(i: &str) -> IResult<&str, Suffix<'_>> {
+    preceded(
+        pair(ws(char('!')), char('(')),
+        cut(terminated(
+            map(recognize(nested_parenthesis), Suffix::MacroCall),
+            char(')'),
+        )),
+    )(i)
 }
 
 fn expr_try(i: &str) -> IResult<&str, Suffix<'_>> {
@@ -261,25 +268,21 @@ fn expr_suffix(i: &str) -> IResult<&str, Expr<'_>> {
     let (mut i, mut expr) = expr_single(i)?;
     loop {
         let (j, suffix) = opt(alt((
-            expr_attr,
-            expr_index,
-            expr_call,
-            expr_macro_call,
-            expr_try,
+            expr_attr, expr_index, expr_call, expr_try, expr_macro,
         )))(i)?;
-        i = j;
         match suffix {
             Some(Suffix::Attr(attr)) => expr = Expr::Attr(expr.into(), attr),
             Some(Suffix::Index(index)) => expr = Expr::Index(expr.into(), index.into()),
             Some(Suffix::Call(args)) => expr = Expr::Call(expr.into(), args),
+            Some(Suffix::Try) => expr = Expr::Try(expr.into()),
             Some(Suffix::MacroCall(args)) => match expr {
                 Expr::Path(path) => expr = Expr::RustMacro(path, args),
                 Expr::Var(name) => expr = Expr::RustMacro(vec![name], args),
-                _ => break,
+                _ => return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag))),
             },
-            Some(Suffix::Try) => expr = Expr::Try(expr.into()),
             None => break,
         }
+        i = j;
     }
     Ok((i, expr))
 }
@@ -348,12 +351,5 @@ fn arguments(i: &str) -> IResult<&str, Vec<Expr<'_>>> {
         ws(char('(')),
         separated_list0(char(','), ws(expr_any)),
         ws(char(')')),
-    )(i)
-}
-
-fn macro_arguments(i: &str) -> IResult<&str, &str> {
-    preceded(
-        char('!'),
-        delimited(char('('), recognize(nested_parenthesis), char(')')),
     )(i)
 }
