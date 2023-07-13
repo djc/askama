@@ -182,7 +182,6 @@ fn expr_single(i: &str) -> IResult<&str, Expr<'_>> {
         expr_num_lit,
         expr_str_lit,
         expr_char_lit,
-        expr_rust_macro,
         expr_path,
         expr_array_lit,
         expr_var,
@@ -194,6 +193,7 @@ enum Suffix<'a> {
     Attr(&'a str),
     Index(Expr<'a>),
     Call(Vec<Expr<'a>>),
+    MacroCall(&'a str),
     Try,
 }
 
@@ -216,6 +216,10 @@ fn expr_index(i: &str) -> IResult<&str, Suffix<'_>> {
 
 fn expr_call(i: &str) -> IResult<&str, Suffix<'_>> {
     map(arguments, Suffix::Call)(i)
+}
+
+fn expr_macro_call(i: &str) -> IResult<&str, Suffix<'_>> {
+    map(macro_arguments, Suffix::MacroCall)(i)
 }
 
 fn expr_try(i: &str) -> IResult<&str, Suffix<'_>> {
@@ -256,30 +260,28 @@ fn expr_prefix(i: &str) -> IResult<&str, Expr<'_>> {
 fn expr_suffix(i: &str) -> IResult<&str, Expr<'_>> {
     let (mut i, mut expr) = expr_single(i)?;
     loop {
-        let (j, suffix) = opt(alt((expr_attr, expr_index, expr_call, expr_try)))(i)?;
+        let (j, suffix) = opt(alt((
+            expr_attr,
+            expr_index,
+            expr_call,
+            expr_macro_call,
+            expr_try,
+        )))(i)?;
         i = j;
         match suffix {
             Some(Suffix::Attr(attr)) => expr = Expr::Attr(expr.into(), attr),
             Some(Suffix::Index(index)) => expr = Expr::Index(expr.into(), index.into()),
             Some(Suffix::Call(args)) => expr = Expr::Call(expr.into(), args),
+            Some(Suffix::MacroCall(args)) => match expr {
+                Expr::Path(path) => expr = Expr::RustMacro(path, args),
+                Expr::Var(name) => expr = Expr::RustMacro(vec![name], args),
+                _ => break,
+            },
             Some(Suffix::Try) => expr = Expr::Try(expr.into()),
             None => break,
         }
     }
     Ok((i, expr))
-}
-
-fn macro_arguments(i: &str) -> IResult<&str, &str> {
-    delimited(char('('), recognize(nested_parenthesis), char(')'))(i)
-}
-
-fn expr_rust_macro(i: &str) -> IResult<&str, Expr<'_>> {
-    let (i, (path_vec, _, args)) = tuple((
-        alt((path, map(identifier, |id| vec![id]))),
-        char('!'),
-        macro_arguments,
-    ))(i)?;
-    Ok((i, Expr::RustMacro(path_vec, args)))
 }
 
 macro_rules! expr_prec_layer {
@@ -346,5 +348,12 @@ fn arguments(i: &str) -> IResult<&str, Vec<Expr<'_>>> {
         ws(char('(')),
         separated_list0(char(','), ws(expr_any)),
         ws(char(')')),
+    )(i)
+}
+
+fn macro_arguments(i: &str) -> IResult<&str, &str> {
+    preceded(
+        char('!'),
+        delimited(char('('), recognize(nested_parenthesis), char(')')),
     )(i)
 }

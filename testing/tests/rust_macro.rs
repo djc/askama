@@ -11,7 +11,7 @@ macro_rules! hello {
 struct RustMacrosTemplate {}
 
 #[test]
-fn main() {
+fn macro_basic() {
     let template = RustMacrosTemplate {};
     assert_eq!("Hello, world!", template.render().unwrap());
 }
@@ -31,7 +31,7 @@ mod foo {
 struct RustMacrosFullPathTemplate {}
 
 #[test]
-fn full_path() {
+fn macro_full_path() {
     let template = RustMacrosFullPathTemplate {};
     assert_eq!("Hello, world!", template.render().unwrap());
 }
@@ -67,7 +67,7 @@ fn day(_: u16, _: &str, d: u8) -> u8 {
 struct RustMacrosArgTemplate {}
 
 #[test]
-fn args() {
+fn macro_with_args() {
     let template = RustMacrosArgTemplate {};
     assert_eq!("2021\nJuly\n2", template.render().unwrap());
 }
