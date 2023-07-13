@@ -116,7 +116,7 @@ path = "::tex_escape::Tex"
 extensions = ["tex"]
 ```
 
-An escaper block consists of the attributes `path` and `name`. `path`
+An escaper block consists of the attributes `path` and `extensions`. `path`
 contains a Rust identifier that must be in scope for templates using this
 escaper. `extensions` defines a list of file extensions that will trigger
 the use of that escaper. Extensions are matched in order, starting with the
