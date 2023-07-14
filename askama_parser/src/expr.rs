@@ -9,7 +9,10 @@ use nom::multi::{fold_many0, many0, separated_list0};
 use nom::sequence::{pair, preceded, terminated, tuple};
 use nom::{error_position, IResult};
 
-use super::{bool_lit, char_lit, identifier, not_ws, num_lit, path, str_lit, ws};
+use super::{
+    bool_lit, char_lit, identifier, not_ws, num_lit, path_or_identifier, str_lit, ws,
+    PathOrIdentifier,
+};
 
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $op:expr ) => {
@@ -141,9 +144,8 @@ impl<'a> Expr<'a> {
             Self::num,
             Self::str,
             Self::char,
-            Self::path,
+            Self::path_or_var,
             Self::array,
-            Self::var,
             Self::group,
         ))(i)
     }
@@ -186,13 +188,11 @@ impl<'a> Expr<'a> {
         )(i)
     }
 
-    fn path(i: &'a str) -> IResult<&'a str, Self> {
-        let (i, path) = path(i)?;
-        Ok((i, Self::Path(path)))
-    }
-
-    fn var(i: &'a str) -> IResult<&'a str, Self> {
-        map(identifier, Self::Var)(i)
+    fn path_or_var(i: &'a str) -> IResult<&'a str, Self> {
+        map(path_or_identifier, |v| match v {
+            PathOrIdentifier::Path(v) => Self::Path(v),
+            PathOrIdentifier::Identifier(v) => Self::Var(v),
+        })(i)
     }
 
     fn str(i: &'a str) -> IResult<&'a str, Self> {

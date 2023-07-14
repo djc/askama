@@ -8,10 +8,10 @@ use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_till};
 use nom::character::complete::char;
 use nom::character::complete::{anychar, digit1};
-use nom::combinator::{cut, eof, map, opt, recognize, value};
+use nom::combinator::{cut, eof, map, opt, recognize};
 use nom::error::ErrorKind;
-use nom::multi::separated_list1;
-use nom::sequence::{delimited, pair, terminated, tuple};
+use nom::multi::many1;
+use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
 
 pub mod expr;
@@ -216,31 +216,38 @@ fn char_lit(i: &str) -> IResult<&str, &str> {
     Ok((i, s.unwrap_or_default()))
 }
 
-fn path(i: &str) -> IResult<&str, Vec<&str>> {
-    let root = opt(value("", ws(tag("::"))));
-    let tail = separated_list1(ws(tag("::")), identifier);
+enum PathOrIdentifier<'a> {
+    Path(Vec<&'a str>),
+    Identifier(&'a str),
+}
 
-    match tuple((root, identifier, ws(tag("::")), tail))(i) {
-        Ok((i, (root, start, _, rest))) => {
-            let mut path = Vec::new();
-            path.extend(root);
+fn path_or_identifier(i: &str) -> IResult<&str, PathOrIdentifier<'_>> {
+    let root = ws(opt(tag("::")));
+    let tail = opt(many1(preceded(ws(tag("::")), identifier)));
+
+    let (i, (root, start, rest)) = tuple((root, identifier, tail))(i)?;
+    let rest = rest.as_deref().unwrap_or_default();
+
+    // The returned identifier can be assumed to be path if:
+    // - Contains both a lowercase and uppercase character, i.e. a type name like `None`
+    // - Doesn't contain any lowercase characters, i.e. it's a constant
+    // In short, if it contains any uppercase characters it's a path.
+    match (root, start, rest) {
+        (Some(_), start, tail) => {
+            let mut path = Vec::with_capacity(2 + tail.len());
+            path.push("");
             path.push(start);
             path.extend(rest);
-            Ok((i, path))
+            Ok((i, PathOrIdentifier::Path(path)))
         }
-        Err(err) => {
-            if let Ok((i, name)) = identifier(i) {
-                // The returned identifier can be assumed to be path if:
-                // - Contains both a lowercase and uppercase character, i.e. a type name like `None`
-                // - Doesn't contain any lowercase characters, i.e. it's a constant
-                // In short, if it contains any uppercase characters it's a path.
-                if name.contains(char::is_uppercase) {
-                    return Ok((i, vec![name]));
-                }
-            }
-
-            // If `identifier()` fails then just return the original error
-            Err(err)
+        (None, name, []) if !name.contains(char::is_uppercase) => {
+            Ok((i, PathOrIdentifier::Identifier(name)))
+        }
+        (None, start, tail) => {
+            let mut path = Vec::with_capacity(1 + tail.len());
+            path.push(start);
+            path.extend(rest);
+            Ok((i, PathOrIdentifier::Path(path)))
         }
     }
 }

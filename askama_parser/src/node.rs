@@ -3,15 +3,17 @@ use std::str;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_until};
 use nom::character::complete::char;
-use nom::combinator::{complete, consumed, cut, eof, map, not, opt, peek, recognize, value};
+use nom::combinator::{
+    complete, consumed, cut, eof, map, map_res, not, opt, peek, recognize, value,
+};
 use nom::error::{Error, ErrorKind};
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{error_position, IResult};
 
 use super::{
-    bool_lit, char_lit, identifier, is_ws, keyword, num_lit, path, skip_till, str_lit, ws, Expr,
-    State,
+    bool_lit, char_lit, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
+    str_lit, ws, Expr, PathOrIdentifier, State,
 };
 
 #[derive(Debug, PartialEq)]
@@ -160,6 +162,13 @@ impl<'a> Target<'a> {
             )))(i)?;
             return Ok((i, Self::Tuple(Vec::new(), targets)));
         }
+
+        let path = |i| {
+            map_res(path_or_identifier, |v| match v {
+                PathOrIdentifier::Path(v) => Ok(v),
+                PathOrIdentifier::Identifier(v) => Err(v),
+            })(i)
+        };
 
         // match structs
         let (i, path) = opt(path)(i)?;
