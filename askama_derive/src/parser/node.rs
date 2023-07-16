@@ -133,12 +133,13 @@ fn block_call(i: &str) -> IResult<&str, Node<'_>> {
         cut(tuple((
             opt(tuple((ws(identifier), ws(tag("::"))))),
             ws(identifier),
-            ws(Expr::parse_arguments),
+            opt(ws(Expr::parse_arguments)),
             opt(expr_handle_ws),
         ))),
     ));
     let (i, (pws, _, (scope, name, args, nws))) = p(i)?;
     let scope = scope.map(|(scope, _)| scope);
+    let args = args.unwrap_or_default();
     Ok((i, Node::Call(Ws(pws, nws), scope, name, args)))
 }
 
@@ -415,7 +416,7 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
         ws(keyword("macro")),
         cut(tuple((
             ws(identifier),
-            ws(parameters),
+            opt(ws(parameters)),
             opt(expr_handle_ws),
             |i| tag_block_end(i, s),
         ))),
@@ -434,6 +435,8 @@ fn block_macro<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Node<'a>> {
     let (i, (contents, (_, pws2, _, (_, nws2)))) = end(i)?;
 
     assert_ne!(name, "super", "invalid macro name 'super'");
+
+    let params = params.unwrap_or_default();
 
     Ok((
         i,

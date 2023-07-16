@@ -385,6 +385,7 @@ where
             width: 0,
             unsafe_: false,
             list_style: ListStyleType::Dash,
+            sourcepos: false,
         },
     };
 

@@ -3,11 +3,17 @@ use askama::Template;
 use futures_lite::future::block_on;
 use rocket::http::{ContentType, Status};
 use rocket::local::asynchronous::Client;
+use rocket::Responder;
 
 #[derive(Template)]
 #[template(path = "hello.html")]
 struct HelloTemplate<'a> {
     name: &'a str,
+}
+
+#[derive(Responder)]
+struct HelloResponder<'a> {
+    template: HelloTemplate<'a>,
 }
 
 #[rocket::get("/")]

@@ -173,6 +173,15 @@ impl fmt::Display for dyn DynTemplate {
     }
 }
 
+/// Old build script helper to rebuild crates if contained templates have changed
+///
+/// This function is now deprecated and does nothing.
+#[deprecated(
+    since = "0.8.1",
+    note = "file-level dependency tracking is handled automatically without build script"
+)]
+pub fn rerun_if_templates_changed() {}
+
 #[cfg(test)]
 mod tests {
     use std::fmt;
@@ -219,12 +228,3 @@ mod tests {
         assert_eq!(vec, vec![b't', b'e', b's', b't']);
     }
 }
-
-/// Old build script helper to rebuild crates if contained templates have changed
-///
-/// This function is now deprecated and does nothing.
-#[deprecated(
-    since = "0.8.1",
-    note = "file-level dependency tracking is handled automatically without build script"
-)]
-pub fn rerun_if_templates_changed() {}

@@ -141,7 +141,7 @@ A base template defines **blocks** that child templates can override.
   </head>
   <body>
     <div id="content">
-      {% block content %}{% endblock %}
+      {% block content %}<p>Placeholder content</p>{% endblock %}
     </div>
   </body>
 </html>
@@ -171,6 +171,7 @@ Here's an example child template:
 {% block content %}
   <h1>Index</h1>
   <p>Hello, world!</p>
+  {% call super() %}
 {% endblock %}
 ```
 
