@@ -5,6 +5,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use basic_toml::from_str;
 use fluent_syntax::ast::{
     Expression, InlineExpression, PatternElement, Resource, Variant, VariantKey,
 };
@@ -19,7 +20,6 @@ use serde::Deserialize;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::{parse2, Visibility};
-use basic_toml::from_str;
 
 use crate::CompileError;
 

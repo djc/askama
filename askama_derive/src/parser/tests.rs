@@ -669,68 +669,67 @@ fn test_missing_space_after_kw() {
 #[cfg(feature = "i18n")]
 #[test]
 fn test_parse_localize() {
-  macro_rules! map {
+    macro_rules! map {
       ($($k:expr => $v:expr),* $(,)?) => {{
           use std::iter::{Iterator, IntoIterator};
           Iterator::collect(IntoIterator::into_iter([$(($k, $v),)*]))
       }};
   }
-        assert_eq!(
-            super::parse(r#"{{ localize(1, v: 32 + 7) }}"#, &Syntax::default()).unwrap(),
-            vec![Node::Expr(
-                Ws(None, None),
-                Expr::Localize(
-                    Expr::NumLit("1").into(),
-                    map!(
-                        "v" => {
-                            Expr::BinOp("+", Expr::NumLit("32").into(), Expr::NumLit("7").into())
-                        }
-                    ),
-                )
-            )],
-        );
-        assert_eq!(
-            super::parse(
-                r#"{{ localize(1, b: "b", c: "c", d: "d") }}"#,
-                &Syntax::default(),
+    assert_eq!(
+        super::parse(r#"{{ localize(1, v: 32 + 7) }}"#, &Syntax::default()).unwrap(),
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Localize(
+                Expr::NumLit("1").into(),
+                map!(
+                    "v" => {
+                        Expr::BinOp("+", Expr::NumLit("32").into(), Expr::NumLit("7").into())
+                    }
+                ),
             )
-            .unwrap(),
-            vec![Node::Expr(
-                Ws(None, None),
-                Expr::Localize(
-                    Expr::NumLit("1").into(),
-                    map!(
-                        "b" => Expr::StrLit("b"),
-                        "c" => Expr::StrLit("c"),
-                        "d" => Expr::StrLit("d"),
-                    ),
-                )
-            )],
-        );
-        assert_eq!(
-            super::parse(
-                r#"{{ localize(1, v: localize(2, v: 32 + 7) ) }}"#,
-                &Syntax::default(),
+        )],
+    );
+    assert_eq!(
+        super::parse(
+            r#"{{ localize(1, b: "b", c: "c", d: "d") }}"#,
+            &Syntax::default(),
+        )
+        .unwrap(),
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Localize(
+                Expr::NumLit("1").into(),
+                map!(
+                    "b" => Expr::StrLit("b"),
+                    "c" => Expr::StrLit("c"),
+                    "d" => Expr::StrLit("d"),
+                ),
             )
-            .unwrap(),
-            vec![Node::Expr(
-                Ws(None, None),
-                Expr::Localize(
-                    Expr::NumLit("1").into(),
-                    map!(
-                        "v" => Expr::Localize(
-                            Expr::NumLit("2").into(),
-                            map!(
-                                "v" => Expr::BinOp(
-                                    "+",
-                                    Expr::NumLit("32").into(),
-                                    Expr::NumLit("7").into(),
-                                ),
+        )],
+    );
+    assert_eq!(
+        super::parse(
+            r#"{{ localize(1, v: localize(2, v: 32 + 7) ) }}"#,
+            &Syntax::default(),
+        )
+        .unwrap(),
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Localize(
+                Expr::NumLit("1").into(),
+                map!(
+                    "v" => Expr::Localize(
+                        Expr::NumLit("2").into(),
+                        map!(
+                            "v" => Expr::BinOp(
+                                "+",
+                                Expr::NumLit("32").into(),
+                                Expr::NumLit("7").into(),
                             ),
                         ),
                     ),
                 ),
-            )],
-        );
+            ),
+        )],
+    );
 }
-

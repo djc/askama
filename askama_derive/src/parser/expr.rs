@@ -4,11 +4,11 @@ use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till};
 use nom::character::complete::char;
 use nom::combinator::{cut, map, not, opt, peek, recognize};
+use nom::error::ErrorKind;
+use nom::error_position;
 use nom::multi::{fold_many0, many0, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::IResult;
-use nom::error_position;
-use nom::error::ErrorKind;
 
 use super::{
     bool_lit, char_lit, identifier, nested_parenthesis, not_ws, num_lit, path, str_lit, ws,
@@ -114,7 +114,7 @@ impl Expr<'_> {
             #[cfg(feature = "i18n")]
             Expr::Localize(msg_id, args) => {
                 msg_id.is_cacheable() && args.iter().all(|(_, arg)| arg.is_cacheable())
-            },
+            }
             // We have too little information to tell if the expression is pure:
             Expr::Call(_, _) => false,
             Expr::RustMacro(_, _) => false,
