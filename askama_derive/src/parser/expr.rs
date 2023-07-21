@@ -4,7 +4,7 @@ use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till};
 use nom::character::complete::char;
 use nom::combinator::{cut, map, not, opt, peek, recognize};
-use nom::multi::{fold_many0, many0, separated_list0, separated_list1};
+use nom::multi::{fold_many0, many0, separated_list0};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::IResult;
 
@@ -124,10 +124,12 @@ fn expr_num_lit(i: &str) -> IResult<&str, Expr<'_>> {
 }
 
 fn expr_array_lit(i: &str) -> IResult<&str, Expr<'_>> {
-    delimited(
+    preceded(
         ws(char('[')),
-        map(separated_list1(ws(char(',')), expr_any), Expr::Array),
-        ws(char(']')),
+        cut(terminated(
+            map(separated_list0(char(','), ws(expr_any)), Expr::Array),
+            char(']'),
+        )),
     )(i)
 }
 

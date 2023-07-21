@@ -666,3 +666,86 @@ fn test_missing_space_after_kw() {
         "unable to parse template:\n\n\"{%leta=b%}\""
     ));
 }
+
+#[test]
+fn test_parse_array() {
+    let syntax = Syntax::default();
+    assert_eq!(
+        super::parse("{{ [] }}", &syntax).unwrap(),
+        vec![Node::Expr(Ws(None, None), Expr::Array(vec![]))],
+    );
+    assert_eq!(
+        super::parse("{{ [1] }}", &syntax).unwrap(),
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Array(vec![Expr::NumLit("1")])
+        )],
+    );
+    assert_eq!(
+        super::parse("{{ [ 1] }}", &syntax).unwrap(),
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Array(vec![Expr::NumLit("1")])
+        )],
+    );
+    assert_eq!(
+        super::parse("{{ [1 ] }}", &syntax).unwrap(),
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Array(vec![Expr::NumLit("1")])
+        )],
+    );
+    assert_eq!(
+        super::parse("{{ [1,2] }}", &syntax).unwrap(),
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Array(vec![Expr::NumLit("1"), Expr::NumLit("2")])
+        )],
+    );
+    assert_eq!(
+        super::parse("{{ [1 ,2] }}", &syntax).unwrap(),
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Array(vec![Expr::NumLit("1"), Expr::NumLit("2")])
+        )],
+    );
+    assert_eq!(
+        super::parse("{{ [1, 2] }}", &syntax).unwrap(),
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Array(vec![Expr::NumLit("1"), Expr::NumLit("2")])
+        )],
+    );
+    assert_eq!(
+        super::parse("{{ [1,2 ] }}", &syntax).unwrap(),
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Array(vec![Expr::NumLit("1"), Expr::NumLit("2")])
+        )],
+    );
+    assert_eq!(
+        super::parse("{{ []|foo }}", &syntax).unwrap(),
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Filter("foo", vec![Expr::Array(vec![])])
+        )],
+    );
+    assert_eq!(
+        super::parse("{{ []| foo }}", &syntax).unwrap(),
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Filter("foo", vec![Expr::Array(vec![])])
+        )],
+    );
+    assert_eq!(
+        super::parse("{{ [] |foo }}", &syntax).unwrap(),
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::BinOp(
+                "|",
+                Box::new(Expr::Array(vec![])),
+                Box::new(Expr::Var("foo"))
+            ),
+        )],
+    );
+}
