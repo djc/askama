@@ -10,8 +10,7 @@ use nom::sequence::{pair, preceded, terminated, tuple};
 use nom::{error_position, IResult};
 
 use super::{
-    bool_lit, char_lit, identifier, not_ws, num_lit, path_or_identifier, str_lit, ws,
-    PathOrIdentifier,
+    char_lit, identifier, not_ws, num_lit, path_or_identifier, str_lit, ws, PathOrIdentifier,
 };
 
 macro_rules! expr_prec_layer {
@@ -140,11 +139,10 @@ impl<'a> Expr<'a> {
 
     fn single(i: &'a str) -> IResult<&'a str, Self> {
         alt((
-            Self::bool,
             Self::num,
             Self::str,
             Self::char,
-            Self::path_or_var,
+            Self::path_var_bool,
             Self::array,
             Self::group,
         ))(i)
@@ -188,9 +186,11 @@ impl<'a> Expr<'a> {
         )(i)
     }
 
-    fn path_or_var(i: &'a str) -> IResult<&'a str, Self> {
+    fn path_var_bool(i: &'a str) -> IResult<&'a str, Self> {
         map(path_or_identifier, |v| match v {
             PathOrIdentifier::Path(v) => Self::Path(v),
+            PathOrIdentifier::Identifier(v @ "true") => Self::BoolLit(v),
+            PathOrIdentifier::Identifier(v @ "false") => Self::BoolLit(v),
             PathOrIdentifier::Identifier(v) => Self::Var(v),
         })(i)
     }
@@ -205,10 +205,6 @@ impl<'a> Expr<'a> {
 
     fn char(i: &'a str) -> IResult<&'a str, Self> {
         map(char_lit, Self::CharLit)(i)
-    }
-
-    fn bool(i: &'a str) -> IResult<&'a str, Self> {
-        map(bool_lit, Self::BoolLit)(i)
     }
 }
 
