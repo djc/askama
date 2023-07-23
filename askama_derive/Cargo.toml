@@ -16,11 +16,12 @@ proc-macro = true
 [features]
 config = ["serde", "basic-toml"]
 humansize = []
+i18n = ["fluent-syntax", "fluent-templates", "serde", "basic-toml"]
 markdown = []
-urlencode = []
+num-traits = []
 serde-json = []
 serde-yaml = []
-num-traits = []
+urlencode = []
 with-actix-web = []
 with-axum = []
 with-gotham = []
@@ -31,6 +32,8 @@ with-tide = []
 with-warp = []
 
 [dependencies]
+fluent-syntax = { version = "0.11.0", optional = true, default-features = false }
+fluent-templates = { version = "0.8.0", optional = true, default-features = false }
 mime = "0.3"
 mime_guess = "2"
 nom = "7"

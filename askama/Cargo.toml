@@ -20,6 +20,7 @@ maintenance = { status = "actively-developed" }
 default = ["config", "humansize", "num-traits", "urlencode"]
 config = ["askama_derive/config"]
 humansize = ["askama_derive/humansize", "dep_humansize"]
+i18n = ["askama_derive/i18n", "fluent-templates", "parking_lot"]
 markdown = ["askama_derive/markdown", "comrak"]
 num-traits = ["askama_derive/num-traits", "dep_num_traits"]
 serde-json = ["askama_derive/serde-json", "askama_escape/json", "serde", "serde_json"]
@@ -44,6 +45,8 @@ askama_escape = { version = "0.10.3", path = "../askama_escape" }
 comrak = { version = "0.18", optional = true, default-features = false }
 dep_humansize = { package = "humansize", version = "2", optional = true }
 dep_num_traits = { package = "num-traits", version = "0.2.6", optional = true }
+fluent-templates = { version = "0.8.0", optional = true }
+parking_lot = { version = "0.12.1", optional = true }
 percent-encoding = { version = "2.1.0", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 serde_json = { version = "1.0", optional = true }

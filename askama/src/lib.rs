@@ -59,13 +59,15 @@
 //!   in the configuration file. The default syntax , "default",  is the one
 //!   provided by Askama.
 
-#![forbid(unsafe_code)]
+#![cfg_attr(not(feature = "i18n"), forbid(unsafe_code))]
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
 mod error;
 pub mod filters;
 pub mod helpers;
+#[cfg(feature = "i18n")]
+pub mod i18n;
 
 use std::fmt;
 
