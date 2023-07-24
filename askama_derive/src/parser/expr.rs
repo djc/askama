@@ -194,6 +194,7 @@ enum Suffix<'a> {
     Attr(&'a str),
     Index(Expr<'a>),
     Call(Vec<Expr<'a>>),
+    // The value is the arguments of the macro call.
     MacroCall(&'a str),
     Try,
 }
