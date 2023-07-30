@@ -1,0 +1,12 @@
+# Defaults to "en":
+fallback_language = "en-US"
+
+[fluent]
+# Defaults to true:
+use_isolating = false
+
+# Defaults to "i18n":
+assets_dir = "i18n-basic"
+
+# Default to None:
+# core_locales = "…"
