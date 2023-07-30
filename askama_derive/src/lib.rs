@@ -10,10 +10,10 @@ use proc_macro2::Span;
 mod config;
 mod generator;
 mod heritage;
-mod input;
-mod parser;
 #[cfg(feature = "i18n")]
 mod i18n;
+mod input;
+mod parser;
 
 #[proc_macro_derive(Template, attributes(template, locale))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
@@ -31,7 +31,6 @@ pub fn i18n_load(_input: TokenStream) -> TokenStream {
     #[cfg(not(feature = "i18n"))]
     CompileError::from(r#"Activate the "i18n" feature to use i18n_load!()."#).into_compile_error()
 }
-
 
 #[derive(Debug, Clone)]
 struct CompileError {

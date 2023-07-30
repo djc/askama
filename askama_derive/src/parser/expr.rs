@@ -33,8 +33,8 @@ pub(crate) enum Expr<'a> {
     Call(Box<Expr<'a>>, Vec<Expr<'a>>),
     RustMacro(Vec<&'a str>, &'a str),
     Try(Box<Expr<'a>>),
-		#[allow(dead_code)]
-		Localize(Box<Expr<'a>>, Vec<(&'a str, Expr<'a>)>),
+    #[allow(dead_code)]
+    Localize(Box<Expr<'a>>, Vec<(&'a str, Expr<'a>)>),
 }
 
 impl Expr<'_> {
@@ -110,9 +110,9 @@ impl Expr<'_> {
             }
             Expr::Group(arg) => arg.is_cacheable(),
             Expr::Tuple(args) => args.iter().all(|arg| arg.is_cacheable()),
-						Expr::Localize(msg_id, args) => {
-							msg_id.is_cacheable() && args.iter().all(|(_, arg)| arg.is_cacheable())
-						},
+            Expr::Localize(msg_id, args) => {
+                msg_id.is_cacheable() && args.iter().all(|(_, arg)| arg.is_cacheable())
+            }
             // We have too little information to tell if the expression is pure:
             Expr::Call(_, _) => false,
             Expr::RustMacro(_, _) => false,
@@ -398,11 +398,10 @@ fn expr_localize(i: &str) -> IResult<&str, Expr<'_>> {
     Ok((j, Expr::Localize(msg_id.into(), args)))
 }
 
-
 fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
     let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(expr_or))(i);
     alt((
-				expr_localize,
+        expr_localize,
         map(range_right, |(op, right)| {
             Expr::Range(op, None, right.map(Box::new))
         }),

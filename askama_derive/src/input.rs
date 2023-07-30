@@ -17,7 +17,7 @@ pub(crate) struct TemplateInput<'a> {
     pub(crate) ext: Option<String>,
     pub(crate) mime_type: String,
     pub(crate) path: PathBuf,
-		pub(crate) localizer: Option<String>,
+    pub(crate) localizer: Option<String>,
 }
 
 impl TemplateInput<'_> {
@@ -49,7 +49,7 @@ impl TemplateInput<'_> {
                 return Err("must include 'ext' attribute when using 'source' attribute".into())
             }
         };
-				let localizer = match ast.data {
+        let localizer = match ast.data {
             syn::Data::Struct(syn::DataStruct {
                 fields: syn::Fields::Named(ref fields),
                 ..
@@ -129,7 +129,7 @@ impl TemplateInput<'_> {
             ext,
             mime_type,
             path,
-						localizer,
+            localizer,
         })
     }
 

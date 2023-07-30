@@ -1376,7 +1376,7 @@ impl<'a> Generator<'a> {
             Expr::RustMacro(ref path, args) => self.visit_rust_macro(buf, path, args),
             Expr::Try(ref expr) => self.visit_try(buf, expr.as_ref())?,
             Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
-						Expr::Localize(ref msg_id, ref args) => self.visit_localize(buf, msg_id, args)?,
+            Expr::Localize(ref msg_id, ref args) => self.visit_localize(buf, msg_id, args)?,
         })
     }
 
@@ -1409,7 +1409,6 @@ impl<'a> Generator<'a> {
 
         Ok(DisplayWrap::Unwrapped)
     }
-
 
     fn visit_try(
         &mut self,

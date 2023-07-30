@@ -385,4 +385,3 @@ fn selector_function(e: &'static InlineExpression<String>) -> impl Iterator<Item
             .flat_map(inline_expr_to_key)
     })
 }
-
