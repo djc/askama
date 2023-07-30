@@ -8,7 +8,8 @@ rust-version = "1.58"
 publish = false
 
 [features]
-default = ["serde-json", "markdown"]
+default = ["serde-json", "markdown", "i18n"]
+i18n = ["askama/i18n"]
 serde-json = ["serde_json", "askama/serde-json"]
 markdown = ["comrak", "askama/markdown"]
 

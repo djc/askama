@@ -33,6 +33,8 @@ pub(crate) enum Expr<'a> {
     Call(Box<Expr<'a>>, Vec<Expr<'a>>),
     RustMacro(Vec<&'a str>, &'a str),
     Try(Box<Expr<'a>>),
+    #[allow(dead_code)]
+    Localize(Box<Expr<'a>>, Vec<(&'a str, Expr<'a>)>),
 }
 
 impl Expr<'_> {
@@ -108,6 +110,9 @@ impl Expr<'_> {
             }
             Expr::Group(arg) => arg.is_cacheable(),
             Expr::Tuple(args) => args.iter().all(|arg| arg.is_cacheable()),
+            Expr::Localize(msg_id, args) => {
+                msg_id.is_cacheable() && args.iter().all(|(_, arg)| arg.is_cacheable())
+            }
             // We have too little information to tell if the expression is pure:
             Expr::Call(_, _) => false,
             Expr::RustMacro(_, _) => false,
@@ -331,9 +336,72 @@ expr_prec_layer!(expr_compare, expr_bor, "==", "!=", ">=", ">", "<=", "<");
 expr_prec_layer!(expr_and, expr_compare, "&&");
 expr_prec_layer!(expr_or, expr_and, "||");
 
+#[cfg(not(feature = "i18n"))]
+fn expr_localize(i: &str) -> IResult<&str, Expr<'_>> {
+    let (i, _) = pair(tag("localize"), ws(tag("(")))(i)?;
+    eprintln!(r#"Activate the "i18n" feature to use {{ localize() }}."#);
+    Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)))
+}
+
+#[cfg(feature = "i18n")]
+fn expr_localize(i: &str) -> IResult<&str, Expr<'_>> {
+    fn localize_args(mut i: &str) -> IResult<&str, Vec<(&str, Expr<'_>)>> {
+        let mut args = Vec::<(&str, Expr<'_>)>::new();
+
+        let mut p = opt(tuple((ws(tag(",")), identifier, ws(tag(":")), expr_any)));
+        while let (j, Some((_, k, _, v))) = p(i)? {
+            if args.iter().any(|&(a, _)| a == k) {
+                eprintln!("Duplicated key: {:?}", k);
+                return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
+            }
+
+            args.push((k, v));
+            i = j;
+        }
+
+        let (i, _) = opt(tag(","))(i)?;
+        Ok((i, args))
+    }
+
+    let (j, (_, _, (msg_id, args, _))) = tuple((
+        tag("localize"),
+        ws(tag("(")),
+        cut(tuple((expr_any, localize_args, ws(tag(")"))))),
+    ))(i)?;
+
+    if let Expr::StrLit(msg_id) = msg_id {
+        let mut msg_args = match crate::i18n::arguments_of(msg_id) {
+            Ok(args) => args,
+            Err(err) => {
+                eprintln!("{}", err.msg);
+                return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
+            }
+        };
+        for &(call_arg, _) in &args {
+            if !msg_args.remove(call_arg) {
+                eprintln!(
+                    "Fluent template {:?} does not contain argument {:?}",
+                    msg_id, call_arg,
+                );
+                return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
+            }
+        }
+        if !msg_args.is_empty() {
+            eprintln!(
+                "Missing argument(s) {:?} to fluent template {:?}",
+                msg_args, msg_id,
+            );
+            return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
+        }
+    }
+
+    Ok((j, Expr::Localize(msg_id.into(), args)))
+}
+
 fn expr_any(i: &str) -> IResult<&str, Expr<'_>> {
     let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(expr_or))(i);
     alt((
+        expr_localize,
         map(range_right, |(op, right)| {
             Expr::Range(op, None, right.map(Box::new))
         }),
