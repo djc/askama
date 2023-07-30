@@ -66,6 +66,8 @@
 mod error;
 pub mod filters;
 pub mod helpers;
+#[cfg(feature = "i18n")]
+pub mod i18n;
 
 use std::fmt;
 
