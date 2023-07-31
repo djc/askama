@@ -68,10 +68,12 @@ pub enum Expr<'a> {
 
 impl<'a> Expr<'a> {
     pub(super) fn arguments(i: &'a str) -> IResult<&'a str, Vec<Self>> {
-        delimited(
+        preceded(
             ws(char('(')),
-            separated_list0(char(','), ws(Self::parse)),
-            ws(char(')')),
+            cut(terminated(
+                separated_list0(char(','), ws(Self::parse)),
+                char(')'),
+            )),
         )(i)
     }
 
