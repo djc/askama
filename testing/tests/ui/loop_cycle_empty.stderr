@@ -1,5 +1,5 @@
-error: problems parsing template source at row 1, column 34 near:
-       "([]) }}{{ v }},{% endfor %}"
+error: problems parsing template source at row 1, column 35 near:
+       "[]) }}{{ v }},{% endfor %}"
  --> tests/ui/loop_cycle_empty.rs:6:10
   |
 6 | #[derive(Template)]

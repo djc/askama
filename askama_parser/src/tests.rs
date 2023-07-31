@@ -493,8 +493,33 @@ fn test_odd_calls() {
         Ast::from_str("{{ -a(b) }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
-            Unary("-", Box::new(Call(Box::new(Var("a")), vec![Var("b")])),),
+            Unary("-", Box::new(Call(Box::new(Var("a")), vec![Var("b")]))),
         )],
+    );
+    assert_eq!(
+        Ast::from_str("{{ a(b)|c }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            Filter("c", vec![Call(Box::new(Var("a")), vec![Var("b")])]),
+        )]
+    );
+    assert_eq!(
+        Ast::from_str("{{ a(b)| c }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            Filter("c", vec![Call(Box::new(Var("a")), vec![Var("b")])]),
+        )]
+    );
+    assert_eq!(
+        Ast::from_str("{{ a(b) |c }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            BinOp(
+                "|",
+                Box::new(Call(Box::new(Var("a")), vec![Var("b")])),
+                Box::new(Var("c"))
+            ),
+        )]
     );
 }
 
