@@ -5,8 +5,8 @@ use nom::bytes::complete::{tag, take_till};
 use nom::character::complete::char;
 use nom::combinator::{cut, map, not, opt, peek, recognize};
 use nom::error::ErrorKind;
-use nom::multi::{fold_many0, many0, separated_list0, separated_list1};
-use nom::sequence::{delimited, pair, preceded, terminated, tuple};
+use nom::multi::{fold_many0, many0, separated_list0};
+use nom::sequence::{pair, preceded, terminated, tuple};
 use nom::{error_position, IResult};
 
 use super::{bool_lit, char_lit, identifier, not_ws, num_lit, path, str_lit, ws};
@@ -177,10 +177,12 @@ impl<'a> Expr<'a> {
     }
 
     fn array(i: &'a str) -> IResult<&'a str, Self> {
-        delimited(
+        preceded(
             ws(char('[')),
-            map(separated_list1(ws(char(',')), Self::parse), Self::Array),
-            ws(char(']')),
+            cut(terminated(
+                map(separated_list0(char(','), ws(Self::parse)), Self::Array),
+                char(']'),
+            )),
         )(i)
     }
 

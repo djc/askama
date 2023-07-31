@@ -1,8 +1,7 @@
-error: problems parsing template source at row 1, column 35 near:
-       "[]) }}{{ v }},{% endfor %}"
- --> tests/ui/loop_cycle_empty.rs:6:10
+error: loop.cycle(…) cannot use an empty array
+ --> tests/ui/loop_cycle_empty.rs:3:10
   |
-6 | #[derive(Template)]
+3 | #[derive(Template)]
   |          ^^^^^^^^
   |
   = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
