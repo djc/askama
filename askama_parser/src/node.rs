@@ -23,7 +23,7 @@ pub enum Node<'a> {
     LetDecl(Ws, Target<'a>),
     Let(Ws, Target<'a>, Expr<'a>),
     Cond(Vec<Cond<'a>>, Ws),
-    Match(Ws, Expr<'a>, Vec<When<'a>>, Ws),
+    Match(Match<'a>),
     Loop(Loop<'a>),
     Extends(&'a str),
     BlockDef(Ws, &'a str, Vec<Node<'a>>, Ws),
@@ -73,7 +73,7 @@ impl<'a> Node<'a> {
                 Self::r#let,
                 |i| Self::r#if(i, s),
                 |i| Self::r#for(i, s),
-                |i| Self::r#match(i, s),
+                map(|i| Match::parse(i, s), Self::Match),
                 Self::extends,
                 Self::include,
                 map(Import::parse, Self::Import),
@@ -207,39 +207,6 @@ impl<'a> Node<'a> {
                 ws3: Ws(pws3, nws2),
             }),
         ))
-    }
-
-    fn r#match(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        let mut p = tuple((
-            opt(Whitespace::parse),
-            ws(keyword("match")),
-            cut(tuple((
-                ws(Expr::parse),
-                opt(Whitespace::parse),
-                |i| s.tag_block_end(i),
-                cut(tuple((
-                    ws(many0(ws(value((), |i| Self::comment(i, s))))),
-                    many1(|i| When::when(i, s)),
-                    cut(tuple((
-                        opt(|i| When::r#match(i, s)),
-                        cut(tuple((
-                            ws(|i| s.tag_block_start(i)),
-                            opt(Whitespace::parse),
-                            ws(keyword("endmatch")),
-                            opt(Whitespace::parse),
-                        ))),
-                    ))),
-                ))),
-            ))),
-        ));
-        let (i, (pws1, _, (expr, nws1, _, (_, arms, (else_arm, (_, pws2, _, nws2)))))) = p(i)?;
-
-        let mut arms = arms;
-        if let Some(arm) = else_arm {
-            arms.push(arm);
-        }
-
-        Ok((i, Self::Match(Ws(pws1, nws1), expr, arms, Ws(pws2, nws2))))
     }
 
     fn extends(i: &'a str) -> IResult<&'a str, Self> {
@@ -764,6 +731,57 @@ impl<'a> Call<'a> {
                 scope,
                 name,
                 args,
+            },
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Match<'a> {
+    pub ws1: Ws,
+    pub expr: Expr<'a>,
+    pub arms: Vec<When<'a>>,
+    pub ws2: Ws,
+}
+
+impl<'a> Match<'a> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+        let mut p = tuple((
+            opt(Whitespace::parse),
+            ws(keyword("match")),
+            cut(tuple((
+                ws(Expr::parse),
+                opt(Whitespace::parse),
+                |i| s.tag_block_end(i),
+                cut(tuple((
+                    ws(many0(ws(value((), |i| Node::comment(i, s))))),
+                    many1(|i| When::when(i, s)),
+                    cut(tuple((
+                        opt(|i| When::r#match(i, s)),
+                        cut(tuple((
+                            ws(|i| s.tag_block_start(i)),
+                            opt(Whitespace::parse),
+                            ws(keyword("endmatch")),
+                            opt(Whitespace::parse),
+                        ))),
+                    ))),
+                ))),
+            ))),
+        ));
+        let (i, (pws1, _, (expr, nws1, _, (_, arms, (else_arm, (_, pws2, _, nws2)))))) = p(i)?;
+
+        let mut arms = arms;
+        if let Some(arm) = else_arm {
+            arms.push(arm);
+        }
+
+        Ok((
+            i,
+            Self {
+                ws1: Ws(pws1, nws1),
+                expr,
+                arms,
+                ws2: Ws(pws2, nws2),
             },
         ))
     }

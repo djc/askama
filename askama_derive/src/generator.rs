@@ -2,7 +2,7 @@ use crate::config::{get_template_source, read_config_file, Config, WhitespaceHan
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
 use crate::CompileError;
-use parser::{Call, Cond, CondTest, Expr, Loop, Node, Parsed, Target, When, Whitespace, Ws};
+use parser::{Call, Cond, CondTest, Expr, Loop, Match, Node, Parsed, Target, Whitespace, Ws};
 
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
@@ -644,8 +644,8 @@ impl<'a> Generator<'a> {
                 Node::Cond(ref conds, ws) => {
                     size_hint += self.write_cond(ctx, buf, conds, ws)?;
                 }
-                Node::Match(ws1, ref expr, ref arms, ws2) => {
-                    size_hint += self.write_match(ctx, buf, ws1, expr, arms, ws2)?;
+                Node::Match(ref m) => {
+                    size_hint += self.write_match(ctx, buf, m)?;
                 }
                 Node::Loop(ref loop_block) => {
                     size_hint += self.write_loop(ctx, buf, loop_block)?;
@@ -782,11 +782,15 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        ws1: Ws,
-        expr: &Expr<'_>,
-        arms: &'a [When<'_>],
-        ws2: Ws,
+        m: &'a Match<'a>,
     ) -> Result<usize, CompileError> {
+        let Match {
+            ws1,
+            ref expr,
+            ref arms,
+            ws2,
+        } = *m;
+
         self.flush_ws(ws1);
         let flushed = self.write_buf_writable(buf)?;
         let mut arm_sizes = Vec::new();

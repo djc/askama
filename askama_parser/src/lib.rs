@@ -16,7 +16,7 @@ use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
 
 pub use self::expr::Expr;
 pub use self::node::{
-    Call, Cond, CondTest, Import, Loop, Macro, Node, Target, When, Whitespace, Ws,
+    Call, Cond, CondTest, Import, Loop, Macro, Match, Node, Target, When, Whitespace, Ws,
 };
 
 mod expr;
