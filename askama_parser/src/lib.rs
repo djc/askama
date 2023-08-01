@@ -105,6 +105,10 @@ impl<'a> Ast<'a> {
 
         Err(ParseError(msg))
     }
+
+    pub fn nodes(&self) -> &[Node<'a>] {
+        &self.nodes
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
