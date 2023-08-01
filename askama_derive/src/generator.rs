@@ -666,10 +666,10 @@ impl<'a> Generator<'a> {
                     self.flush_ws(m.ws1);
                     self.prepare_ws(m.ws2);
                 }
-                Node::Raw(ws1, ref lit, ws2) => {
-                    self.handle_ws(ws1);
-                    self.visit_lit(lit);
-                    self.handle_ws(ws2);
+                Node::Raw(ref raw) => {
+                    self.handle_ws(raw.ws1);
+                    self.visit_lit(&raw.lit);
+                    self.handle_ws(raw.ws2);
                 }
                 Node::Import(ref i) => {
                     if level != AstLevel::Top {

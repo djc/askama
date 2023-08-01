@@ -30,7 +30,7 @@ pub enum Node<'a> {
     Include(Ws, &'a str),
     Import(Import<'a>),
     Macro(Macro<'a>),
-    Raw(Ws, Lit<'a>, Ws),
+    Raw(Raw<'a>),
     Break(Ws),
     Continue(Ws),
 }
@@ -59,7 +59,7 @@ impl<'a> Node<'a> {
                 map(Import::parse, Self::Import),
                 map(|i| BlockDef::parse(i, s), Self::BlockDef),
                 map(|i| Macro::parse(i, s), Self::Macro),
-                |i| Self::raw(i, s),
+                map(|i| Raw::parse(i, s), Self::Raw),
                 |i| Self::r#break(i, s),
                 |i| Self::r#continue(i, s),
             )),
@@ -202,32 +202,6 @@ impl<'a> Node<'a> {
         ));
         let (i, (pws, _, (name, nws))) = p(i)?;
         Ok((i, Self::Include(Ws(pws, nws), name)))
-    }
-
-    fn raw(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        let endraw = tuple((
-            |i| s.tag_block_start(i),
-            opt(Whitespace::parse),
-            ws(keyword("endraw")),
-            opt(Whitespace::parse),
-            peek(|i| s.tag_block_end(i)),
-        ));
-
-        let mut p = tuple((
-            opt(Whitespace::parse),
-            ws(keyword("raw")),
-            cut(tuple((
-                opt(Whitespace::parse),
-                |i| s.tag_block_end(i),
-                consumed(skip_till(endraw)),
-            ))),
-        ));
-
-        let (_, (pws1, _, (nws1, _, (contents, (i, (_, pws2, _, nws2, _)))))) = p(i)?;
-        let val = Lit::split_ws_parts(contents);
-        let ws1 = Ws(pws1, nws1);
-        let ws2 = Ws(pws2, nws2);
-        Ok((i, Self::Raw(ws1, val, ws2)))
     }
 
     fn r#break(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
@@ -809,6 +783,41 @@ impl<'a> Lit<'a> {
             val: trimmed,
             rws: &trimmed_start[trimmed.len()..],
         }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Raw<'a> {
+    pub ws1: Ws,
+    pub lit: Lit<'a>,
+    pub ws2: Ws,
+}
+
+impl<'a> Raw<'a> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+        let endraw = tuple((
+            |i| s.tag_block_start(i),
+            opt(Whitespace::parse),
+            ws(keyword("endraw")),
+            opt(Whitespace::parse),
+            peek(|i| s.tag_block_end(i)),
+        ));
+
+        let mut p = tuple((
+            opt(Whitespace::parse),
+            ws(keyword("raw")),
+            cut(tuple((
+                opt(Whitespace::parse),
+                |i| s.tag_block_end(i),
+                consumed(skip_till(endraw)),
+            ))),
+        ));
+
+        let (_, (pws1, _, (nws1, _, (contents, (i, (_, pws2, _, nws2, _)))))) = p(i)?;
+        let lit = Lit::split_ws_parts(contents);
+        let ws1 = Ws(pws1, nws1);
+        let ws2 = Ws(pws2, nws2);
+        Ok((i, Self { ws1, lit, ws2 }))
     }
 }
 
