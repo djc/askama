@@ -2,7 +2,9 @@ use crate::config::{get_template_source, read_config_file, Config, WhitespaceHan
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
 use crate::CompileError;
-use parser::{Call, Cond, CondTest, Expr, Lit, Loop, Match, Node, Parsed, Target, Whitespace, Ws};
+use parser::{
+    Call, Cond, CondTest, Expr, Let, Lit, Loop, Match, Node, Parsed, Target, Whitespace, Ws,
+};
 
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
@@ -635,11 +637,8 @@ impl<'a> Generator<'a> {
                 Node::Expr(ws, ref val) => {
                     self.write_expr(ws, val);
                 }
-                Node::LetDecl(ws, ref var) => {
-                    self.write_let_decl(buf, ws, var)?;
-                }
-                Node::Let(ws, ref var, ref val) => {
-                    self.write_let(buf, ws, var, val)?;
+                Node::Let(ref l) => {
+                    self.write_let(buf, l)?;
                 }
                 Node::Cond(ref conds, ws) => {
                     size_hint += self.write_cond(ctx, buf, conds, ws)?;
@@ -1055,19 +1054,6 @@ impl<'a> Generator<'a> {
         Ok(size_hint)
     }
 
-    fn write_let_decl(
-        &mut self,
-        buf: &mut Buffer,
-        ws: Ws,
-        var: &'a Target<'_>,
-    ) -> Result<(), CompileError> {
-        self.handle_ws(ws);
-        self.write_buf_writable(buf)?;
-        buf.write("let ");
-        self.visit_target(buf, false, true, var);
-        buf.writeln(";")
-    }
-
     fn is_shadowing_variable(&self, var: &Target<'a>) -> Result<bool, CompileError> {
         match var {
             Target::Name(name) => {
@@ -1103,31 +1089,33 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn write_let(
-        &mut self,
-        buf: &mut Buffer,
-        ws: Ws,
-        var: &'a Target<'_>,
-        val: &Expr<'_>,
-    ) -> Result<(), CompileError> {
-        self.handle_ws(ws);
+    fn write_let(&mut self, buf: &mut Buffer, l: &'a Let<'_>) -> Result<(), CompileError> {
+        self.handle_ws(l.ws);
+
+        let Some(val) = &l.val else {
+            self.write_buf_writable(buf)?;
+            buf.write("let ");
+            self.visit_target(buf, false, true, &l.var);
+            return buf.writeln(";");
+        };
+
         let mut expr_buf = Buffer::new(0);
         self.visit_expr(&mut expr_buf, val)?;
 
-        let shadowed = self.is_shadowing_variable(var)?;
+        let shadowed = self.is_shadowing_variable(&l.var)?;
         if shadowed {
             // Need to flush the buffer if the variable is being shadowed,
             // to ensure the old variable is used.
             self.write_buf_writable(buf)?;
         }
         if shadowed
-            || !matches!(var, &Target::Name(_))
-            || matches!(var, Target::Name(name) if self.locals.get(name).is_none())
+            || !matches!(l.var, Target::Name(_))
+            || matches!(&l.var, Target::Name(name) if self.locals.get(name).is_none())
         {
             buf.write("let ");
         }
 
-        self.visit_target(buf, true, true, var);
+        self.visit_target(buf, true, true, &l.var);
         buf.writeln(&format!(" = {};", &expr_buf.buf))
     }
 
