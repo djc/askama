@@ -23,7 +23,7 @@ mod node;
 mod tests;
 
 mod _parsed {
-    use std::mem;
+    use std::{fmt, mem};
 
     use super::{Ast, Node, ParseError, Syntax};
 
@@ -47,6 +47,14 @@ mod _parsed {
         // The return value's lifetime must be limited to `self` to uphold the unsafe invariant.
         pub fn nodes(&self) -> &[Node<'_>] {
             &self.ast.nodes
+        }
+    }
+
+    impl fmt::Debug for Parsed {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("Parsed")
+                .field("nodes", &self.ast.nodes)
+                .finish_non_exhaustive()
         }
     }
 }
