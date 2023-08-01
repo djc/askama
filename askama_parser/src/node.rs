@@ -699,18 +699,11 @@ pub enum Whitespace {
 
 impl Whitespace {
     fn parse(i: &str) -> IResult<&str, Self> {
-        alt((char('-'), char('+'), char('~')))(i).map(|(s, r)| (s, Self::from(r)))
-    }
-}
-
-impl From<char> for Whitespace {
-    fn from(c: char) -> Self {
-        match c {
-            '+' => Self::Preserve,
-            '-' => Self::Suppress,
-            '~' => Self::Minimize,
-            _ => panic!("unsupported `Whitespace` conversion"),
-        }
+        alt((
+            value(Self::Preserve, char('+')),
+            value(Self::Suppress, char('-')),
+            value(Self::Minimize, char('~')),
+        ))(i)
     }
 }
 
