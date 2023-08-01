@@ -26,7 +26,7 @@ pub enum Node<'a> {
     Loop(Loop<'a>),
     Extends(&'a str),
     BlockDef(BlockDef<'a>),
-    Include(Ws, &'a str),
+    Include(Include<'a>),
     Import(Import<'a>),
     Macro(Macro<'a>),
     Raw(Raw<'a>),
@@ -54,7 +54,7 @@ impl<'a> Node<'a> {
                 |i| Self::r#for(i, s),
                 map(|i| Match::parse(i, s), Self::Match),
                 Self::extends,
-                Self::include,
+                map(Include::parse, Self::Include),
                 map(Import::parse, Self::Import),
                 map(|i| BlockDef::parse(i, s), Self::BlockDef),
                 map(|i| Macro::parse(i, s), Self::Macro),
@@ -138,16 +138,6 @@ impl<'a> Node<'a> {
     fn extends(i: &'a str) -> IResult<&'a str, Self> {
         let (i, (_, name)) = tuple((ws(keyword("extends")), ws(str_lit)))(i)?;
         Ok((i, Self::Extends(name)))
-    }
-
-    fn include(i: &'a str) -> IResult<&'a str, Self> {
-        let mut p = tuple((
-            opt(Whitespace::parse),
-            ws(keyword("include")),
-            cut(pair(ws(str_lit), opt(Whitespace::parse))),
-        ));
-        let (i, (pws, _, (name, nws))) = p(i)?;
-        Ok((i, Self::Include(Ws(pws, nws), name)))
     }
 
     fn r#break(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
@@ -845,6 +835,30 @@ impl<'a> If<'a> {
             Self {
                 ws: Ws(pws2, nws2),
                 branches,
+            },
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Include<'a> {
+    pub ws: Ws,
+    pub path: &'a str,
+}
+
+impl<'a> Include<'a> {
+    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+        let mut p = tuple((
+            opt(Whitespace::parse),
+            ws(keyword("include")),
+            cut(pair(ws(str_lit), opt(Whitespace::parse))),
+        ));
+        let (i, (pws, _, (path, nws))) = p(i)?;
+        Ok((
+            i,
+            Self {
+                ws: Ws(pws, nws),
+                path,
             },
         ))
     }

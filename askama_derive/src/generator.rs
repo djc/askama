@@ -3,7 +3,7 @@ use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
 use crate::CompileError;
 use parser::{
-    Call, CondTest, Expr, If, Let, Lit, Loop, Match, Node, Parsed, Target, Whitespace, Ws,
+    Call, CondTest, Expr, If, Include, Let, Lit, Loop, Match, Node, Parsed, Target, Whitespace, Ws,
 };
 
 use proc_macro::TokenStream;
@@ -652,8 +652,8 @@ impl<'a> Generator<'a> {
                 Node::BlockDef(ref b) => {
                     size_hint += self.write_block(buf, Some(b.name), Ws(b.ws1.0, b.ws2.1))?;
                 }
-                Node::Include(ws, path) => {
-                    size_hint += self.handle_include(ctx, buf, ws, path)?;
+                Node::Include(ref i) => {
+                    size_hint += self.handle_include(ctx, buf, i)?;
                 }
                 Node::Call(ref call) => {
                     size_hint += self.write_call(ctx, buf, call)?;
@@ -1002,15 +1002,14 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        ws: Ws,
-        path: &str,
+        i: &'a Include<'_>,
     ) -> Result<usize, CompileError> {
-        self.flush_ws(ws);
+        self.flush_ws(i.ws);
         self.write_buf_writable(buf)?;
         let path = self
             .input
             .config
-            .find_template(path, Some(&self.input.path))?;
+            .find_template(i.path, Some(&self.input.path))?;
 
         // Make sure the compiler understands that the generated code depends on the template file.
         {
@@ -1048,7 +1047,7 @@ impl<'a> Generator<'a> {
 
         let mut size_hint = child.handle(ctx, nodes, buf, AstLevel::Nested)?;
         size_hint += child.write_buf_writable(buf)?;
-        self.prepare_ws(ws);
+        self.prepare_ws(i.ws);
 
         Ok(size_hint)
     }
