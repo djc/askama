@@ -2,7 +2,7 @@ use crate::config::{get_template_source, read_config_file, Config, WhitespaceHan
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
 use crate::CompileError;
-use parser::{Call, Cond, CondTest, Expr, Loop, Match, Node, Parsed, Target, Whitespace, Ws};
+use parser::{Call, Cond, CondTest, Expr, Lit, Loop, Match, Node, Parsed, Target, Whitespace, Ws};
 
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
@@ -626,8 +626,8 @@ impl<'a> Generator<'a> {
         let mut size_hint = 0;
         for n in nodes {
             match *n {
-                Node::Lit(lws, val, rws) => {
-                    self.visit_lit(lws, val, rws);
+                Node::Lit(ref lit) => {
+                    self.visit_lit(lit);
                 }
                 Node::Comment(ws) => {
                     self.write_comment(ws);
@@ -666,9 +666,9 @@ impl<'a> Generator<'a> {
                     self.flush_ws(m.ws1);
                     self.prepare_ws(m.ws2);
                 }
-                Node::Raw(ws1, lws, val, rws, ws2) => {
+                Node::Raw(ws1, ref lit, ws2) => {
                     self.handle_ws(ws1);
-                    self.visit_lit(lws, val, rws);
+                    self.visit_lit(lit);
                     self.handle_ws(ws2);
                 }
                 Node::Import(ref i) => {
@@ -1274,8 +1274,9 @@ impl<'a> Generator<'a> {
         Ok(size_hint)
     }
 
-    fn visit_lit(&mut self, lws: &'a str, val: &'a str, rws: &'a str) {
+    fn visit_lit(&mut self, lit: &'a Lit<'_>) {
         assert!(self.next_ws.is_none());
+        let Lit { lws, val, rws } = *lit;
         if !lws.is_empty() {
             match self.skip_ws {
                 WhitespaceHandling::Suppress => {}
