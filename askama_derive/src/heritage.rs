@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::config::Config;
 use crate::CompileError;
-use parser::{Loop, Macro, Match, Node};
+use parser::{BlockDef, Loop, Macro, Match, Node};
 
 pub(crate) struct Heritage<'a> {
     pub(crate) root: &'a Context<'a>,
@@ -32,12 +32,12 @@ impl Heritage<'_> {
     }
 }
 
-type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a Node<'a>)>>;
+type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a BlockDef<'a>)>>;
 
 pub(crate) struct Context<'a> {
     pub(crate) nodes: &'a [Node<'a>],
     pub(crate) extends: Option<PathBuf>,
-    pub(crate) blocks: HashMap<&'a str, &'a Node<'a>>,
+    pub(crate) blocks: HashMap<&'a str, &'a BlockDef<'a>>,
     pub(crate) macros: HashMap<&'a str, &'a Macro<'a>>,
     pub(crate) imports: HashMap<&'a str, PathBuf>,
 }
@@ -49,7 +49,7 @@ impl Context<'_> {
         nodes: &'n [Node<'n>],
     ) -> Result<Context<'n>, CompileError> {
         let mut extends = None;
-        let mut blocks = Vec::new();
+        let mut blocks = HashMap::new();
         let mut macros = HashMap::new();
         let mut imports = HashMap::new();
         let mut nested = vec![nodes];
@@ -76,11 +76,9 @@ impl Context<'_> {
                             "extends, macro or import blocks not allowed below top level".into(),
                         );
                     }
-                    def @ Node::BlockDef(_, _, _, _) => {
-                        blocks.push(def);
-                        if let Node::BlockDef(_, _, nodes, _) = def {
-                            nested.push(nodes);
-                        }
+                    Node::BlockDef(b) => {
+                        blocks.insert(b.name, b);
+                        nested.push(&b.nodes);
                     }
                     Node::Cond(branches, _) => {
                         for cond in branches {
@@ -105,17 +103,6 @@ impl Context<'_> {
             }
             top = false;
         }
-
-        let blocks: HashMap<_, _> = blocks
-            .iter()
-            .map(|def| {
-                if let Node::BlockDef(_, name, _, _) = def {
-                    (*name, *def)
-                } else {
-                    unreachable!()
-                }
-            })
-            .collect();
 
         Ok(Context {
             nodes,

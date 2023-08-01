@@ -26,7 +26,7 @@ pub enum Node<'a> {
     Match(Match<'a>),
     Loop(Loop<'a>),
     Extends(&'a str),
-    BlockDef(Ws, &'a str, Vec<Node<'a>>, Ws),
+    BlockDef(BlockDef<'a>),
     Include(Ws, &'a str),
     Import(Import<'a>),
     Macro(Macro<'a>),
@@ -77,7 +77,7 @@ impl<'a> Node<'a> {
                 Self::extends,
                 Self::include,
                 map(Import::parse, Self::Import),
-                |i| Self::block(i, s),
+                map(|i| BlockDef::parse(i, s), Self::BlockDef),
                 map(|i| Macro::parse(i, s), Self::Macro),
                 |i| Self::raw(i, s),
                 |i| Self::r#break(i, s),
@@ -222,33 +222,6 @@ impl<'a> Node<'a> {
         ));
         let (i, (pws, _, (name, nws))) = p(i)?;
         Ok((i, Self::Include(Ws(pws, nws), name)))
-    }
-
-    fn block(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        let mut start = tuple((
-            opt(Whitespace::parse),
-            ws(keyword("block")),
-            cut(tuple((ws(identifier), opt(Whitespace::parse), |i| {
-                s.tag_block_end(i)
-            }))),
-        ));
-        let (i, (pws1, _, (name, nws1, _))) = start(i)?;
-
-        let mut end = cut(tuple((
-            |i| Self::many(i, s),
-            cut(tuple((
-                |i| s.tag_block_start(i),
-                opt(Whitespace::parse),
-                ws(keyword("endblock")),
-                cut(tuple((opt(ws(keyword(name))), opt(Whitespace::parse)))),
-            ))),
-        )));
-        let (i, (contents, (_, pws2, _, (_, nws2)))) = end(i)?;
-
-        Ok((
-            i,
-            Self::BlockDef(Ws(pws1, nws1), name, contents, Ws(pws2, nws2)),
-        ))
     }
 
     fn raw(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
@@ -781,6 +754,48 @@ impl<'a> Match<'a> {
                 ws1: Ws(pws1, nws1),
                 expr,
                 arms,
+                ws2: Ws(pws2, nws2),
+            },
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct BlockDef<'a> {
+    pub ws1: Ws,
+    pub name: &'a str,
+    pub nodes: Vec<Node<'a>>,
+    pub ws2: Ws,
+}
+
+impl<'a> BlockDef<'a> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+        let mut start = tuple((
+            opt(Whitespace::parse),
+            ws(keyword("block")),
+            cut(tuple((ws(identifier), opt(Whitespace::parse), |i| {
+                s.tag_block_end(i)
+            }))),
+        ));
+        let (i, (pws1, _, (name, nws1, _))) = start(i)?;
+
+        let mut end = cut(tuple((
+            |i| Node::many(i, s),
+            cut(tuple((
+                |i| s.tag_block_start(i),
+                opt(Whitespace::parse),
+                ws(keyword("endblock")),
+                cut(tuple((opt(ws(keyword(name))), opt(Whitespace::parse)))),
+            ))),
+        )));
+        let (i, (nodes, (_, pws2, _, (_, nws2)))) = end(i)?;
+
+        Ok((
+            i,
+            BlockDef {
+                ws1: Ws(pws1, nws1),
+                name,
+                nodes,
                 ws2: Ws(pws2, nws2),
             },
         ))
