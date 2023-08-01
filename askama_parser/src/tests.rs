@@ -1,6 +1,5 @@
-use super::expr::Expr;
-use super::node::{Lit, Node, Whitespace, Ws};
-use super::{Ast, Syntax};
+use super::node::{Lit, Whitespace, Ws};
+use super::{Ast, Expr, Node, Syntax};
 
 fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
     let Lit { lws, val, rws } = Lit::split_ws_parts(s);

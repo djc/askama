@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use crate::config::Config;
 use crate::CompileError;
 
-use parser::node::{BlockDef, Macro, Match, Node};
+use parser::node::{BlockDef, Macro, Match};
+use parser::Node;
 
 pub(crate) struct Heritage<'a> {
     pub(crate) root: &'a Context<'a>,
