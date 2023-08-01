@@ -23,6 +23,7 @@ mod node;
 mod tests;
 
 mod _parsed {
+    use std::cmp::PartialEq;
     use std::{fmt, mem};
 
     use super::{Ast, Node, ParseError, Syntax};
@@ -55,6 +56,12 @@ mod _parsed {
             f.debug_struct("Parsed")
                 .field("nodes", &self.ast.nodes)
                 .finish_non_exhaustive()
+        }
+    }
+
+    impl PartialEq for Parsed {
+        fn eq(&self, other: &Self) -> bool {
+            self.ast.nodes == other.ast.nodes
         }
     }
 }
