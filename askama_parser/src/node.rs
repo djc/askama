@@ -19,7 +19,7 @@ pub enum Node<'a> {
     Lit(&'a str, &'a str, &'a str),
     Comment(Ws),
     Expr(Ws, Expr<'a>),
-    Call(Ws, Option<&'a str>, &'a str, Vec<Expr<'a>>),
+    Call(Call<'a>),
     LetDecl(Ws, Target<'a>),
     Let(Ws, Target<'a>, Expr<'a>),
     Cond(Vec<Cond<'a>>, Ws),
@@ -69,7 +69,7 @@ impl<'a> Node<'a> {
         let mut p = tuple((
             |i| s.tag_block_start(i),
             alt((
-                Self::call,
+                map(Call::parse, Self::Call),
                 Self::r#let,
                 |i| Self::r#if(i, s),
                 |i| Self::r#for(i, s),
@@ -87,23 +87,6 @@ impl<'a> Node<'a> {
         ));
         let (i, (_, contents, _)) = p(i)?;
         Ok((i, contents))
-    }
-
-    fn call(i: &'a str) -> IResult<&'a str, Self> {
-        let mut p = tuple((
-            opt(Whitespace::parse),
-            ws(keyword("call")),
-            cut(tuple((
-                opt(tuple((ws(identifier), ws(tag("::"))))),
-                ws(identifier),
-                opt(ws(Expr::arguments)),
-                opt(Whitespace::parse),
-            ))),
-        ));
-        let (i, (pws, _, (scope, name, args, nws))) = p(i)?;
-        let scope = scope.map(|(scope, _)| scope);
-        let args = args.unwrap_or_default();
-        Ok((i, Self::Call(Ws(pws, nws), scope, name, args)))
     }
 
     fn r#let(i: &'a str) -> IResult<&'a str, Self> {
@@ -739,6 +722,41 @@ impl<'a> Import<'a> {
                 ws: Ws(pws, nws),
                 path,
                 scope,
+            },
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Call<'a> {
+    pub ws: Ws,
+    pub scope: Option<&'a str>,
+    pub name: &'a str,
+    pub args: Vec<Expr<'a>>,
+}
+
+impl<'a> Call<'a> {
+    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+        let mut p = tuple((
+            opt(Whitespace::parse),
+            ws(keyword("call")),
+            cut(tuple((
+                opt(tuple((ws(identifier), ws(tag("::"))))),
+                ws(identifier),
+                opt(ws(Expr::arguments)),
+                opt(Whitespace::parse),
+            ))),
+        ));
+        let (i, (pws, _, (scope, name, args, nws))) = p(i)?;
+        let scope = scope.map(|(scope, _)| scope);
+        let args = args.unwrap_or_default();
+        Ok((
+            i,
+            Self {
+                ws: Ws(pws, nws),
+                scope,
+                name,
+                args,
             },
         ))
     }

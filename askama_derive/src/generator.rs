@@ -2,7 +2,7 @@ use crate::config::{get_template_source, read_config_file, Config, WhitespaceHan
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
 use crate::CompileError;
-use parser::{Cond, CondTest, Expr, Loop, Node, Parsed, Target, When, Whitespace, Ws};
+use parser::{Call, Cond, CondTest, Expr, Loop, Node, Parsed, Target, When, Whitespace, Ws};
 
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
@@ -656,8 +656,8 @@ impl<'a> Generator<'a> {
                 Node::Include(ws, path) => {
                     size_hint += self.handle_include(ctx, buf, ws, path)?;
                 }
-                Node::Call(ws, scope, name, ref args) => {
-                    size_hint += self.write_call(ctx, buf, ws, scope, name, args)?;
+                Node::Call(ref call) => {
+                    size_hint += self.write_call(ctx, buf, call)?;
                 }
                 Node::Macro(ref m) => {
                     if level != AstLevel::Top {
@@ -896,11 +896,14 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        ws: Ws,
-        scope: Option<&str>,
-        name: &str,
-        args: &[Expr<'_>],
+        call: &'a Call<'_>,
     ) -> Result<usize, CompileError> {
+        let Call {
+            ws,
+            scope,
+            name,
+            ref args,
+        } = *call;
         if name == "super" {
             return self.write_block(buf, None, ws);
         }
