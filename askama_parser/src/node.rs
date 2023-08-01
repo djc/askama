@@ -51,7 +51,7 @@ impl<'a> Node<'a> {
                 map(Call::parse, Self::Call),
                 map(Let::parse, Self::Let),
                 map(|i| If::parse(i, s), Self::If),
-                |i| Self::r#for(i, s),
+                map(|i| Loop::parse(i, s), Self::Loop),
                 map(|i| Match::parse(i, s), Self::Match),
                 map(Extends::parse, Self::Extends),
                 map(Include::parse, Self::Include),
@@ -66,73 +66,6 @@ impl<'a> Node<'a> {
         ));
         let (i, (_, contents, _)) = p(i)?;
         Ok((i, contents))
-    }
-
-    fn r#for(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        fn content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {
-            s.enter_loop();
-            let result = Node::many(i, s);
-            s.leave_loop();
-            result
-        }
-
-        let if_cond = preceded(ws(keyword("if")), cut(ws(Expr::parse)));
-        let else_block = |i| {
-            let mut p = preceded(
-                ws(keyword("else")),
-                cut(tuple((
-                    opt(Whitespace::parse),
-                    delimited(
-                        |i| s.tag_block_end(i),
-                        |i| Self::many(i, s),
-                        |i| s.tag_block_start(i),
-                    ),
-                    opt(Whitespace::parse),
-                ))),
-            );
-            let (i, (pws, nodes, nws)) = p(i)?;
-            Ok((i, (pws, nodes, nws)))
-        };
-        let mut p = tuple((
-            opt(Whitespace::parse),
-            ws(keyword("for")),
-            cut(tuple((
-                ws(Target::parse),
-                ws(keyword("in")),
-                cut(tuple((
-                    ws(Expr::parse),
-                    opt(if_cond),
-                    opt(Whitespace::parse),
-                    |i| s.tag_block_end(i),
-                    cut(tuple((
-                        |i| content(i, s),
-                        cut(tuple((
-                            |i| s.tag_block_start(i),
-                            opt(Whitespace::parse),
-                            opt(else_block),
-                            ws(keyword("endfor")),
-                            opt(Whitespace::parse),
-                        ))),
-                    ))),
-                ))),
-            ))),
-        ));
-        let (i, (pws1, _, (var, _, (iter, cond, nws1, _, (body, (_, pws2, else_block, _, nws2)))))) =
-            p(i)?;
-        let (nws3, else_block, pws3) = else_block.unwrap_or_default();
-        Ok((
-            i,
-            Self::Loop(Loop {
-                ws1: Ws(pws1, nws1),
-                var,
-                iter,
-                cond,
-                body,
-                ws2: Ws(pws2, nws3),
-                else_nodes: else_block,
-                ws3: Ws(pws3, nws2),
-            }),
-        ))
     }
 
     fn r#break(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
@@ -458,6 +391,75 @@ pub struct Loop<'a> {
     pub ws2: Ws,
     pub else_nodes: Vec<Node<'a>>,
     pub ws3: Ws,
+}
+
+impl<'a> Loop<'a> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+        fn content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {
+            s.enter_loop();
+            let result = Node::many(i, s);
+            s.leave_loop();
+            result
+        }
+
+        let if_cond = preceded(ws(keyword("if")), cut(ws(Expr::parse)));
+        let else_block = |i| {
+            let mut p = preceded(
+                ws(keyword("else")),
+                cut(tuple((
+                    opt(Whitespace::parse),
+                    delimited(
+                        |i| s.tag_block_end(i),
+                        |i| Node::many(i, s),
+                        |i| s.tag_block_start(i),
+                    ),
+                    opt(Whitespace::parse),
+                ))),
+            );
+            let (i, (pws, nodes, nws)) = p(i)?;
+            Ok((i, (pws, nodes, nws)))
+        };
+        let mut p = tuple((
+            opt(Whitespace::parse),
+            ws(keyword("for")),
+            cut(tuple((
+                ws(Target::parse),
+                ws(keyword("in")),
+                cut(tuple((
+                    ws(Expr::parse),
+                    opt(if_cond),
+                    opt(Whitespace::parse),
+                    |i| s.tag_block_end(i),
+                    cut(tuple((
+                        |i| content(i, s),
+                        cut(tuple((
+                            |i| s.tag_block_start(i),
+                            opt(Whitespace::parse),
+                            opt(else_block),
+                            ws(keyword("endfor")),
+                            opt(Whitespace::parse),
+                        ))),
+                    ))),
+                ))),
+            ))),
+        ));
+        let (i, (pws1, _, (var, _, (iter, cond, nws1, _, (body, (_, pws2, else_block, _, nws2)))))) =
+            p(i)?;
+        let (nws3, else_block, pws3) = else_block.unwrap_or_default();
+        Ok((
+            i,
+            Self {
+                ws1: Ws(pws1, nws1),
+                var,
+                iter,
+                cond,
+                body,
+                ws2: Ws(pws2, nws3),
+                else_nodes: else_block,
+                ws3: Ws(pws3, nws2),
+            },
+        ))
+    }
 }
 
 #[derive(Debug, PartialEq)]
