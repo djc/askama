@@ -20,8 +20,7 @@ pub enum Node<'a> {
     Comment(Ws),
     Expr(Ws, Expr<'a>),
     Call(Call<'a>),
-    LetDecl(Ws, Target<'a>),
-    Let(Ws, Target<'a>, Expr<'a>),
+    Let(Let<'a>),
     Cond(Vec<Cond<'a>>, Ws),
     Match(Match<'a>),
     Loop(Loop<'a>),
@@ -50,7 +49,7 @@ impl<'a> Node<'a> {
             |i| s.tag_block_start(i),
             alt((
                 map(Call::parse, Self::Call),
-                Self::r#let,
+                map(Let::parse, Self::Let),
                 |i| Self::r#if(i, s),
                 |i| Self::r#for(i, s),
                 map(|i| Match::parse(i, s), Self::Match),
@@ -67,28 +66,6 @@ impl<'a> Node<'a> {
         ));
         let (i, (_, contents, _)) = p(i)?;
         Ok((i, contents))
-    }
-
-    fn r#let(i: &'a str) -> IResult<&'a str, Self> {
-        let mut p = tuple((
-            opt(Whitespace::parse),
-            ws(alt((keyword("let"), keyword("set")))),
-            cut(tuple((
-                ws(Target::parse),
-                opt(tuple((ws(char('=')), ws(Expr::parse)))),
-                opt(Whitespace::parse),
-            ))),
-        ));
-        let (i, (pws, _, (var, val, nws))) = p(i)?;
-
-        Ok((
-            i,
-            if let Some((_, val)) = val {
-                Self::Let(Ws(pws, nws), var, val)
-            } else {
-                Self::LetDecl(Ws(pws, nws), var)
-            },
-        ))
     }
 
     fn r#if(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
@@ -818,6 +795,37 @@ impl<'a> Raw<'a> {
         let ws1 = Ws(pws1, nws1);
         let ws2 = Ws(pws2, nws2);
         Ok((i, Self { ws1, lit, ws2 }))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Let<'a> {
+    pub ws: Ws,
+    pub var: Target<'a>,
+    pub val: Option<Expr<'a>>,
+}
+
+impl<'a> Let<'a> {
+    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+        let mut p = tuple((
+            opt(Whitespace::parse),
+            ws(alt((keyword("let"), keyword("set")))),
+            cut(tuple((
+                ws(Target::parse),
+                opt(preceded(ws(char('=')), ws(Expr::parse))),
+                opt(Whitespace::parse),
+            ))),
+        ));
+        let (i, (pws, _, (var, val, nws))) = p(i)?;
+
+        Ok((
+            i,
+            Let {
+                ws: Ws(pws, nws),
+                var,
+                val,
+            },
+        ))
     }
 }
 
