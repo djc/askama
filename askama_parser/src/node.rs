@@ -29,7 +29,7 @@ pub enum Node<'a> {
     BlockDef(Ws, &'a str, Vec<Node<'a>>, Ws),
     Include(Ws, &'a str),
     Import(Ws, &'a str, &'a str),
-    Macro(&'a str, Macro<'a>),
+    Macro(Macro<'a>),
     Raw(Ws, &'a str, &'a str, &'a str, Ws),
     Break(Ws),
     Continue(Ws),
@@ -78,7 +78,7 @@ impl<'a> Node<'a> {
                 Self::include,
                 Self::import,
                 |i| Self::block(i, s),
-                |i| Self::r#macro(i, s),
+                map(|i| Macro::parse(i, s), Self::Macro),
                 |i| Self::raw(i, s),
                 |i| Self::r#break(i, s),
                 |i| Self::r#continue(i, s),
@@ -313,56 +313,6 @@ impl<'a> Node<'a> {
         ));
         let (i, (pws, _, (name, _, (scope, nws)))) = p(i)?;
         Ok((i, Self::Import(Ws(pws, nws), name, scope)))
-    }
-
-    fn r#macro(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        fn parameters(i: &str) -> IResult<&str, Vec<&str>> {
-            delimited(
-                ws(char('(')),
-                separated_list0(char(','), ws(identifier)),
-                ws(char(')')),
-            )(i)
-        }
-
-        let mut start = tuple((
-            opt(Whitespace::parse),
-            ws(keyword("macro")),
-            cut(tuple((
-                ws(identifier),
-                opt(ws(parameters)),
-                opt(Whitespace::parse),
-                |i| s.tag_block_end(i),
-            ))),
-        ));
-        let (i, (pws1, _, (name, params, nws1, _))) = start(i)?;
-
-        let mut end = cut(tuple((
-            |i| Self::many(i, s),
-            cut(tuple((
-                |i| s.tag_block_start(i),
-                opt(Whitespace::parse),
-                ws(keyword("endmacro")),
-                cut(tuple((opt(ws(keyword(name))), opt(Whitespace::parse)))),
-            ))),
-        )));
-        let (i, (contents, (_, pws2, _, (_, nws2)))) = end(i)?;
-
-        assert_ne!(name, "super", "invalid macro name 'super'");
-
-        let params = params.unwrap_or_default();
-
-        Ok((
-            i,
-            Self::Macro(
-                name,
-                Macro {
-                    ws1: Ws(pws1, nws1),
-                    args: params,
-                    nodes: contents,
-                    ws2: Ws(pws2, nws2),
-                },
-            ),
-        ))
     }
 
     fn raw(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
@@ -722,9 +672,60 @@ pub struct Loop<'a> {
 #[derive(Debug, PartialEq)]
 pub struct Macro<'a> {
     pub ws1: Ws,
+    pub name: &'a str,
     pub args: Vec<&'a str>,
     pub nodes: Vec<Node<'a>>,
     pub ws2: Ws,
+}
+
+impl<'a> Macro<'a> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+        fn parameters(i: &str) -> IResult<&str, Vec<&str>> {
+            delimited(
+                ws(char('(')),
+                separated_list0(char(','), ws(identifier)),
+                ws(char(')')),
+            )(i)
+        }
+
+        let mut start = tuple((
+            opt(Whitespace::parse),
+            ws(keyword("macro")),
+            cut(tuple((
+                ws(identifier),
+                opt(ws(parameters)),
+                opt(Whitespace::parse),
+                |i| s.tag_block_end(i),
+            ))),
+        ));
+        let (i, (pws1, _, (name, params, nws1, _))) = start(i)?;
+
+        let mut end = cut(tuple((
+            |i| Node::many(i, s),
+            cut(tuple((
+                |i| s.tag_block_start(i),
+                opt(Whitespace::parse),
+                ws(keyword("endmacro")),
+                cut(tuple((opt(ws(keyword(name))), opt(Whitespace::parse)))),
+            ))),
+        )));
+        let (i, (contents, (_, pws2, _, (_, nws2)))) = end(i)?;
+
+        assert_ne!(name, "super", "invalid macro name 'super'");
+
+        let params = params.unwrap_or_default();
+
+        Ok((
+            i,
+            Self {
+                ws1: Ws(pws1, nws1),
+                name,
+                args: params,
+                nodes: contents,
+                ws2: Ws(pws2, nws2),
+            },
+        ))
+    }
 }
 
 /// First field is "minus/plus sign was used on the left part of the item".
