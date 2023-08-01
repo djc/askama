@@ -3,7 +3,7 @@ use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
 use crate::CompileError;
 use parser::{
-    Call, Cond, CondTest, Expr, Let, Lit, Loop, Match, Node, Parsed, Target, Whitespace, Ws,
+    Call, CondTest, Expr, If, Let, Lit, Loop, Match, Node, Parsed, Target, Whitespace, Ws,
 };
 
 use proc_macro::TokenStream;
@@ -640,8 +640,8 @@ impl<'a> Generator<'a> {
                 Node::Let(ref l) => {
                     self.write_let(buf, l)?;
                 }
-                Node::Cond(ref conds, ws) => {
-                    size_hint += self.write_cond(ctx, buf, conds, ws)?;
+                Node::If(ref i) => {
+                    size_hint += self.write_if(ctx, buf, i)?;
                 }
                 Node::Match(ref m) => {
                     size_hint += self.write_match(ctx, buf, m)?;
@@ -707,17 +707,16 @@ impl<'a> Generator<'a> {
         Ok(size_hint)
     }
 
-    fn write_cond(
+    fn write_if(
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        conds: &'a [Cond<'_>],
-        ws: Ws,
+        i: &'a If<'_>,
     ) -> Result<usize, CompileError> {
         let mut flushed = 0;
         let mut arm_sizes = Vec::new();
         let mut has_else = false;
-        for (i, cond) in conds.iter().enumerate() {
+        for (i, cond) in i.branches.iter().enumerate() {
             self.handle_ws(cond.ws);
             flushed += self.write_buf_writable(buf)?;
             if i > 0 {
@@ -764,7 +763,7 @@ impl<'a> Generator<'a> {
             arm_size += self.handle(ctx, &cond.nodes, buf, AstLevel::Nested)?;
             arm_sizes.push(arm_size);
         }
-        self.handle_ws(ws);
+        self.handle_ws(i.ws);
         flushed += self.write_buf_writable(buf)?;
         buf.writeln("}")?;
 

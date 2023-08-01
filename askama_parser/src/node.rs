@@ -21,7 +21,7 @@ pub enum Node<'a> {
     Expr(Ws, Expr<'a>),
     Call(Call<'a>),
     Let(Let<'a>),
-    Cond(Vec<Cond<'a>>, Ws),
+    If(If<'a>),
     Match(Match<'a>),
     Loop(Loop<'a>),
     Extends(&'a str),
@@ -50,7 +50,7 @@ impl<'a> Node<'a> {
             alt((
                 map(Call::parse, Self::Call),
                 map(Let::parse, Self::Let),
-                |i| Self::r#if(i, s),
+                map(|i| If::parse(i, s), Self::If),
                 |i| Self::r#for(i, s),
                 map(|i| Match::parse(i, s), Self::Match),
                 Self::extends,
@@ -66,37 +66,6 @@ impl<'a> Node<'a> {
         ));
         let (i, (_, contents, _)) = p(i)?;
         Ok((i, contents))
-    }
-
-    fn r#if(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        let mut p = tuple((
-            opt(Whitespace::parse),
-            CondTest::parse,
-            cut(tuple((
-                opt(Whitespace::parse),
-                |i| s.tag_block_end(i),
-                cut(tuple((
-                    |i| Node::many(i, s),
-                    many0(|i| Cond::parse(i, s)),
-                    cut(tuple((
-                        |i| s.tag_block_start(i),
-                        opt(Whitespace::parse),
-                        ws(keyword("endif")),
-                        opt(Whitespace::parse),
-                    ))),
-                ))),
-            ))),
-        ));
-
-        let (i, (pws1, cond, (nws1, _, (nodes, elifs, (_, pws2, _, nws2))))) = p(i)?;
-        let mut res = vec![Cond {
-            ws: Ws(pws1, nws1),
-            cond: Some(cond),
-            nodes,
-        }];
-        res.extend(elifs);
-
-        Ok((i, Self::Cond(res, Ws(pws2, nws2))))
     }
 
     fn r#for(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
@@ -824,6 +793,51 @@ impl<'a> Let<'a> {
                 ws: Ws(pws, nws),
                 var,
                 val,
+            },
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct If<'a> {
+    pub ws: Ws,
+    pub branches: Vec<Cond<'a>>,
+}
+
+impl<'a> If<'a> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+        let mut p = tuple((
+            opt(Whitespace::parse),
+            CondTest::parse,
+            cut(tuple((
+                opt(Whitespace::parse),
+                |i| s.tag_block_end(i),
+                cut(tuple((
+                    |i| Node::many(i, s),
+                    many0(|i| Cond::parse(i, s)),
+                    cut(tuple((
+                        |i| s.tag_block_start(i),
+                        opt(Whitespace::parse),
+                        ws(keyword("endif")),
+                        opt(Whitespace::parse),
+                    ))),
+                ))),
+            ))),
+        ));
+
+        let (i, (pws1, cond, (nws1, _, (nodes, elifs, (_, pws2, _, nws2))))) = p(i)?;
+        let mut branches = vec![Cond {
+            ws: Ws(pws1, nws1),
+            cond: Some(cond),
+            nodes,
+        }];
+        branches.extend(elifs);
+
+        Ok((
+            i,
+            Self {
+                ws: Ws(pws2, nws2),
+                branches,
             },
         ))
     }
