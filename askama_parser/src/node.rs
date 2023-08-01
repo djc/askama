@@ -9,9 +9,9 @@ use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{error_position, IResult};
 
+use super::expr::Expr;
 use super::{
-    bool_lit, char_lit, identifier, is_ws, keyword, num_lit, path, skip_till, str_lit, ws, Expr,
-    State,
+    bool_lit, char_lit, identifier, is_ws, keyword, num_lit, path, skip_till, str_lit, ws, State,
 };
 
 #[derive(Debug, PartialEq)]

@@ -6,7 +6,9 @@ use std::{env, fs};
 use serde::Deserialize;
 
 use crate::CompileError;
-use parser::{Syntax, Whitespace};
+
+use parser::node::Whitespace;
+use parser::Syntax;
 
 #[derive(Debug)]
 pub(crate) struct Config<'a> {

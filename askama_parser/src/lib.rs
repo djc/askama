@@ -14,14 +14,10 @@ use nom::multi::separated_list1;
 use nom::sequence::{delimited, pair, tuple};
 use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
 
-pub use self::expr::Expr;
-pub use self::node::{
-    BlockDef, Call, Cond, CondTest, Extends, If, Import, Include, Let, Lit, Loop, Macro, Match,
-    Node, Raw, Target, When, Whitespace, Ws,
-};
-
-mod expr;
-mod node;
+pub mod expr;
+pub use expr::Expr;
+pub mod node;
+pub use node::Node;
 #[cfg(test)]
 mod tests;
 
@@ -29,7 +25,8 @@ mod _parsed {
     use std::cmp::PartialEq;
     use std::{fmt, mem};
 
-    use super::{Ast, Node, ParseError, Syntax};
+    use super::node::Node;
+    use super::{Ast, ParseError, Syntax};
 
     pub struct Parsed {
         // `source` must outlive `ast`, so `ast` must be declared before `source`

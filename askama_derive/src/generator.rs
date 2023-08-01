@@ -2,10 +2,12 @@ use crate::config::{get_template_source, read_config_file, Config, WhitespaceHan
 use crate::heritage::{Context, Heritage};
 use crate::input::{Print, Source, TemplateInput};
 use crate::CompileError;
-use parser::{
-    Call, CondTest, Expr, If, Include, Let, Lit, Loop, Match, Node, Parsed, Target, Whitespace, Ws,
-};
 
+use parser::expr::Expr;
+use parser::node::{
+    Call, CondTest, If, Include, Let, Lit, Loop, Match, Node, Target, Whitespace, Ws,
+};
+use parser::Parsed;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;

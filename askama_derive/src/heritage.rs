@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 
 use crate::config::Config;
 use crate::CompileError;
-use parser::{BlockDef, Loop, Macro, Match, Node};
+
+use parser::node::{BlockDef, Loop, Macro, Match, Node};
 
 pub(crate) struct Heritage<'a> {
     pub(crate) root: &'a Context<'a>,
