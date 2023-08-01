@@ -36,12 +36,12 @@ pub enum Node<'a> {
 
 impl<'a> Node<'a> {
     pub(super) fn many(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Self>> {
-        many0(alt((
-            map(complete(|i| Lit::parse(i, s)), Self::Lit),
-            map(complete(|i| Comment::parse(i, s)), Self::Comment),
-            complete(|i| Self::expr(i, s)),
-            complete(|i| Self::parse(i, s)),
-        )))(i)
+        complete(many0(alt((
+            map(|i| Lit::parse(i, s), Self::Lit),
+            map(|i| Comment::parse(i, s), Self::Comment),
+            |i| Self::expr(i, s),
+            |i| Self::parse(i, s),
+        ))))(i)
     }
 
     fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
