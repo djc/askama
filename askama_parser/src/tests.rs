@@ -1,4 +1,6 @@
-use super::{Ast, Expr, Lit, Node, Syntax, Whitespace, Ws};
+use super::expr::Expr;
+use super::node::{Lit, Node, Whitespace, Ws};
+use super::{Ast, Syntax};
 
 fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
     let Lit { lws, val, rws } = Lit::split_ws_parts(s);
@@ -604,7 +606,7 @@ fn test_parse_comments() {
 
 #[test]
 fn test_parse_tuple() {
-    use super::Expr::*;
+    use super::expr::Expr::*;
     let syntax = Syntax::default();
     assert_eq!(
         Ast::from_str("{{ () }}", &syntax).unwrap().nodes,
