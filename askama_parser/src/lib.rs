@@ -16,7 +16,8 @@ use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
 
 pub use self::expr::Expr;
 pub use self::node::{
-    BlockDef, Call, Cond, CondTest, Import, Loop, Macro, Match, Node, Target, When, Whitespace, Ws,
+    BlockDef, Call, Cond, CondTest, Import, Lit, Loop, Macro, Match, Node, Target, When,
+    Whitespace, Ws,
 };
 
 mod expr;
@@ -136,13 +137,6 @@ fn ws<'a, O>(
     inner: impl FnMut(&'a str) -> IResult<&'a str, O>,
 ) -> impl FnMut(&'a str) -> IResult<&'a str, O> {
     delimited(take_till(not_ws), inner, take_till(not_ws))
-}
-
-fn split_ws_parts(s: &str) -> Node<'_> {
-    let trimmed_start = s.trim_start_matches(is_ws);
-    let len_start = s.len() - trimmed_start.len();
-    let trimmed = trimmed_start.trim_end_matches(is_ws);
-    Node::Lit(&s[..len_start], trimmed, &trimmed_start[trimmed.len()..])
 }
 
 /// Skips input until `end` was found, but does not consume it.

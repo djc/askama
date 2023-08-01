@@ -10,13 +10,13 @@ use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{error_position, IResult};
 
 use super::{
-    bool_lit, char_lit, identifier, keyword, num_lit, path, skip_till, split_ws_parts, str_lit, ws,
-    Expr, State,
+    bool_lit, char_lit, identifier, is_ws, keyword, num_lit, path, skip_till, str_lit, ws, Expr,
+    State,
 };
 
 #[derive(Debug, PartialEq)]
 pub enum Node<'a> {
-    Lit(&'a str, &'a str, &'a str),
+    Lit(Lit<'a>),
     Comment(Ws),
     Expr(Ws, Expr<'a>),
     Call(Call<'a>),
@@ -30,7 +30,7 @@ pub enum Node<'a> {
     Include(Ws, &'a str),
     Import(Import<'a>),
     Macro(Macro<'a>),
-    Raw(Ws, &'a str, &'a str, &'a str, Ws),
+    Raw(Ws, Lit<'a>, Ws),
     Break(Ws),
     Continue(Ws),
 }
@@ -38,31 +38,11 @@ pub enum Node<'a> {
 impl<'a> Node<'a> {
     pub(super) fn many(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Self>> {
         many0(alt((
-            complete(|i| Self::content(i, s)),
+            map(complete(|i| Lit::parse(i, s)), Self::Lit),
             complete(|i| Self::comment(i, s)),
             complete(|i| Self::expr(i, s)),
             complete(|i| Self::parse(i, s)),
         )))(i)
-    }
-
-    fn content(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        let p_start = alt((
-            tag(s.syntax.block_start),
-            tag(s.syntax.comment_start),
-            tag(s.syntax.expr_start),
-        ));
-
-        let (i, _) = not(eof)(i)?;
-        let (i, content) = opt(recognize(skip_till(p_start)))(i)?;
-        let (i, content) = match content {
-            Some("") => {
-                // {block,comment,expr}_start follows immediately.
-                return Err(nom::Err::Error(error_position!(i, ErrorKind::TakeUntil)));
-            }
-            Some(content) => (i, content),
-            None => ("", i), // there is no {block,comment,expr}_start: take everything
-        };
-        Ok((i, split_ws_parts(content)))
     }
 
     fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
@@ -244,13 +224,10 @@ impl<'a> Node<'a> {
         ));
 
         let (_, (pws1, _, (nws1, _, (contents, (i, (_, pws2, _, nws2, _)))))) = p(i)?;
-        let (lws, val, rws) = match split_ws_parts(contents) {
-            Node::Lit(lws, val, rws) => (lws, val, rws),
-            _ => unreachable!(),
-        };
+        let val = Lit::split_ws_parts(contents);
         let ws1 = Ws(pws1, nws1);
         let ws2 = Ws(pws2, nws2);
-        Ok((i, Self::Raw(ws1, lws, val, rws, ws2)))
+        Ok((i, Self::Raw(ws1, val, ws2)))
     }
 
     fn r#break(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
@@ -792,6 +769,46 @@ impl<'a> BlockDef<'a> {
                 ws2: Ws(pws2, nws2),
             },
         ))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Lit<'a> {
+    pub lws: &'a str,
+    pub val: &'a str,
+    pub rws: &'a str,
+}
+
+impl<'a> Lit<'a> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+        let p_start = alt((
+            tag(s.syntax.block_start),
+            tag(s.syntax.comment_start),
+            tag(s.syntax.expr_start),
+        ));
+
+        let (i, _) = not(eof)(i)?;
+        let (i, content) = opt(recognize(skip_till(p_start)))(i)?;
+        let (i, content) = match content {
+            Some("") => {
+                // {block,comment,expr}_start follows immediately.
+                return Err(nom::Err::Error(error_position!(i, ErrorKind::TakeUntil)));
+            }
+            Some(content) => (i, content),
+            None => ("", i), // there is no {block,comment,expr}_start: take everything
+        };
+        Ok((i, Self::split_ws_parts(content)))
+    }
+
+    pub(crate) fn split_ws_parts(s: &'a str) -> Self {
+        let trimmed_start = s.trim_start_matches(is_ws);
+        let len_start = s.len() - trimmed_start.len();
+        let trimmed = trimmed_start.trim_end_matches(is_ws);
+        Self {
+            lws: &s[..len_start],
+            val: trimmed,
+            rws: &trimmed_start[trimmed.len()..],
+        }
     }
 }
 
