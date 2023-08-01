@@ -5,7 +5,7 @@ use crate::CompileError;
 
 use parser::expr::Expr;
 use parser::node::{
-    Call, CondTest, If, Include, Let, Lit, Loop, Match, Node, Target, Whitespace, Ws,
+    Call, Comment, CondTest, If, Include, Let, Lit, Loop, Match, Node, Target, Whitespace, Ws,
 };
 use parser::Parsed;
 use proc_macro::TokenStream;
@@ -633,8 +633,8 @@ impl<'a> Generator<'a> {
                 Node::Lit(ref lit) => {
                     self.visit_lit(lit);
                 }
-                Node::Comment(ws) => {
-                    self.write_comment(ws);
+                Node::Comment(ref comment) => {
+                    self.write_comment(comment);
                 }
                 Node::Expr(ws, ref val) => {
                     self.write_expr(ws, val);
@@ -1293,8 +1293,8 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn write_comment(&mut self, ws: Ws) {
-        self.handle_ws(ws);
+    fn write_comment(&mut self, comment: &'a Comment<'_>) {
+        self.handle_ws(comment.ws);
     }
 
     /* Visitor methods for expression types */

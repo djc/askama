@@ -17,7 +17,7 @@ use super::{
 #[derive(Debug, PartialEq)]
 pub enum Node<'a> {
     Lit(Lit<'a>),
-    Comment(Ws),
+    Comment(Comment<'a>),
     Expr(Ws, Expr<'a>),
     Call(Call<'a>),
     Let(Let<'a>),
@@ -38,7 +38,7 @@ impl<'a> Node<'a> {
     pub(super) fn many(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Self>> {
         many0(alt((
             map(complete(|i| Lit::parse(i, s)), Self::Lit),
-            complete(|i| Self::comment(i, s)),
+            map(complete(|i| Comment::parse(i, s)), Self::Comment),
             complete(|i| Self::expr(i, s)),
             complete(|i| Self::parse(i, s)),
         )))(i)
@@ -106,46 +106,6 @@ impl<'a> Node<'a> {
         ));
         let (i, (_, (pws, expr, nws, _))) = p(i)?;
         Ok((i, Self::Expr(Ws(pws, nws), expr)))
-    }
-
-    fn comment(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        fn body<'a>(mut i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
-            let mut level = 0;
-            loop {
-                let (end, tail) = take_until(s.syntax.comment_end)(i)?;
-                match take_until::<_, _, Error<_>>(s.syntax.comment_start)(i) {
-                    Ok((start, _)) if start.as_ptr() < end.as_ptr() => {
-                        level += 1;
-                        i = &start[2..];
-                    }
-                    _ if level > 0 => {
-                        level -= 1;
-                        i = &end[2..];
-                    }
-                    _ => return Ok((end, tail)),
-                }
-            }
-        }
-
-        let mut p = tuple((
-            |i| s.tag_comment_start(i),
-            cut(tuple((
-                opt(Whitespace::parse),
-                |i| body(i, s),
-                |i| s.tag_comment_end(i),
-            ))),
-        ));
-        let (i, (_, (pws, tail, _))) = p(i)?;
-        let nws = if tail.ends_with('-') {
-            Some(Whitespace::Suppress)
-        } else if tail.ends_with('+') {
-            Some(Whitespace::Preserve)
-        } else if tail.ends_with('~') {
-            Some(Whitespace::Minimize)
-        } else {
-            None
-        };
-        Ok((i, Self::Comment(Ws(pws, nws))))
     }
 }
 
@@ -604,7 +564,7 @@ impl<'a> Match<'a> {
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
                 cut(tuple((
-                    ws(many0(ws(value((), |i| Node::comment(i, s))))),
+                    ws(many0(ws(value((), |i| Comment::parse(i, s))))),
                     many1(|i| When::when(i, s)),
                     cut(tuple((
                         opt(|i| When::r#match(i, s)),
@@ -863,6 +823,60 @@ impl<'a> Extends<'a> {
     fn parse(i: &'a str) -> IResult<&'a str, Self> {
         let (i, path) = preceded(ws(keyword("extends")), cut(ws(str_lit)))(i)?;
         Ok((i, Self { path }))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Comment<'a> {
+    pub ws: Ws,
+    pub content: &'a str,
+}
+
+impl<'a> Comment<'a> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+        fn body<'a>(mut i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
+            let mut level = 0;
+            loop {
+                let (end, tail) = take_until(s.syntax.comment_end)(i)?;
+                match take_until::<_, _, Error<_>>(s.syntax.comment_start)(i) {
+                    Ok((start, _)) if start.as_ptr() < end.as_ptr() => {
+                        level += 1;
+                        i = &start[2..];
+                    }
+                    _ if level > 0 => {
+                        level -= 1;
+                        i = &end[2..];
+                    }
+                    _ => return Ok((end, tail)),
+                }
+            }
+        }
+
+        let mut p = tuple((
+            |i| s.tag_comment_start(i),
+            cut(tuple((
+                opt(Whitespace::parse),
+                |i| body(i, s),
+                |i| s.tag_comment_end(i),
+            ))),
+        ));
+        let (i, (content, (pws, tail, _))) = p(i)?;
+        let nws = if tail.ends_with('-') {
+            Some(Whitespace::Suppress)
+        } else if tail.ends_with('+') {
+            Some(Whitespace::Preserve)
+        } else if tail.ends_with('~') {
+            Some(Whitespace::Minimize)
+        } else {
+            None
+        };
+        Ok((
+            i,
+            Self {
+                ws: Ws(pws, nws),
+                content,
+            },
+        ))
     }
 }
 

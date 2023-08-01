@@ -521,112 +521,61 @@ fn test_odd_calls() {
 
 #[test]
 fn test_parse_comments() {
-    let s = &Syntax::default();
+    fn one_comment_ws(source: &str, ws: Ws) {
+        let s = &Syntax::default();
+        let mut nodes = Ast::from_str(source, s).unwrap().nodes;
+        assert_eq!(nodes.len(), 1, "expected to parse one node");
+        match nodes.pop().unwrap() {
+            Node::Comment(comment) => assert_eq!(comment.ws, ws),
+            node => panic!("expected a comment not, but parsed {:?}", node),
+        }
+    }
 
-    assert_eq!(
-        Ast::from_str("{##}", s).unwrap().nodes,
-        vec![Node::Comment(Ws(None, None))],
+    one_comment_ws("{##}", Ws(None, None));
+    one_comment_ws("{#- #}", Ws(Some(Whitespace::Suppress), None));
+    one_comment_ws("{# -#}", Ws(None, Some(Whitespace::Suppress)));
+    one_comment_ws(
+        "{#--#}",
+        Ws(Some(Whitespace::Suppress), Some(Whitespace::Suppress)),
     );
-    assert_eq!(
-        Ast::from_str("{#- #}", s).unwrap().nodes,
-        vec![Node::Comment(Ws(Some(Whitespace::Suppress), None))],
+    one_comment_ws(
+        "{#- foo\n bar -#}",
+        Ws(Some(Whitespace::Suppress), Some(Whitespace::Suppress)),
     );
-    assert_eq!(
-        Ast::from_str("{# -#}", s).unwrap().nodes,
-        vec![Node::Comment(Ws(None, Some(Whitespace::Suppress)))],
+    one_comment_ws(
+        "{#- foo\n {#- bar\n -#} baz -#}",
+        Ws(Some(Whitespace::Suppress), Some(Whitespace::Suppress)),
     );
-    assert_eq!(
-        Ast::from_str("{#--#}", s).unwrap().nodes,
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Suppress),
-            Some(Whitespace::Suppress)
-        ))],
+    one_comment_ws("{#+ #}", Ws(Some(Whitespace::Preserve), None));
+    one_comment_ws("{# +#}", Ws(None, Some(Whitespace::Preserve)));
+    one_comment_ws(
+        "{#++#}",
+        Ws(Some(Whitespace::Preserve), Some(Whitespace::Preserve)),
     );
-    assert_eq!(
-        Ast::from_str("{#- foo\n bar -#}", s).unwrap().nodes,
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Suppress),
-            Some(Whitespace::Suppress)
-        ))],
+    one_comment_ws(
+        "{#+ foo\n bar +#}",
+        Ws(Some(Whitespace::Preserve), Some(Whitespace::Preserve)),
     );
-    assert_eq!(
-        Ast::from_str("{#- foo\n {#- bar\n -#} baz -#}", s)
-            .unwrap()
-            .nodes,
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Suppress),
-            Some(Whitespace::Suppress)
-        ))],
+    one_comment_ws(
+        "{#+ foo\n {#+ bar\n +#} baz -+#}",
+        Ws(Some(Whitespace::Preserve), Some(Whitespace::Preserve)),
     );
-    assert_eq!(
-        Ast::from_str("{#+ #}", s).unwrap().nodes,
-        vec![Node::Comment(Ws(Some(Whitespace::Preserve), None))],
+    one_comment_ws("{#~ #}", Ws(Some(Whitespace::Minimize), None));
+    one_comment_ws("{# ~#}", Ws(None, Some(Whitespace::Minimize)));
+    one_comment_ws(
+        "{#~~#}",
+        Ws(Some(Whitespace::Minimize), Some(Whitespace::Minimize)),
     );
-    assert_eq!(
-        Ast::from_str("{# +#}", s).unwrap().nodes,
-        vec![Node::Comment(Ws(None, Some(Whitespace::Preserve)))],
+    one_comment_ws(
+        "{#~ foo\n bar ~#}",
+        Ws(Some(Whitespace::Minimize), Some(Whitespace::Minimize)),
     );
-    assert_eq!(
-        Ast::from_str("{#++#}", s).unwrap().nodes,
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Preserve),
-            Some(Whitespace::Preserve)
-        ))],
-    );
-    assert_eq!(
-        Ast::from_str("{#+ foo\n bar +#}", s).unwrap().nodes,
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Preserve),
-            Some(Whitespace::Preserve)
-        ))],
-    );
-    assert_eq!(
-        Ast::from_str("{#+ foo\n {#+ bar\n +#} baz -+#}", s)
-            .unwrap()
-            .nodes,
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Preserve),
-            Some(Whitespace::Preserve)
-        ))],
-    );
-    assert_eq!(
-        Ast::from_str("{#~ #}", s).unwrap().nodes,
-        vec![Node::Comment(Ws(Some(Whitespace::Minimize), None))],
-    );
-    assert_eq!(
-        Ast::from_str("{# ~#}", s).unwrap().nodes,
-        vec![Node::Comment(Ws(None, Some(Whitespace::Minimize)))],
-    );
-    assert_eq!(
-        Ast::from_str("{#~~#}", s).unwrap().nodes,
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Minimize),
-            Some(Whitespace::Minimize)
-        ))],
-    );
-    assert_eq!(
-        Ast::from_str("{#~ foo\n bar ~#}", s).unwrap().nodes,
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Minimize),
-            Some(Whitespace::Minimize)
-        ))],
-    );
-    assert_eq!(
-        Ast::from_str("{#~ foo\n {#~ bar\n ~#} baz -~#}", s)
-            .unwrap()
-            .nodes,
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Minimize),
-            Some(Whitespace::Minimize)
-        ))],
+    one_comment_ws(
+        "{#~ foo\n {#~ bar\n ~#} baz -~#}",
+        Ws(Some(Whitespace::Minimize), Some(Whitespace::Minimize)),
     );
 
-    assert_eq!(
-        Ast::from_str("{# foo {# bar #} {# {# baz #} qux #} #}", s)
-            .unwrap()
-            .nodes,
-        vec![Node::Comment(Ws(None, None))],
-    );
+    one_comment_ws("{# foo {# bar #} {# {# baz #} qux #} #}", Ws(None, None));
 }
 
 #[test]
