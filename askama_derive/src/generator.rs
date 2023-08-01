@@ -214,7 +214,7 @@ fn find_used_templates(
         for n in parsed.nodes() {
             match n {
                 Node::Extends(extends) => {
-                    let extends = input.config.find_template(extends, Some(&path))?;
+                    let extends = input.config.find_template(extends.path, Some(&path))?;
                     let dependency_path = (path.clone(), extends.clone());
                     if dependency_graph.contains(&dependency_path) {
                         return Err(format!(

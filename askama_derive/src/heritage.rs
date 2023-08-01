@@ -58,10 +58,10 @@ impl Context<'_> {
         while let Some(nodes) = nested.pop() {
             for n in nodes {
                 match n {
-                    Node::Extends(extends_path) if top => match extends {
+                    Node::Extends(e) if top => match extends {
                         Some(_) => return Err("multiple extend blocks found".into()),
                         None => {
-                            extends = Some(config.find_template(extends_path, Some(path))?);
+                            extends = Some(config.find_template(e.path, Some(path))?);
                         }
                     },
                     Node::Macro(m) if top => {
