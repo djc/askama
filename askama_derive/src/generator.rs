@@ -659,7 +659,7 @@ impl<'a> Generator<'a> {
                 Node::Call(ws, scope, name, ref args) => {
                     size_hint += self.write_call(ctx, buf, ws, scope, name, args)?;
                 }
-                Node::Macro(_, ref m) => {
+                Node::Macro(ref m) => {
                     if level != AstLevel::Top {
                         return Err("macro blocks only allowed at the top level".into());
                     }
