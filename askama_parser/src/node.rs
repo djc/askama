@@ -28,7 +28,7 @@ pub enum Node<'a> {
     Extends(&'a str),
     BlockDef(Ws, &'a str, Vec<Node<'a>>, Ws),
     Include(Ws, &'a str),
-    Import(Ws, &'a str, &'a str),
+    Import(Import<'a>),
     Macro(Macro<'a>),
     Raw(Ws, &'a str, &'a str, &'a str, Ws),
     Break(Ws),
@@ -76,7 +76,7 @@ impl<'a> Node<'a> {
                 |i| Self::r#match(i, s),
                 Self::extends,
                 Self::include,
-                Self::import,
+                map(Import::parse, Self::Import),
                 |i| Self::block(i, s),
                 map(|i| Macro::parse(i, s), Self::Macro),
                 |i| Self::raw(i, s),
@@ -299,20 +299,6 @@ impl<'a> Node<'a> {
             i,
             Self::BlockDef(Ws(pws1, nws1), name, contents, Ws(pws2, nws2)),
         ))
-    }
-
-    fn import(i: &'a str) -> IResult<&'a str, Self> {
-        let mut p = tuple((
-            opt(Whitespace::parse),
-            ws(keyword("import")),
-            cut(tuple((
-                ws(str_lit),
-                ws(keyword("as")),
-                cut(pair(ws(identifier), opt(Whitespace::parse))),
-            ))),
-        ));
-        let (i, (pws, _, (name, _, (scope, nws)))) = p(i)?;
-        Ok((i, Self::Import(Ws(pws, nws), name, scope)))
     }
 
     fn raw(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
@@ -723,6 +709,36 @@ impl<'a> Macro<'a> {
                 args: params,
                 nodes: contents,
                 ws2: Ws(pws2, nws2),
+            },
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Import<'a> {
+    pub ws: Ws,
+    pub path: &'a str,
+    pub scope: &'a str,
+}
+
+impl<'a> Import<'a> {
+    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+        let mut p = tuple((
+            opt(Whitespace::parse),
+            ws(keyword("import")),
+            cut(tuple((
+                ws(str_lit),
+                ws(keyword("as")),
+                cut(pair(ws(identifier), opt(Whitespace::parse))),
+            ))),
+        ));
+        let (i, (pws, _, (path, _, (scope, nws)))) = p(i)?;
+        Ok((
+            i,
+            Self {
+                ws: Ws(pws, nws),
+                path,
+                scope,
             },
         ))
     }

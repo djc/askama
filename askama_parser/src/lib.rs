@@ -15,7 +15,7 @@ use nom::sequence::{delimited, pair, tuple};
 use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
 
 pub use self::expr::Expr;
-pub use self::node::{Cond, CondTest, Loop, Macro, Node, Target, When, Whitespace, Ws};
+pub use self::node::{Cond, CondTest, Import, Loop, Macro, Node, Target, When, Whitespace, Ws};
 
 mod expr;
 mod node;
