@@ -228,8 +228,8 @@ fn find_used_templates(
                     let source = get_template_source(&extends)?;
                     check.push((extends, source));
                 }
-                Node::Import(_, import, _) => {
-                    let import = input.config.find_template(import, Some(&path))?;
+                Node::Import(import) => {
+                    let import = input.config.find_template(import.path, Some(&path))?;
                     let source = get_template_source(&import)?;
                     check.push((import, source));
                 }
@@ -671,11 +671,11 @@ impl<'a> Generator<'a> {
                     self.visit_lit(lws, val, rws);
                     self.handle_ws(ws2);
                 }
-                Node::Import(ws, _, _) => {
+                Node::Import(ref i) => {
                     if level != AstLevel::Top {
                         return Err("import blocks only allowed at the top level".into());
                     }
-                    self.handle_ws(ws);
+                    self.handle_ws(i.ws);
                 }
                 Node::Extends(_) => {
                     if level != AstLevel::Top {
