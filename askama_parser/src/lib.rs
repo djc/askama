@@ -28,9 +28,10 @@ mod _parsed {
     use super::{Ast, Node, ParseError, Syntax};
 
     pub struct Parsed {
+        // `source` must outlive `ast`, so `ast` must be declared before `source`
+        ast: Ast<'static>,
         #[allow(dead_code)]
         source: String,
-        ast: Ast<'static>,
     }
 
     impl Parsed {
@@ -44,7 +45,7 @@ mod _parsed {
                 Err(e) => return Err(e),
             };
 
-            Ok(Self { source, ast })
+            Ok(Self { ast, source })
         }
 
         // The return value's lifetime must be limited to `self` to uphold the unsafe invariant.
