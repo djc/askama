@@ -702,7 +702,7 @@ fn test_missing_space_after_kw() {
     let err = Ast::from_str("{%leta=b%}", &syntax).unwrap_err();
     assert!(matches!(
         &*err.to_string(),
-        "unable to parse template:\n\n\"{%leta=b%}\""
+        "problems parsing template source at row 1, column 0 near:\n\"{%leta=b%}\"",
     ));
 }
 
