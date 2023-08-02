@@ -321,7 +321,7 @@ impl<'a> Suffix<'a> {
 
     fn index(i: &'a str) -> IResult<&'a str, Self> {
         map(
-            preceded(ws(char('[')), cut(terminated(Expr::parse, ws(char(']'))))),
+            preceded(ws(char('[')), cut(terminated(ws(Expr::parse), char(']')))),
             Self::Index,
         )(i)
     }
