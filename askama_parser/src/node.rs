@@ -459,10 +459,10 @@ impl<'a> Macro<'a> {
                 |i| s.tag_block_start(i),
                 opt(Whitespace::parse),
                 ws(keyword("endmacro")),
-                cut(tuple((opt(ws(keyword(name))), opt(Whitespace::parse)))),
+                cut(preceded(ws(opt(keyword(name))), opt(Whitespace::parse))),
             ))),
         )));
-        let (i, (contents, (_, pws2, _, (_, nws2)))) = end(i)?;
+        let (i, (contents, (_, pws2, _, nws2))) = end(i)?;
 
         assert_ne!(name, "super", "invalid macro name 'super'");
 
