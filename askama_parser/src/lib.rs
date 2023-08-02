@@ -191,7 +191,11 @@ fn bool_lit(i: &str) -> IResult<&str, &str> {
 }
 
 fn num_lit(i: &str) -> IResult<&str, &str> {
-    recognize(pair(digit1, opt(pair(char('.'), digit1))))(i)
+    recognize(tuple((
+        opt(char('-')),
+        digit1,
+        opt(pair(char('.'), digit1)),
+    )))(i)
 }
 
 fn str_lit(i: &str) -> IResult<&str, &str> {
