@@ -8,10 +8,10 @@ use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_till};
 use nom::character::complete::char;
 use nom::character::complete::{anychar, digit1};
-use nom::combinator::{map, opt, recognize, value};
+use nom::combinator::{cut, eof, map, opt, recognize, value};
 use nom::error::ErrorKind;
 use nom::multi::separated_list1;
-use nom::sequence::{delimited, pair, tuple};
+use nom::sequence::{delimited, pair, terminated, tuple};
 use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
 
 pub mod expr;
@@ -75,11 +75,10 @@ pub struct Ast<'a> {
 
 impl<'a> Ast<'a> {
     pub fn from_str(src: &'a str, syntax: &Syntax<'_>) -> Result<Self, ParseError> {
-        let err = match Node::many(src, &State::new(syntax)) {
-            Ok((left, nodes)) => match left.is_empty() {
-                true => return Ok(Self { nodes }),
-                false => return Err(ParseError(format!("unable to parse template:\n\n{left:?}"))),
-            },
+        let parse = |i: &'a str| Node::many(i, &State::new(syntax));
+        let err = match terminated(parse, cut(eof))(src) {
+            Ok(("", nodes)) => return Ok(Self { nodes }),
+            Ok(_) => unreachable!("eof() is not eof?"),
             Err(nom::Err::Error(err)) | Err(nom::Err::Failure(err)) => err,
             Err(nom::Err::Incomplete(_)) => return Err(ParseError("parsing incomplete".into())),
         };
@@ -93,7 +92,7 @@ impl<'a> Ast<'a> {
             _ => format!("{source_after:?}"),
         };
 
-        let (row, last_line) = source_before.lines().enumerate().last().unwrap();
+        let (row, last_line) = source_before.lines().enumerate().last().unwrap_or_default();
         let column = last_line.chars().count();
 
         let msg = format!(
