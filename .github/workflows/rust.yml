@@ -34,7 +34,7 @@ jobs:
         package: [
           askama, askama_actix, askama_axum, askama_derive, askama_escape, askama_gotham,
           askama_hyper, askama_mendes, askama_parser, askama_rocket, askama_tide, askama_warp,
-          parser_benchmark, testing,
+          random_code, testing,
         ]
     runs-on: ubuntu-latest
     steps:

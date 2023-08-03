@@ -1,14 +1,14 @@
-use arbitrary::{Arbitrary, Unstructured};
+use std::fmt::{Display, Formatter};
 
-use crate::ToSource;
+use arbitrary::{Arbitrary, Unstructured};
 
 #[derive(Debug)]
 pub(crate) struct Printable(pub(crate) String);
 
 const _: () = {
-    impl ToSource for Printable {
-        fn write_into(&self, buf: &mut String) {
-            buf.push_str(&self.0);
+    impl Display for Printable {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            f.write_str(&self.0)
         }
     }
 
@@ -98,9 +98,9 @@ const _: () = {
 pub(crate) struct PrintableNoGrouping(pub(crate) String);
 
 const _: () = {
-    impl ToSource for PrintableNoGrouping {
-        fn write_into(&self, buf: &mut String) {
-            buf.push_str(&self.0);
+    impl Display for PrintableNoGrouping {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            f.write_str(&self.0)
         }
     }
 
@@ -180,9 +180,9 @@ const _: () = {
 pub(crate) struct Space(pub(crate) String);
 
 const _: () = {
-    impl ToSource for Space {
-        fn write_into(&self, buf: &mut String) {
-            buf.push_str(&self.0);
+    impl Display for Space {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            f.write_str(&self.0)
         }
     }
 
@@ -224,9 +224,9 @@ const _: () = {
 pub(crate) struct Ident(pub(crate) String);
 
 const _: () = {
-    impl ToSource for Ident {
-        fn write_into(&self, buf: &mut String) {
-            buf.push_str(&self.0);
+    impl Display for Ident {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            f.write_str(&self.0)
         }
     }
 
@@ -349,16 +349,17 @@ const _: () = {
 pub(crate) struct TypeName(pub(crate) Vec<([Space; 2], String)>);
 
 const _: () = {
-    impl ToSource for TypeName {
-        fn write_into(&self, buf: &mut String) {
+    impl Display for TypeName {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
             for (idx, (spaces, name)) in self.0.iter().enumerate() {
                 if idx > 0 {
-                    spaces[0].write_into(buf);
-                    buf.push_str("::");
-                    spaces[1].write_into(buf);
+                    spaces[0].fmt(f)?;
+                    f.write_str("::")?;
+                    spaces[1].fmt(f)?;
                 }
-                buf.push_str(name);
+                f.write_str(name)?;
             }
+            Ok(())
         }
     }
 

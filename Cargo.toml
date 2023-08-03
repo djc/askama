@@ -12,7 +12,7 @@ members = [
     "askama_tide",
     "askama_warp",
     "askama_hyper",
-    "parser_benchmark",
+    "random_code",
     "testing",
 ]
 
