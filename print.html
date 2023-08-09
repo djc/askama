@@ -499,6 +499,23 @@ For example, <code>{{ name }}</code> will get the <code>name</code> field from t
 context,
 while <code>{{ user.name }}</code> will get the <code>name</code> field of the <code>user</code>
 field from the template context.</p>
+<h2 id="using-constants-in-templates"><a class="header" href="#using-constants-in-templates">Using constants in templates</a></h2>
+<p>You can use constants defined in your Rust code. For example if you
+have:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub const MAX_NB_USERS: usize = 2;
+<span class="boring">}</span></code></pre></pre>
+<p>defined in your crate root, you can then use it in your templates by
+using <code>crate::MAX_NB_USERS</code>:</p>
+<pre><code class="language-jinja">&lt;p&gt;The user limit is {{ crate::MAX_NB_USERS }}.&lt;/p&gt;
+{% set value = 4 %}
+{% if value &gt; crate::MAX_NB_USERS %}
+    &lt;p&gt;{{ value }} is bigger than MAX_NB_USERS.&lt;/p&gt;
+{% else %}
+    &lt;p&gt;{{ value }} is less than MAX_NB_USERS.&lt;/p&gt;
+{% endif %}
+</code></pre>
 <h2 id="assignments"><a class="header" href="#assignments">Assignments</a></h2>
 <p>Inside code blocks, you can also declare variables or assign values
 to variables.
