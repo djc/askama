@@ -7,6 +7,7 @@ members = [
     "askama_derive",
     "askama_escape",
     "askama_mendes",
+    "askama_parser",
     "askama_rocket",
     "askama_tide",
     "askama_warp",
@@ -18,5 +19,6 @@ default-members = [
     "askama",
     "askama_derive",
     "askama_escape",
+    "askama_parser",
     "testing",
 ]

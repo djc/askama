@@ -10,6 +10,28 @@ context,
 while `{{ user.name }}` will get the ``name`` field of the ``user``
 field from the template context.
 
+## Using constants in templates
+
+You can use constants defined in your Rust code. For example if you
+have:
+
+```rust
+pub const MAX_NB_USERS: usize = 2;
+```
+
+defined in your crate root, you can then use it in your templates by
+using ``crate::MAX_NB_USERS``:
+
+```jinja
+<p>The user limit is {{ crate::MAX_NB_USERS }}.</p>
+{% set value = 4 %}
+{% if value > crate::MAX_NB_USERS %}
+    <p>{{ value }} is bigger than MAX_NB_USERS.</p>
+{% else %}
+    <p>{{ value }} is less than MAX_NB_USERS.</p>
+{% endif %}
+```
+
 ## Assignments
 
 Inside code blocks, you can also declare variables or assign values

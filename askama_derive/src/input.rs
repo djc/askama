@@ -1,6 +1,7 @@
-use crate::config::{Config, Syntax};
+use crate::config::Config;
 use crate::generator::TemplateArgs;
 use crate::CompileError;
+use parser::Syntax;
 
 use std::path::{Path, PathBuf};
 use std::str::FromStr;

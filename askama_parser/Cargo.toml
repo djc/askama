@@ -1,0 +1,17 @@
+[package]
+name = "askama_parser"
+version = "0.1.0"
+description = "Parser for Askama templates"
+documentation = "https://docs.rs/askama"
+keywords = ["markup", "template", "jinja2", "html"]
+categories = ["template-engine"]
+homepage = "https://github.com/djc/askama"
+repository = "https://github.com/djc/askama"
+license = "MIT OR Apache-2.0"
+workspace = ".."
+readme = "README.md"
+edition = "2021"
+rust-version = "1.58"
+
+[dependencies]
+nom = { version = "7", default-features = false, features = ["alloc"] }
