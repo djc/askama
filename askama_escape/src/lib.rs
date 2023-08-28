@@ -187,10 +187,10 @@ impl std::io::Write for JsonEscapeBuffer {
         let mut last = 0;
         for (index, byte) in bytes.iter().enumerate() {
             let escaped = match byte {
-                b'&' => Some(br#"\u0026"#),
-                b'\'' => Some(br#"\u0027"#),
-                b'<' => Some(br#"\u003c"#),
-                b'>' => Some(br#"\u003e"#),
+                b'&' => Some(br"\u0026"),
+                b'\'' => Some(br"\u0027"),
+                b'<' => Some(br"\u003c"),
+                b'>' => Some(br"\u003e"),
                 _ => None,
             };
             if let Some(escaped) = escaped {
