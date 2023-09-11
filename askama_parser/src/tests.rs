@@ -788,3 +788,10 @@ fn test_parse_array() {
         )],
     );
 }
+
+#[test]
+fn fuzzed_unicode_slice() {
+    let d = "{eeuuu{b&{!!&{!!11{{
+            0!(!1q҄א!)!!!!!!n!";
+    assert!(Ast::from_str(d, &Syntax::default()).is_err());
+}
