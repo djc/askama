@@ -248,15 +248,15 @@ impl<'a> Suffix<'a> {
     }
 
     fn r#macro(i: &'a str) -> IResult<&'a str, Self> {
-        fn nested_parenthesis(i: &str) -> IResult<&str, ()> {
+        fn nested_parenthesis(input: &str) -> IResult<&str, ()> {
             let mut nested = 0;
             let mut last = 0;
             let mut in_str = false;
             let mut escaped = false;
 
-            for (i, b) in i.chars().enumerate() {
-                if !(b == '(' || b == ')') || !in_str {
-                    match b {
+            for (i, c) in input.chars().enumerate() {
+                if !(c == '(' || c == ')') || !in_str {
+                    match c {
                         '(' => nested += 1,
                         ')' => {
                             if nested == 0 {
@@ -281,16 +281,16 @@ impl<'a> Suffix<'a> {
                     }
                 }
 
-                if escaped && b != '\\' {
+                if escaped && c != '\\' {
                     escaped = false;
                 }
             }
 
             if nested == 0 {
-                Ok((&i[last..], ()))
+                Ok((&input[last..], ()))
             } else {
                 Err(nom::Err::Error(error_position!(
-                    i,
+                    input,
                     ErrorKind::SeparatedNonEmptyList
                 )))
             }
