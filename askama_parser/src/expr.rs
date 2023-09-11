@@ -254,7 +254,7 @@ impl<'a> Suffix<'a> {
             let mut in_str = false;
             let mut escaped = false;
 
-            for (i, c) in input.chars().enumerate() {
+            for (i, c) in input.char_indices() {
                 if !(c == '(' || c == ')') || !in_str {
                     match c {
                         '(' => nested += 1,
