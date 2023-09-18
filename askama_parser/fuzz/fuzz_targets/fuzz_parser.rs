@@ -5,9 +5,7 @@ use std::str;
 
 fuzz_target!(|data: &[u8]| {
     // fuzzed code goes here
-    if data.len() < 500 {
-        if let Ok(data) = str::from_utf8(data) {
-            if let Ok(_) = Ast::from_str(data, &Syntax::default()) {}
-        }
+    if let Ok(data) = str::from_utf8(data) {
+        if let Ok(_) = Ast::from_str(data, &Syntax::default()) {}
     }
 });
