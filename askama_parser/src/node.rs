@@ -101,7 +101,7 @@ impl<'a> Node<'a> {
             |i| s.tag_expr_start(i),
             cut(tuple((
                 opt(Whitespace::parse),
-                ws(Expr::parse),
+                ws(|i| Expr::parse(i, Level::default())),
                 opt(Whitespace::parse),
                 |i| s.tag_expr_end(i),
             ))),
@@ -325,7 +325,7 @@ impl<'a> CondTest<'a> {
                     ws(Target::parse),
                     ws(char('=')),
                 )),
-                ws(Expr::parse),
+                ws(|i| Expr::parse(i, Level::default())),
             ))),
         );
         let (i, (target, expr)) = p(i)?;
@@ -371,7 +371,10 @@ impl<'a> Loop<'a> {
             result
         }
 
-        let if_cond = preceded(ws(keyword("if")), cut(ws(Expr::parse)));
+        let if_cond = preceded(
+            ws(keyword("if")),
+            cut(ws(|i| Expr::parse(i, Level::default()))),
+        );
         let else_block = |i| {
             let mut p = preceded(
                 ws(keyword("else")),
@@ -395,7 +398,7 @@ impl<'a> Loop<'a> {
                 ws(Target::parse),
                 ws(keyword("in")),
                 cut(tuple((
-                    ws(Expr::parse),
+                    ws(|i| Expr::parse(i, Level::default())),
                     opt(if_cond),
                     opt(Whitespace::parse),
                     |i| s.tag_block_end(i),
@@ -570,7 +573,7 @@ impl<'a> Match<'a> {
             opt(Whitespace::parse),
             ws(keyword("match")),
             cut(tuple((
-                ws(Expr::parse),
+                ws(|i| Expr::parse(i, Level::default())),
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
                 cut(tuple((
@@ -738,7 +741,10 @@ impl<'a> Let<'a> {
             ws(alt((keyword("let"), keyword("set")))),
             cut(tuple((
                 ws(Target::parse),
-                opt(preceded(ws(char('=')), ws(Expr::parse))),
+                opt(preceded(
+                    ws(char('=')),
+                    ws(|i| Expr::parse(i, Level::default())),
+                )),
                 opt(Whitespace::parse),
             ))),
         ));
