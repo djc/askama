@@ -76,17 +76,13 @@ impl<'a> Expr<'a> {
         preceded(
             ws(char('(')),
             cut(terminated(
-                separated_list0(char(','), ws(move |i| Self::nested(i, level))),
+                separated_list0(char(','), ws(move |i| Self::parse(i, level))),
                 char(')'),
             )),
         )(i)
     }
 
-    pub(super) fn parse(i: &'a str) -> IResult<&'a str, Self> {
-        Self::nested(i, Level::default())
-    }
-
-    fn nested(i: &'a str, level: Level) -> IResult<&'a str, Self> {
+    pub(super) fn parse(i: &'a str, level: Level) -> IResult<&'a str, Self> {
         let level = level.nest(i)?;
         let range_right = move |i| {
             pair(
@@ -172,7 +168,7 @@ impl<'a> Expr<'a> {
 
     fn group(i: &'a str, level: Level) -> IResult<&'a str, Self> {
         let level = level.nest(i)?;
-        let (i, expr) = preceded(ws(char('(')), opt(|i| Self::nested(i, level)))(i)?;
+        let (i, expr) = preceded(ws(char('(')), opt(|i| Self::parse(i, level)))(i)?;
         let expr = match expr {
             Some(expr) => expr,
             None => {
@@ -189,7 +185,7 @@ impl<'a> Expr<'a> {
 
         let mut exprs = vec![expr];
         let (i, _) = fold_many0(
-            preceded(char(','), ws(|i| Self::nested(i, level))),
+            preceded(char(','), ws(|i| Self::parse(i, level))),
             || (),
             |_, expr| {
                 exprs.push(expr);
@@ -205,7 +201,7 @@ impl<'a> Expr<'a> {
             ws(char('[')),
             cut(terminated(
                 map(
-                    separated_list0(char(','), ws(move |i| Self::nested(i, level))),
+                    separated_list0(char(','), ws(move |i| Self::parse(i, level))),
                     Self::Array,
                 ),
                 char(']'),
@@ -348,7 +344,7 @@ impl<'a> Suffix<'a> {
         map(
             preceded(
                 ws(char('[')),
-                cut(terminated(ws(move |i| Expr::nested(i, level)), char(']'))),
+                cut(terminated(ws(move |i| Expr::parse(i, level)), char(']'))),
             ),
             Self::Index,
         )(i)
