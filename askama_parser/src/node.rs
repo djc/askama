@@ -474,16 +474,17 @@ impl<'a> Macro<'a> {
         )));
         let (i, (contents, (_, pws2, _, nws2))) = end(i)?;
 
-        assert_ne!(name, "super", "invalid macro name 'super'");
-
-        let params = params.unwrap_or_default();
+        if name == "super" {
+            // TODO: yield a a better error message here
+            return Err(nom::Err::Failure(Error::new(i, ErrorKind::Fail)));
+        }
 
         Ok((
             i,
             Self {
                 ws1: Ws(pws1, nws1),
                 name,
-                args: params,
+                args: params.unwrap_or_default(),
                 nodes: contents,
                 ws2: Ws(pws2, nws2),
             },

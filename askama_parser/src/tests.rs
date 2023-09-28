@@ -795,3 +795,9 @@ fn fuzzed_unicode_slice() {
             0!(!1q҄א!)!!!!!!n!";
     assert!(Ast::from_str(d, &Syntax::default()).is_err());
 }
+
+#[test]
+fn fuzzed_macro_no_end() {
+    let s = "{%macro super%}{%endmacro";
+    assert!(Ast::from_str(s, &Syntax::default()).is_err());
+}
