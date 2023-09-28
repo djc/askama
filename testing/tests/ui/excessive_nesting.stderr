@@ -1,5 +1,5 @@
-error: problems parsing template source at row 8, column 36 near:
-       "{%if 1%}{%if 1%}{%if 1%}{%if 1%}{%if 1%}"...
+error: problems parsing template source at row 14, column 34 near:
+       "%}{%if 1%}{%if 1%}{%if 1%}{%if 1%}{%if 1"...
  --> tests/ui/excessive_nesting.rs:3:10
   |
 3 | #[derive(Template)]

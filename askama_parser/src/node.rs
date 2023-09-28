@@ -13,7 +13,7 @@ use nom::{error_position, IResult};
 
 use super::{
     bool_lit, char_lit, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
-    str_lit, ws, Expr, Level, PathOrIdentifier, State,
+    str_lit, ws, Expr, PathOrIdentifier, State,
 };
 
 #[derive(Debug, PartialEq)]
@@ -50,8 +50,8 @@ impl<'a> Node<'a> {
         let mut p = delimited(
             |i| s.tag_block_start(i),
             alt((
-                map(Call::parse, Self::Call),
-                map(Let::parse, Self::Let),
+                map(|i| Call::parse(i, s), Self::Call),
+                map(|i| Let::parse(i, s), Self::Let),
                 map(|i| If::parse(i, s), Self::If),
                 map(|i| Loop::parse(i, s), |l| Self::Loop(Box::new(l))),
                 map(|i| Match::parse(i, s), Self::Match),
@@ -105,7 +105,7 @@ impl<'a> Node<'a> {
             |i| s.tag_expr_start(i),
             cut(tuple((
                 opt(Whitespace::parse),
-                ws(|i| Expr::parse(i, Level::default())),
+                ws(|i| Expr::parse(i, s.level.get())),
                 opt(Whitespace::parse),
                 |i| s.tag_expr_end(i),
             ))),
@@ -295,7 +295,7 @@ impl<'a> Cond<'a> {
             opt(Whitespace::parse),
             ws(keyword("else")),
             cut(tuple((
-                opt(CondTest::parse),
+                opt(|i| CondTest::parse(i, s)),
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
                 cut(|i| Node::many(i, s)),
@@ -320,7 +320,7 @@ pub struct CondTest<'a> {
 }
 
 impl<'a> CondTest<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
         let mut p = preceded(
             ws(keyword("if")),
             cut(tuple((
@@ -329,7 +329,7 @@ impl<'a> CondTest<'a> {
                     ws(Target::parse),
                     ws(char('=')),
                 )),
-                ws(|i| Expr::parse(i, Level::default())),
+                ws(|i| Expr::parse(i, s.level.get())),
             ))),
         );
         let (i, (target, expr)) = p(i)?;
@@ -377,7 +377,7 @@ impl<'a> Loop<'a> {
 
         let if_cond = preceded(
             ws(keyword("if")),
-            cut(ws(|i| Expr::parse(i, Level::default()))),
+            cut(ws(|i| Expr::parse(i, s.level.get()))),
         );
         let else_block = |i| {
             let mut p = preceded(
@@ -402,7 +402,7 @@ impl<'a> Loop<'a> {
                 ws(Target::parse),
                 ws(keyword("in")),
                 cut(tuple((
-                    ws(|i| Expr::parse(i, Level::default())),
+                    ws(|i| Expr::parse(i, s.level.get())),
                     opt(if_cond),
                     opt(Whitespace::parse),
                     |i| s.tag_block_end(i),
@@ -537,14 +537,14 @@ pub struct Call<'a> {
 }
 
 impl<'a> Call<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("call")),
             cut(tuple((
                 opt(tuple((ws(identifier), ws(tag("::"))))),
                 ws(identifier),
-                opt(ws(|nested| Expr::arguments(nested, Level::default()))),
+                opt(ws(|nested| Expr::arguments(nested, s.level.get()))),
                 opt(Whitespace::parse),
             ))),
         ));
@@ -577,7 +577,7 @@ impl<'a> Match<'a> {
             opt(Whitespace::parse),
             ws(keyword("match")),
             cut(tuple((
-                ws(|i| Expr::parse(i, Level::default())),
+                ws(|i| Expr::parse(i, s.level.get())),
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
                 cut(tuple((
@@ -739,7 +739,7 @@ pub struct Let<'a> {
 }
 
 impl<'a> Let<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(alt((keyword("let"), keyword("set")))),
@@ -747,7 +747,7 @@ impl<'a> Let<'a> {
                 ws(Target::parse),
                 opt(preceded(
                     ws(char('=')),
-                    ws(|i| Expr::parse(i, Level::default())),
+                    ws(|i| Expr::parse(i, s.level.get())),
                 )),
                 opt(Whitespace::parse),
             ))),
@@ -775,7 +775,7 @@ impl<'a> If<'a> {
     fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
-            CondTest::parse,
+            |i| CondTest::parse(i, s),
             cut(tuple((
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
