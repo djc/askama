@@ -47,7 +47,7 @@ impl<'a> Node<'a> {
     }
 
     fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        let mut p = tuple((
+        let mut p = delimited(
             |i| s.tag_block_start(i),
             alt((
                 map(Call::parse, Self::Call),
@@ -65,9 +65,13 @@ impl<'a> Node<'a> {
                 |i| Self::r#continue(i, s),
             )),
             cut(|i| s.tag_block_end(i)),
-        ));
-        let (i, (_, contents, _)) = p(i)?;
-        Ok((i, contents))
+        );
+
+        s.nest(i)?;
+        let result = p(i);
+        s.leave();
+
+        result
     }
 
     fn r#break(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
