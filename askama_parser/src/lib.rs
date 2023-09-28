@@ -255,6 +255,7 @@ fn path_or_identifier(i: &str) -> IResult<&str, PathOrIdentifier<'_>> {
 struct State<'a> {
     syntax: &'a Syntax<'a>,
     loop_depth: Cell<usize>,
+    level: Cell<Level>,
 }
 
 impl<'a> State<'a> {
@@ -262,7 +263,17 @@ impl<'a> State<'a> {
         State {
             syntax,
             loop_depth: Cell::new(0),
+            level: Cell::new(Level::default()),
         }
+    }
+
+    fn nest<'b>(&self, i: &'b str) -> Result<(), nom::Err<nom::error::Error<&'b str>>> {
+        self.level.set(self.level.get().nest(i)?);
+        Ok(())
+    }
+
+    fn leave(&self) {
+        self.level.set(self.level.get().leave());
     }
 
     fn tag_block_start<'i>(&self, i: &'i str) -> IResult<&'i str, &'i str> {
@@ -335,6 +346,10 @@ impl Level {
         }
 
         Ok(Level(self.0 + 1))
+    }
+
+    fn leave(&self) -> Self {
+        Level(self.0 - 1)
     }
 
     const MAX_DEPTH: u8 = 64;
