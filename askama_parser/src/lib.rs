@@ -352,5 +352,5 @@ impl Level {
         Level(self.0 - 1)
     }
 
-    const MAX_DEPTH: u8 = 64;
+    const MAX_DEPTH: u8 = 128;
 }
