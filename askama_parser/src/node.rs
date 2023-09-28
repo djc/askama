@@ -13,9 +13,8 @@ use nom::{error_position, IResult};
 
 use super::{
     bool_lit, char_lit, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
-    str_lit, ws, Expr, PathOrIdentifier, State,
+    str_lit, ws, Expr, Level, PathOrIdentifier, State,
 };
-use crate::expr::Level;
 
 #[derive(Debug, PartialEq)]
 pub enum Node<'a> {
