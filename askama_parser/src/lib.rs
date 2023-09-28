@@ -75,7 +75,7 @@ pub struct Ast<'a> {
 
 impl<'a> Ast<'a> {
     pub fn from_str(src: &'a str, syntax: &Syntax<'_>) -> Result<Self, ParseError> {
-        let parse = |i: &'a str| Node::many(i, &State::new(syntax));
+        let parse = |i: &'a str| Node::many(i, &State::new(syntax), Level::default());
         let err = match terminated(parse, cut(eof))(src) {
             Ok(("", nodes)) => return Ok(Self { nodes }),
             Ok(_) => unreachable!("eof() is not eof?"),

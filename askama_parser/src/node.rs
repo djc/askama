@@ -37,29 +37,31 @@ pub enum Node<'a> {
 }
 
 impl<'a> Node<'a> {
-    pub(super) fn many(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Self>> {
+    pub(super) fn many(i: &'a str, s: &State<'_>, level: Level) -> IResult<&'a str, Vec<Self>> {
+        let level = level.nest(i)?;
         complete(many0(alt((
             map(|i| Lit::parse(i, s), Self::Lit),
             map(|i| Comment::parse(i, s), Self::Comment),
-            |i| Self::expr(i, s),
-            |i| Self::parse(i, s),
+            move |i| Self::expr(i, s, level),
+            move |i| Self::parse(i, s, level),
         ))))(i)
     }
 
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
         let mut p = tuple((
             |i| s.tag_block_start(i),
             alt((
                 map(Call::parse, Self::Call),
-                map(Let::parse, Self::Let),
-                map(|i| If::parse(i, s), Self::If),
-                map(|i| Loop::parse(i, s), |l| Self::Loop(Box::new(l))),
-                map(|i| Match::parse(i, s), Self::Match),
+                map(|i| Let::parse(i, level), Self::Let),
+                map(|i| If::parse(i, s, level), Self::If),
+                map(|i| Loop::parse(i, s, level), |l| Self::Loop(Box::new(l))),
+                map(|i| Match::parse(i, s, level), Self::Match),
                 map(Extends::parse, Self::Extends),
                 map(Include::parse, Self::Include),
                 map(Import::parse, Self::Import),
-                map(|i| BlockDef::parse(i, s), Self::BlockDef),
-                map(|i| Macro::parse(i, s), Self::Macro),
+                map(|i| BlockDef::parse(i, s, level), Self::BlockDef),
+                map(|i| Macro::parse(i, s, level), Self::Macro),
                 map(|i| Raw::parse(i, s), Self::Raw),
                 |i| Self::r#break(i, s),
                 |i| Self::r#continue(i, s),
@@ -96,12 +98,13 @@ impl<'a> Node<'a> {
         Ok((j, Self::Continue(Ws(pws, nws))))
     }
 
-    fn expr(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn expr(i: &'a str, s: &State<'_>, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
         let mut p = tuple((
             |i| s.tag_expr_start(i),
             cut(tuple((
                 opt(Whitespace::parse),
-                ws(|i| Expr::parse(i, Level::default())),
+                ws(|i| Expr::parse(i, level)),
                 opt(Whitespace::parse),
                 |i| s.tag_expr_end(i),
             ))),
@@ -124,7 +127,8 @@ pub enum Target<'a> {
 }
 
 impl<'a> Target<'a> {
-    pub(super) fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    pub(super) fn parse(i: &'a str, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
         let mut opt_opening_paren = map(opt(ws(char('('))), |o| o.is_some());
         let mut opt_closing_paren = map(opt(ws(char(')'))), |o| o.is_some());
         let mut opt_opening_brace = map(opt(ws(char('{'))), |o| o.is_some());
@@ -142,7 +146,7 @@ impl<'a> Target<'a> {
                 return Ok((i, Self::Tuple(Vec::new(), Vec::new())));
             }
 
-            let (i, first_target) = Self::parse(i)?;
+            let (i, first_target) = Self::parse(i, level)?;
             let (i, is_unused_paren) = opt_closing_paren(i)?;
             if is_unused_paren {
                 return Ok((i, first_target));
@@ -151,7 +155,7 @@ impl<'a> Target<'a> {
             let mut targets = vec![first_target];
             let (i, _) = cut(tuple((
                 fold_many0(
-                    preceded(ws(char(',')), Self::parse),
+                    preceded(ws(char(',')), |i| Self::parse(i, level)),
                     || (),
                     |_, target| {
                         targets.push(target);
@@ -181,7 +185,7 @@ impl<'a> Target<'a> {
                 let (i, targets) = alt((
                     map(char(')'), |_| Vec::new()),
                     terminated(
-                        cut(separated_list1(ws(char(',')), Self::parse)),
+                        cut(separated_list1(ws(char(',')), |i| Self::parse(i, level))),
                         pair(opt(ws(char(','))), ws(cut(char(')')))),
                     ),
                 ))(i)?;
@@ -193,7 +197,7 @@ impl<'a> Target<'a> {
                 let (i, targets) = alt((
                     map(char('}'), |_| Vec::new()),
                     terminated(
-                        cut(separated_list1(ws(char(',')), Self::named)),
+                        cut(separated_list1(ws(char(',')), |i| Self::named(i, level))),
                         pair(opt(ws(char(','))), ws(cut(char('}')))),
                     ),
                 ))(i)?;
@@ -216,8 +220,12 @@ impl<'a> Target<'a> {
         ))(i)
     }
 
-    fn named(i: &'a str) -> IResult<&str, (&str, Self)> {
-        let (i, (src, target)) = pair(identifier, opt(preceded(ws(char(':')), Self::parse)))(i)?;
+    fn named(i: &'a str, level: Level) -> IResult<&str, (&str, Self)> {
+        let level = level.nest(i)?;
+        let (i, (src, target)) = pair(
+            identifier,
+            opt(preceded(ws(char(':')), |i| Self::parse(i, level))),
+        )(i)?;
         Ok((i, (src, target.unwrap_or(Self::Name(src)))))
     }
 }
@@ -230,7 +238,8 @@ pub struct When<'a> {
 }
 
 impl<'a> When<'a> {
-    fn r#match(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn r#match(i: &'a str, s: &State<'_>, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
         let mut p = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
@@ -238,7 +247,7 @@ impl<'a> When<'a> {
             cut(tuple((
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
-                cut(|i| Node::many(i, s)),
+                cut(|i| Node::many(i, s, level)),
             ))),
         ));
         let (i, (_, pws, _, (nws, _, nodes))) = p(i)?;
@@ -253,16 +262,17 @@ impl<'a> When<'a> {
     }
 
     #[allow(clippy::self_named_constructors)]
-    fn when(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn when(i: &'a str, s: &State<'_>, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
         let mut p = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
             ws(keyword("when")),
             cut(tuple((
-                ws(Target::parse),
+                ws(|i| Target::parse(i, level)),
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
-                cut(|i| Node::many(i, s)),
+                cut(|i| Node::many(i, s, level)),
             ))),
         ));
         let (i, (_, pws, _, (target, nws, _, nodes))) = p(i)?;
@@ -285,16 +295,17 @@ pub struct Cond<'a> {
 }
 
 impl<'a> Cond<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
         let mut p = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
             ws(keyword("else")),
             cut(tuple((
-                opt(CondTest::parse),
+                opt(|i| CondTest::parse(i, level)),
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
-                cut(|i| Node::many(i, s)),
+                cut(|i| Node::many(i, s, level)),
             ))),
         ));
         let (i, (_, pws, _, (cond, nws, _, nodes))) = p(i)?;
@@ -316,16 +327,17 @@ pub struct CondTest<'a> {
 }
 
 impl<'a> CondTest<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
         let mut p = preceded(
             ws(keyword("if")),
             cut(tuple((
                 opt(delimited(
                     ws(alt((keyword("let"), keyword("set")))),
-                    ws(Target::parse),
+                    ws(|i| Target::parse(i, level)),
                     ws(char('=')),
                 )),
-                ws(|i| Expr::parse(i, Level::default())),
+                ws(|i| Expr::parse(i, level)),
             ))),
         );
         let (i, (target, expr)) = p(i)?;
@@ -363,18 +375,16 @@ pub struct Loop<'a> {
 }
 
 impl<'a> Loop<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        fn content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {
+    fn parse(i: &'a str, s: &State<'_>, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
+        fn content<'a>(i: &'a str, s: &State<'_>, level: Level) -> IResult<&'a str, Vec<Node<'a>>> {
             s.enter_loop();
-            let result = Node::many(i, s);
+            let result = Node::many(i, s, level);
             s.leave_loop();
             result
         }
 
-        let if_cond = preceded(
-            ws(keyword("if")),
-            cut(ws(|i| Expr::parse(i, Level::default()))),
-        );
+        let if_cond = preceded(ws(keyword("if")), cut(ws(|i| Expr::parse(i, level))));
         let else_block = |i| {
             let mut p = preceded(
                 ws(keyword("else")),
@@ -382,7 +392,7 @@ impl<'a> Loop<'a> {
                     opt(Whitespace::parse),
                     delimited(
                         |i| s.tag_block_end(i),
-                        |i| Node::many(i, s),
+                        |i| Node::many(i, s, level),
                         |i| s.tag_block_start(i),
                     ),
                     opt(Whitespace::parse),
@@ -395,15 +405,15 @@ impl<'a> Loop<'a> {
             opt(Whitespace::parse),
             ws(keyword("for")),
             cut(tuple((
-                ws(Target::parse),
+                ws(|i| Target::parse(i, level)),
                 ws(keyword("in")),
                 cut(tuple((
-                    ws(|i| Expr::parse(i, Level::default())),
+                    ws(|i| Expr::parse(i, level)),
                     opt(if_cond),
                     opt(Whitespace::parse),
                     |i| s.tag_block_end(i),
                     cut(tuple((
-                        |i| content(i, s),
+                        |i| content(i, s, level),
                         cut(tuple((
                             |i| s.tag_block_start(i),
                             opt(Whitespace::parse),
@@ -444,7 +454,8 @@ pub struct Macro<'a> {
 }
 
 impl<'a> Macro<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
         fn parameters(i: &str) -> IResult<&str, Vec<&str>> {
             delimited(
                 ws(char('(')),
@@ -466,7 +477,7 @@ impl<'a> Macro<'a> {
         let (i, (pws1, _, (name, params, nws1, _))) = start(i)?;
 
         let mut end = cut(tuple((
-            |i| Node::many(i, s),
+            |i| Node::many(i, s, level),
             cut(tuple((
                 |i| s.tag_block_start(i),
                 opt(Whitespace::parse),
@@ -567,19 +578,20 @@ pub struct Match<'a> {
 }
 
 impl<'a> Match<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("match")),
             cut(tuple((
-                ws(|i| Expr::parse(i, Level::default())),
+                ws(|i| Expr::parse(i, level)),
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
                 cut(tuple((
                     ws(many0(ws(value((), |i| Comment::parse(i, s))))),
-                    many1(|i| When::when(i, s)),
+                    many1(|i| When::when(i, s, level)),
                     cut(tuple((
-                        opt(|i| When::r#match(i, s)),
+                        opt(|i| When::r#match(i, s, level)),
                         cut(tuple((
                             ws(|i| s.tag_block_start(i)),
                             opt(Whitespace::parse),
@@ -618,7 +630,7 @@ pub struct BlockDef<'a> {
 }
 
 impl<'a> BlockDef<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>, level: Level) -> IResult<&'a str, Self> {
         let mut start = tuple((
             opt(Whitespace::parse),
             ws(keyword("block")),
@@ -629,7 +641,7 @@ impl<'a> BlockDef<'a> {
         let (i, (pws1, _, (name, nws1, _))) = start(i)?;
 
         let mut end = cut(tuple((
-            |i| Node::many(i, s),
+            |i| Node::many(i, s, level),
             cut(tuple((
                 |i| s.tag_block_start(i),
                 opt(Whitespace::parse),
@@ -734,16 +746,14 @@ pub struct Let<'a> {
 }
 
 impl<'a> Let<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(alt((keyword("let"), keyword("set")))),
             cut(tuple((
-                ws(Target::parse),
-                opt(preceded(
-                    ws(char('=')),
-                    ws(|i| Expr::parse(i, Level::default())),
-                )),
+                ws(|i| Target::parse(i, level)),
+                opt(preceded(ws(char('=')), ws(|i| Expr::parse(i, level)))),
                 opt(Whitespace::parse),
             ))),
         ));
@@ -767,16 +777,17 @@ pub struct If<'a> {
 }
 
 impl<'a> If<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
         let mut p = tuple((
             opt(Whitespace::parse),
-            CondTest::parse,
+            |i| CondTest::parse(i, level),
             cut(tuple((
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
                 cut(tuple((
-                    |i| Node::many(i, s),
-                    many0(|i| Cond::parse(i, s)),
+                    |i| Node::many(i, s, level),
+                    many0(|i| Cond::parse(i, s, level)),
                     cut(tuple((
                         |i| s.tag_block_start(i),
                         opt(Whitespace::parse),
