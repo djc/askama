@@ -324,3 +324,18 @@ impl Default for Syntax<'static> {
         }
     }
 }
+
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Level(u8);
+
+impl Level {
+    fn nest(self, i: &str) -> Result<Level, nom::Err<nom::error::Error<&str>>> {
+        if self.0 >= Self::MAX_DEPTH {
+            return Err(nom::Err::Failure(error_position!(i, ErrorKind::TooLarge)));
+        }
+
+        Ok(Level(self.0 + 1))
+    }
+
+    const MAX_DEPTH: u8 = 64;
+}
