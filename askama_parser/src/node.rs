@@ -15,6 +15,7 @@ use super::{
     bool_lit, char_lit, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
     str_lit, ws, Expr, PathOrIdentifier, State,
 };
+use crate::expr::Level;
 
 #[derive(Debug, PartialEq)]
 pub enum Node<'a> {
@@ -536,7 +537,7 @@ impl<'a> Call<'a> {
             cut(tuple((
                 opt(tuple((ws(identifier), ws(tag("::"))))),
                 ws(identifier),
-                opt(ws(Expr::arguments)),
+                opt(ws(|nested| Expr::arguments(nested, Level::default()))),
                 opt(Whitespace::parse),
             ))),
         ));

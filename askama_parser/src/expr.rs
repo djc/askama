@@ -15,11 +15,12 @@ use super::{
 
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $op:expr ) => {
-        fn $name(i: &'a str) -> IResult<&'a str, Self> {
-            let (i, left) = Self::$inner(i)?;
+        fn $name(i: &'a str, level: Level) -> IResult<&'a str, Self> {
+            let level = level.nest(i)?;
+            let (i, left) = Self::$inner(i, level)?;
             let (i, right) = many0(pair(
                 ws(tag($op)),
-                Self::$inner,
+                |i| Self::$inner(i, level),
             ))(i)?;
             Ok((
                 i,
@@ -30,11 +31,12 @@ macro_rules! expr_prec_layer {
         }
     };
     ( $name:ident, $inner:ident, $( $op:expr ),+ ) => {
-        fn $name(i: &'a str) -> IResult<&'a str, Self> {
-            let (i, left) = Self::$inner(i)?;
+        fn $name(i: &'a str, level: Level) -> IResult<&'a str, Self> {
+            let level = level.nest(i)?;
+            let (i, left) = Self::$inner(i, level)?;
             let (i, right) = many0(pair(
                 ws(alt(($( tag($op) ),+,))),
-                Self::$inner,
+                |i| Self::$inner(i, level),
             ))(i)?;
             Ok((
                 i,
@@ -69,24 +71,35 @@ pub enum Expr<'a> {
 }
 
 impl<'a> Expr<'a> {
-    pub(super) fn arguments(i: &'a str) -> IResult<&'a str, Vec<Self>> {
+    pub(super) fn arguments(i: &'a str, level: Level) -> IResult<&'a str, Vec<Self>> {
+        let level = level.nest(i)?;
         preceded(
             ws(char('(')),
             cut(terminated(
-                separated_list0(char(','), ws(Self::parse)),
+                separated_list0(char(','), ws(move |i| Self::nested(i, level))),
                 char(')'),
             )),
         )(i)
     }
 
     pub(super) fn parse(i: &'a str) -> IResult<&'a str, Self> {
-        let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(Self::or))(i);
+        Self::nested(i, Level::default())
+    }
+
+    fn nested(i: &'a str, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
+        let range_right = move |i| {
+            pair(
+                ws(alt((tag("..="), tag("..")))),
+                opt(move |i| Self::or(i, level)),
+            )(i)
+        };
         alt((
             map(range_right, |(op, right)| {
                 Self::Range(op, None, right.map(Box::new))
             }),
             map(
-                pair(Self::or, opt(range_right)),
+                pair(move |i| Self::or(i, level), opt(range_right)),
                 |(left, right)| match right {
                     Some((op, right)) => Self::Range(op, Some(Box::new(left)), right.map(Box::new)),
                     None => left,
@@ -105,14 +118,19 @@ impl<'a> Expr<'a> {
     expr_prec_layer!(addsub, muldivmod, "+", "-");
     expr_prec_layer!(muldivmod, filtered, "*", "/", "%");
 
-    fn filtered(i: &'a str) -> IResult<&'a str, Self> {
-        fn filter(i: &str) -> IResult<&str, (&str, Option<Vec<Expr<'_>>>)> {
-            let (i, (_, fname, args)) =
-                tuple((char('|'), ws(identifier), opt(Expr::arguments)))(i)?;
+    fn filtered(i: &'a str, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
+        fn filter(i: &str, level: Level) -> IResult<&str, (&str, Option<Vec<Expr<'_>>>)> {
+            let (i, (_, fname, args)) = tuple((
+                char('|'),
+                ws(identifier),
+                opt(|i| Expr::arguments(i, level)),
+            ))(i)?;
             Ok((i, (fname, args)))
         }
 
-        let (i, (obj, filters)) = tuple((Self::prefix, many0(filter)))(i)?;
+        let (i, (obj, filters)) =
+            tuple((|i| Self::prefix(i, level), many0(|i| filter(i, level))))(i)?;
 
         let mut res = obj;
         for (fname, args) in filters {
@@ -129,27 +147,32 @@ impl<'a> Expr<'a> {
         Ok((i, res))
     }
 
-    fn prefix(i: &'a str) -> IResult<&'a str, Self> {
-        let (i, (ops, mut expr)) = pair(many0(ws(alt((tag("!"), tag("-"))))), Suffix::parse)(i)?;
+    fn prefix(i: &'a str, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
+        let (i, (ops, mut expr)) = pair(many0(ws(alt((tag("!"), tag("-"))))), |i| {
+            Suffix::parse(i, level)
+        })(i)?;
         for op in ops.iter().rev() {
             expr = Self::Unary(op, Box::new(expr));
         }
         Ok((i, expr))
     }
 
-    fn single(i: &'a str) -> IResult<&'a str, Self> {
+    fn single(i: &'a str, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
         alt((
             Self::num,
             Self::str,
             Self::char,
             Self::path_var_bool,
-            Self::array,
-            Self::group,
+            move |i| Self::array(i, level),
+            move |i| Self::group(i, level),
         ))(i)
     }
 
-    fn group(i: &'a str) -> IResult<&'a str, Self> {
-        let (i, expr) = preceded(ws(char('(')), opt(Self::parse))(i)?;
+    fn group(i: &'a str, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
+        let (i, expr) = preceded(ws(char('(')), opt(|i| Self::nested(i, level)))(i)?;
         let expr = match expr {
             Some(expr) => expr,
             None => {
@@ -166,7 +189,7 @@ impl<'a> Expr<'a> {
 
         let mut exprs = vec![expr];
         let (i, _) = fold_many0(
-            preceded(char(','), ws(Self::parse)),
+            preceded(char(','), ws(|i| Self::nested(i, level))),
             || (),
             |_, expr| {
                 exprs.push(expr);
@@ -176,11 +199,15 @@ impl<'a> Expr<'a> {
         Ok((i, Self::Tuple(exprs)))
     }
 
-    fn array(i: &'a str) -> IResult<&'a str, Self> {
+    fn array(i: &'a str, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
         preceded(
             ws(char('[')),
             cut(terminated(
-                map(separated_list0(char(','), ws(Self::parse)), Self::Array),
+                map(
+                    separated_list0(char(','), ws(move |i| Self::nested(i, level))),
+                    Self::Array,
+                ),
                 char(']'),
             )),
         )(i)
@@ -218,13 +245,14 @@ enum Suffix<'a> {
 }
 
 impl<'a> Suffix<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Expr<'a>> {
-        let (mut i, mut expr) = Expr::single(i)?;
+    fn parse(i: &'a str, level: Level) -> IResult<&'a str, Expr<'a>> {
+        let level = level.nest(i)?;
+        let (mut i, mut expr) = Expr::single(i, level)?;
         loop {
             let (j, suffix) = opt(alt((
                 Self::attr,
-                Self::index,
-                Self::call,
+                |i| Self::index(i, level),
+                |i| Self::call(i, level),
                 Self::r#try,
                 Self::r#macro,
             )))(i)?;
@@ -315,18 +343,38 @@ impl<'a> Suffix<'a> {
         )(i)
     }
 
-    fn index(i: &'a str) -> IResult<&'a str, Self> {
+    fn index(i: &'a str, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
         map(
-            preceded(ws(char('[')), cut(terminated(ws(Expr::parse), char(']')))),
+            preceded(
+                ws(char('[')),
+                cut(terminated(ws(move |i| Expr::nested(i, level)), char(']'))),
+            ),
             Self::Index,
         )(i)
     }
 
-    fn call(i: &'a str) -> IResult<&'a str, Self> {
-        map(Expr::arguments, Self::Call)(i)
+    fn call(i: &'a str, level: Level) -> IResult<&'a str, Self> {
+        let level = level.nest(i)?;
+        map(move |i| Expr::arguments(i, level), Self::Call)(i)
     }
 
     fn r#try(i: &'a str) -> IResult<&'a str, Self> {
         map(preceded(take_till(not_ws), char('?')), |_| Self::Try)(i)
     }
+}
+
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Level(u8);
+
+impl Level {
+    fn nest(self, i: &str) -> Result<Level, nom::Err<nom::error::Error<&str>>> {
+        if self.0 >= Self::MAX_EXPR_DEPTH {
+            return Err(nom::Err::Failure(error_position!(i, ErrorKind::TooLarge)));
+        }
+
+        Ok(Level(self.0 + 1))
+    }
+
+    const MAX_EXPR_DEPTH: u8 = 64;
 }
