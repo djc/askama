@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0"
 workspace = ".."
 readme = "../README.md"
 edition = "2021"
-rust-version = "1.58"
+rust-version = "1.65"
 
 [badges]
 maintenance = { status = "actively-developed" }
