@@ -203,11 +203,12 @@ impl RawConfig<'_> {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(field_identifier, rename_all = "lowercase"))]
 pub(crate) enum WhitespaceHandling {
     /// The default behaviour. It will leave the whitespace characters "as is".
+    #[default]
     Preserve,
     /// It'll remove all the whitespace characters before and after the jinja block.
     Suppress,
@@ -224,12 +225,6 @@ impl From<WhitespaceHandling> for Whitespace {
             WhitespaceHandling::Preserve => Whitespace::Preserve,
             WhitespaceHandling::Minimize => Whitespace::Minimize,
         }
-    }
-}
-
-impl Default for WhitespaceHandling {
-    fn default() -> Self {
-        WhitespaceHandling::Preserve
     }
 }
 
