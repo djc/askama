@@ -1,6 +1,6 @@
 [package]
 name = "askama_derive"
-version = "0.12.1"
+version = "0.12.2"
 description = "Procedural macro package for Askama"
 homepage = "https://github.com/djc/askama"
 repository = "https://github.com/djc/askama"
