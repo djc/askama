@@ -6,7 +6,7 @@ use mime::Mime;
 use quote::ToTokens;
 use syn::punctuated::Punctuated;
 
-use crate::config::{get_template_source, Config};
+use crate::config::{get_template_source, read_config_file, Config};
 use crate::CompileError;
 use parser::{Node, Parsed, Syntax};
 
@@ -14,10 +14,10 @@ pub(crate) struct TemplateInput<'a> {
     pub(crate) ast: &'a syn::DeriveInput,
     pub(crate) config: &'a Config<'a>,
     pub(crate) syntax: &'a Syntax<'a>,
-    pub(crate) source: Source,
+    pub(crate) source: &'a Source,
     pub(crate) print: Print,
     pub(crate) escaper: &'a str,
-    pub(crate) ext: Option<String>,
+    pub(crate) ext: Option<&'a str>,
     pub(crate) mime_type: String,
     pub(crate) path: PathBuf,
 }
@@ -29,7 +29,7 @@ impl TemplateInput<'_> {
     pub(crate) fn new<'n>(
         ast: &'n syn::DeriveInput,
         config: &'n Config<'_>,
-        args: TemplateArgs,
+        args: &'n TemplateArgs,
     ) -> Result<TemplateInput<'n>, CompileError> {
         let TemplateArgs {
             source,
@@ -43,7 +43,9 @@ impl TemplateInput<'_> {
         // Validate the `source` and `ext` value together, since they are
         // related. In case `source` was used instead of `path`, the value
         // of `ext` is merged into a synthetic `path` value here.
-        let source = source.expect("template path or source not found in attributes");
+        let source = source
+            .as_ref()
+            .expect("template path or source not found in attributes");
         let path = match (&source, &ext) {
             (Source::Path(path), _) => config.find_template(path, None)?,
             (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
@@ -53,28 +55,25 @@ impl TemplateInput<'_> {
         };
 
         // Validate syntax
-        let syntax = syntax.map_or_else(
+        let syntax = syntax.as_deref().map_or_else(
             || Ok(config.syntaxes.get(config.default_syntax).unwrap()),
             |s| {
                 config
                     .syntaxes
-                    .get(&s)
+                    .get(s)
                     .ok_or_else(|| CompileError::from(format!("attribute syntax {s} not exist")))
             },
         )?;
 
         // Match extension against defined output formats
 
-        let escaping = escaping.unwrap_or_else(|| {
-            path.extension()
-                .map(|s| s.to_str().unwrap())
-                .unwrap_or("")
-                .to_string()
-        });
+        let escaping = escaping
+            .as_deref()
+            .unwrap_or_else(|| path.extension().map(|s| s.to_str().unwrap()).unwrap_or(""));
 
         let mut escaper = None;
         for (extensions, path) in &config.escapers {
-            if extensions.contains(&escaping) {
+            if extensions.contains(escaping) {
                 escaper = Some(path);
                 break;
             }
@@ -93,9 +92,9 @@ impl TemplateInput<'_> {
             config,
             syntax,
             source,
-            print,
+            print: *print,
             escaper,
-            ext,
+            ext: ext.as_deref(),
             mime_type,
             path,
         })
@@ -148,18 +147,18 @@ impl TemplateInput<'_> {
 
     #[inline]
     pub(crate) fn extension(&self) -> Option<&str> {
-        ext_default_to_path(self.ext.as_deref(), &self.path)
+        ext_default_to_path(self.ext, &self.path)
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub(crate) struct TemplateArgs {
     pub(crate) source: Option<Source>,
     pub(crate) print: Print,
     pub(crate) escaping: Option<String>,
     pub(crate) ext: Option<String>,
     pub(crate) syntax: Option<String>,
-    pub(crate) config_path: Option<String>,
+    pub(crate) config: String,
     pub(crate) whitespace: Option<String>,
 }
 
@@ -259,7 +258,7 @@ impl TemplateArgs {
                 }
             } else if ident == "config" {
                 if let syn::Lit::Str(s) = value.lit {
-                    args.config_path = Some(s.value())
+                    args.config = read_config_file(Some(&s.value()))?;
                 } else {
                     return Err("config value must be string literal".into());
                 }
@@ -297,12 +296,13 @@ fn extension(path: &Path) -> Option<&str> {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum Source {
     Path(String),
     Source(String),
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum Print {
     All,
     Ast,
