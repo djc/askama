@@ -1,8 +1,8 @@
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
-use std::borrow::Cow;
 use std::fmt;
+use std::{borrow::Cow, collections::HashMap};
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
@@ -10,17 +10,74 @@ use proc_macro2::Span;
 use parser::ParseError;
 
 mod config;
+use config::{get_template_source, read_config_file, Config};
 mod generator;
+use generator::{Generator, MapChain};
 mod heritage;
+use heritage::{Context, Heritage};
 mod input;
+use input::{Print, Source, TemplateArgs, TemplateInput};
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast = syn::parse::<syn::DeriveInput>(input).unwrap();
-    match generator::build_template(&ast) {
+    match build_template(&ast) {
         Ok(source) => source.parse().unwrap(),
         Err(e) => e.into_compile_error(),
     }
+}
+
+/// Takes a `syn::DeriveInput` and generates source code for it
+///
+/// Reads the metadata from the `template()` attribute to get the template
+/// metadata, then fetches the source from the filesystem. The source is
+/// parsed, and the parse tree is fed to the code generator. Will print
+/// the parse tree and/or generated source according to the `print` key's
+/// value as passed to the `template()` attribute.
+pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
+    let template_args = TemplateArgs::new(ast)?;
+    let config_toml = read_config_file(template_args.config_path.as_deref())?;
+    let config = Config::new(&config_toml, template_args.whitespace.as_ref())?;
+    let input = TemplateInput::new(ast, &config, template_args)?;
+    let source = match input.source {
+        Source::Source(ref s) => s.clone(),
+        Source::Path(_) => get_template_source(&input.path)?,
+    };
+
+    let mut templates = HashMap::new();
+    input.find_used_templates(&mut templates, source)?;
+
+    let mut contexts = HashMap::new();
+    for (path, parsed) in &templates {
+        contexts.insert(
+            path.as_path(),
+            Context::new(input.config, path, parsed.nodes())?,
+        );
+    }
+
+    let ctx = &contexts[input.path.as_path()];
+    let heritage = if !ctx.blocks.is_empty() || ctx.extends.is_some() {
+        Some(Heritage::new(ctx, &contexts))
+    } else {
+        None
+    };
+
+    if input.print == Print::Ast || input.print == Print::All {
+        eprintln!("{:?}", templates[input.path.as_path()].nodes());
+    }
+
+    let code = Generator::new(
+        &input,
+        &contexts,
+        heritage.as_ref(),
+        MapChain::new(),
+        config.whitespace,
+    )
+    .build(&contexts[input.path.as_path()])?;
+    if input.print == Print::Code || input.print == Print::All {
+        eprintln!("{code}");
+    }
+    Ok(code)
 }
 
 #[derive(Debug, Clone)]

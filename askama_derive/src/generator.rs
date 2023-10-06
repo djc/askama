@@ -1,6 +1,6 @@
-use crate::config::{get_template_source, read_config_file, Config, WhitespaceHandling};
+use crate::config::{get_template_source, WhitespaceHandling};
 use crate::heritage::{Context, Heritage};
-use crate::input::{Print, Source, TemplateArgs, TemplateInput};
+use crate::input::{Source, TemplateInput};
 use crate::CompileError;
 
 use parser::node::{
@@ -13,60 +13,7 @@ use std::collections::hash_map::{Entry, HashMap};
 use std::path::{Path, PathBuf};
 use std::{cmp, hash, mem, str};
 
-/// Takes a `syn::DeriveInput` and generates source code for it
-///
-/// Reads the metadata from the `template()` attribute to get the template
-/// metadata, then fetches the source from the filesystem. The source is
-/// parsed, and the parse tree is fed to the code generator. Will print
-/// the parse tree and/or generated source according to the `print` key's
-/// value as passed to the `template()` attribute.
-pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
-    let template_args = TemplateArgs::new(ast)?;
-    let config_toml = read_config_file(template_args.config_path.as_deref())?;
-    let config = Config::new(&config_toml, template_args.whitespace.as_ref())?;
-    let input = TemplateInput::new(ast, &config, template_args)?;
-    let source = match input.source {
-        Source::Source(ref s) => s.clone(),
-        Source::Path(_) => get_template_source(&input.path)?,
-    };
-
-    let mut templates = HashMap::new();
-    input.find_used_templates(&mut templates, source)?;
-
-    let mut contexts = HashMap::new();
-    for (path, parsed) in &templates {
-        contexts.insert(
-            path.as_path(),
-            Context::new(input.config, path, parsed.nodes())?,
-        );
-    }
-
-    let ctx = &contexts[input.path.as_path()];
-    let heritage = if !ctx.blocks.is_empty() || ctx.extends.is_some() {
-        Some(Heritage::new(ctx, &contexts))
-    } else {
-        None
-    };
-
-    if input.print == Print::Ast || input.print == Print::All {
-        eprintln!("{:?}", templates[input.path.as_path()].nodes());
-    }
-
-    let code = Generator::new(
-        &input,
-        &contexts,
-        heritage.as_ref(),
-        MapChain::new(),
-        config.whitespace,
-    )
-    .build(&contexts[input.path.as_path()])?;
-    if input.print == Print::Code || input.print == Print::All {
-        eprintln!("{code}");
-    }
-    Ok(code)
-}
-
-struct Generator<'a> {
+pub(crate) struct Generator<'a> {
     // The template input state: original struct AST and attributes
     input: &'a TemplateInput<'a>,
     // All contexts, keyed by the package-relative template path
@@ -96,7 +43,7 @@ struct Generator<'a> {
 }
 
 impl<'a> Generator<'a> {
-    fn new<'n>(
+    pub(crate) fn new<'n>(
         input: &'n TemplateInput<'_>,
         contexts: &'n HashMap<&'n Path, Context<'n>>,
         heritage: Option<&'n Heritage<'_>>,
@@ -119,7 +66,7 @@ impl<'a> Generator<'a> {
     }
 
     // Takes a Context and generates the relevant implementations.
-    fn build(mut self, ctx: &'a Context<'_>) -> Result<String, CompileError> {
+    pub(crate) fn build(mut self, ctx: &'a Context<'_>) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
 
         self.impl_template(ctx, &mut buf)?;
@@ -1792,7 +1739,7 @@ impl Buffer {
 }
 
 #[derive(Clone, Default)]
-struct LocalMeta {
+pub(crate) struct LocalMeta {
     refs: Option<String>,
     initialized: bool,
 }
@@ -1816,7 +1763,7 @@ impl LocalMeta {
 // type SetChain<'a, T> = MapChain<'a, T, ()>;
 
 #[derive(Debug)]
-struct MapChain<'a, K, V>
+pub(crate) struct MapChain<'a, K, V>
 where
     K: cmp::Eq + hash::Hash,
 {
@@ -1828,7 +1775,7 @@ impl<'a, K: 'a, V: 'a> MapChain<'a, K, V>
 where
     K: cmp::Eq + hash::Hash,
 {
-    fn new() -> MapChain<'a, K, V> {
+    pub(crate) fn new() -> MapChain<'a, K, V> {
         MapChain {
             parent: None,
             scopes: vec![HashMap::new()],
