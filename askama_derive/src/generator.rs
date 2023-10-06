@@ -25,7 +25,7 @@ pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileEr
     let config_toml = read_config_file(template_args.config_path.as_deref())?;
     let config = Config::new(&config_toml, template_args.whitespace.as_ref())?;
     let input = TemplateInput::new(ast, &config, template_args)?;
-    let source: String = match input.source {
+    let source = match input.source {
         Source::Source(ref s) => s.clone(),
         Source::Path(_) => get_template_source(&input.path)?,
     };
