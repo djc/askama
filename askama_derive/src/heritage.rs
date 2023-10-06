@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 
 use crate::config::Config;
 use crate::CompileError;
-
 use parser::node::{BlockDef, Macro, Match};
 use parser::Node;
 
