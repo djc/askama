@@ -1,3 +1,4 @@
+use std::collections::hash_map::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -5,9 +6,9 @@ use mime::Mime;
 use quote::ToTokens;
 use syn::punctuated::Punctuated;
 
-use crate::config::Config;
+use crate::config::{get_template_source, Config};
 use crate::CompileError;
-use parser::Syntax;
+use parser::{Node, Parsed, Syntax};
 
 pub(crate) struct TemplateInput<'a> {
     pub(crate) ast: &'a syn::DeriveInput,
@@ -98,6 +99,47 @@ impl TemplateInput<'_> {
             mime_type,
             path,
         })
+    }
+
+    pub(crate) fn find_used_templates(
+        &self,
+        map: &mut HashMap<PathBuf, Parsed>,
+        source: String,
+    ) -> Result<(), CompileError> {
+        let mut dependency_graph = Vec::new();
+        let mut check = vec![(self.path.clone(), source)];
+        while let Some((path, source)) = check.pop() {
+            let parsed = Parsed::new(source, self.syntax)?;
+            for n in parsed.nodes() {
+                match n {
+                    Node::Extends(extends) => {
+                        let extends = self.config.find_template(extends.path, Some(&path))?;
+                        let dependency_path = (path.clone(), extends.clone());
+                        if dependency_graph.contains(&dependency_path) {
+                            return Err(format!(
+                                "cyclic dependency in graph {:#?}",
+                                dependency_graph
+                                    .iter()
+                                    .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
+                                    .collect::<Vec<String>>()
+                            )
+                            .into());
+                        }
+                        dependency_graph.push(dependency_path);
+                        let source = get_template_source(&extends)?;
+                        check.push((extends, source));
+                    }
+                    Node::Import(import) => {
+                        let import = self.config.find_template(import.path, Some(&path))?;
+                        let source = get_template_source(&import)?;
+                        check.push((import, source));
+                    }
+                    _ => {}
+                }
+            }
+            map.insert(path, parsed);
+        }
+        Ok(())
     }
 
     #[inline]

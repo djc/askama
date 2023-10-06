@@ -31,7 +31,7 @@ pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileEr
     };
 
     let mut templates = HashMap::new();
-    find_used_templates(&input, &mut templates, source)?;
+    input.find_used_templates(&mut templates, source)?;
 
     let mut contexts = HashMap::new();
     for (path, parsed) in &templates {
@@ -64,47 +64,6 @@ pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileEr
         eprintln!("{code}");
     }
     Ok(code)
-}
-
-fn find_used_templates(
-    input: &TemplateInput<'_>,
-    map: &mut HashMap<PathBuf, Parsed>,
-    source: String,
-) -> Result<(), CompileError> {
-    let mut dependency_graph = Vec::new();
-    let mut check = vec![(input.path.clone(), source)];
-    while let Some((path, source)) = check.pop() {
-        let parsed = Parsed::new(source, input.syntax)?;
-        for n in parsed.nodes() {
-            match n {
-                Node::Extends(extends) => {
-                    let extends = input.config.find_template(extends.path, Some(&path))?;
-                    let dependency_path = (path.clone(), extends.clone());
-                    if dependency_graph.contains(&dependency_path) {
-                        return Err(format!(
-                            "cyclic dependency in graph {:#?}",
-                            dependency_graph
-                                .iter()
-                                .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
-                                .collect::<Vec<String>>()
-                        )
-                        .into());
-                    }
-                    dependency_graph.push(dependency_path);
-                    let source = get_template_source(&extends)?;
-                    check.push((extends, source));
-                }
-                Node::Import(import) => {
-                    let import = input.config.find_template(import.path, Some(&path))?;
-                    let source = get_template_source(&import)?;
-                    check.push((import, source));
-                }
-                _ => {}
-            }
-        }
-        map.insert(path, parsed);
-    }
-    Ok(())
 }
 
 struct Generator<'a> {
