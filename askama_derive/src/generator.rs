@@ -1,14 +1,13 @@
 use crate::config::{get_template_source, read_config_file, Config, WhitespaceHandling};
 use crate::heritage::{Context, Heritage};
-use crate::input::{Print, Source, TemplateInput};
+use crate::input::{Print, Source, TemplateArgs, TemplateInput};
 use crate::CompileError;
 
 use parser::node::{
     Call, Comment, CondTest, If, Include, Let, Lit, Loop, Match, Target, Whitespace, Ws,
 };
 use parser::{Expr, Node, Parsed};
-use quote::{quote, ToTokens};
-use syn::punctuated::Punctuated;
+use quote::quote;
 
 use std::collections::hash_map::{Entry, HashMap};
 use std::path::{Path, PathBuf};
@@ -65,132 +64,6 @@ pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileEr
         eprintln!("{code}");
     }
     Ok(code)
-}
-
-#[derive(Default)]
-pub(crate) struct TemplateArgs {
-    pub(crate) source: Option<Source>,
-    pub(crate) print: Print,
-    pub(crate) escaping: Option<String>,
-    pub(crate) ext: Option<String>,
-    pub(crate) syntax: Option<String>,
-    pub(crate) config_path: Option<String>,
-    pub(crate) whitespace: Option<String>,
-}
-
-impl TemplateArgs {
-    fn new(ast: &'_ syn::DeriveInput) -> Result<Self, CompileError> {
-        // Check that an attribute called `template()` exists once and that it is
-        // the proper type (list).
-        let mut template_args = None;
-        for attr in &ast.attrs {
-            if !attr.path().is_ident("template") {
-                continue;
-            }
-
-            match attr.parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated) {
-                Ok(args) if template_args.is_none() => template_args = Some(args),
-                Ok(_) => return Err("duplicated 'template' attribute".into()),
-                Err(e) => return Err(format!("unable to parse template arguments: {e}").into()),
-            };
-        }
-
-        let template_args =
-            template_args.ok_or_else(|| CompileError::from("no attribute 'template' found"))?;
-
-        let mut args = Self::default();
-        // Loop over the meta attributes and find everything that we
-        // understand. Return a CompileError if something is not right.
-        // `source` contains an enum that can represent `path` or `source`.
-        for item in template_args {
-            let pair = match item {
-                syn::Meta::NameValue(pair) => pair,
-                _ => {
-                    return Err(format!(
-                        "unsupported attribute argument {:?}",
-                        item.to_token_stream()
-                    )
-                    .into())
-                }
-            };
-
-            let ident = match pair.path.get_ident() {
-                Some(ident) => ident,
-                None => unreachable!("not possible in syn::Meta::NameValue(…)"),
-            };
-
-            let value = match pair.value {
-                syn::Expr::Lit(lit) => lit,
-                syn::Expr::Group(group) => match *group.expr {
-                    syn::Expr::Lit(lit) => lit,
-                    _ => {
-                        return Err(format!("unsupported argument value type for {ident:?}").into())
-                    }
-                },
-                _ => return Err(format!("unsupported argument value type for {ident:?}").into()),
-            };
-
-            if ident == "path" {
-                if let syn::Lit::Str(s) = value.lit {
-                    if args.source.is_some() {
-                        return Err("must specify 'source' or 'path', not both".into());
-                    }
-                    args.source = Some(Source::Path(s.value()));
-                } else {
-                    return Err("template path must be string literal".into());
-                }
-            } else if ident == "source" {
-                if let syn::Lit::Str(s) = value.lit {
-                    if args.source.is_some() {
-                        return Err("must specify 'source' or 'path', not both".into());
-                    }
-                    args.source = Some(Source::Source(s.value()));
-                } else {
-                    return Err("template source must be string literal".into());
-                }
-            } else if ident == "print" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.print = s.value().parse()?;
-                } else {
-                    return Err("print value must be string literal".into());
-                }
-            } else if ident == "escape" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.escaping = Some(s.value());
-                } else {
-                    return Err("escape value must be string literal".into());
-                }
-            } else if ident == "ext" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.ext = Some(s.value());
-                } else {
-                    return Err("ext value must be string literal".into());
-                }
-            } else if ident == "syntax" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.syntax = Some(s.value())
-                } else {
-                    return Err("syntax value must be string literal".into());
-                }
-            } else if ident == "config" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.config_path = Some(s.value())
-                } else {
-                    return Err("config value must be string literal".into());
-                }
-            } else if ident == "whitespace" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.whitespace = Some(s.value())
-                } else {
-                    return Err("whitespace value must be string literal".into());
-                }
-            } else {
-                return Err(format!("unsupported attribute key {ident:?} found").into());
-            }
-        }
-
-        Ok(args)
-    }
 }
 
 fn find_used_templates(
