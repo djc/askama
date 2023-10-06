@@ -104,8 +104,12 @@ impl TemplateInput<'_> {
     pub(crate) fn find_used_templates(
         &self,
         map: &mut HashMap<PathBuf, Parsed>,
-        source: String,
     ) -> Result<(), CompileError> {
+        let source = match &self.source {
+            Source::Source(s) => s.clone(),
+            Source::Path(_) => get_template_source(&self.path)?,
+        };
+
         let mut dependency_graph = Vec::new();
         let mut check = vec![(self.path.clone(), source)];
         while let Some((path, source)) = check.pop() {

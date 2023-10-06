@@ -10,13 +10,13 @@ use proc_macro2::Span;
 use parser::ParseError;
 
 mod config;
-use config::{get_template_source, read_config_file, Config};
+use config::{read_config_file, Config};
 mod generator;
 use generator::{Generator, MapChain};
 mod heritage;
 use heritage::{Context, Heritage};
 mod input;
-use input::{Print, Source, TemplateArgs, TemplateInput};
+use input::{Print, TemplateArgs, TemplateInput};
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
@@ -39,13 +39,9 @@ pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileEr
     let config_toml = read_config_file(template_args.config_path.as_deref())?;
     let config = Config::new(&config_toml, template_args.whitespace.as_ref())?;
     let input = TemplateInput::new(ast, &config, template_args)?;
-    let source = match input.source {
-        Source::Source(ref s) => s.clone(),
-        Source::Path(_) => get_template_source(&input.path)?,
-    };
 
     let mut templates = HashMap::new();
-    input.find_used_templates(&mut templates, source)?;
+    input.find_used_templates(&mut templates)?;
 
     let mut contexts = HashMap::new();
     for (path, parsed) in &templates {
