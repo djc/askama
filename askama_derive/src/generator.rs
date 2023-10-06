@@ -7,22 +7,12 @@ use parser::node::{
     Call, Comment, CondTest, If, Include, Let, Lit, Loop, Match, Target, Whitespace, Ws,
 };
 use parser::{Expr, Node, Parsed};
-use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 
 use std::collections::hash_map::{Entry, HashMap};
 use std::path::{Path, PathBuf};
 use std::{cmp, hash, mem, str};
-
-/// The actual implementation for askama_derive::Template
-pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
-    let ast: syn::DeriveInput = syn::parse(input).unwrap();
-    match build_template(&ast) {
-        Ok(source) => source.parse().unwrap(),
-        Err(e) => e.into_compile_error(),
-    }
-}
 
 /// Takes a `syn::DeriveInput` and generates source code for it
 ///
@@ -31,7 +21,7 @@ pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
 /// parsed, and the parse tree is fed to the code generator. Will print
 /// the parse tree and/or generated source according to the `print` key's
 /// value as passed to the `template()` attribute.
-fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
+pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     let template_args = TemplateArgs::new(ast)?;
     let config_toml = read_config_file(template_args.config_path.as_deref())?;
     let config = Config::new(&config_toml, template_args.whitespace.as_ref())?;
