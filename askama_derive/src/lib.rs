@@ -16,7 +16,11 @@ mod input;
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
-    generator::derive_template(input)
+    let ast = syn::parse::<syn::DeriveInput>(input).unwrap();
+    match generator::build_template(&ast) {
+        Ok(source) => source.parse().unwrap(),
+        Err(e) => e.into_compile_error(),
+    }
 }
 
 #[derive(Debug, Clone)]
