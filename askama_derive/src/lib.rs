@@ -70,7 +70,7 @@ pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileEr
         &input,
         &contexts,
         heritage.as_ref(),
-        MapChain::new(),
+        MapChain::default(),
         config.whitespace,
     )
     .build(&contexts[input.path.as_path()])?;
