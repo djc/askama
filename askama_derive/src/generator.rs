@@ -1,3 +1,7 @@
+use std::collections::hash_map::{Entry, HashMap};
+use std::path::{Path, PathBuf};
+use std::{cmp, hash, mem, str};
+
 use crate::config::{get_template_source, WhitespaceHandling};
 use crate::heritage::{Context, Heritage};
 use crate::input::{Source, TemplateInput};
@@ -8,10 +12,6 @@ use parser::node::{
 };
 use parser::{Expr, Node, Parsed};
 use quote::quote;
-
-use std::collections::hash_map::{Entry, HashMap};
-use std::path::{Path, PathBuf};
-use std::{cmp, hash, mem, str};
 
 pub(crate) struct Generator<'a> {
     // The template input state: original struct AST and attributes

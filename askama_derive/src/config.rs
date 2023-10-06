@@ -6,7 +6,6 @@ use std::{env, fs};
 use serde::Deserialize;
 
 use crate::CompileError;
-
 use parser::node::Whitespace;
 use parser::Syntax;
 
