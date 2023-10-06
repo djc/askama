@@ -1775,13 +1775,6 @@ impl<'a, K: 'a, V: 'a> MapChain<'a, K, V>
 where
     K: cmp::Eq + hash::Hash,
 {
-    pub(crate) fn new() -> MapChain<'a, K, V> {
-        MapChain {
-            parent: None,
-            scopes: vec![HashMap::new()],
-        }
-    }
-
     fn with_parent<'p>(parent: &'p MapChain<'_, K, V>) -> MapChain<'p, K, V> {
         MapChain {
             parent: Some(parent),
@@ -1841,6 +1834,15 @@ impl MapChain<'_, &str, LocalMeta> {
     fn resolve_or_self(&self, name: &str) -> String {
         let name = normalize_identifier(name);
         self.resolve(name).unwrap_or_else(|| format!("self.{name}"))
+    }
+}
+
+impl<'a, K: Eq + hash::Hash, V> Default for MapChain<'a, K, V> {
+    fn default() -> Self {
+        Self {
+            parent: None,
+            scopes: vec![HashMap::new()],
+        }
     }
 }
 
