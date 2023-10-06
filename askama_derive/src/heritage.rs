@@ -26,7 +26,7 @@ impl Heritage<'_> {
         while let Some(ref path) = ctx.extends {
             ctx = &contexts[path.as_path()];
             for (name, def) in &ctx.blocks {
-                blocks.entry(name).or_insert_with(Vec::new).push((ctx, def));
+                blocks.entry(name).or_default().push((ctx, def));
             }
         }
 
