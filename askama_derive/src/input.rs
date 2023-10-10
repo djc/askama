@@ -153,13 +153,13 @@ impl TemplateInput<'_> {
 
 #[derive(Debug, Default)]
 pub(crate) struct TemplateArgs {
-    pub(crate) source: Option<Source>,
-    pub(crate) print: Print,
-    pub(crate) escaping: Option<String>,
-    pub(crate) ext: Option<String>,
-    pub(crate) syntax: Option<String>,
-    pub(crate) config: String,
-    pub(crate) whitespace: Option<String>,
+    source: Option<Source>,
+    print: Print,
+    escaping: Option<String>,
+    ext: Option<String>,
+    syntax: Option<String>,
+    config: String,
+    whitespace: Option<String>,
 }
 
 impl TemplateArgs {
@@ -274,6 +274,10 @@ impl TemplateArgs {
         }
 
         Ok(args)
+    }
+
+    pub(crate) fn config(&self) -> Result<Config<'_>, CompileError> {
+        Config::new(&self.config, self.whitespace.as_ref())
     }
 }
 
