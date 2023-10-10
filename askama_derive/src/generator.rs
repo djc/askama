@@ -37,9 +37,6 @@ pub(crate) struct Generator<'a> {
     buf_writable: Vec<Writable<'a>>,
     // Counter for write! hash named arguments
     named: usize,
-    // If set to `suppress`, the whitespace characters will be removed by default unless `+` is
-    // used.
-    whitespace: WhitespaceHandling,
 }
 
 impl<'a> Generator<'a> {
@@ -48,7 +45,6 @@ impl<'a> Generator<'a> {
         contexts: &'n HashMap<&'n Path, Context<'n>>,
         heritage: Option<&'n Heritage<'_>>,
         locals: MapChain<'n, &'n str, LocalMeta>,
-        whitespace: WhitespaceHandling,
     ) -> Generator<'n> {
         Generator {
             input,
@@ -61,7 +57,6 @@ impl<'a> Generator<'a> {
             super_block: None,
             buf_writable: vec![],
             named: 0,
-            whitespace,
         }
     }
 
@@ -796,13 +791,7 @@ impl<'a> Generator<'a> {
         // handle the include's nodes. Unfortunately we can't easily share the `includes` cache.
 
         let locals = MapChain::with_parent(&self.locals);
-        let mut child = Self::new(
-            self.input,
-            self.contexts,
-            self.heritage,
-            locals,
-            self.whitespace,
-        );
+        let mut child = Self::new(self.input, self.contexts, self.heritage, locals);
 
         let nodes = match self.contexts.get(path.as_path()) {
             Some(ctx) => ctx.nodes,
@@ -1638,7 +1627,7 @@ impl<'a> Generator<'a> {
             Some(Whitespace::Suppress) => WhitespaceHandling::Suppress,
             Some(Whitespace::Preserve) => WhitespaceHandling::Preserve,
             Some(Whitespace::Minimize) => WhitespaceHandling::Minimize,
-            None => self.whitespace,
+            None => self.input.config.whitespace,
         }
     }
 
