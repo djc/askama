@@ -83,3 +83,15 @@ fn str_cmp() {
     let t = StrCmpTemplate;
     assert_eq!(t.render().unwrap(), "AfooBotherCneitherD");
 }
+
+#[derive(Template)]
+#[template(path = "macro-self-arg.html")]
+struct MacroSelfArgTemplate<'a> {
+    s: &'a str,
+}
+
+#[test]
+fn test_macro_self_arg() {
+    let t = MacroSelfArgTemplate { s: "foo" };
+    assert_eq!(t.render().unwrap(), "foo");
+}
