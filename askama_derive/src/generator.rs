@@ -952,7 +952,7 @@ impl<'a> Generator<'a> {
                 // If `expr` is already a form of variable then
                 // don't reintroduce a new variable. This is
                 // to avoid moving non-copyable values.
-                Expr::Var(name) => {
+                &Expr::Var(name) if name != "self" => {
                     let var = self.locals.resolve_or_self(name);
                     self.locals.insert(arg, LocalMeta::with_ref(var));
                 }
