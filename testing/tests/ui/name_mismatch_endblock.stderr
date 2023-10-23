@@ -1,0 +1,8 @@
+error: problems parsing template source at row 1, column 27 near:
+       "not_foo %}"
+ --> tests/ui/name_mismatch_endblock.rs:3:10
+  |
+3 | #[derive(Template)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
