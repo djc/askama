@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{# Testing named "endmacro" #}
+{% macro foo(b) -%}
+    {% if b %}t{% else %}f{% endif -%}
+{% endmacro foo -%}
+{# Testing named endblock declaration #}
+{% block what %}{% endblock what %}
+{# Testing named endblock call #}
+{% block foo %}tadam{% endblock foo %}
