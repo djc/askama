@@ -176,6 +176,13 @@ inheritance. Blocks can only be specified at the top level of a template
 or inside other blocks, not inside `if`/`else` branches or in `for`-loop
 bodies.
 
+It is also possible to use the name of the `block` in `endblock` (both in
+declaration and use):
+
+```html
+{% block content %}<p>Placeholder content</p>{% endblock content %}
+```
+
 ### Child template
 
 Here's an example child template:
@@ -457,4 +464,11 @@ You can place templates in a separate file and use it in your templates by using
 {%- import "macro.html" as scope -%}
 
 {% call scope::heading(s) %}
+```
+
+It is also possible to use the name of the `macro` in `endmacro` in the
+declaration:
+
+```html
+{% macro heading(arg) %}<p>{{arg}}</p>{% endmacro heading %}
 ```
