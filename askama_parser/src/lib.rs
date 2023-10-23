@@ -101,7 +101,7 @@ impl<'a> Ast<'a> {
         let msg = format!(
             "{}problems parsing template source at row {}, column {} near:\n{}",
             if let Some(message) = message {
-                format!("error: {message}\n")
+                format!("{message}\n")
             } else {
                 String::new()
             },

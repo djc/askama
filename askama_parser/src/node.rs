@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::str;
 
 use nom::branch::alt;
@@ -650,7 +651,13 @@ impl<'a> BlockDef<'a> {
                 |i| s.tag_block_start(i),
                 opt(Whitespace::parse),
                 ws(keyword("endblock")),
-                cut(tuple((opt(ws(keyword(name))), opt(Whitespace::parse)))),
+                cut(tuple((
+                    opt(|before| {
+                        let (after, end_name) = ws(identifier)(before)?;
+                        check_end_name(before, after, name, end_name, "block")
+                    }),
+                    opt(Whitespace::parse),
+                ))),
             ))),
         )));
         let (i, (nodes, (_, pws2, _, (_, nws2)))) = end(i)?;
@@ -665,6 +672,27 @@ impl<'a> BlockDef<'a> {
             },
         ))
     }
+}
+
+fn check_end_name<'a>(
+    before: &'a str,
+    after: &'a str,
+    name: &'a str,
+    end_name: &'a str,
+    kind: &str,
+) -> IResult<&'a str, &'a str, ErrorContext<&'a str>> {
+    if name == end_name {
+        return Ok((after, end_name));
+    }
+    let message = if name.is_empty() && !end_name.is_empty() {
+        format!("unexpected name `{end_name}` in `end{kind}` tag for unnamed `{kind}`")
+    } else {
+        format!("expected name `{name}` in `end{kind}` tag, found `{end_name}`")
+    };
+    Err(nom::Err::Failure(ErrorContext {
+        input: before,
+        message: Some(Cow::Owned(message)),
+    }))
 }
 
 #[derive(Debug, PartialEq)]
