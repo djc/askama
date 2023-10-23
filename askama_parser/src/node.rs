@@ -11,6 +11,8 @@ use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{error_position, IResult};
 
+use crate::ErrorContext;
+
 use super::{
     bool_lit, char_lit, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
     str_lit, ws, Expr, PathOrIdentifier, State,
@@ -37,7 +39,10 @@ pub enum Node<'a> {
 }
 
 impl<'a> Node<'a> {
-    pub(super) fn many(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Self>> {
+    pub(super) fn many(
+        i: &'a str,
+        s: &State<'_>,
+    ) -> IResult<&'a str, Vec<Self>, ErrorContext<&'a str>> {
         complete(many0(alt((
             map(|i| Lit::parse(i, s), Self::Lit),
             map(|i| Comment::parse(i, s), Self::Comment),
@@ -46,7 +51,7 @@ impl<'a> Node<'a> {
         ))))(i)
     }
 
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut p = delimited(
             |i| s.tag_block_start(i),
             alt((
@@ -74,7 +79,7 @@ impl<'a> Node<'a> {
         result
     }
 
-    fn r#break(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn r#break(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("break")),
@@ -87,7 +92,7 @@ impl<'a> Node<'a> {
         Ok((j, Self::Break(Ws(pws, nws))))
     }
 
-    fn r#continue(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn r#continue(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("continue")),
@@ -100,7 +105,7 @@ impl<'a> Node<'a> {
         Ok((j, Self::Continue(Ws(pws, nws))))
     }
 
-    fn expr(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn expr(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut p = tuple((
             |i| s.tag_expr_start(i),
             cut(tuple((
@@ -128,7 +133,7 @@ pub enum Target<'a> {
 }
 
 impl<'a> Target<'a> {
-    pub(super) fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    pub(super) fn parse(i: &'a str) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut opt_opening_paren = map(opt(ws(char('('))), |o| o.is_some());
         let mut opt_closing_paren = map(opt(ws(char(')'))), |o| o.is_some());
         let mut opt_opening_brace = map(opt(ws(char('{'))), |o| o.is_some());
@@ -211,7 +216,7 @@ impl<'a> Target<'a> {
         map(identifier, Self::Name)(i)
     }
 
-    fn lit(i: &'a str) -> IResult<&'a str, Self> {
+    fn lit(i: &'a str) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         alt((
             map(str_lit, Self::StrLit),
             map(char_lit, Self::CharLit),
@@ -220,7 +225,7 @@ impl<'a> Target<'a> {
         ))(i)
     }
 
-    fn named(i: &'a str) -> IResult<&str, (&str, Self)> {
+    fn named(i: &'a str) -> IResult<&str, (&str, Self), ErrorContext<&'a str>> {
         let (i, (src, target)) = pair(identifier, opt(preceded(ws(char(':')), Self::parse)))(i)?;
         Ok((i, (src, target.unwrap_or(Self::Name(src)))))
     }
@@ -234,7 +239,7 @@ pub struct When<'a> {
 }
 
 impl<'a> When<'a> {
-    fn r#match(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn r#match(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut p = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
@@ -257,7 +262,7 @@ impl<'a> When<'a> {
     }
 
     #[allow(clippy::self_named_constructors)]
-    fn when(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn when(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut p = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
@@ -289,7 +294,7 @@ pub struct Cond<'a> {
 }
 
 impl<'a> Cond<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut p = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
@@ -320,7 +325,7 @@ pub struct CondTest<'a> {
 }
 
 impl<'a> CondTest<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut p = preceded(
             ws(keyword("if")),
             cut(tuple((
@@ -345,7 +350,7 @@ pub enum Whitespace {
 }
 
 impl Whitespace {
-    fn parse(i: &str) -> IResult<&str, Self> {
+    fn parse(i: &str) -> IResult<&str, Self, ErrorContext<&str>> {
         alt((
             value(Self::Preserve, char('+')),
             value(Self::Suppress, char('-')),
@@ -367,8 +372,11 @@ pub struct Loop<'a> {
 }
 
 impl<'a> Loop<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        fn content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
+        fn content<'a>(
+            i: &'a str,
+            s: &State<'_>,
+        ) -> IResult<&'a str, Vec<Node<'a>>, ErrorContext<&'a str>> {
             s.enter_loop();
             let result = Node::many(i, s);
             s.leave_loop();
@@ -448,8 +456,8 @@ pub struct Macro<'a> {
 }
 
 impl<'a> Macro<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        fn parameters(i: &str) -> IResult<&str, Vec<&str>> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
+        fn parameters(i: &str) -> IResult<&str, Vec<&str>, ErrorContext<&str>> {
             delimited(
                 ws(char('(')),
                 separated_list0(char(','), ws(identifier)),
@@ -482,7 +490,10 @@ impl<'a> Macro<'a> {
 
         if name == "super" {
             // TODO: yield a a better error message here
-            return Err(nom::Err::Failure(Error::new(i, ErrorKind::Fail)));
+            return Err(ErrorContext::from_err(nom::Err::Failure(Error::new(
+                i,
+                ErrorKind::Fail,
+            ))));
         }
 
         Ok((
@@ -506,7 +517,7 @@ pub struct Import<'a> {
 }
 
 impl<'a> Import<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("import")),
@@ -537,7 +548,7 @@ pub struct Call<'a> {
 }
 
 impl<'a> Call<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("call")),
@@ -572,7 +583,7 @@ pub struct Match<'a> {
 }
 
 impl<'a> Match<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("match")),
@@ -623,7 +634,7 @@ pub struct BlockDef<'a> {
 }
 
 impl<'a> BlockDef<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut start = tuple((
             opt(Whitespace::parse),
             ws(keyword("block")),
@@ -664,7 +675,7 @@ pub struct Lit<'a> {
 }
 
 impl<'a> Lit<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let p_start = alt((
             tag(s.syntax.block_start),
             tag(s.syntax.comment_start),
@@ -704,7 +715,7 @@ pub struct Raw<'a> {
 }
 
 impl<'a> Raw<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let endraw = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
@@ -739,7 +750,7 @@ pub struct Let<'a> {
 }
 
 impl<'a> Let<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(alt((keyword("let"), keyword("set")))),
@@ -772,7 +783,7 @@ pub struct If<'a> {
 }
 
 impl<'a> If<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut p = tuple((
             opt(Whitespace::parse),
             |i| CondTest::parse(i, s),
@@ -817,7 +828,7 @@ pub struct Include<'a> {
 }
 
 impl<'a> Include<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("include")),
@@ -840,7 +851,7 @@ pub struct Extends<'a> {
 }
 
 impl<'a> Extends<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
         let (i, path) = preceded(ws(keyword("extends")), cut(ws(str_lit)))(i)?;
         Ok((i, Self { path }))
     }
@@ -853,12 +864,15 @@ pub struct Comment<'a> {
 }
 
 impl<'a> Comment<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        fn body<'a>(mut i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self, ErrorContext<&'a str>> {
+        fn body<'a>(
+            mut i: &'a str,
+            s: &State<'_>,
+        ) -> IResult<&'a str, &'a str, ErrorContext<&'a str>> {
             let mut level = 0;
             loop {
                 let (end, tail) = take_until(s.syntax.comment_end)(i)?;
-                match take_until::<_, _, Error<_>>(s.syntax.comment_start)(i) {
+                match take_until::<_, _, ErrorContext<_>>(s.syntax.comment_start)(i) {
                     Ok((start, _)) if start.as_ptr() < end.as_ptr() => {
                         level += 1;
                         i = &start[2..];
