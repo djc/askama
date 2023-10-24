@@ -4,7 +4,7 @@ use crate::input::{Print, Source, TemplateInput};
 use crate::CompileError;
 
 use parser::node::{
-    Call, Comment, CondTest, If, Include, Let, Lit, Loop, Match, Target, Whitespace, Ws,
+    Call, Comment, CondTest, Embed, If, Include, Let, Lit, Loop, Match, Target, Whitespace, Ws,
 };
 use parser::{Expr, Node, Parsed};
 use proc_macro::TokenStream;
@@ -235,6 +235,24 @@ fn find_used_templates(
                     let import = input.config.find_template(import.path, Some(&path))?;
                     let source = get_template_source(&import)?;
                     check.push((import, source));
+                }
+                Node::Embed(embed) => {
+                    let embed = input.config.find_template(embed.path, Some(&path))?;
+                    let dependency_path = (path.clone(), embed.clone());
+                    if dependency_graph.contains(&dependency_path) {
+                        return Err(format!(
+                            "cyclic dependency in graph {:#?}",
+                            dependency_graph
+                                .iter()
+                                .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
+                                .collect::<Vec<_>>()
+                        )
+                        .into());
+                    }
+
+                    dependency_graph.push(dependency_path);
+                    let source = get_template_source(&embed)?;
+                    check.push((embed, source));
                 }
                 _ => {}
             }
@@ -684,6 +702,9 @@ impl<'a> Generator<'a> {
                     // No whitespace handling: child template top-level is not used,
                     // except for the blocks defined in it.
                 }
+                Node::Embed(ref embed) => {
+                    size_hint += self.handle_embed(buf, embed)?;
+                }
                 Node::Break(ws) => {
                     self.handle_ws(ws);
                     self.write_buf_writable(buf)?;
@@ -1051,6 +1072,33 @@ impl<'a> Generator<'a> {
         self.prepare_ws(i.ws);
 
         Ok(size_hint)
+    }
+
+    fn handle_embed(
+        &mut self,
+        buf: &mut Buffer,
+        embed: &'a Embed<'_>,
+    ) -> Result<usize, CompileError> {
+        self.flush_ws(embed.ws1);
+        self.write_buf_writable(buf)?;
+        let embed_path = self
+            .input
+            .config
+            .find_template(embed.path, Some(&self.input.path))?;
+        let mut embedded_context =
+            Context::new(self.input.config, &self.input.path, embed.nodes.as_slice())?;
+        embedded_context.extends = Some(embed_path);
+        let heritage = Heritage::new(&embedded_context, &self.contexts);
+
+        let mut generator = Generator::new(
+            self.input,
+            self.contexts,
+            Some(&heritage),
+            MapChain::new(),
+            self.whitespace,
+        );
+        self.prepare_ws(embed.ws2);
+        generator.handle(heritage.root, &heritage.root.nodes, buf, AstLevel::Top)
     }
 
     fn is_shadowing_variable(&self, var: &Target<'a>) -> Result<bool, CompileError> {

@@ -27,6 +27,7 @@ pub enum Node<'a> {
     Match(Match<'a>),
     Loop(Box<Loop<'a>>),
     Extends(Extends<'a>),
+    Embed(Embed<'a>),
     BlockDef(BlockDef<'a>),
     Include(Include<'a>),
     Import(Import<'a>),
@@ -56,6 +57,7 @@ impl<'a> Node<'a> {
                 map(|i| Loop::parse(i, s), |l| Self::Loop(Box::new(l))),
                 map(|i| Match::parse(i, s), Self::Match),
                 map(Extends::parse, Self::Extends),
+                map(|i| Embed::parse(i, s), Self::Embed),
                 map(Include::parse, Self::Include),
                 map(Import::parse, Self::Import),
                 map(|i| BlockDef::parse(i, s), Self::BlockDef),
@@ -843,6 +845,48 @@ impl<'a> Extends<'a> {
     fn parse(i: &'a str) -> IResult<&'a str, Self> {
         let (i, path) = preceded(ws(keyword("extends")), cut(ws(str_lit)))(i)?;
         Ok((i, Self { path }))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Embed<'a> {
+    pub ws1: Ws,
+    pub path: &'a str,
+    pub nodes: Vec<Node<'a>>,
+    pub ws2: Ws,
+}
+
+impl<'a> Embed<'a> {
+    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+        let mut start = tuple((
+            opt(Whitespace::parse),
+            ws(keyword("embed")),
+            cut(tuple((ws(str_lit), opt(Whitespace::parse), |i| {
+                s.tag_block_end(i)
+            }))),
+        ));
+        let (i, (pws1, _, (path, nws1, _))) = start(i)?;
+
+        let mut end = cut(tuple((
+            |i| Node::many(i, s),
+            cut(tuple((
+                |i| s.tag_block_start(i),
+                opt(Whitespace::parse),
+                ws(keyword("endembed")),
+                cut(opt(Whitespace::parse)),
+            ))),
+        )));
+        let (i, (nodes, (_, pws2, _, nws2))) = end(i)?;
+
+        Ok((
+            i,
+            Self {
+                ws1: Ws(pws1, nws1),
+                path,
+                nodes,
+                ws2: Ws(pws2, nws2),
+            },
+        ))
     }
 }
 
