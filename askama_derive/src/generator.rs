@@ -1088,7 +1088,7 @@ impl<'a> Generator<'a> {
         let mut embedded_context =
             Context::new(self.input.config, &self.input.path, embed.nodes.as_slice())?;
         embedded_context.extends = Some(embed_path);
-        let heritage = Heritage::new(&embedded_context, &self.contexts);
+        let heritage = Heritage::new(&embedded_context, self.contexts);
 
         let mut generator = Generator::new(
             self.input,
@@ -1098,7 +1098,7 @@ impl<'a> Generator<'a> {
             self.whitespace,
         );
         self.prepare_ws(embed.ws2);
-        generator.handle(heritage.root, &heritage.root.nodes, buf, AstLevel::Top)
+        generator.handle(heritage.root, heritage.root.nodes, buf, AstLevel::Top)
     }
 
     fn is_shadowing_variable(&self, var: &Target<'a>) -> Result<bool, CompileError> {
