@@ -1,4 +1,5 @@
-error: problems parsing template source at row 1, column 41 near:
+error: expected name `foo` in `endmacro` tag, found `not_foo`
+       problems parsing template source at row 1, column 41 near:
        "not_foo %}"
  --> tests/ui/name_mismatch_endmacro.rs:3:10
   |

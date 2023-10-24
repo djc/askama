@@ -484,7 +484,13 @@ impl<'a> Macro<'a> {
                 |i| s.tag_block_start(i),
                 opt(Whitespace::parse),
                 ws(keyword("endmacro")),
-                cut(preceded(ws(opt(keyword(name))), opt(Whitespace::parse))),
+                cut(preceded(
+                    opt(|before| {
+                        let (after, end_name) = ws(identifier)(before)?;
+                        check_end_name(before, after, name, end_name, "macro")
+                    }),
+                    opt(Whitespace::parse),
+                )),
             ))),
         )));
         let (i, (contents, (_, pws2, _, nws2))) = end(i)?;
