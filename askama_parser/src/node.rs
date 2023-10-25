@@ -299,7 +299,15 @@ impl<'a> Cond<'a> {
         let mut p = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
-            ws(keyword("else")),
+            ws(alt((keyword("else"), |i| {
+                let _ = keyword("elif")(i)?;
+                Err(nom::Err::Failure(ErrorContext {
+                    input: i,
+                    message: Some(Cow::Borrowed(
+                        "unknown `elif` keyword; did you mean `else if`?",
+                    )),
+                }))
+            }))),
             cut(tuple((
                 opt(|i| CondTest::parse(i, s)),
                 opt(Whitespace::parse),
