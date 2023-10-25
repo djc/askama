@@ -13,7 +13,7 @@ use nom::combinator::{cut, eof, map, opt, recognize};
 use nom::error::{Error, ErrorKind, FromExternalError};
 use nom::multi::many1;
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
-use nom::{error_position, AsChar, IResult, InputTakeAtPosition};
+use nom::{error_position, AsChar, InputTakeAtPosition};
 
 pub mod expr;
 pub use expr::Expr;
@@ -129,32 +129,34 @@ impl fmt::Display for ParseError {
     }
 }
 
+pub(crate) type ParseResult<'a, T = &'a str> = Result<(&'a str, T), nom::Err<ErrorContext<'a>>>;
+
 /// This type is used to handle `nom` errors and in particular to add custom error messages.
 /// It used to generate `ParserError`.
 ///
 /// It cannot be used to replace `ParseError` because it expects a generic, which would make
 /// `askama`'s users experience less good (since this generic is only needed for `nom`).
 #[derive(Debug)]
-pub(crate) struct ErrorContext<I> {
-    pub(crate) input: I,
+pub(crate) struct ErrorContext<'a> {
+    pub(crate) input: &'a str,
     pub(crate) message: Option<Cow<'static, str>>,
 }
 
-impl<I> nom::error::ParseError<I> for ErrorContext<I> {
-    fn from_error_kind(input: I, _code: ErrorKind) -> Self {
+impl<'a> nom::error::ParseError<&'a str> for ErrorContext<'a> {
+    fn from_error_kind(input: &'a str, _code: ErrorKind) -> Self {
         Self {
             input,
             message: None,
         }
     }
 
-    fn append(_: I, _: ErrorKind, other: Self) -> Self {
+    fn append(_: &'a str, _: ErrorKind, other: Self) -> Self {
         other
     }
 }
 
-impl<I, E: std::fmt::Display> FromExternalError<I, E> for ErrorContext<I> {
-    fn from_external_error(input: I, _kind: ErrorKind, e: E) -> Self {
+impl<'a, E: std::fmt::Display> FromExternalError<&'a str, E> for ErrorContext<'a> {
+    fn from_external_error(input: &'a str, _kind: ErrorKind, e: E) -> Self {
         Self {
             input,
             message: Some(Cow::Owned(e.to_string())),
@@ -162,8 +164,8 @@ impl<I, E: std::fmt::Display> FromExternalError<I, E> for ErrorContext<I> {
     }
 }
 
-impl<I> ErrorContext<I> {
-    pub(crate) fn from_err(error: nom::Err<Error<I>>) -> nom::Err<Self> {
+impl<'a> ErrorContext<'a> {
+    pub(crate) fn from_err(error: nom::Err<Error<&'a str>>) -> nom::Err<Self> {
         match error {
             nom::Err::Incomplete(i) => nom::Err::Incomplete(i),
             nom::Err::Failure(Error { input, .. }) => nom::Err::Failure(Self {
@@ -187,16 +189,16 @@ fn not_ws(c: char) -> bool {
 }
 
 fn ws<'a, O>(
-    inner: impl FnMut(&'a str) -> IResult<&'a str, O, ErrorContext<&'a str>>,
-) -> impl FnMut(&'a str) -> IResult<&'a str, O, ErrorContext<&'a str>> {
+    inner: impl FnMut(&'a str) -> ParseResult<'a, O>,
+) -> impl FnMut(&'a str) -> ParseResult<'a, O> {
     delimited(take_till(not_ws), inner, take_till(not_ws))
 }
 
 /// Skips input until `end` was found, but does not consume it.
 /// Returns tuple that would be returned when parsing `end`.
 fn skip_till<'a, O>(
-    end: impl FnMut(&'a str) -> IResult<&'a str, O, ErrorContext<&'a str>>,
-) -> impl FnMut(&'a str) -> IResult<&'a str, (&'a str, O), ErrorContext<&'a str>> {
+    end: impl FnMut(&'a str) -> ParseResult<'a, O>,
+) -> impl FnMut(&'a str) -> ParseResult<'a, (&'a str, O)> {
     enum Next<O> {
         IsEnd(O),
         NotEnd(char),
@@ -214,10 +216,8 @@ fn skip_till<'a, O>(
     }
 }
 
-fn keyword<'a>(
-    k: &'a str,
-) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str, ErrorContext<&'a str>> {
-    move |i: &'a str| -> IResult<&'a str, &'a str, ErrorContext<&'a str>> {
+fn keyword<'a>(k: &'a str) -> impl FnMut(&'a str) -> ParseResult<'_> {
+    move |i: &'a str| -> ParseResult<'a> {
         let (j, v) = identifier(i)?;
         if k == v {
             Ok((j, v))
@@ -227,15 +227,15 @@ fn keyword<'a>(
     }
 }
 
-fn identifier(input: &str) -> IResult<&str, &str, ErrorContext<&str>> {
-    fn start(s: &str) -> IResult<&str, &str, ErrorContext<&str>> {
+fn identifier(input: &str) -> ParseResult<'_> {
+    fn start(s: &str) -> ParseResult<'_> {
         s.split_at_position1_complete(
             |c| !(c.is_alpha() || c == '_' || c >= '\u{0080}'),
             nom::error::ErrorKind::Alpha,
         )
     }
 
-    fn tail(s: &str) -> IResult<&str, &str, ErrorContext<&str>> {
+    fn tail(s: &str) -> ParseResult<'_> {
         s.split_at_position1_complete(
             |c| !(c.is_alphanum() || c == '_' || c >= '\u{0080}'),
             nom::error::ErrorKind::Alpha,
@@ -245,11 +245,11 @@ fn identifier(input: &str) -> IResult<&str, &str, ErrorContext<&str>> {
     recognize(pair(start, opt(tail)))(input)
 }
 
-fn bool_lit(i: &str) -> IResult<&str, &str, ErrorContext<&str>> {
+fn bool_lit(i: &str) -> ParseResult<'_> {
     alt((keyword("false"), keyword("true")))(i)
 }
 
-fn num_lit(i: &str) -> IResult<&str, &str, ErrorContext<&str>> {
+fn num_lit(i: &str) -> ParseResult<'_> {
     recognize(tuple((
         opt(char('-')),
         digit1,
@@ -257,7 +257,7 @@ fn num_lit(i: &str) -> IResult<&str, &str, ErrorContext<&str>> {
     )))(i)
 }
 
-fn str_lit(i: &str) -> IResult<&str, &str, ErrorContext<&str>> {
+fn str_lit(i: &str) -> ParseResult<'_> {
     let (i, s) = delimited(
         char('"'),
         opt(escaped(is_not("\\\""), '\\', anychar)),
@@ -266,7 +266,7 @@ fn str_lit(i: &str) -> IResult<&str, &str, ErrorContext<&str>> {
     Ok((i, s.unwrap_or_default()))
 }
 
-fn char_lit(i: &str) -> IResult<&str, &str, ErrorContext<&str>> {
+fn char_lit(i: &str) -> ParseResult<'_> {
     let (i, s) = delimited(
         char('\''),
         opt(escaped(is_not("\\\'"), '\\', anychar)),
@@ -280,7 +280,7 @@ enum PathOrIdentifier<'a> {
     Identifier(&'a str),
 }
 
-fn path_or_identifier(i: &str) -> IResult<&str, PathOrIdentifier<'_>, ErrorContext<&str>> {
+fn path_or_identifier(i: &str) -> ParseResult<'_, PathOrIdentifier<'_>> {
     let root = ws(opt(tag("::")));
     let tail = opt(many1(preceded(ws(tag("::")), identifier)));
 
@@ -326,7 +326,7 @@ impl<'a> State<'a> {
         }
     }
 
-    fn nest<'b>(&self, i: &'b str) -> IResult<&'b str, (), ErrorContext<&'b str>> {
+    fn nest<'b>(&self, i: &'b str) -> ParseResult<'b, ()> {
         let (_, level) = self.level.get().nest(i)?;
         self.level.set(level);
         Ok((i, ()))
@@ -336,30 +336,27 @@ impl<'a> State<'a> {
         self.level.set(self.level.get().leave());
     }
 
-    fn tag_block_start<'i>(&self, i: &'i str) -> IResult<&'i str, &'i str, ErrorContext<&'i str>> {
+    fn tag_block_start<'i>(&self, i: &'i str) -> ParseResult<'i> {
         tag(self.syntax.block_start)(i)
     }
 
-    fn tag_block_end<'i>(&self, i: &'i str) -> IResult<&'i str, &'i str, ErrorContext<&'i str>> {
+    fn tag_block_end<'i>(&self, i: &'i str) -> ParseResult<'i> {
         tag(self.syntax.block_end)(i)
     }
 
-    fn tag_comment_start<'i>(
-        &self,
-        i: &'i str,
-    ) -> IResult<&'i str, &'i str, ErrorContext<&'i str>> {
+    fn tag_comment_start<'i>(&self, i: &'i str) -> ParseResult<'i> {
         tag(self.syntax.comment_start)(i)
     }
 
-    fn tag_comment_end<'i>(&self, i: &'i str) -> IResult<&'i str, &'i str, ErrorContext<&'i str>> {
+    fn tag_comment_end<'i>(&self, i: &'i str) -> ParseResult<'i> {
         tag(self.syntax.comment_end)(i)
     }
 
-    fn tag_expr_start<'i>(&self, i: &'i str) -> IResult<&'i str, &'i str, ErrorContext<&'i str>> {
+    fn tag_expr_start<'i>(&self, i: &'i str) -> ParseResult<'i> {
         tag(self.syntax.expr_start)(i)
     }
 
-    fn tag_expr_end<'i>(&self, i: &'i str) -> IResult<&'i str, &'i str, ErrorContext<&'i str>> {
+    fn tag_expr_end<'i>(&self, i: &'i str) -> ParseResult<'i> {
         tag(self.syntax.expr_end)(i)
     }
 
@@ -403,7 +400,7 @@ impl Default for Syntax<'static> {
 pub(crate) struct Level(u8);
 
 impl Level {
-    fn nest(self, i: &str) -> IResult<&str, Level, ErrorContext<&str>> {
+    fn nest(self, i: &str) -> ParseResult<'_, Level> {
         if self.0 >= Self::MAX_DEPTH {
             return Err(ErrorContext::from_err(nom::Err::Failure(error_position!(
                 i,
