@@ -1,0 +1,7 @@
+{# Base template which gets rendered used for the struct, embedding another template #}
+
+<body>
+{% embed "embed_base.html" %}
+{% block content %}<p>Welcome to this example!</p>{% endblock %}
+{% endembed %}
+</body>

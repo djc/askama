@@ -212,6 +212,56 @@ blocks from the base template with those from the child template. Inside
 a block in a child template, the `super()` macro can be called to render
 the parent block's contents.
 
+### Embedded templates
+
+Using the `embed` tag you can *extend* multiple templates at once or differently in the same template
+
+#### Base template
+
+```html
+<section>
+    <div>{% block title %}{% endblock %}</div>
+    <div>{% block content %}{% endblock %}</div>
+    <div>{% block author %}Yannik{% endblock %}</div>
+</section>
+```
+
+#### Page template
+
+```html
+{% extends "base.html" %}
+
+{% block title %}Index{% endblock %}
+
+{% block head %}
+  <style>
+  </style>
+{% endblock %}
+
+{% block content %}
+
+{% embed "base_section.html" %}
+
+{% block title %}Example Section{% endblock %}
+{% block content %}lorem ipsum ...{% endblock %}
+
+{% endembed %}
+
+{% embed "base_section.html" %}
+
+{% block title %}Another Section{% endblock %}
+{% block content %}ipsum lorem ...{% endblock %}
+
+{% endembed %}
+
+{% endblock content %}
+```
+
+This allows you to create reusable component-like templates and `embed`
+them wherever and how often you need them. It will work similar to 
+combining an `include` (as it includes the template) and `extend`
+as you are able to override blocks/content from the included template.
+
 ## HTML escaping
 
 Askama by default escapes variables if it thinks it is rendering HTML

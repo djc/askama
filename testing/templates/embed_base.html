@@ -1,0 +1,7 @@
+{# The embedded template, which again extends another template and overrides a block (just to test the complexity) #}
+
+{% extends "embed_base_base.html" %}
+
+{% block title %}
+<h1>Hello {{ user.name }}</h1>
+{% endblock %}
