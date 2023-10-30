@@ -601,9 +601,13 @@ impl<'a> Generator<'a> {
 
         let expr_code = self.visit_expr_root(&loop_block.iter)?;
 
+        let has_else_nodes = !loop_block.else_nodes.is_empty();
+
         let flushed = self.write_buf_writable(buf)?;
         buf.writeln("{")?;
-        buf.writeln("let mut _did_loop = false;")?;
+        if has_else_nodes {
+            buf.writeln("let mut _did_loop = false;")?;
+        }
         match loop_block.iter {
             Expr::Range(_, _, _) => buf.writeln(&format!("let _iter = {expr_code};")),
             Expr::Array(..) => buf.writeln(&format!("let _iter = {expr_code}.iter();")),
@@ -639,20 +643,28 @@ impl<'a> Generator<'a> {
         self.visit_target(buf, true, true, &loop_block.var);
         buf.writeln(", _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {")?;
 
-        buf.writeln("_did_loop = true;")?;
+        if has_else_nodes {
+            buf.writeln("_did_loop = true;")?;
+        }
         let mut size_hint1 = self.handle(ctx, &loop_block.body, buf, AstLevel::Nested)?;
         self.handle_ws(loop_block.ws2);
         size_hint1 += self.write_buf_writable(buf)?;
         self.locals.pop();
         buf.writeln("}")?;
 
-        buf.writeln("if !_did_loop {")?;
-        self.locals.push();
-        let mut size_hint2 = self.handle(ctx, &loop_block.else_nodes, buf, AstLevel::Nested)?;
-        self.handle_ws(loop_block.ws3);
-        size_hint2 += self.write_buf_writable(buf)?;
-        self.locals.pop();
-        buf.writeln("}")?;
+        let mut size_hint2;
+        if has_else_nodes {
+            buf.writeln("if !_did_loop {")?;
+            self.locals.push();
+            size_hint2 = self.handle(ctx, &loop_block.else_nodes, buf, AstLevel::Nested)?;
+            self.handle_ws(loop_block.ws3);
+            size_hint2 += self.write_buf_writable(buf)?;
+            self.locals.pop();
+            buf.writeln("}")?;
+        } else {
+            self.handle_ws(loop_block.ws3);
+            size_hint2 = self.write_buf_writable(buf)?;
+        }
 
         buf.writeln("}")?;
 
