@@ -517,8 +517,8 @@ struct Item&lt;'a&gt; {
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="macros"><a class="header" href="#macros">Macros</a></h2>
-<p>You can define macros within your template by using <code>{% macro name(args) %}</code>, ending with <code>{% endmacro %}</code></p>
-<p>You can then call it later with <code>{% call name(args) %}</code></p>
+<p>You can define macros within your template by using <code>{% macro name(args) %}</code>, ending with <code>{% endmacro %}</code>.</p>
+<p>You can then call it with <code>{% call name(args) %}</code>:</p>
 <pre><code>{% macro heading(arg) %}
 
 &lt;h1&gt;{{arg}}&lt;/h1&gt;
@@ -527,13 +527,12 @@ struct Item&lt;'a&gt; {
 
 {% call heading(s) %}
 </code></pre>
-<p>You can place templates in a separate file and use it in your templates by using <code>{% import %}</code></p>
+<p>You can place macros in a separate file and use them in your templates by using <code>{% import %}</code>:</p>
 <pre><code>{%- import &quot;macro.html&quot; as scope -%}
 
 {% call scope::heading(s) %}
 </code></pre>
-<p>It is also possible to use the name of the <code>macro</code> in <code>endmacro</code> in the
-declaration:</p>
+<p>You can optionally specify the name of the macro in <code>endmacro</code>:</p>
 <pre><code class="language-html">{% macro heading(arg) %}&lt;p&gt;{{arg}}&lt;/p&gt;{% endmacro heading %}
 </code></pre>
 
