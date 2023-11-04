@@ -146,6 +146,122 @@ In this case, they are resolved by the following preference.
 2. Minimize (`~`)
 3. Preserve (`+`)
 
+## Functions
+
+There are several ways that functions can be called within templates, 
+depending on where the function definition resides. These are:
+
+- Template `struct` fields
+- Static functions
+- Struct/Trait implementations
+
+### Template struct field
+
+When the function is a field of the template struct, we can simply call it 
+by invoking the name of the field, followed by parentheses containing any
+required arguments. For example, we can invoke the function `foo` for the 
+following `MyTemplate` struct:
+
+```rust
+#[derive(Template)]
+#[template(source = "{{ foo(123) }}", ext = "txt")]
+struct MyTemplate {
+  foo: fn(u32) -> String,
+}
+```
+
+However, since we'll need to define this function every time we create an
+instance of `MyTemplate`, it's probably not the most ideal way to associate
+some behaviour for our template.
+
+### Static functions
+
+When a function exists within the same Rust module as the template 
+definition, we can invoke it using the `self` path prefix, where `self`
+represents the scope of the module in which the template struct resides. 
+
+For example, here we call the function `foo` by writing `self::foo(123)` 
+within the `MyTemplate` struct source:
+
+```rust
+fn foo(val: u32) -> String {
+  format!("{}", val)
+}
+
+#[derive(Template)]
+#[template(source = "{{ self::foo(123) }}", ext = "txt")]
+struct MyTemplate;
+```
+
+This has the advantage of being able to share functionality across multiple
+templates, without needing to expose the function publicly outside of its 
+module.
+
+However, we are not limited to local functions defined within the same module. 
+We can call _any_ public function by specifying the full path to that function
+within the template source. For example, given a utilities module such as:
+
+```rust
+// src/templates/utils/mod.rs
+
+pub fn foo(val: u32) -> String {
+  format!("{}", val)
+}
+```
+
+Within our `MyTemplate` source, we can call the `foo` function by writing:
+
+```rust
+// src/templates/my_template.rs
+
+#[derive(Template)]
+#[template(source = "{{ crate::templates::utils::foo(123) }}", ext = "txt")]
+struct MyTemplate;
+```
+
+### Struct / trait implementations
+
+Finally, we can invoke functions that are implementation methods of our 
+template struct, by referencing `Self` (note the uppercase `S`) as the path, 
+before calling our function: 
+
+```rust
+#[derive(Template)]
+#[template(source = "{{ Self::foo(self, 123) }}", ext = "txt")]
+struct MyTemplate {
+  count: u32,
+};
+
+impl MyTemplate {
+  fn foo(&self, val: u32) -> String {
+    format!("{} is the count, {} is the value", self.count, val)
+  }
+}
+```
+
+If the implemented method requires a reference to the struct itself, 
+such as is demonstrated in the above example, we can pass `self` 
+(note the lowercase `s`) as the first argument.
+
+Similarly, using the `Self` path, we can also call any method belonging 
+to a trait that has been implemented for our template struct:
+
+```rust
+trait Hello {
+  fn greet(name: &str) -> String;
+}
+
+#[derive(Template)]
+#[template(source = r#"{{ Self::greet("world") }}"#, ext = "txt")]
+struct MyTemplate;
+
+impl Hello for MyTemplate {
+  fn greet(name: &str) -> String {
+    format!("Hello {}", name)
+  }
+}
+```
+
 ## Template inheritance
 
 Template inheritance allows you to build a base template with common
