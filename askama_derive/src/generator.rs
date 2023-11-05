@@ -908,7 +908,7 @@ impl<'a> Generator<'a> {
         name: Option<&'a str>,
         outer: Ws,
     ) -> Result<usize, CompileError> {
-        let block_fragment_write = self.input.block.as_deref() == name && self.buf_writable.discard;
+        let block_fragment_write = self.input.block == name && self.buf_writable.discard;
 
         // Allow writing to the buffer if we're in the block fragment
         if block_fragment_write {
