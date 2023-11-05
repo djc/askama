@@ -2,7 +2,7 @@
 name = "askama_axum"
 version = "0.3.0"
 edition = "2021"
-rust-version = "1.58"
+rust-version = "1.65"
 description = "Axum integration for Askama templates"
 keywords = ["markup", "template", "jinja2", "html", "axum"]
 categories = ["template-engine"]

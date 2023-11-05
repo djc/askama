@@ -1,22 +1,24 @@
-use crate::config::Config;
-use crate::generator::TemplateArgs;
-use crate::CompileError;
-use parser::Syntax;
-
+use std::collections::hash_map::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use mime::Mime;
+use quote::ToTokens;
+use syn::punctuated::Punctuated;
+
+use crate::config::{get_template_source, read_config_file, Config};
+use crate::CompileError;
+use parser::{Node, Parsed, Syntax};
 
 pub(crate) struct TemplateInput<'a> {
     pub(crate) ast: &'a syn::DeriveInput,
-    pub(crate) block: Option<String>,
+    pub(crate) block: Option<&'a str>,
     pub(crate) config: &'a Config<'a>,
     pub(crate) syntax: &'a Syntax<'a>,
-    pub(crate) source: Source,
+    pub(crate) source: &'a Source,
     pub(crate) print: Print,
     pub(crate) escaper: &'a str,
-    pub(crate) ext: Option<String>,
+    pub(crate) ext: Option<&'a str>,
     pub(crate) mime_type: String,
     pub(crate) path: PathBuf,
 }
@@ -28,7 +30,7 @@ impl TemplateInput<'_> {
     pub(crate) fn new<'n>(
         ast: &'n syn::DeriveInput,
         config: &'n Config<'_>,
-        args: TemplateArgs,
+        args: &'n TemplateArgs,
     ) -> Result<TemplateInput<'n>, CompileError> {
         let TemplateArgs {
             source,
@@ -43,7 +45,9 @@ impl TemplateInput<'_> {
         // Validate the `source` and `ext` value together, since they are
         // related. In case `source` was used instead of `path`, the value
         // of `ext` is merged into a synthetic `path` value here.
-        let source = source.expect("template path or source not found in attributes");
+        let source = source
+            .as_ref()
+            .expect("template path or source not found in attributes");
         let path = match (&source, &ext) {
             (Source::Path(path), _) => config.find_template(path, None)?,
             (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
@@ -53,28 +57,25 @@ impl TemplateInput<'_> {
         };
 
         // Validate syntax
-        let syntax = syntax.map_or_else(
+        let syntax = syntax.as_deref().map_or_else(
             || Ok(config.syntaxes.get(config.default_syntax).unwrap()),
             |s| {
                 config
                     .syntaxes
-                    .get(&s)
+                    .get(s)
                     .ok_or_else(|| CompileError::from(format!("attribute syntax {s} not exist")))
             },
         )?;
 
         // Match extension against defined output formats
 
-        let escaping = escaping.unwrap_or_else(|| {
-            path.extension()
-                .map(|s| s.to_str().unwrap())
-                .unwrap_or("")
-                .to_string()
-        });
+        let escaping = escaping
+            .as_deref()
+            .unwrap_or_else(|| path.extension().map(|s| s.to_str().unwrap()).unwrap_or(""));
 
         let mut escaper = None;
         for (extensions, path) in &config.escapers {
-            if extensions.contains(&escaping) {
+            if extensions.contains(escaping) {
                 escaper = Some(path);
                 break;
             }
@@ -90,21 +91,203 @@ impl TemplateInput<'_> {
 
         Ok(TemplateInput {
             ast,
-            block,
+            block: block.as_deref(),
             config,
             syntax,
             source,
-            print,
+            print: *print,
             escaper,
-            ext,
+            ext: ext.as_deref(),
             mime_type,
             path,
         })
     }
 
+    pub(crate) fn find_used_templates(
+        &self,
+        map: &mut HashMap<PathBuf, Parsed>,
+    ) -> Result<(), CompileError> {
+        let source = match &self.source {
+            Source::Source(s) => s.clone(),
+            Source::Path(_) => get_template_source(&self.path)?,
+        };
+
+        let mut dependency_graph = Vec::new();
+        let mut check = vec![(self.path.clone(), source)];
+        while let Some((path, source)) = check.pop() {
+            let parsed = Parsed::new(source, self.syntax)?;
+            for n in parsed.nodes() {
+                match n {
+                    Node::Extends(extends) => {
+                        let extends = self.config.find_template(extends.path, Some(&path))?;
+                        let dependency_path = (path.clone(), extends.clone());
+                        if dependency_graph.contains(&dependency_path) {
+                            return Err(format!(
+                                "cyclic dependency in graph {:#?}",
+                                dependency_graph
+                                    .iter()
+                                    .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
+                                    .collect::<Vec<String>>()
+                            )
+                            .into());
+                        }
+                        dependency_graph.push(dependency_path);
+                        let source = get_template_source(&extends)?;
+                        check.push((extends, source));
+                    }
+                    Node::Import(import) => {
+                        let import = self.config.find_template(import.path, Some(&path))?;
+                        let source = get_template_source(&import)?;
+                        check.push((import, source));
+                    }
+                    _ => {}
+                }
+            }
+            map.insert(path, parsed);
+        }
+        Ok(())
+    }
+
     #[inline]
     pub(crate) fn extension(&self) -> Option<&str> {
-        ext_default_to_path(self.ext.as_deref(), &self.path)
+        ext_default_to_path(self.ext, &self.path)
+    }
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct TemplateArgs {
+    source: Option<Source>,
+    block: Option<String>,
+    print: Print,
+    escaping: Option<String>,
+    ext: Option<String>,
+    syntax: Option<String>,
+    config: String,
+    whitespace: Option<String>,
+}
+
+impl TemplateArgs {
+    pub(crate) fn new(ast: &'_ syn::DeriveInput) -> Result<Self, CompileError> {
+        // Check that an attribute called `template()` exists once and that it is
+        // the proper type (list).
+        let mut template_args = None;
+        for attr in &ast.attrs {
+            if !attr.path().is_ident("template") {
+                continue;
+            }
+
+            match attr.parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated) {
+                Ok(args) if template_args.is_none() => template_args = Some(args),
+                Ok(_) => return Err("duplicated 'template' attribute".into()),
+                Err(e) => return Err(format!("unable to parse template arguments: {e}").into()),
+            };
+        }
+
+        let template_args =
+            template_args.ok_or_else(|| CompileError::from("no attribute 'template' found"))?;
+
+        let mut args = Self::default();
+        // Loop over the meta attributes and find everything that we
+        // understand. Return a CompileError if something is not right.
+        // `source` contains an enum that can represent `path` or `source`.
+        for item in template_args {
+            let pair = match item {
+                syn::Meta::NameValue(pair) => pair,
+                _ => {
+                    return Err(format!(
+                        "unsupported attribute argument {:?}",
+                        item.to_token_stream()
+                    )
+                    .into())
+                }
+            };
+
+            let ident = match pair.path.get_ident() {
+                Some(ident) => ident,
+                None => unreachable!("not possible in syn::Meta::NameValue(…)"),
+            };
+
+            let value = match pair.value {
+                syn::Expr::Lit(lit) => lit,
+                syn::Expr::Group(group) => match *group.expr {
+                    syn::Expr::Lit(lit) => lit,
+                    _ => {
+                        return Err(format!("unsupported argument value type for {ident:?}").into())
+                    }
+                },
+                _ => return Err(format!("unsupported argument value type for {ident:?}").into()),
+            };
+
+            if ident == "path" {
+                if let syn::Lit::Str(s) = value.lit {
+                    if args.source.is_some() {
+                        return Err("must specify 'source' or 'path', not both".into());
+                    }
+                    args.source = Some(Source::Path(s.value()));
+                } else {
+                    return Err("template path must be string literal".into());
+                }
+            } else if ident == "source" {
+                if let syn::Lit::Str(s) = value.lit {
+                    if args.source.is_some() {
+                        return Err("must specify 'source' or 'path', not both".into());
+                    }
+                    args.source = Some(Source::Source(s.value()));
+                } else {
+                    return Err("template source must be string literal".into());
+                }
+            } else if ident == "block" {
+                if let syn::Lit::Str(s) = value.lit {
+                    args.block = Some(s.value());
+                } else {
+                    return Err("block value must be string literal".into());
+                }
+            } else if ident == "print" {
+                if let syn::Lit::Str(s) = value.lit {
+                    args.print = s.value().parse()?;
+                } else {
+                    return Err("print value must be string literal".into());
+                }
+            } else if ident == "escape" {
+                if let syn::Lit::Str(s) = value.lit {
+                    args.escaping = Some(s.value());
+                } else {
+                    return Err("escape value must be string literal".into());
+                }
+            } else if ident == "ext" {
+                if let syn::Lit::Str(s) = value.lit {
+                    args.ext = Some(s.value());
+                } else {
+                    return Err("ext value must be string literal".into());
+                }
+            } else if ident == "syntax" {
+                if let syn::Lit::Str(s) = value.lit {
+                    args.syntax = Some(s.value())
+                } else {
+                    return Err("syntax value must be string literal".into());
+                }
+            } else if ident == "config" {
+                if let syn::Lit::Str(s) = value.lit {
+                    args.config = read_config_file(Some(&s.value()))?;
+                } else {
+                    return Err("config value must be string literal".into());
+                }
+            } else if ident == "whitespace" {
+                if let syn::Lit::Str(s) = value.lit {
+                    args.whitespace = Some(s.value())
+                } else {
+                    return Err("whitespace value must be string literal".into());
+                }
+            } else {
+                return Err(format!("unsupported attribute key {ident:?} found").into());
+            }
+        }
+
+        Ok(args)
+    }
+
+    pub(crate) fn config(&self) -> Result<Config<'_>, CompileError> {
+        Config::new(&self.config, self.whitespace.as_ref())
     }
 }
 
@@ -127,12 +310,13 @@ fn extension(path: &Path) -> Option<&str> {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum Source {
     Path(String),
     Source(String),
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum Print {
     All,
     Ast,

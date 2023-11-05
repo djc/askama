@@ -1,8 +1,8 @@
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
-use std::borrow::Cow;
 use std::fmt;
+use std::{borrow::Cow, collections::HashMap};
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
@@ -11,12 +11,75 @@ use parser::ParseError;
 
 mod config;
 mod generator;
+use generator::{Generator, MapChain};
 mod heritage;
+use heritage::{Context, Heritage};
 mod input;
+use input::{Print, TemplateArgs, TemplateInput};
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
-    generator::derive_template(input)
+    let ast = syn::parse::<syn::DeriveInput>(input).unwrap();
+    match build_template(&ast) {
+        Ok(source) => source.parse().unwrap(),
+        Err(e) => e.into_compile_error(),
+    }
+}
+
+/// Takes a `syn::DeriveInput` and generates source code for it
+///
+/// Reads the metadata from the `template()` attribute to get the template
+/// metadata, then fetches the source from the filesystem. The source is
+/// parsed, and the parse tree is fed to the code generator. Will print
+/// the parse tree and/or generated source according to the `print` key's
+/// value as passed to the `template()` attribute.
+pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
+    let template_args = TemplateArgs::new(ast)?;
+    let config = template_args.config()?;
+    let input = TemplateInput::new(ast, &config, &template_args)?;
+
+    let mut templates = HashMap::new();
+    input.find_used_templates(&mut templates)?;
+
+    let mut contexts = HashMap::new();
+    for (path, parsed) in &templates {
+        contexts.insert(
+            path.as_path(),
+            Context::new(input.config, path, parsed.nodes())?,
+        );
+    }
+
+    let ctx = &contexts[input.path.as_path()];
+    let heritage = if !ctx.blocks.is_empty() || ctx.extends.is_some() {
+        let heritage = Heritage::new(ctx, &contexts);
+
+        if let Some(block_name) = input.block {
+            if !heritage.blocks.contains_key(block_name) {
+                return Err(format!("cannot find block {}", block_name).into());
+            }
+        }
+
+        Some(heritage)
+    } else {
+        None
+    };
+
+    if input.print == Print::Ast || input.print == Print::All {
+        eprintln!("{:?}", templates[input.path.as_path()].nodes());
+    }
+
+    let code = Generator::new(
+        &input,
+        &contexts,
+        heritage.as_ref(),
+        MapChain::default(),
+        input.block.is_some(),
+    )
+    .build(&contexts[input.path.as_path()])?;
+    if input.print == Print::Code || input.print == Print::All {
+        eprintln!("{code}");
+    }
+    Ok(code)
 }
 
 #[derive(Debug, Clone)]

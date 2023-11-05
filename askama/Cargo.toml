@@ -1,6 +1,6 @@
 [package]
 name = "askama"
-version = "0.12.0"
+version = "0.12.1"
 description = "Type-safe, compiled Jinja-like templates for Rust"
 documentation = "https://docs.rs/askama"
 keywords = ["markup", "template", "jinja2", "html"]
@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0"
 workspace = ".."
 readme = "../README.md"
 edition = "2021"
-rust-version = "1.58"
+rust-version = "1.65"
 
 [badges]
 maintenance = { status = "actively-developed" }

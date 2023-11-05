@@ -1,267 +1,20 @@
-use crate::config::{get_template_source, read_config_file, Config, WhitespaceHandling};
+use std::collections::hash_map::{Entry, HashMap};
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
+use std::{cmp, hash, mem, str};
+
+use crate::config::{get_template_source, WhitespaceHandling};
 use crate::heritage::{Context, Heritage};
-use crate::input::{Print, Source, TemplateInput};
+use crate::input::{Source, TemplateInput};
 use crate::CompileError;
 
 use parser::node::{
     Call, Comment, CondTest, If, Include, Let, Lit, Loop, Match, Target, Whitespace, Ws,
 };
 use parser::{Expr, Node, Parsed};
-use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
-use syn::punctuated::Punctuated;
+use quote::quote;
 
-use std::collections::hash_map::{Entry, HashMap};
-use std::ops::Deref;
-use std::path::{Path, PathBuf};
-use std::{cmp, hash, mem, str};
-
-/// The actual implementation for askama_derive::Template
-pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
-    let ast: syn::DeriveInput = syn::parse(input).unwrap();
-    match build_template(&ast) {
-        Ok(source) => source.parse().unwrap(),
-        Err(e) => e.into_compile_error(),
-    }
-}
-
-/// Takes a `syn::DeriveInput` and generates source code for it
-///
-/// Reads the metadata from the `template()` attribute to get the template
-/// metadata, then fetches the source from the filesystem. The source is
-/// parsed, and the parse tree is fed to the code generator. Will print
-/// the parse tree and/or generated source according to the `print` key's
-/// value as passed to the `template()` attribute.
-fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
-    let template_args = TemplateArgs::new(ast)?;
-    let config_toml = read_config_file(template_args.config_path.as_deref())?;
-    let config = Config::new(&config_toml, template_args.whitespace.as_ref())?;
-    let input = TemplateInput::new(ast, &config, template_args)?;
-    let source: String = match input.source {
-        Source::Source(ref s) => s.clone(),
-        Source::Path(_) => get_template_source(&input.path)?,
-    };
-
-    let mut templates = HashMap::new();
-    find_used_templates(&input, &mut templates, source)?;
-
-    let mut contexts = HashMap::new();
-    for (path, parsed) in &templates {
-        contexts.insert(
-            path.as_path(),
-            Context::new(input.config, path, parsed.nodes())?,
-        );
-    }
-
-    let ctx = &contexts[input.path.as_path()];
-    let heritage = if !ctx.blocks.is_empty() || ctx.extends.is_some() {
-        let heritage = Heritage::new(ctx, &contexts);
-
-        if let Some(block_name) = input.block.as_deref() {
-            if !heritage.blocks.contains_key(block_name) {
-                return Err(format!("cannot find block {}", block_name).into());
-            }
-        }
-
-        Some(heritage)
-    } else {
-        None
-    };
-
-    if input.print == Print::Ast || input.print == Print::All {
-        eprintln!("{:?}", templates[input.path.as_path()].nodes());
-    }
-
-    let code = Generator::new(
-        &input,
-        &contexts,
-        heritage.as_ref(),
-        MapChain::new(),
-        config.whitespace,
-        input.block.is_some(),
-    )
-    .build(&contexts[input.path.as_path()])?;
-    if input.print == Print::Code || input.print == Print::All {
-        eprintln!("{code}");
-    }
-    Ok(code)
-}
-
-#[derive(Default)]
-pub(crate) struct TemplateArgs {
-    pub(crate) source: Option<Source>,
-    pub(crate) block: Option<String>,
-    pub(crate) print: Print,
-    pub(crate) escaping: Option<String>,
-    pub(crate) ext: Option<String>,
-    pub(crate) syntax: Option<String>,
-    pub(crate) config_path: Option<String>,
-    pub(crate) whitespace: Option<String>,
-}
-
-impl TemplateArgs {
-    fn new(ast: &'_ syn::DeriveInput) -> Result<Self, CompileError> {
-        // Check that an attribute called `template()` exists once and that it is
-        // the proper type (list).
-        let mut template_args = None;
-        for attr in &ast.attrs {
-            if !attr.path().is_ident("template") {
-                continue;
-            }
-
-            match attr.parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated) {
-                Ok(args) if template_args.is_none() => template_args = Some(args),
-                Ok(_) => return Err("duplicated 'template' attribute".into()),
-                Err(e) => return Err(format!("unable to parse template arguments: {e}").into()),
-            };
-        }
-
-        let template_args =
-            template_args.ok_or_else(|| CompileError::from("no attribute 'template' found"))?;
-
-        let mut args = Self::default();
-        // Loop over the meta attributes and find everything that we
-        // understand. Return a CompileError if something is not right.
-        // `source` contains an enum that can represent `path` or `source`.
-        for item in template_args {
-            let pair = match item {
-                syn::Meta::NameValue(pair) => pair,
-                _ => {
-                    return Err(format!(
-                        "unsupported attribute argument {:?}",
-                        item.to_token_stream()
-                    )
-                    .into())
-                }
-            };
-
-            let ident = match pair.path.get_ident() {
-                Some(ident) => ident,
-                None => unreachable!("not possible in syn::Meta::NameValue(…)"),
-            };
-
-            let value = match pair.value {
-                syn::Expr::Lit(lit) => lit,
-                syn::Expr::Group(group) => match *group.expr {
-                    syn::Expr::Lit(lit) => lit,
-                    _ => {
-                        return Err(format!("unsupported argument value type for {ident:?}").into())
-                    }
-                },
-                _ => return Err(format!("unsupported argument value type for {ident:?}").into()),
-            };
-
-            if ident == "path" {
-                if let syn::Lit::Str(s) = value.lit {
-                    if args.source.is_some() {
-                        return Err("must specify 'source' or 'path', not both".into());
-                    }
-                    args.source = Some(Source::Path(s.value()));
-                } else {
-                    return Err("template path must be string literal".into());
-                }
-            } else if ident == "source" {
-                if let syn::Lit::Str(s) = value.lit {
-                    if args.source.is_some() {
-                        return Err("must specify 'source' or 'path', not both".into());
-                    }
-                    args.source = Some(Source::Source(s.value()));
-                } else {
-                    return Err("template source must be string literal".into());
-                }
-            } else if ident == "block" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.block = Some(s.value());
-                } else {
-                    return Err("block value must be string literal".into());
-                }
-            } else if ident == "print" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.print = s.value().parse()?;
-                } else {
-                    return Err("print value must be string literal".into());
-                }
-            } else if ident == "escape" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.escaping = Some(s.value());
-                } else {
-                    return Err("escape value must be string literal".into());
-                }
-            } else if ident == "ext" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.ext = Some(s.value());
-                } else {
-                    return Err("ext value must be string literal".into());
-                }
-            } else if ident == "syntax" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.syntax = Some(s.value())
-                } else {
-                    return Err("syntax value must be string literal".into());
-                }
-            } else if ident == "config" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.config_path = Some(s.value())
-                } else {
-                    return Err("config value must be string literal".into());
-                }
-            } else if ident == "whitespace" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.whitespace = Some(s.value())
-                } else {
-                    return Err("whitespace value must be string literal".into());
-                }
-            } else {
-                return Err(format!("unsupported attribute key {ident:?} found").into());
-            }
-        }
-
-        Ok(args)
-    }
-}
-
-fn find_used_templates(
-    input: &TemplateInput<'_>,
-    map: &mut HashMap<PathBuf, Parsed>,
-    source: String,
-) -> Result<(), CompileError> {
-    let mut dependency_graph = Vec::new();
-    let mut check = vec![(input.path.clone(), source)];
-    while let Some((path, source)) = check.pop() {
-        let parsed = Parsed::new(source, input.syntax)?;
-        for n in parsed.nodes() {
-            match n {
-                Node::Extends(extends) => {
-                    let extends = input.config.find_template(extends.path, Some(&path))?;
-                    let dependency_path = (path.clone(), extends.clone());
-                    if dependency_graph.contains(&dependency_path) {
-                        return Err(format!(
-                            "cyclic dependency in graph {:#?}",
-                            dependency_graph
-                                .iter()
-                                .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
-                                .collect::<Vec<String>>()
-                        )
-                        .into());
-                    }
-                    dependency_graph.push(dependency_path);
-                    let source = get_template_source(&extends)?;
-                    check.push((extends, source));
-                }
-                Node::Import(import) => {
-                    let import = input.config.find_template(import.path, Some(&path))?;
-                    let source = get_template_source(&import)?;
-                    check.push((import, source));
-                }
-                _ => {}
-            }
-        }
-        map.insert(path, parsed);
-    }
-    Ok(())
-}
-
-struct Generator<'a> {
+pub(crate) struct Generator<'a> {
     // The template input state: original struct AST and attributes
     input: &'a TemplateInput<'a>,
     // All contexts, keyed by the package-relative template path
@@ -285,18 +38,14 @@ struct Generator<'a> {
     buf_writable: WritableBuffer<'a>,
     // Counter for write! hash named arguments
     named: usize,
-    // If set to `suppress`, the whitespace characters will be removed by default unless `+` is
-    // used.
-    whitespace: WhitespaceHandling,
 }
 
 impl<'a> Generator<'a> {
-    fn new<'n>(
+    pub(crate) fn new<'n>(
         input: &'n TemplateInput<'_>,
         contexts: &'n HashMap<&'n Path, Context<'n>>,
         heritage: Option<&'n Heritage<'_>>,
         locals: MapChain<'n, &'n str, LocalMeta>,
-        whitespace: WhitespaceHandling,
         discard: bool,
     ) -> Generator<'n> {
         Generator {
@@ -313,12 +62,11 @@ impl<'a> Generator<'a> {
                 ..Default::default()
             },
             named: 0,
-            whitespace,
         }
     }
 
     // Takes a Context and generates the relevant implementations.
-    fn build(mut self, ctx: &'a Context<'_>) -> Result<String, CompileError> {
+    pub(crate) fn build(mut self, ctx: &'a Context<'_>) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
 
         self.impl_template(ctx, &mut buf)?;
@@ -858,9 +606,13 @@ impl<'a> Generator<'a> {
 
         let expr_code = self.visit_expr_root(&loop_block.iter)?;
 
+        let has_else_nodes = !loop_block.else_nodes.is_empty();
+
         let flushed = self.write_buf_writable(buf)?;
         buf.writeln("{")?;
-        buf.writeln("let mut _did_loop = false;")?;
+        if has_else_nodes {
+            buf.writeln("let mut _did_loop = false;")?;
+        }
         match loop_block.iter {
             Expr::Range(_, _, _) => buf.writeln(&format!("let _iter = {expr_code};")),
             Expr::Array(..) => buf.writeln(&format!("let _iter = {expr_code}.iter();")),
@@ -896,20 +648,28 @@ impl<'a> Generator<'a> {
         self.visit_target(buf, true, true, &loop_block.var);
         buf.writeln(", _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {")?;
 
-        buf.writeln("_did_loop = true;")?;
+        if has_else_nodes {
+            buf.writeln("_did_loop = true;")?;
+        }
         let mut size_hint1 = self.handle(ctx, &loop_block.body, buf, AstLevel::Nested)?;
         self.handle_ws(loop_block.ws2);
         size_hint1 += self.write_buf_writable(buf)?;
         self.locals.pop();
         buf.writeln("}")?;
 
-        buf.writeln("if !_did_loop {")?;
-        self.locals.push();
-        let mut size_hint2 = self.handle(ctx, &loop_block.else_nodes, buf, AstLevel::Nested)?;
-        self.handle_ws(loop_block.ws3);
-        size_hint2 += self.write_buf_writable(buf)?;
-        self.locals.pop();
-        buf.writeln("}")?;
+        let mut size_hint2;
+        if has_else_nodes {
+            buf.writeln("if !_did_loop {")?;
+            self.locals.push();
+            size_hint2 = self.handle(ctx, &loop_block.else_nodes, buf, AstLevel::Nested)?;
+            self.handle_ws(loop_block.ws3);
+            size_hint2 += self.write_buf_writable(buf)?;
+            self.locals.pop();
+            buf.writeln("}")?;
+        } else {
+            self.handle_ws(loop_block.ws3);
+            size_hint2 = self.write_buf_writable(buf)?;
+        }
 
         buf.writeln("}")?;
 
@@ -973,7 +733,7 @@ impl<'a> Generator<'a> {
                 // If `expr` is already a form of variable then
                 // don't reintroduce a new variable. This is
                 // to avoid moving non-copyable values.
-                Expr::Var(name) => {
+                &Expr::Var(name) if name != "self" => {
                     let var = self.locals.resolve_or_self(name);
                     self.locals.insert(arg, LocalMeta::with_ref(var));
                 }
@@ -1053,7 +813,6 @@ impl<'a> Generator<'a> {
             self.contexts,
             self.heritage,
             locals,
-            self.whitespace,
             self.buf_writable.discard,
         );
 
@@ -1904,7 +1663,7 @@ impl<'a> Generator<'a> {
             Some(Whitespace::Suppress) => WhitespaceHandling::Suppress,
             Some(Whitespace::Preserve) => WhitespaceHandling::Preserve,
             Some(Whitespace::Minimize) => WhitespaceHandling::Minimize,
-            None => self.whitespace,
+            None => self.input.config.whitespace,
         }
     }
 
@@ -2005,7 +1764,7 @@ impl Buffer {
 }
 
 #[derive(Clone, Default)]
-struct LocalMeta {
+pub(crate) struct LocalMeta {
     refs: Option<String>,
     initialized: bool,
 }
@@ -2029,7 +1788,7 @@ impl LocalMeta {
 // type SetChain<'a, T> = MapChain<'a, T, ()>;
 
 #[derive(Debug)]
-struct MapChain<'a, K, V>
+pub(crate) struct MapChain<'a, K, V>
 where
     K: cmp::Eq + hash::Hash,
 {
@@ -2041,13 +1800,6 @@ impl<'a, K: 'a, V: 'a> MapChain<'a, K, V>
 where
     K: cmp::Eq + hash::Hash,
 {
-    fn new() -> MapChain<'a, K, V> {
-        MapChain {
-            parent: None,
-            scopes: vec![HashMap::new()],
-        }
-    }
-
     fn with_parent<'p>(parent: &'p MapChain<'_, K, V>) -> MapChain<'p, K, V> {
         MapChain {
             parent: Some(parent),
@@ -2107,6 +1859,15 @@ impl MapChain<'_, &str, LocalMeta> {
     fn resolve_or_self(&self, name: &str) -> String {
         let name = normalize_identifier(name);
         self.resolve(name).unwrap_or_else(|| format!("self.{name}"))
+    }
+}
+
+impl<'a, K: Eq + hash::Hash, V> Default for MapChain<'a, K, V> {
+    fn default() -> Self {
+        Self {
+            parent: None,
+            scopes: vec![HashMap::new()],
+        }
     }
 }
 

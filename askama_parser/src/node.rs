@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::str;
 
 use nom::branch::alt;
@@ -7,9 +8,11 @@ use nom::combinator::{
     complete, consumed, cut, eof, map, map_res, not, opt, peek, recognize, value,
 };
 use nom::error::{Error, ErrorKind};
+use nom::error_position;
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
-use nom::{error_position, IResult};
+
+use crate::{ErrorContext, ParseResult};
 
 use super::{
     bool_lit, char_lit, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
@@ -37,7 +40,7 @@ pub enum Node<'a> {
 }
 
 impl<'a> Node<'a> {
-    pub(super) fn many(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Self>> {
+    pub(super) fn many(i: &'a str, s: &State<'_>) -> ParseResult<'a, Vec<Self>> {
         complete(many0(alt((
             map(|i| Lit::parse(i, s), Self::Lit),
             map(|i| Comment::parse(i, s), Self::Comment),
@@ -46,12 +49,12 @@ impl<'a> Node<'a> {
         ))))(i)
     }
 
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        let mut p = tuple((
+    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+        let mut p = delimited(
             |i| s.tag_block_start(i),
             alt((
-                map(Call::parse, Self::Call),
-                map(Let::parse, Self::Let),
+                map(|i| Call::parse(i, s), Self::Call),
+                map(|i| Let::parse(i, s), Self::Let),
                 map(|i| If::parse(i, s), Self::If),
                 map(|i| Loop::parse(i, s), |l| Self::Loop(Box::new(l))),
                 map(|i| Match::parse(i, s), Self::Match),
@@ -65,12 +68,16 @@ impl<'a> Node<'a> {
                 |i| Self::r#continue(i, s),
             )),
             cut(|i| s.tag_block_end(i)),
-        ));
-        let (i, (_, contents, _)) = p(i)?;
-        Ok((i, contents))
+        );
+
+        s.nest(i)?;
+        let result = p(i);
+        s.leave();
+
+        result
     }
 
-    fn r#break(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn r#break(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("break")),
@@ -83,7 +90,7 @@ impl<'a> Node<'a> {
         Ok((j, Self::Break(Ws(pws, nws))))
     }
 
-    fn r#continue(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn r#continue(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("continue")),
@@ -96,12 +103,12 @@ impl<'a> Node<'a> {
         Ok((j, Self::Continue(Ws(pws, nws))))
     }
 
-    fn expr(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn expr(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let mut p = tuple((
             |i| s.tag_expr_start(i),
             cut(tuple((
                 opt(Whitespace::parse),
-                ws(Expr::parse),
+                ws(|i| Expr::parse(i, s.level.get())),
                 opt(Whitespace::parse),
                 |i| s.tag_expr_end(i),
             ))),
@@ -124,7 +131,7 @@ pub enum Target<'a> {
 }
 
 impl<'a> Target<'a> {
-    pub(super) fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    pub(super) fn parse(i: &'a str) -> ParseResult<'a, Self> {
         let mut opt_opening_paren = map(opt(ws(char('('))), |o| o.is_some());
         let mut opt_closing_paren = map(opt(ws(char(')'))), |o| o.is_some());
         let mut opt_opening_brace = map(opt(ws(char('{'))), |o| o.is_some());
@@ -207,7 +214,7 @@ impl<'a> Target<'a> {
         map(identifier, Self::Name)(i)
     }
 
-    fn lit(i: &'a str) -> IResult<&'a str, Self> {
+    fn lit(i: &'a str) -> ParseResult<'a, Self> {
         alt((
             map(str_lit, Self::StrLit),
             map(char_lit, Self::CharLit),
@@ -216,7 +223,7 @@ impl<'a> Target<'a> {
         ))(i)
     }
 
-    fn named(i: &'a str) -> IResult<&str, (&str, Self)> {
+    fn named(i: &'a str) -> ParseResult<'a, (&str, Self)> {
         let (i, (src, target)) = pair(identifier, opt(preceded(ws(char(':')), Self::parse)))(i)?;
         Ok((i, (src, target.unwrap_or(Self::Name(src)))))
     }
@@ -230,7 +237,7 @@ pub struct When<'a> {
 }
 
 impl<'a> When<'a> {
-    fn r#match(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn r#match(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let mut p = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
@@ -253,7 +260,7 @@ impl<'a> When<'a> {
     }
 
     #[allow(clippy::self_named_constructors)]
-    fn when(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn when(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let mut p = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
@@ -285,13 +292,21 @@ pub struct Cond<'a> {
 }
 
 impl<'a> Cond<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let mut p = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
-            ws(keyword("else")),
+            ws(alt((keyword("else"), |i| {
+                let _ = keyword("elif")(i)?;
+                Err(nom::Err::Failure(ErrorContext {
+                    input: i,
+                    message: Some(Cow::Borrowed(
+                        "unknown `elif` keyword; did you mean `else if`?",
+                    )),
+                }))
+            }))),
             cut(tuple((
-                opt(CondTest::parse),
+                opt(|i| CondTest::parse(i, s)),
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
                 cut(|i| Node::many(i, s)),
@@ -316,7 +331,7 @@ pub struct CondTest<'a> {
 }
 
 impl<'a> CondTest<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let mut p = preceded(
             ws(keyword("if")),
             cut(tuple((
@@ -325,7 +340,7 @@ impl<'a> CondTest<'a> {
                     ws(Target::parse),
                     ws(char('=')),
                 )),
-                ws(Expr::parse),
+                ws(|i| Expr::parse(i, s.level.get())),
             ))),
         );
         let (i, (target, expr)) = p(i)?;
@@ -341,7 +356,7 @@ pub enum Whitespace {
 }
 
 impl Whitespace {
-    fn parse(i: &str) -> IResult<&str, Self> {
+    fn parse(i: &str) -> ParseResult<'_, Self> {
         alt((
             value(Self::Preserve, char('+')),
             value(Self::Suppress, char('-')),
@@ -363,15 +378,18 @@ pub struct Loop<'a> {
 }
 
 impl<'a> Loop<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        fn content<'a>(i: &'a str, s: &State<'_>) -> IResult<&'a str, Vec<Node<'a>>> {
+    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+        fn content<'a>(i: &'a str, s: &State<'_>) -> ParseResult<'a, Vec<Node<'a>>> {
             s.enter_loop();
             let result = Node::many(i, s);
             s.leave_loop();
             result
         }
 
-        let if_cond = preceded(ws(keyword("if")), cut(ws(Expr::parse)));
+        let if_cond = preceded(
+            ws(keyword("if")),
+            cut(ws(|i| Expr::parse(i, s.level.get()))),
+        );
         let else_block = |i| {
             let mut p = preceded(
                 ws(keyword("else")),
@@ -395,7 +413,7 @@ impl<'a> Loop<'a> {
                 ws(Target::parse),
                 ws(keyword("in")),
                 cut(tuple((
-                    ws(Expr::parse),
+                    ws(|i| Expr::parse(i, s.level.get())),
                     opt(if_cond),
                     opt(Whitespace::parse),
                     |i| s.tag_block_end(i),
@@ -441,8 +459,8 @@ pub struct Macro<'a> {
 }
 
 impl<'a> Macro<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        fn parameters(i: &str) -> IResult<&str, Vec<&str>> {
+    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+        fn parameters(i: &str) -> ParseResult<'_, Vec<&str>> {
             delimited(
                 ws(char('(')),
                 separated_list0(char(','), ws(identifier)),
@@ -468,21 +486,31 @@ impl<'a> Macro<'a> {
                 |i| s.tag_block_start(i),
                 opt(Whitespace::parse),
                 ws(keyword("endmacro")),
-                cut(preceded(ws(opt(keyword(name))), opt(Whitespace::parse))),
+                cut(preceded(
+                    opt(|before| {
+                        let (after, end_name) = ws(identifier)(before)?;
+                        check_end_name(before, after, name, end_name, "macro")
+                    }),
+                    opt(Whitespace::parse),
+                )),
             ))),
         )));
         let (i, (contents, (_, pws2, _, nws2))) = end(i)?;
 
-        assert_ne!(name, "super", "invalid macro name 'super'");
-
-        let params = params.unwrap_or_default();
+        if name == "super" {
+            // TODO: yield a a better error message here
+            return Err(ErrorContext::from_err(nom::Err::Failure(Error::new(
+                i,
+                ErrorKind::Fail,
+            ))));
+        }
 
         Ok((
             i,
             Self {
                 ws1: Ws(pws1, nws1),
                 name,
-                args: params,
+                args: params.unwrap_or_default(),
                 nodes: contents,
                 ws2: Ws(pws2, nws2),
             },
@@ -498,7 +526,7 @@ pub struct Import<'a> {
 }
 
 impl<'a> Import<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str) -> ParseResult<'a, Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("import")),
@@ -529,14 +557,14 @@ pub struct Call<'a> {
 }
 
 impl<'a> Call<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("call")),
             cut(tuple((
                 opt(tuple((ws(identifier), ws(tag("::"))))),
                 ws(identifier),
-                opt(ws(Expr::arguments)),
+                opt(ws(|nested| Expr::arguments(nested, s.level.get()))),
                 opt(Whitespace::parse),
             ))),
         ));
@@ -564,12 +592,12 @@ pub struct Match<'a> {
 }
 
 impl<'a> Match<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("match")),
             cut(tuple((
-                ws(Expr::parse),
+                ws(|i| Expr::parse(i, s.level.get())),
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
                 cut(tuple((
@@ -615,7 +643,7 @@ pub struct BlockDef<'a> {
 }
 
 impl<'a> BlockDef<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let mut start = tuple((
             opt(Whitespace::parse),
             ws(keyword("block")),
@@ -631,7 +659,13 @@ impl<'a> BlockDef<'a> {
                 |i| s.tag_block_start(i),
                 opt(Whitespace::parse),
                 ws(keyword("endblock")),
-                cut(tuple((opt(ws(keyword(name))), opt(Whitespace::parse)))),
+                cut(tuple((
+                    opt(|before| {
+                        let (after, end_name) = ws(identifier)(before)?;
+                        check_end_name(before, after, name, end_name, "block")
+                    }),
+                    opt(Whitespace::parse),
+                ))),
             ))),
         )));
         let (i, (nodes, (_, pws2, _, (_, nws2)))) = end(i)?;
@@ -648,6 +682,27 @@ impl<'a> BlockDef<'a> {
     }
 }
 
+fn check_end_name<'a>(
+    before: &'a str,
+    after: &'a str,
+    name: &'a str,
+    end_name: &'a str,
+    kind: &str,
+) -> ParseResult<'a> {
+    if name == end_name {
+        return Ok((after, end_name));
+    }
+    let message = if name.is_empty() && !end_name.is_empty() {
+        format!("unexpected name `{end_name}` in `end{kind}` tag for unnamed `{kind}`")
+    } else {
+        format!("expected name `{name}` in `end{kind}` tag, found `{end_name}`")
+    };
+    Err(nom::Err::Failure(ErrorContext {
+        input: before,
+        message: Some(Cow::Owned(message)),
+    }))
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Lit<'a> {
     pub lws: &'a str,
@@ -656,7 +711,7 @@ pub struct Lit<'a> {
 }
 
 impl<'a> Lit<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let p_start = alt((
             tag(s.syntax.block_start),
             tag(s.syntax.comment_start),
@@ -696,7 +751,7 @@ pub struct Raw<'a> {
 }
 
 impl<'a> Raw<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let endraw = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
@@ -731,13 +786,16 @@ pub struct Let<'a> {
 }
 
 impl<'a> Let<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(alt((keyword("let"), keyword("set")))),
             cut(tuple((
                 ws(Target::parse),
-                opt(preceded(ws(char('=')), ws(Expr::parse))),
+                opt(preceded(
+                    ws(char('=')),
+                    ws(|i| Expr::parse(i, s.level.get())),
+                )),
                 opt(Whitespace::parse),
             ))),
         ));
@@ -761,10 +819,10 @@ pub struct If<'a> {
 }
 
 impl<'a> If<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
-            CondTest::parse,
+            |i| CondTest::parse(i, s),
             cut(tuple((
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
@@ -806,7 +864,7 @@ pub struct Include<'a> {
 }
 
 impl<'a> Include<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str) -> ParseResult<'a, Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("include")),
@@ -829,7 +887,7 @@ pub struct Extends<'a> {
 }
 
 impl<'a> Extends<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Self> {
+    fn parse(i: &'a str) -> ParseResult<'a, Self> {
         let (i, path) = preceded(ws(keyword("extends")), cut(ws(str_lit)))(i)?;
         Ok((i, Self { path }))
     }
@@ -842,12 +900,12 @@ pub struct Comment<'a> {
 }
 
 impl<'a> Comment<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> IResult<&'a str, Self> {
-        fn body<'a>(mut i: &'a str, s: &State<'_>) -> IResult<&'a str, &'a str> {
+    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+        fn body<'a>(mut i: &'a str, s: &State<'_>) -> ParseResult<'a> {
             let mut level = 0;
             loop {
                 let (end, tail) = take_until(s.syntax.comment_end)(i)?;
-                match take_until::<_, _, Error<_>>(s.syntax.comment_start)(i) {
+                match take_until::<_, _, ErrorContext<'_>>(s.syntax.comment_start)(i) {
                     Ok((start, _)) if start.as_ptr() < end.as_ptr() => {
                         level += 1;
                         i = &start[2..];

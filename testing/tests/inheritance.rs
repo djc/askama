@@ -340,3 +340,15 @@ fn test_let_block() {
     let t = LetChild {};
     assert_eq!(t.render().unwrap(), "1");
 }
+
+#[derive(Template)]
+#[template(path = "named-end.html")]
+struct NamedBlocks<'a> {
+    title: &'a str,
+}
+
+#[test]
+fn test_named_end() {
+    let n = NamedBlocks { title: "title" };
+    assert_eq!(n.render().unwrap(), "title\n\ntadam\nCopyright 2017");
+}

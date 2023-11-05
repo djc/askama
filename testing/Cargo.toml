@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 workspace = ".."
 edition = "2021"
-rust-version = "1.58"
+rust-version = "1.65"
 publish = false
 
 [features]

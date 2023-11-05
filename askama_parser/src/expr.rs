@@ -5,21 +5,23 @@ use nom::bytes::complete::{tag, take_till};
 use nom::character::complete::char;
 use nom::combinator::{cut, map, not, opt, peek, recognize};
 use nom::error::ErrorKind;
+use nom::error_position;
 use nom::multi::{fold_many0, many0, separated_list0};
 use nom::sequence::{pair, preceded, terminated, tuple};
-use nom::{error_position, IResult};
 
 use super::{
-    char_lit, identifier, not_ws, num_lit, path_or_identifier, str_lit, ws, PathOrIdentifier,
+    char_lit, identifier, not_ws, num_lit, path_or_identifier, str_lit, ws, Level, PathOrIdentifier,
 };
+use crate::ParseResult;
 
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $op:expr ) => {
-        fn $name(i: &'a str) -> IResult<&'a str, Self> {
-            let (i, left) = Self::$inner(i)?;
+        fn $name(i: &'a str, level: Level) -> ParseResult<'a, Self> {
+            let (_, level) = level.nest(i)?;
+            let (i, left) = Self::$inner(i, level)?;
             let (i, right) = many0(pair(
                 ws(tag($op)),
-                Self::$inner,
+                |i| Self::$inner(i, level),
             ))(i)?;
             Ok((
                 i,
@@ -30,11 +32,12 @@ macro_rules! expr_prec_layer {
         }
     };
     ( $name:ident, $inner:ident, $( $op:expr ),+ ) => {
-        fn $name(i: &'a str) -> IResult<&'a str, Self> {
-            let (i, left) = Self::$inner(i)?;
+        fn $name(i: &'a str, level: Level) -> ParseResult<'a, Self> {
+            let (_, level) = level.nest(i)?;
+            let (i, left) = Self::$inner(i, level)?;
             let (i, right) = many0(pair(
                 ws(alt(($( tag($op) ),+,))),
-                Self::$inner,
+                |i| Self::$inner(i, level),
             ))(i)?;
             Ok((
                 i,
@@ -69,24 +72,31 @@ pub enum Expr<'a> {
 }
 
 impl<'a> Expr<'a> {
-    pub(super) fn arguments(i: &'a str) -> IResult<&'a str, Vec<Self>> {
+    pub(super) fn arguments(i: &'a str, level: Level) -> ParseResult<'a, Vec<Self>> {
+        let (_, level) = level.nest(i)?;
         preceded(
             ws(char('(')),
             cut(terminated(
-                separated_list0(char(','), ws(Self::parse)),
+                separated_list0(char(','), ws(move |i| Self::parse(i, level))),
                 char(')'),
             )),
         )(i)
     }
 
-    pub(super) fn parse(i: &'a str) -> IResult<&'a str, Self> {
-        let range_right = |i| pair(ws(alt((tag("..="), tag("..")))), opt(Self::or))(i);
+    pub(super) fn parse(i: &'a str, level: Level) -> ParseResult<'a, Self> {
+        let (_, level) = level.nest(i)?;
+        let range_right = move |i| {
+            pair(
+                ws(alt((tag("..="), tag("..")))),
+                opt(move |i| Self::or(i, level)),
+            )(i)
+        };
         alt((
             map(range_right, |(op, right)| {
                 Self::Range(op, None, right.map(Box::new))
             }),
             map(
-                pair(Self::or, opt(range_right)),
+                pair(move |i| Self::or(i, level), opt(range_right)),
                 |(left, right)| match right {
                     Some((op, right)) => Self::Range(op, Some(Box::new(left)), right.map(Box::new)),
                     None => left,
@@ -105,14 +115,20 @@ impl<'a> Expr<'a> {
     expr_prec_layer!(addsub, muldivmod, "+", "-");
     expr_prec_layer!(muldivmod, filtered, "*", "/", "%");
 
-    fn filtered(i: &'a str) -> IResult<&'a str, Self> {
-        fn filter(i: &str) -> IResult<&str, (&str, Option<Vec<Expr<'_>>>)> {
-            let (i, (_, fname, args)) =
-                tuple((char('|'), ws(identifier), opt(Expr::arguments)))(i)?;
+    fn filtered(i: &'a str, level: Level) -> ParseResult<'a, Self> {
+        let (_, level) = level.nest(i)?;
+        #[allow(clippy::type_complexity)]
+        fn filter(i: &str, level: Level) -> ParseResult<'_, (&str, Option<Vec<Expr<'_>>>)> {
+            let (i, (_, fname, args)) = tuple((
+                char('|'),
+                ws(identifier),
+                opt(|i| Expr::arguments(i, level)),
+            ))(i)?;
             Ok((i, (fname, args)))
         }
 
-        let (i, (obj, filters)) = tuple((Self::prefix, many0(filter)))(i)?;
+        let (i, (obj, filters)) =
+            tuple((|i| Self::prefix(i, level), many0(|i| filter(i, level))))(i)?;
 
         let mut res = obj;
         for (fname, args) in filters {
@@ -129,27 +145,32 @@ impl<'a> Expr<'a> {
         Ok((i, res))
     }
 
-    fn prefix(i: &'a str) -> IResult<&'a str, Self> {
-        let (i, (ops, mut expr)) = pair(many0(ws(alt((tag("!"), tag("-"))))), Suffix::parse)(i)?;
+    fn prefix(i: &'a str, level: Level) -> ParseResult<'a, Self> {
+        let (_, level) = level.nest(i)?;
+        let (i, (ops, mut expr)) = pair(many0(ws(alt((tag("!"), tag("-"))))), |i| {
+            Suffix::parse(i, level)
+        })(i)?;
         for op in ops.iter().rev() {
             expr = Self::Unary(op, Box::new(expr));
         }
         Ok((i, expr))
     }
 
-    fn single(i: &'a str) -> IResult<&'a str, Self> {
+    fn single(i: &'a str, level: Level) -> ParseResult<'a, Self> {
+        let (_, level) = level.nest(i)?;
         alt((
             Self::num,
             Self::str,
             Self::char,
             Self::path_var_bool,
-            Self::array,
-            Self::group,
+            move |i| Self::array(i, level),
+            move |i| Self::group(i, level),
         ))(i)
     }
 
-    fn group(i: &'a str) -> IResult<&'a str, Self> {
-        let (i, expr) = preceded(ws(char('(')), opt(Self::parse))(i)?;
+    fn group(i: &'a str, level: Level) -> ParseResult<'a, Self> {
+        let (_, level) = level.nest(i)?;
+        let (i, expr) = preceded(ws(char('(')), opt(|i| Self::parse(i, level)))(i)?;
         let expr = match expr {
             Some(expr) => expr,
             None => {
@@ -166,7 +187,7 @@ impl<'a> Expr<'a> {
 
         let mut exprs = vec![expr];
         let (i, _) = fold_many0(
-            preceded(char(','), ws(Self::parse)),
+            preceded(char(','), ws(|i| Self::parse(i, level))),
             || (),
             |_, expr| {
                 exprs.push(expr);
@@ -176,17 +197,21 @@ impl<'a> Expr<'a> {
         Ok((i, Self::Tuple(exprs)))
     }
 
-    fn array(i: &'a str) -> IResult<&'a str, Self> {
+    fn array(i: &'a str, level: Level) -> ParseResult<'a, Self> {
+        let (_, level) = level.nest(i)?;
         preceded(
             ws(char('[')),
             cut(terminated(
-                map(separated_list0(char(','), ws(Self::parse)), Self::Array),
+                map(
+                    separated_list0(char(','), ws(move |i| Self::parse(i, level))),
+                    Self::Array,
+                ),
                 char(']'),
             )),
         )(i)
     }
 
-    fn path_var_bool(i: &'a str) -> IResult<&'a str, Self> {
+    fn path_var_bool(i: &'a str) -> ParseResult<'a, Self> {
         map(path_or_identifier, |v| match v {
             PathOrIdentifier::Path(v) => Self::Path(v),
             PathOrIdentifier::Identifier(v @ "true") => Self::BoolLit(v),
@@ -195,15 +220,15 @@ impl<'a> Expr<'a> {
         })(i)
     }
 
-    fn str(i: &'a str) -> IResult<&'a str, Self> {
+    fn str(i: &'a str) -> ParseResult<'a, Self> {
         map(str_lit, Self::StrLit)(i)
     }
 
-    fn num(i: &'a str) -> IResult<&'a str, Self> {
+    fn num(i: &'a str) -> ParseResult<'a, Self> {
         map(num_lit, Self::NumLit)(i)
     }
 
-    fn char(i: &'a str) -> IResult<&'a str, Self> {
+    fn char(i: &'a str) -> ParseResult<'a, Self> {
         map(char_lit, Self::CharLit)(i)
     }
 }
@@ -218,13 +243,14 @@ enum Suffix<'a> {
 }
 
 impl<'a> Suffix<'a> {
-    fn parse(i: &'a str) -> IResult<&'a str, Expr<'a>> {
-        let (mut i, mut expr) = Expr::single(i)?;
+    fn parse(i: &'a str, level: Level) -> ParseResult<'a, Expr<'a>> {
+        let (_, level) = level.nest(i)?;
+        let (mut i, mut expr) = Expr::single(i, level)?;
         loop {
             let (j, suffix) = opt(alt((
                 Self::attr,
-                Self::index,
-                Self::call,
+                |i| Self::index(i, level),
+                |i| Self::call(i, level),
                 Self::r#try,
                 Self::r#macro,
             )))(i)?;
@@ -247,16 +273,16 @@ impl<'a> Suffix<'a> {
         Ok((i, expr))
     }
 
-    fn r#macro(i: &'a str) -> IResult<&'a str, Self> {
-        fn nested_parenthesis(i: &str) -> IResult<&str, ()> {
+    fn r#macro(i: &'a str) -> ParseResult<'a, Self> {
+        fn nested_parenthesis(input: &str) -> ParseResult<'_, ()> {
             let mut nested = 0;
             let mut last = 0;
             let mut in_str = false;
             let mut escaped = false;
 
-            for (i, b) in i.chars().enumerate() {
-                if !(b == '(' || b == ')') || !in_str {
-                    match b {
+            for (i, c) in input.char_indices() {
+                if !(c == '(' || c == ')') || !in_str {
+                    match c {
                         '(' => nested += 1,
                         ')' => {
                             if nested == 0 {
@@ -281,16 +307,16 @@ impl<'a> Suffix<'a> {
                     }
                 }
 
-                if escaped && b != '\\' {
+                if escaped && c != '\\' {
                     escaped = false;
                 }
             }
 
             if nested == 0 {
-                Ok((&i[last..], ()))
+                Ok((&input[last..], ()))
             } else {
                 Err(nom::Err::Error(error_position!(
-                    i,
+                    input,
                     ErrorKind::SeparatedNonEmptyList
                 )))
             }
@@ -305,7 +331,7 @@ impl<'a> Suffix<'a> {
         )(i)
     }
 
-    fn attr(i: &'a str) -> IResult<&'a str, Self> {
+    fn attr(i: &'a str) -> ParseResult<'a, Self> {
         map(
             preceded(
                 ws(pair(char('.'), not(char('.')))),
@@ -315,18 +341,23 @@ impl<'a> Suffix<'a> {
         )(i)
     }
 
-    fn index(i: &'a str) -> IResult<&'a str, Self> {
+    fn index(i: &'a str, level: Level) -> ParseResult<'a, Self> {
+        let (_, level) = level.nest(i)?;
         map(
-            preceded(ws(char('[')), cut(terminated(ws(Expr::parse), char(']')))),
+            preceded(
+                ws(char('[')),
+                cut(terminated(ws(move |i| Expr::parse(i, level)), char(']'))),
+            ),
             Self::Index,
         )(i)
     }
 
-    fn call(i: &'a str) -> IResult<&'a str, Self> {
-        map(Expr::arguments, Self::Call)(i)
+    fn call(i: &'a str, level: Level) -> ParseResult<'a, Self> {
+        let (_, level) = level.nest(i)?;
+        map(move |i| Expr::arguments(i, level), Self::Call)(i)
     }
 
-    fn r#try(i: &'a str) -> IResult<&'a str, Self> {
+    fn r#try(i: &'a str) -> ParseResult<'a, Self> {
         map(preceded(take_till(not_ws), char('?')), |_| Self::Try)(i)
     }
 }
