@@ -8,6 +8,7 @@ members = [
     "askama_escape",
     "askama_mendes",
     "askama_parser",
+    "askama_poem",
     "askama_rocket",
     "askama_tide",
     "askama_warp",

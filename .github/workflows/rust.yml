@@ -33,7 +33,7 @@ jobs:
       matrix:
         package: [
           askama, askama_actix, askama_axum, askama_derive, askama_escape, askama_gotham,
-          askama_hyper, askama_mendes, askama_parser, askama_rocket, askama_tide, askama_warp,
+          askama_hyper, askama_mendes, askama_parser, askama_poem, askama_rocket, askama_tide, askama_warp,
           testing,
         ]
     runs-on: ubuntu-latest
