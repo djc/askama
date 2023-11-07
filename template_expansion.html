@@ -1,0 +1,614 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Template expansion - Askama</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="askama.html"><strong aria-hidden="true">1.</strong> Askama</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="creating_templates.html"><strong aria-hidden="true">3.</strong> Creating templates</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">4.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="template_syntax.html"><strong aria-hidden="true">6.</strong> Template syntax</a></li><li class="chapter-item expanded "><a href="filters.html"><strong aria-hidden="true">7.</strong> Filters</a></li><li class="chapter-item expanded "><a href="integrations.html"><strong aria-hidden="true">8.</strong> Integrations</a></li><li class="chapter-item expanded "><a href="performance.html"><strong aria-hidden="true">9.</strong> Performance</a></li><li class="chapter-item expanded "><a href="template_expansion.html" class="active"><strong aria-hidden="true">10.</strong> Template expansion</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Askama</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="template-expansion"><a class="header" href="#template-expansion">Template Expansion</a></h1>
+<p>This chapter will explain how the different parts of the templates are
+translated into Rust code.</p>
+<p>⚠️ Please note that the generated code might change in the future so the
+following examples might not be up-to-date.</p>
+<h2 id="basic-explanations"><a class="header" href="#basic-explanations">Basic explanations</a></h2>
+<p>Whwn you add <code>#[derive(Template)]</code> and <code>#[template(...)]</code> on your type, the
+<code>Template</code> derive proc-macro will then generate an implementation of the
+<code>askama::Template</code> trait which will be a Rust version of the template.</p>
+<p>It will also implement the <code>std::fmt::Display</code> trait on your type which will
+internally call the <code>askama::Template</code> trait.</p>
+<p>Let's take a small example:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Template)]
+#[template(source = &quot;{% set x = 12 %}&quot;, ext = &quot;html&quot;)]
+struct Mine;
+<span class="boring">}</span></code></pre></pre>
+<p>will generate:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl ::askama::Template for YourType {
+    fn render_into(
+        &amp;self,
+        writer: &amp;mut (impl ::std::fmt::Write + ?Sized),
+    ) -&gt; ::askama::Result&lt;()&gt; {
+        let x = 12;
+        ::askama::Result::Ok(())
+    }
+    const EXTENSION: ::std::option::Option&lt;&amp;'static ::std::primitive::str&gt; = Some(
+        &quot;html&quot;,
+    );
+    const SIZE_HINT: ::std::primitive::usize = 0;
+    const MIME_TYPE: &amp;'static ::std::primitive::str = &quot;text/html; charset=utf-8&quot;;
+}
+
+impl ::std::fmt::Display for YourType {
+    #[inline]
+    fn fmt(&amp;self, f: &amp;mut ::std::fmt::Formatter) -&gt; ::std::fmt::Result {
+        ::askama::Template::render_into(self, f).map_err(|_| ::std::fmt::Error {})
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<p>For simplicity, we will only keep the content of the <code>askama::Template::render_into</code>
+function from now on.</p>
+<h2 id="text-content"><a class="header" href="#text-content">Text content</a></h2>
+<p>If you have &quot;text content&quot; (for example HTML) in your template:</p>
+<pre><code class="language-html">&lt;h1&gt;{{ title }}&lt;/h1&gt;
+</code></pre>
+<p>It will generate it like this:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>writer
+    .write_fmt(
+        format_args!(
+            &quot;&lt;h1&gt;{0}&lt;/h1&gt;&quot;,
+            &amp;::askama::MarkupDisplay::new_unsafe(&amp;(self.title), ::askama::Html),
+        ),
+    )?;
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>About <code>MarkupDisplay</code>: we need to use this type in order to prevent generating
+invalid HTML. Let's take an example: if <code>title</code> is <code>&quot;&lt;a&gt;&quot;</code> and we display it as
+is, in the generated HTML, you won't see <code>&lt;a&gt;</code> but instead a new HTML element
+will be created. To prevent this, we need to escape some characters.</p>
+<p>In this example, <code>&lt;a&gt;</code> will become <code>&amp;lt;a&amp;gt;</code>. And this is why there is the
+<code>safe</code> builtin filter, in case you want it to be displayed as is.</p>
+<h2 id="variables"><a class="header" href="#variables">Variables</a></h2>
+<h3 id="variables-creation"><a class="header" href="#variables-creation">Variables creation</a></h3>
+<p>If you create a variable in your template, it will be created in the generated
+Rust code as well. For example:</p>
+<pre><code class="language-jinja">{% set x = 12 %}
+{% let y = x + 1 %}
+</code></pre>
+<p>will generate:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let x = 12;
+let y = x + 1;
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<h3 id="variables-usage"><a class="header" href="#variables-usage">Variables usage</a></h3>
+<p>By default, variables will reference a field from the type on which the <code>askama::Template</code>
+trait is implemented:</p>
+<pre><code class="language-jinja">{{ y }}
+</code></pre>
+<p>This template will expand as follows:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>writer
+    .write_fmt(
+        format_args!(
+            &quot;{0}&quot;,
+            &amp;::askama::MarkupDisplay::new_unsafe(&amp;(self.y), ::askama::Html),
+        ),
+    )?;
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>This is why if the variable is undefined, it won't work with Askama and why
+we can't check if a variable is defined or not.</p>
+<p>You can still access constants and statics by using paths. Let's say you have in
+your Rust code:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>const FOO: u32 = 0;
+<span class="boring">}</span></code></pre></pre>
+<p>Then you can use them in your template by referring to them with a path:</p>
+<pre><code class="language-jinja">{{ crate::FOO }}{{ super::FOO }}{{ self::FOO }}
+</code></pre>
+<p>It will generate:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>writer
+    .write_fmt(
+        format_args!(
+            &quot;{0}{1}{2}&quot;,
+            &amp;::askama::MarkupDisplay::new_unsafe(&amp;(crate::FOO), ::askama::Html),
+            &amp;::askama::MarkupDisplay::new_unsafe(&amp;(super::FOO), ::askama::Html),
+            &amp;::askama::MarkupDisplay::new_unsafe(&amp;(self::FOO), ::askama::Html),
+        ),
+    )?;
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>(Note: <code>crate::</code> is to get an item at the root level of the crate, <code>super::</code> is
+to get an item in the parent module and <code>self::</code> is to get an item in the
+current module.)</p>
+<p>You can also access items from the type that implements <code>Template</code> as well using
+as <code>Self::</code>, it'll use the same logic.</p>
+<h2 id="control-blocks"><a class="header" href="#control-blocks">Control blocks</a></h2>
+<h3 id="ifelse"><a class="header" href="#ifelse">if/else</a></h3>
+<p>The generated code can be more complex than expected, as seen with <code>if</code>/<code>else</code>
+conditions:</p>
+<pre><code class="language-jinja">{% if x == &quot;a&quot; %}
+gateau
+{% else %}
+tarte
+{% endif %}
+</code></pre>
+<p>It will generate:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if *(&amp;(self.x == &quot;a&quot;) as &amp;bool) {
+    writer.write_str(&quot;gateau&quot;)?;
+} else {
+    writer.write_str(&quot;tarte&quot;)?;
+}
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>Very much as expected except for the <code>&amp;(self.x == &quot;a&quot;) as &amp;bool</code>. Now about why
+the <code>as &amp;bool</code> is needed:</p>
+<p>The following syntax <code>*(&amp;(...) as &amp;bool)</code> is used to  trigger Rust's automatic
+dereferencing, to coerce e.g. <code>&amp;&amp;&amp;&amp;&amp;bool</code> to <code>bool</code>. First <code>&amp;(...) as &amp;bool</code>
+coerces e.g. <code>&amp;&amp;&amp;bool</code> to <code>&amp;bool</code>. Then <code>*(&amp;bool)</code> finally dereferences it to
+<code>bool</code>.</p>
+<p>In short, it allows to fallback to a boolean as much as possible, but it also
+explains why you can't do:</p>
+<pre><code class="language-jinja">{% set x = &quot;a&quot; %}
+{% if x %}
+    {{ x }}
+{% endif %}
+</code></pre>
+<p>Because it fail to compile because:</p>
+<pre><code class="language-console">error[E0605]: non-primitive cast: `&amp;&amp;str` as `&amp;bool`
+</code></pre>
+<h3 id="if-let"><a class="header" href="#if-let">if let</a></h3>
+<pre><code class="language-jinja">{% if let Some(x) = x %}
+    {{ x }}
+{% endif %}
+</code></pre>
+<p>will generate:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(x) = &amp;(self.x) {
+    writer
+        .write_fmt(
+            format_args!(
+                &quot;{0}&quot;,
+                &amp;::askama::MarkupDisplay::new_unsafe(&amp;(x), ::askama::Html),
+            ),
+        )?;
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="loops"><a class="header" href="#loops">Loops</a></h3>
+<pre><code class="language-html">{% for user in users %}
+    {{ user }}
+{% endfor %}
+</code></pre>
+<p>will generate:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>{
+    let _iter = (&amp;self.users).into_iter();
+    for (user, _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {
+        writer
+            .write_fmt(
+                format_args!(
+                    &quot;\n    {0}\n&quot;,
+                    &amp;::askama::MarkupDisplay::new_unsafe(&amp;(user), ::askama::Html),
+                ),
+            )?;
+    }
+}
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>Now let's see what happens if you add an <code>else</code> condition:</p>
+<pre><code class="language-jinja">{% for user in x if x.len() &gt; 2 %}
+    {{ user }}
+{% else %}
+    {{ x }}
+{% endfor %}
+</code></pre>
+<p>Which generates:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>{
+    let mut _did_loop = false;
+    let _iter = (&amp;self.users).into_iter();
+    for (user, _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {
+        _did_loop = true;
+        writer
+            .write_fmt(
+                format_args!(
+                    &quot;\n    {0}\n&quot;,
+                    &amp;::askama::MarkupDisplay::new_unsafe(&amp;(user), ::askama::Html),
+                ),
+            )?;
+    }
+    if !_did_loop {
+        writer
+            .write_fmt(
+                format_args!(
+                    &quot;\n    {0}\n&quot;,
+                    &amp;::askama::MarkupDisplay::new_unsafe(
+                        &amp;(self.x),
+                        ::askama::Html,
+                    ),
+                ),
+            )?;
+    }
+}
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>It creates a <code>_did_loop</code> variable which will check if we entered the loop. If
+we didn't (because the iterator didn't return any value), it will enter the
+<code>else</code> condition by checking <code>if !_did_loop {</code>.</p>
+<p>We can extend it even further if we add an <code>if</code> condition on our loop:</p>
+<pre><code class="language-jinja">{% for user in users if users.len() &gt; 2 %}
+    {{ user }}
+{% else %}
+    {{ x }}
+{% endfor %}
+</code></pre>
+<p>which generates:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>{
+    let mut _did_loop = false;
+    let _iter = (&amp;self.users).into_iter();
+    let _iter = _iter.filter(|user| -&gt; bool { self.users.len() &gt; 2 });
+    for (user, _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {
+        _did_loop = true;
+        writer
+            .write_fmt(
+                format_args!(
+                    &quot;\n    {0}\n&quot;,
+                    &amp;::askama::MarkupDisplay::new_unsafe(&amp;(user), ::askama::Html),
+                ),
+            )?;
+    }
+    if !_did_loop {
+        writer
+            .write_fmt(
+                format_args!(
+                    &quot;\n    {0}\n&quot;,
+                    &amp;::askama::MarkupDisplay::new_unsafe(
+                        &amp;(self.x),
+                        ::askama::Html,
+                    ),
+                ),
+            )?;
+    }
+}
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>It generates an iterator but filters it based on the <code>if</code> condition (<code>users.len() &gt; 2</code>).
+So once again, if the iterator doesn't return any value, we enter the <code>else</code>
+condition.</p>
+<p>Of course, if you only have a <code>if</code> and no <code>else</code>, the generated code is much
+shorter:</p>
+<pre><code class="language-jinja">{% for user in users if users.len() &gt; 2 %}
+    {{ user }}
+{% endfor %}
+</code></pre>
+<p>Which generates:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>{
+    let _iter = (&amp;self.users).into_iter();
+    let _iter = _iter.filter(|user| -&gt; bool { self.users.len() &gt; 2 });
+    for (user, _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {
+        writer
+            .write_fmt(
+                format_args!(
+                    &quot;\n    {0}\n&quot;,
+                    &amp;::askama::MarkupDisplay::new_unsafe(&amp;(user), ::askama::Html),
+                ),
+            )?;
+    }
+}
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<h2 id="filters"><a class="header" href="#filters">Filters</a></h2>
+<p>Example of using the <code>abs</code> built-in filter:</p>
+<pre><code class="language-jinja">{{ -2|abs }}
+</code></pre>
+<p>Which generates:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>writer
+    .write_fmt(
+        format_args!(
+            &quot;{0}&quot;,
+            &amp;::askama::MarkupDisplay::new_unsafe(
+                &amp;(::askama::filters::abs(-2)?),
+                ::askama::Html,
+            ),
+        ),
+    )?;
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>The filter is called with <code>-2</code> as first argument. You can add further arguments
+to the call like this:</p>
+<pre><code class="language-jinja">{{ &quot;a&quot;|indent(4) }}
+</code></pre>
+<p>Which generates:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>writer
+    .write_fmt(
+        format_args!(
+            &quot;{0}&quot;,
+            &amp;::askama::MarkupDisplay::new_unsafe(
+                &amp;(::askama::filters::indent(&quot;a&quot;, 4)?),
+                ::askama::Html,
+            ),
+        ),
+    )?;
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>No surprise there, <code>4</code> is added after <code>&quot;a&quot;</code>. Now let's check when we chain the filters:</p>
+<pre><code class="language-jinja">{{ &quot;a&quot;|indent(4)|capitalize }}
+</code></pre>
+<p>Which generates:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>writer
+    .write_fmt(
+        format_args!(
+            &quot;{0}&quot;,
+            &amp;::askama::MarkupDisplay::new_unsafe(
+                &amp;(::askama::filters::capitalize(
+                    &amp;(::askama::filters::indent(&quot;a&quot;, 4)?),
+                )?),
+                ::askama::Html,
+            ),
+        ),
+    )?;
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>As expected, <code>capitalize</code>'s first argument is the value returned by the <code>indent</code> call.</p>
+<h2 id="macros"><a class="header" href="#macros">Macros</a></h2>
+<p>This code:</p>
+<pre><code class="language-html">{% macro heading(arg) %}
+&lt;h1&gt;{{arg}}&lt;/h1&gt;
+{% endmacro %}
+
+{% call heading(&quot;title&quot;) %}
+</code></pre>
+<p>generates:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>{
+    let (arg) = ((&quot;title&quot;));
+    writer
+        .write_fmt(
+            format_args!(
+                &quot;\n&lt;h1&gt;{0}&lt;/h1&gt;\n&quot;,
+                &amp;::askama::MarkupDisplay::new_unsafe(&amp;(arg), ::askama::Html),
+            ),
+        )?;
+}
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>As you can see, the macro itself isn't present in the generated code, only its
+internal code is generated as well as its arguments.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="performance.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="performance.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

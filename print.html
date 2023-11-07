@@ -89,7 +89,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="askama.html"><strong aria-hidden="true">1.</strong> Askama</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="creating_templates.html"><strong aria-hidden="true">3.</strong> Creating templates</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">4.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="template_syntax.html"><strong aria-hidden="true">6.</strong> Template syntax</a></li><li class="chapter-item expanded "><a href="filters.html"><strong aria-hidden="true">7.</strong> Filters</a></li><li class="chapter-item expanded "><a href="integrations.html"><strong aria-hidden="true">8.</strong> Integrations</a></li><li class="chapter-item expanded "><a href="performance.html"><strong aria-hidden="true">9.</strong> Performance</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="askama.html"><strong aria-hidden="true">1.</strong> Askama</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="creating_templates.html"><strong aria-hidden="true">3.</strong> Creating templates</a></li><li class="chapter-item expanded "><a href="debugging.html"><strong aria-hidden="true">4.</strong> Debugging</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="template_syntax.html"><strong aria-hidden="true">6.</strong> Template syntax</a></li><li class="chapter-item expanded "><a href="filters.html"><strong aria-hidden="true">7.</strong> Filters</a></li><li class="chapter-item expanded "><a href="integrations.html"><strong aria-hidden="true">8.</strong> Integrations</a></li><li class="chapter-item expanded "><a href="performance.html"><strong aria-hidden="true">9.</strong> Performance</a></li><li class="chapter-item expanded "><a href="template_expansion.html"><strong aria-hidden="true">10.</strong> Template expansion</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -1313,6 +1313,401 @@ opt-level = 3
 <span class="boring">}</span></code></pre></pre>
 <p>This may affect clean compile times in debug mode, but incremental compiles
 will be faster.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="template-expansion"><a class="header" href="#template-expansion">Template Expansion</a></h1>
+<p>This chapter will explain how the different parts of the templates are
+translated into Rust code.</p>
+<p>⚠️ Please note that the generated code might change in the future so the
+following examples might not be up-to-date.</p>
+<h2 id="basic-explanations"><a class="header" href="#basic-explanations">Basic explanations</a></h2>
+<p>Whwn you add <code>#[derive(Template)]</code> and <code>#[template(...)]</code> on your type, the
+<code>Template</code> derive proc-macro will then generate an implementation of the
+<code>askama::Template</code> trait which will be a Rust version of the template.</p>
+<p>It will also implement the <code>std::fmt::Display</code> trait on your type which will
+internally call the <code>askama::Template</code> trait.</p>
+<p>Let's take a small example:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Template)]
+#[template(source = &quot;{% set x = 12 %}&quot;, ext = &quot;html&quot;)]
+struct Mine;
+<span class="boring">}</span></code></pre></pre>
+<p>will generate:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl ::askama::Template for YourType {
+    fn render_into(
+        &amp;self,
+        writer: &amp;mut (impl ::std::fmt::Write + ?Sized),
+    ) -&gt; ::askama::Result&lt;()&gt; {
+        let x = 12;
+        ::askama::Result::Ok(())
+    }
+    const EXTENSION: ::std::option::Option&lt;&amp;'static ::std::primitive::str&gt; = Some(
+        &quot;html&quot;,
+    );
+    const SIZE_HINT: ::std::primitive::usize = 0;
+    const MIME_TYPE: &amp;'static ::std::primitive::str = &quot;text/html; charset=utf-8&quot;;
+}
+
+impl ::std::fmt::Display for YourType {
+    #[inline]
+    fn fmt(&amp;self, f: &amp;mut ::std::fmt::Formatter) -&gt; ::std::fmt::Result {
+        ::askama::Template::render_into(self, f).map_err(|_| ::std::fmt::Error {})
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<p>For simplicity, we will only keep the content of the <code>askama::Template::render_into</code>
+function from now on.</p>
+<h2 id="text-content"><a class="header" href="#text-content">Text content</a></h2>
+<p>If you have &quot;text content&quot; (for example HTML) in your template:</p>
+<pre><code class="language-html">&lt;h1&gt;{{ title }}&lt;/h1&gt;
+</code></pre>
+<p>It will generate it like this:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>writer
+    .write_fmt(
+        format_args!(
+            &quot;&lt;h1&gt;{0}&lt;/h1&gt;&quot;,
+            &amp;::askama::MarkupDisplay::new_unsafe(&amp;(self.title), ::askama::Html),
+        ),
+    )?;
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>About <code>MarkupDisplay</code>: we need to use this type in order to prevent generating
+invalid HTML. Let's take an example: if <code>title</code> is <code>&quot;&lt;a&gt;&quot;</code> and we display it as
+is, in the generated HTML, you won't see <code>&lt;a&gt;</code> but instead a new HTML element
+will be created. To prevent this, we need to escape some characters.</p>
+<p>In this example, <code>&lt;a&gt;</code> will become <code>&amp;lt;a&amp;gt;</code>. And this is why there is the
+<code>safe</code> builtin filter, in case you want it to be displayed as is.</p>
+<h2 id="variables-1"><a class="header" href="#variables-1">Variables</a></h2>
+<h3 id="variables-creation"><a class="header" href="#variables-creation">Variables creation</a></h3>
+<p>If you create a variable in your template, it will be created in the generated
+Rust code as well. For example:</p>
+<pre><code class="language-jinja">{% set x = 12 %}
+{% let y = x + 1 %}
+</code></pre>
+<p>will generate:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let x = 12;
+let y = x + 1;
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<h3 id="variables-usage"><a class="header" href="#variables-usage">Variables usage</a></h3>
+<p>By default, variables will reference a field from the type on which the <code>askama::Template</code>
+trait is implemented:</p>
+<pre><code class="language-jinja">{{ y }}
+</code></pre>
+<p>This template will expand as follows:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>writer
+    .write_fmt(
+        format_args!(
+            &quot;{0}&quot;,
+            &amp;::askama::MarkupDisplay::new_unsafe(&amp;(self.y), ::askama::Html),
+        ),
+    )?;
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>This is why if the variable is undefined, it won't work with Askama and why
+we can't check if a variable is defined or not.</p>
+<p>You can still access constants and statics by using paths. Let's say you have in
+your Rust code:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>const FOO: u32 = 0;
+<span class="boring">}</span></code></pre></pre>
+<p>Then you can use them in your template by referring to them with a path:</p>
+<pre><code class="language-jinja">{{ crate::FOO }}{{ super::FOO }}{{ self::FOO }}
+</code></pre>
+<p>It will generate:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>writer
+    .write_fmt(
+        format_args!(
+            &quot;{0}{1}{2}&quot;,
+            &amp;::askama::MarkupDisplay::new_unsafe(&amp;(crate::FOO), ::askama::Html),
+            &amp;::askama::MarkupDisplay::new_unsafe(&amp;(super::FOO), ::askama::Html),
+            &amp;::askama::MarkupDisplay::new_unsafe(&amp;(self::FOO), ::askama::Html),
+        ),
+    )?;
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>(Note: <code>crate::</code> is to get an item at the root level of the crate, <code>super::</code> is
+to get an item in the parent module and <code>self::</code> is to get an item in the
+current module.)</p>
+<p>You can also access items from the type that implements <code>Template</code> as well using
+as <code>Self::</code>, it'll use the same logic.</p>
+<h2 id="control-blocks"><a class="header" href="#control-blocks">Control blocks</a></h2>
+<h3 id="ifelse"><a class="header" href="#ifelse">if/else</a></h3>
+<p>The generated code can be more complex than expected, as seen with <code>if</code>/<code>else</code>
+conditions:</p>
+<pre><code class="language-jinja">{% if x == &quot;a&quot; %}
+gateau
+{% else %}
+tarte
+{% endif %}
+</code></pre>
+<p>It will generate:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if *(&amp;(self.x == &quot;a&quot;) as &amp;bool) {
+    writer.write_str(&quot;gateau&quot;)?;
+} else {
+    writer.write_str(&quot;tarte&quot;)?;
+}
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>Very much as expected except for the <code>&amp;(self.x == &quot;a&quot;) as &amp;bool</code>. Now about why
+the <code>as &amp;bool</code> is needed:</p>
+<p>The following syntax <code>*(&amp;(...) as &amp;bool)</code> is used to  trigger Rust's automatic
+dereferencing, to coerce e.g. <code>&amp;&amp;&amp;&amp;&amp;bool</code> to <code>bool</code>. First <code>&amp;(...) as &amp;bool</code>
+coerces e.g. <code>&amp;&amp;&amp;bool</code> to <code>&amp;bool</code>. Then <code>*(&amp;bool)</code> finally dereferences it to
+<code>bool</code>.</p>
+<p>In short, it allows to fallback to a boolean as much as possible, but it also
+explains why you can't do:</p>
+<pre><code class="language-jinja">{% set x = &quot;a&quot; %}
+{% if x %}
+    {{ x }}
+{% endif %}
+</code></pre>
+<p>Because it fail to compile because:</p>
+<pre><code class="language-console">error[E0605]: non-primitive cast: `&amp;&amp;str` as `&amp;bool`
+</code></pre>
+<h3 id="if-let"><a class="header" href="#if-let">if let</a></h3>
+<pre><code class="language-jinja">{% if let Some(x) = x %}
+    {{ x }}
+{% endif %}
+</code></pre>
+<p>will generate:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(x) = &amp;(self.x) {
+    writer
+        .write_fmt(
+            format_args!(
+                &quot;{0}&quot;,
+                &amp;::askama::MarkupDisplay::new_unsafe(&amp;(x), ::askama::Html),
+            ),
+        )?;
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="loops"><a class="header" href="#loops">Loops</a></h3>
+<pre><code class="language-html">{% for user in users %}
+    {{ user }}
+{% endfor %}
+</code></pre>
+<p>will generate:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>{
+    let _iter = (&amp;self.users).into_iter();
+    for (user, _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {
+        writer
+            .write_fmt(
+                format_args!(
+                    &quot;\n    {0}\n&quot;,
+                    &amp;::askama::MarkupDisplay::new_unsafe(&amp;(user), ::askama::Html),
+                ),
+            )?;
+    }
+}
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>Now let's see what happens if you add an <code>else</code> condition:</p>
+<pre><code class="language-jinja">{% for user in x if x.len() &gt; 2 %}
+    {{ user }}
+{% else %}
+    {{ x }}
+{% endfor %}
+</code></pre>
+<p>Which generates:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>{
+    let mut _did_loop = false;
+    let _iter = (&amp;self.users).into_iter();
+    for (user, _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {
+        _did_loop = true;
+        writer
+            .write_fmt(
+                format_args!(
+                    &quot;\n    {0}\n&quot;,
+                    &amp;::askama::MarkupDisplay::new_unsafe(&amp;(user), ::askama::Html),
+                ),
+            )?;
+    }
+    if !_did_loop {
+        writer
+            .write_fmt(
+                format_args!(
+                    &quot;\n    {0}\n&quot;,
+                    &amp;::askama::MarkupDisplay::new_unsafe(
+                        &amp;(self.x),
+                        ::askama::Html,
+                    ),
+                ),
+            )?;
+    }
+}
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>It creates a <code>_did_loop</code> variable which will check if we entered the loop. If
+we didn't (because the iterator didn't return any value), it will enter the
+<code>else</code> condition by checking <code>if !_did_loop {</code>.</p>
+<p>We can extend it even further if we add an <code>if</code> condition on our loop:</p>
+<pre><code class="language-jinja">{% for user in users if users.len() &gt; 2 %}
+    {{ user }}
+{% else %}
+    {{ x }}
+{% endfor %}
+</code></pre>
+<p>which generates:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>{
+    let mut _did_loop = false;
+    let _iter = (&amp;self.users).into_iter();
+    let _iter = _iter.filter(|user| -&gt; bool { self.users.len() &gt; 2 });
+    for (user, _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {
+        _did_loop = true;
+        writer
+            .write_fmt(
+                format_args!(
+                    &quot;\n    {0}\n&quot;,
+                    &amp;::askama::MarkupDisplay::new_unsafe(&amp;(user), ::askama::Html),
+                ),
+            )?;
+    }
+    if !_did_loop {
+        writer
+            .write_fmt(
+                format_args!(
+                    &quot;\n    {0}\n&quot;,
+                    &amp;::askama::MarkupDisplay::new_unsafe(
+                        &amp;(self.x),
+                        ::askama::Html,
+                    ),
+                ),
+            )?;
+    }
+}
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>It generates an iterator but filters it based on the <code>if</code> condition (<code>users.len() &gt; 2</code>).
+So once again, if the iterator doesn't return any value, we enter the <code>else</code>
+condition.</p>
+<p>Of course, if you only have a <code>if</code> and no <code>else</code>, the generated code is much
+shorter:</p>
+<pre><code class="language-jinja">{% for user in users if users.len() &gt; 2 %}
+    {{ user }}
+{% endfor %}
+</code></pre>
+<p>Which generates:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>{
+    let _iter = (&amp;self.users).into_iter();
+    let _iter = _iter.filter(|user| -&gt; bool { self.users.len() &gt; 2 });
+    for (user, _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {
+        writer
+            .write_fmt(
+                format_args!(
+                    &quot;\n    {0}\n&quot;,
+                    &amp;::askama::MarkupDisplay::new_unsafe(&amp;(user), ::askama::Html),
+                ),
+            )?;
+    }
+}
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<h2 id="filters-2"><a class="header" href="#filters-2">Filters</a></h2>
+<p>Example of using the <code>abs</code> built-in filter:</p>
+<pre><code class="language-jinja">{{ -2|abs }}
+</code></pre>
+<p>Which generates:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>writer
+    .write_fmt(
+        format_args!(
+            &quot;{0}&quot;,
+            &amp;::askama::MarkupDisplay::new_unsafe(
+                &amp;(::askama::filters::abs(-2)?),
+                ::askama::Html,
+            ),
+        ),
+    )?;
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>The filter is called with <code>-2</code> as first argument. You can add further arguments
+to the call like this:</p>
+<pre><code class="language-jinja">{{ &quot;a&quot;|indent(4) }}
+</code></pre>
+<p>Which generates:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>writer
+    .write_fmt(
+        format_args!(
+            &quot;{0}&quot;,
+            &amp;::askama::MarkupDisplay::new_unsafe(
+                &amp;(::askama::filters::indent(&quot;a&quot;, 4)?),
+                ::askama::Html,
+            ),
+        ),
+    )?;
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>No surprise there, <code>4</code> is added after <code>&quot;a&quot;</code>. Now let's check when we chain the filters:</p>
+<pre><code class="language-jinja">{{ &quot;a&quot;|indent(4)|capitalize }}
+</code></pre>
+<p>Which generates:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>writer
+    .write_fmt(
+        format_args!(
+            &quot;{0}&quot;,
+            &amp;::askama::MarkupDisplay::new_unsafe(
+                &amp;(::askama::filters::capitalize(
+                    &amp;(::askama::filters::indent(&quot;a&quot;, 4)?),
+                )?),
+                ::askama::Html,
+            ),
+        ),
+    )?;
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>As expected, <code>capitalize</code>'s first argument is the value returned by the <code>indent</code> call.</p>
+<h2 id="macros-1"><a class="header" href="#macros-1">Macros</a></h2>
+<p>This code:</p>
+<pre><code class="language-html">{% macro heading(arg) %}
+&lt;h1&gt;{{arg}}&lt;/h1&gt;
+{% endmacro %}
+
+{% call heading(&quot;title&quot;) %}
+</code></pre>
+<p>generates:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>{
+    let (arg) = ((&quot;title&quot;));
+    writer
+        .write_fmt(
+            format_args!(
+                &quot;\n&lt;h1&gt;{0}&lt;/h1&gt;\n&quot;,
+                &amp;::askama::MarkupDisplay::new_unsafe(&amp;(arg), ::askama::Html),
+            ),
+        )?;
+}
+::askama::Result::Ok(())
+<span class="boring">}</span></code></pre></pre>
+<p>As you can see, the macro itself isn't present in the generated code, only its
+internal code is generated as well as its arguments.</p>
 
                     </main>
 
