@@ -345,7 +345,7 @@ pub(crate) fn extension_to_mime_type(ext: &str) -> Mime {
     basic_type
 }
 
-const TEXT_TYPES: [(Mime, Mime); 6] = [
+const TEXT_TYPES: [(Mime, Mime); 7] = [
     (mime::TEXT_PLAIN, mime::TEXT_PLAIN_UTF_8),
     (mime::TEXT_HTML, mime::TEXT_HTML_UTF_8),
     (mime::TEXT_CSS, mime::TEXT_CSS_UTF_8),
@@ -358,6 +358,7 @@ const TEXT_TYPES: [(Mime, Mime); 6] = [
         mime::APPLICATION_JAVASCRIPT,
         mime::APPLICATION_JAVASCRIPT_UTF_8,
     ),
+    (mime::IMAGE_SVG, mime::IMAGE_SVG),
 ];
 
 #[cfg(test)]
@@ -369,10 +370,12 @@ mod tests {
         assert_eq!(extension(Path::new("foo-bar.txt")), Some("txt"));
         assert_eq!(extension(Path::new("foo-bar.html")), Some("html"));
         assert_eq!(extension(Path::new("foo-bar.unknown")), Some("unknown"));
+        assert_eq!(extension(Path::new("foo-bar.svg")), Some("svg"));
 
         assert_eq!(extension(Path::new("foo/bar/baz.txt")), Some("txt"));
         assert_eq!(extension(Path::new("foo/bar/baz.html")), Some("html"));
         assert_eq!(extension(Path::new("foo/bar/baz.unknown")), Some("unknown"));
+        assert_eq!(extension(Path::new("foo/bar/baz.svg")), Some("svg"));
     }
 
     #[test]
