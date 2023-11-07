@@ -1090,15 +1090,17 @@ impl<'a> Generator<'a> {
         embedded_context.extends = Some(embed_path);
         let heritage = Heritage::new(&embedded_context, self.contexts);
 
-        let mut generator = Generator::new(
+        let locals = MapChain::with_parent(&self.locals);
+        let mut generator = Self::new(
             self.input,
             self.contexts,
             Some(&heritage),
-            MapChain::new(),
+            locals,
             self.whitespace,
         );
+        let size_hint = generator.handle(heritage.root, heritage.root.nodes, buf, AstLevel::Top);
         self.prepare_ws(embed.ws2);
-        generator.handle(heritage.root, heritage.root.nodes, buf, AstLevel::Top)
+        size_hint
     }
 
     fn is_shadowing_variable(&self, var: &Target<'a>) -> Result<bool, CompileError> {
