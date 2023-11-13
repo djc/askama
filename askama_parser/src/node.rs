@@ -118,7 +118,7 @@ impl<'a> Node<'a> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Target<'a> {
     Name(&'a str),
     Tuple(Vec<&'a str>, Vec<Target<'a>>),
