@@ -49,7 +49,7 @@ macro_rules! expr_prec_layer {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Expr<'a> {
     BoolLit(&'a str),
     NumLit(&'a str),
