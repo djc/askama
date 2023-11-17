@@ -727,7 +727,50 @@ impl<'a> Generator<'a> {
                 args.len()
             )));
         }
-        for (expr, arg) in std::iter::zip(args, &def.args) {
+        let mut named_arguments = HashMap::new();
+        // Since named arguments can only be passed last, we only need to check if the last argument
+        // is a named one.
+        if let Some(Expr::NamedArgument(_, _)) = args.last() {
+            // First we check that all named arguments actually exist in the called item.
+            for arg in args.iter().rev() {
+                let Expr::NamedArgument(arg_name, _) = arg else {
+                    break;
+                };
+                if !def.args.iter().any(|arg| arg == arg_name) {
+                    return Err(CompileError::from(format!(
+                        "no argument named `{arg_name}` in macro {name:?}"
+                    )));
+                }
+                named_arguments.insert(arg_name, arg);
+            }
+        }
+
+        // Handling both named and unnamed arguments requires to be careful of the named arguments
+        // order. To do so, we iterate through the macro defined arguments and then check if we have
+        // a named argument with this name:
+        //
+        // * If there is one, we add it and move to the next argument.
+        // * If there isn't one, then we pick the next argument (we can do it without checking
+        //   anything since named arguments are always last).
+        let mut allow_positional = true;
+        for (index, arg) in def.args.iter().enumerate() {
+            let expr = match named_arguments.get(&arg) {
+                Some(expr) => {
+                    allow_positional = false;
+                    expr
+                }
+                None => {
+                    if !allow_positional {
+                        // If there is already at least one named argument, then it's not allowed
+                        // to use unnamed ones at this point anymore.
+                        return Err(CompileError::from(format!(
+                            "cannot have unnamed argument (`{arg}`) after named argument in macro \
+                             {name:?}"
+                        )));
+                    }
+                    &args[index]
+                }
+            };
             match expr {
                 // If `expr` is already a form of variable then
                 // don't reintroduce a new variable. This is
@@ -1104,6 +1147,7 @@ impl<'a> Generator<'a> {
             Expr::RustMacro(ref path, args) => self.visit_rust_macro(buf, path, args),
             Expr::Try(ref expr) => self.visit_try(buf, expr.as_ref())?,
             Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
+            Expr::NamedArgument(_, ref expr) => self.visit_named_argument(buf, expr)?,
         })
     }
 
@@ -1501,6 +1545,15 @@ impl<'a> Generator<'a> {
             buf.write(",");
         }
         buf.write(")");
+        Ok(DisplayWrap::Unwrapped)
+    }
+
+    fn visit_named_argument(
+        &mut self,
+        buf: &mut Buffer,
+        expr: &Expr<'_>,
+    ) -> Result<DisplayWrap, CompileError> {
+        self.visit_expr(buf, expr)?;
         Ok(DisplayWrap::Unwrapped)
     }
 
@@ -1913,6 +1966,7 @@ pub(crate) fn is_cacheable(expr: &Expr<'_>) -> bool {
         }
         Expr::Group(arg) => is_cacheable(arg),
         Expr::Tuple(args) => args.iter().all(is_cacheable),
+        Expr::NamedArgument(_, expr) => is_cacheable(expr),
         // We have too little information to tell if the expression is pure:
         Expr::Call(_, _) => false,
         Expr::RustMacro(_, _) => false,
