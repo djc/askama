@@ -1,0 +1,11 @@
+{% let plain_int = 9__0__ -%}
+{% let neg_int = -9__0__isize -%}
+{% let suffix_int = 9__0__i32 -%}
+{% let bin_int = 0b__1__0__ -%}
+{% let oct_int = 0o__7__0__ -%}
+{% let hex_int = 0x__f__0__ -%}
+{% let plain_float = 1__0__.5__0__ -%}
+{% let suffix_float = 1__0__.5__0__f32 -%}
+{% let exp_float = 1__0__e+__1__0__f32 -%}
+{% let dotexp_float = 1__0__.5__0__e+__1__0__f32 -%}
+[{{ plain_int }}, {{ neg_int }}, {{ suffix_int }}, {{ bin_int }}, {{ oct_int }}, {{ hex_int }}, {{ plain_float }}, {{ suffix_float }}, {{ exp_float }}, {{ dotexp_float }}]

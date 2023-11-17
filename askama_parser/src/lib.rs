@@ -7,11 +7,10 @@ use std::{fmt, str};
 
 use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_till};
-use nom::character::complete::char;
-use nom::character::complete::{anychar, digit1};
+use nom::character::complete::{anychar, char, one_of, satisfy};
 use nom::combinator::{cut, eof, map, opt, recognize};
 use nom::error::{Error, ErrorKind, FromExternalError};
-use nom::multi::many1;
+use nom::multi::{many0_count, many1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{error_position, AsChar, InputTakeAtPosition};
 
@@ -252,8 +251,88 @@ fn bool_lit(i: &str) -> ParseResult<'_> {
 fn num_lit(i: &str) -> ParseResult<'_> {
     recognize(tuple((
         opt(char('-')),
-        digit1,
-        opt(pair(char('.'), digit1)),
+        // digit1,
+        // opt(pair(char('.'), digit1)),
+        alt((
+            recognize(tuple((
+                char('0'),
+                alt((
+                    recognize(tuple((
+                        char('b'),
+                        many0_count(char('_')),
+                        one_of("01"),
+                        many0_count(one_of("01_")),
+                    ))),
+                    recognize(tuple((
+                        char('o'),
+                        many0_count(char('_')),
+                        satisfy(|ch| matches!(ch, '0'..='7')),
+                        many0_count(satisfy(|ch| matches!(ch, '_' | '0'..='7'))),
+                    ))),
+                    recognize(tuple((
+                        char('x'),
+                        many0_count(char('_')),
+                        satisfy(|ch| matches!(ch, '0'..='9' | 'a'..='f' | 'A'..='F')),
+                        many0_count(satisfy(
+                            |ch| matches!(ch, '_' | '0'..='9' | 'a'..='f' | 'A'..='F'),
+                        )),
+                    ))),
+                )),
+                opt(alt((
+                    tag("i8"),
+                    tag("i16"),
+                    tag("i32"),
+                    tag("i64"),
+                    tag("i128"),
+                    tag("isize"),
+                    tag("u8"),
+                    tag("u16"),
+                    tag("u32"),
+                    tag("u64"),
+                    tag("u128"),
+                    tag("usize"),
+                ))),
+            ))),
+            recognize(tuple((
+                satisfy(|ch| matches!(ch, '0'..='9')),
+                many0_count(satisfy(|ch| matches!(ch, '_' | '0'..='9'))),
+                opt(alt((
+                    tag("i8"),
+                    tag("i16"),
+                    tag("i32"),
+                    tag("i64"),
+                    tag("i128"),
+                    tag("isize"),
+                    tag("u8"),
+                    tag("u16"),
+                    tag("u32"),
+                    tag("u64"),
+                    tag("u128"),
+                    tag("usize"),
+                    tag("f32"),
+                    tag("f64"),
+                    recognize(tuple((
+                        opt(tuple((
+                            char('.'),
+                            satisfy(|ch| matches!(ch, '0'..='9')),
+                            many0_count(satisfy(|ch| matches!(ch, '_' | '0'..='9'))),
+                        ))),
+                        one_of("eE"),
+                        opt(one_of("+-")),
+                        many0_count(char('_')),
+                        satisfy(|ch| matches!(ch, '0'..='9')),
+                        many0_count(satisfy(|ch| matches!(ch, '_' | '0'..='9'))),
+                        opt(alt((tag("f32"), tag("f64")))),
+                    ))),
+                    recognize(tuple((
+                        char('.'),
+                        satisfy(|ch| matches!(ch, '0'..='9')),
+                        many0_count(satisfy(|ch| matches!(ch, '_' | '0'..='9'))),
+                        opt(alt((tag("f32"), tag("f64")))),
+                    ))),
+                ))),
+            ))),
+        )),
     )))(i)
 }
 
