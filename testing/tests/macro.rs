@@ -95,3 +95,31 @@ fn test_macro_self_arg() {
     let t = MacroSelfArgTemplate { s: "foo" };
     assert_eq!(t.render().unwrap(), "foo");
 }
+
+#[derive(Template)]
+#[template(
+    source = "{%- macro thrice(param1, param2) -%}
+{{ param1 }} {{ param2 }}
+{% endmacro -%}
+
+{%- call thrice(param1=2, param2=3) -%}
+{%- call thrice(param2=3, param1=2) -%}
+{%- call thrice(3, param2=2) -%}
+",
+    ext = "html"
+)]
+struct MacroNamedArg;
+
+#[test]
+// We check that it's always the correct values passed to the
+// expected argument.
+fn test_named_argument() {
+    assert_eq!(
+        MacroNamedArg.render().unwrap(),
+        "\
+2 3
+2 3
+3 2
+"
+    );
+}
