@@ -577,7 +577,7 @@ impl<'a> Call<'a> {
             cut(tuple((
                 opt(tuple((ws(identifier), ws(tag("::"))))),
                 ws(identifier),
-                opt(ws(|nested| Expr::arguments(nested, s.level.get()))),
+                opt(ws(|nested| Expr::arguments(nested, s.level.get(), true))),
                 opt(Whitespace::parse),
             ))),
         ));
