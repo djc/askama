@@ -719,11 +719,18 @@ impl<'a> Generator<'a> {
         let mut names = Buffer::new(0);
         let mut values = Buffer::new(0);
         let mut is_first_variable = true;
+        if args.len() != def.args.len() {
+            return Err(CompileError::from(format!(
+                "macro {name:?} expected {} argument{}, found {}",
+                def.args.len(),
+                if def.args.len() != 1 { "s" } else { "" },
+                args.len()
+            )));
+        }
         for (i, arg) in def.args.iter().enumerate() {
             let expr = args.get(i).ok_or_else(|| {
                 CompileError::from(format!("macro {name:?} takes more than {i} arguments"))
             })?;
-
             match expr {
                 // If `expr` is already a form of variable then
                 // don't reintroduce a new variable. This is
