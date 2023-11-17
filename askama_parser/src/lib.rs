@@ -272,7 +272,7 @@ fn num_lit(i: &str) -> ParseResult<'_> {
                     recognize(tuple((
                         char('x'),
                         many0_count(char('_')),
-                        satisfy(|ch| matches!(ch, '0'..='9' | 'a'..='f' | 'A'..='F')),
+                        satisfy(|ch| ch.is_ascii_hexdigit()),
                         many0_count(satisfy(
                             |ch| matches!(ch, '_' | '0'..='9' | 'a'..='f' | 'A'..='F'),
                         )),
@@ -294,7 +294,7 @@ fn num_lit(i: &str) -> ParseResult<'_> {
                 ))),
             ))),
             recognize(tuple((
-                satisfy(|ch| matches!(ch, '0'..='9')),
+                satisfy(|ch| ch.is_ascii_digit()),
                 many0_count(satisfy(|ch| matches!(ch, '_' | '0'..='9'))),
                 opt(alt((
                     tag("i8"),
@@ -314,19 +314,19 @@ fn num_lit(i: &str) -> ParseResult<'_> {
                     recognize(tuple((
                         opt(tuple((
                             char('.'),
-                            satisfy(|ch| matches!(ch, '0'..='9')),
+                            satisfy(|ch| ch.is_ascii_digit()),
                             many0_count(satisfy(|ch| matches!(ch, '_' | '0'..='9'))),
                         ))),
                         one_of("eE"),
                         opt(one_of("+-")),
                         many0_count(char('_')),
-                        satisfy(|ch| matches!(ch, '0'..='9')),
+                        satisfy(|ch| ch.is_ascii_digit()),
                         many0_count(satisfy(|ch| matches!(ch, '_' | '0'..='9'))),
                         opt(alt((tag("f32"), tag("f64")))),
                     ))),
                     recognize(tuple((
                         char('.'),
-                        satisfy(|ch| matches!(ch, '0'..='9')),
+                        satisfy(|ch| ch.is_ascii_digit()),
                         many0_count(satisfy(|ch| matches!(ch, '_' | '0'..='9'))),
                         opt(alt((tag("f32"), tag("f64")))),
                     ))),
