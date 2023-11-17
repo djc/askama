@@ -564,7 +564,7 @@ You can define macros within your template by using `{% macro name(args) %}`, en
 
 You can then call it with `{% call name(args) %}`:
 
-```
+```jinja
 {% macro heading(arg) %}
 
 <h1>{{arg}}</h1>
@@ -576,7 +576,7 @@ You can then call it with `{% call name(args) %}`:
 
 You can place macros in a separate file and use them in your templates by using `{% import %}`:
 
-```
+```jinja
 {%- import "macro.html" as scope -%}
 
 {% call scope::heading(s) %}
@@ -584,6 +584,51 @@ You can place macros in a separate file and use them in your templates by using 
 
 You can optionally specify the name of the macro in `endmacro`:
 
-```html
+```jinja
 {% macro heading(arg) %}<p>{{arg}}</p>{% endmacro heading %}
+```
+
+You can also specify arguments by their name (as defined in the macro):
+
+```jinja
+{% macro heading(arg, bold) %}
+
+<h1>{{arg}} <b>{{bold}}</b></h1>
+
+{% endmacro %}
+
+{% call heading(bold="something", arg="title") %}
+```
+
+You can use whitespace characters around `=`:
+
+```jinja
+{% call heading(bold = "something", arg = "title") %}
+```
+
+You can mix named and non-named arguments when calling a macro:
+
+```
+{% call heading("title", bold="something") %}
+```
+
+However please note than named arguments must always come **last**.
+
+Another thing to note, if a named argument is referring to an argument that would
+be used for a non-named argument, it will error:
+
+```jinja
+{% macro heading(arg1, arg2, arg3, arg4) %}
+{% endmacro %}
+
+{% call heading("something", "b", arg4="ah", arg2="title") %}
+```
+
+In here it's invalid because `arg2` is the second argument and would be used by
+`"b"`. So either you replace `"b"` with `arg3="b"` or you pass `"title"` before:
+
+```jinja
+{% call heading("something", arg3="b", arg4="ah", arg2="title") %}
+{# Equivalent of: #}
+{% call heading("something", "title", "b", arg4="ah") %}
 ```
