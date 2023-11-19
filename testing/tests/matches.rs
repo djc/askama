@@ -204,16 +204,23 @@ enum Suit {
 }
 
 #[derive(Template)]
-#[template(path = "match-enum.html")]
-struct MatchEnumTemplate {
+#[template(path = "match-enum-or.html")]
+struct MatchEnumOrTemplate {
     suit: Suit,
 }
 
 #[test]
-fn test_match_enum() {
-    let s = MatchEnumTemplate { suit: Suit::Clubs };
-    assert_eq!(s.render().unwrap(), "The card is black\n");
+fn test_match_enum_or() {
+    let template = MatchEnumOrTemplate { suit: Suit::Clubs };
+    assert_eq!(template.render().unwrap(), "The card is black\n");
+    let template = MatchEnumOrTemplate { suit: Suit::Spades };
+    assert_eq!(template.render().unwrap(), "The card is black\n");
 
-    let s = MatchEnumTemplate { suit: Suit::Hearts };
-    assert_eq!(s.render().unwrap(), "The card is red\n");
+    let template = MatchEnumOrTemplate { suit: Suit::Hearts };
+    assert_eq!(template.render().unwrap(), "The card is red\n");
+
+    let template = MatchEnumOrTemplate {
+        suit: Suit::Diamonds,
+    };
+    assert_eq!(template.render().unwrap(), "The card is red\n");
 }
