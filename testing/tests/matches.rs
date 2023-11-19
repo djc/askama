@@ -195,3 +195,25 @@ fn test_match_with_comment() {
     let s = MatchWithComment { good: false };
     assert_eq!(s.render().unwrap(), "bad");
 }
+
+enum Suit {
+    Clubs,
+    Diamonds,
+    Hearts,
+    Spades,
+}
+
+#[derive(Template)]
+#[template(path = "match-enum.html")]
+struct MatchEnumTemplate {
+    suit: Suit,
+}
+
+#[test]
+fn test_match_enum() {
+    let s = MatchEnumTemplate { suit: Suit::Clubs };
+    assert_eq!(s.render().unwrap(), "The card is black\n");
+
+    let s = MatchEnumTemplate { suit: Suit::Hearts };
+    assert_eq!(s.render().unwrap(), "The card is red\n");
+}

@@ -128,13 +128,26 @@ pub enum Target<'a> {
     CharLit(&'a str),
     BoolLit(&'a str),
     Path(Vec<&'a str>),
+    OrChain(Vec<Target<'a>>),
 }
 
 impl<'a> Target<'a> {
+    /// Parses multiple targets with `or` separating them
     pub(super) fn parse(i: &'a str) -> ParseResult<'a, Self> {
+        map(
+            separated_list1(ws(tag("or")), Self::parse_one),
+            |opts| match <[_; 1]>::try_from(opts) {
+                Ok([opt]) => opt,
+                Err(opts) => Self::OrChain(opts),
+            },
+        )(i)
+    }
+
+    /// Parses a single target without an `or`, unless it is wrapped in parentheses.
+    pub(super) fn parse_one(i: &'a str) -> ParseResult<'a, Self> {
         let mut opt_opening_paren = map(opt(ws(char('('))), |o| o.is_some());
         let mut opt_closing_paren = map(opt(ws(char(')'))), |o| o.is_some());
-        let mut opt_opening_brace = map(opt(ws(char('{'))), |o| o.is_some());
+        let mut opt_opening_brace = map(opt(ws(char('{' /* } */))), |o| o.is_some());
 
         let (i, lit) = opt(Self::lit)(i)?;
         if let Some(lit) = lit {
@@ -198,10 +211,10 @@ impl<'a> Target<'a> {
             let (i, is_named_struct) = opt_opening_brace(i)?;
             if is_named_struct {
                 let (i, targets) = alt((
-                    map(char('}'), |_| Vec::new()),
+                    map(char(/* { */ '}'), |_| Vec::new()),
                     terminated(
                         cut(separated_list1(ws(char(',')), Self::named)),
-                        pair(opt(ws(char(','))), ws(cut(char('}')))),
+                        pair(opt(ws(char(','))), ws(cut(char(/* { */ '}')))),
                     ),
                 ))(i)?;
                 return Ok((i, Self::Struct(path, targets)));
@@ -337,7 +350,7 @@ impl<'a> CondTest<'a> {
             cut(tuple((
                 opt(delimited(
                     ws(alt((keyword("let"), keyword("set")))),
-                    ws(Target::parse),
+                    ws(Target::parse_one),
                     ws(char('=')),
                 )),
                 ws(|i| Expr::parse(i, s.level.get())),
@@ -410,7 +423,7 @@ impl<'a> Loop<'a> {
             opt(Whitespace::parse),
             ws(keyword("for")),
             cut(tuple((
-                ws(Target::parse),
+                ws(Target::parse_one),
                 ws(keyword("in")),
                 cut(tuple((
                     ws(|i| Expr::parse(i, s.level.get())),
@@ -791,7 +804,7 @@ impl<'a> Let<'a> {
             opt(Whitespace::parse),
             ws(alt((keyword("let"), keyword("set")))),
             cut(tuple((
-                ws(Target::parse),
+                ws(Target::parse_one),
                 opt(preceded(
                     ws(char('=')),
                     ws(|i| Expr::parse(i, s.level.get())),

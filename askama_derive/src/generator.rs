@@ -1575,6 +1575,16 @@ impl<'a> Generator<'a> {
                 }
                 buf.write(name);
             }
+            Target::OrChain(targets) => match targets.first() {
+                None => buf.write("_"),
+                Some(first_target) => {
+                    self.visit_target(buf, initialized, first_level, first_target);
+                    for target in &targets[1..] {
+                        buf.write(" | ");
+                        self.visit_target(buf, initialized, first_level, target);
+                    }
+                }
+            },
             Target::Tuple(path, targets) => {
                 buf.write(&path.join("::"));
                 buf.write("(");
