@@ -248,87 +248,71 @@ fn bool_lit(i: &str) -> ParseResult<'_> {
     alt((keyword("false"), keyword("true")))(i)
 }
 
+/// Underscore separateed digits of the given base, unless `must_start_with_digit` this may start
+/// with an underscore.
+fn separated_digits(radix: u32, must_start_with_digit: bool) -> impl Fn(&str) -> ParseResult<'_> {
+    move |i| {
+        recognize(tuple((
+            |i| {
+                if must_start_with_digit {
+                    Ok((i, 0))
+                } else {
+                    many0_count(char('_'))(i)
+                }
+            },
+            satisfy(|ch| ch.is_digit(radix)),
+            many0_count(satisfy(|ch| ch == '_' || ch.is_digit(radix))),
+        )))(i)
+    }
+}
+
 fn num_lit(i: &str) -> ParseResult<'_> {
+    let integer_suffix_tags = |i| {
+        alt((
+            tag("i8"),
+            tag("i16"),
+            tag("i32"),
+            tag("i64"),
+            tag("i128"),
+            tag("isize"),
+            tag("u8"),
+            tag("u16"),
+            tag("u32"),
+            tag("u64"),
+            tag("u128"),
+            tag("usize"),
+        ))(i)
+    };
+    let float_suffix_tags = |i| alt((tag("f32"), tag("f64")))(i);
+
     recognize(tuple((
         opt(char('-')),
-        // digit1,
-        // opt(pair(char('.'), digit1)),
         alt((
             recognize(tuple((
                 char('0'),
                 alt((
-                    recognize(tuple((
-                        char('b'),
-                        many0_count(char('_')),
-                        one_of("01"),
-                        many0_count(one_of("01_")),
-                    ))),
-                    recognize(tuple((
-                        char('o'),
-                        many0_count(char('_')),
-                        satisfy(|ch| matches!(ch, '0'..='7')),
-                        many0_count(satisfy(|ch| matches!(ch, '_' | '0'..='7'))),
-                    ))),
-                    recognize(tuple((
-                        char('x'),
-                        many0_count(char('_')),
-                        satisfy(|ch| ch.is_ascii_hexdigit()),
-                        many0_count(satisfy(
-                            |ch| matches!(ch, '_' | '0'..='9' | 'a'..='f' | 'A'..='F'),
-                        )),
-                    ))),
+                    recognize(tuple((char('b'), separated_digits(2, false)))),
+                    recognize(tuple((char('o'), separated_digits(8, false)))),
+                    recognize(tuple((char('x'), separated_digits(16, false)))),
                 )),
-                opt(alt((
-                    tag("i8"),
-                    tag("i16"),
-                    tag("i32"),
-                    tag("i64"),
-                    tag("i128"),
-                    tag("isize"),
-                    tag("u8"),
-                    tag("u16"),
-                    tag("u32"),
-                    tag("u64"),
-                    tag("u128"),
-                    tag("usize"),
-                ))),
+                opt(integer_suffix_tags),
             ))),
             recognize(tuple((
-                satisfy(|ch| ch.is_ascii_digit()),
-                many0_count(satisfy(|ch| matches!(ch, '_' | '0'..='9'))),
+                separated_digits(10, false),
                 opt(alt((
-                    tag("i8"),
-                    tag("i16"),
-                    tag("i32"),
-                    tag("i64"),
-                    tag("i128"),
-                    tag("isize"),
-                    tag("u8"),
-                    tag("u16"),
-                    tag("u32"),
-                    tag("u64"),
-                    tag("u128"),
-                    tag("usize"),
-                    tag("f32"),
-                    tag("f64"),
+                    integer_suffix_tags,
+                    float_suffix_tags,
                     recognize(tuple((
-                        opt(tuple((
-                            char('.'),
-                            satisfy(|ch| ch.is_ascii_digit()),
-                            many0_count(satisfy(|ch| matches!(ch, '_' | '0'..='9'))),
-                        ))),
+                        opt(tuple((char('.'), separated_digits(10, true)))),
                         one_of("eE"),
                         opt(one_of("+-")),
-                        many0_count(char('_')),
-                        satisfy(|ch| ch.is_ascii_digit()),
-                        many0_count(satisfy(|ch| matches!(ch, '_' | '0'..='9'))),
-                        opt(alt((tag("f32"), tag("f64")))),
+                        separated_digits(10, false),
+                        opt(float_suffix_tags),
                     ))),
                     recognize(tuple((
                         char('.'),
-                        satisfy(|ch| ch.is_ascii_digit()),
-                        many0_count(satisfy(|ch| matches!(ch, '_' | '0'..='9'))),
-                        opt(alt((tag("f32"), tag("f64")))),
+                        separated_digits(10, true),
+                        opt(float_suffix_tags),
                     ))),
                 ))),
             ))),
