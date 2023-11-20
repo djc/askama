@@ -727,10 +727,7 @@ impl<'a> Generator<'a> {
                 args.len()
             )));
         }
-        for (i, arg) in def.args.iter().enumerate() {
-            let expr = args.get(i).ok_or_else(|| {
-                CompileError::from(format!("macro {name:?} takes more than {i} arguments"))
-            })?;
+        for (expr, arg) in std::iter::zip(args, &def.args) {
             match expr {
                 // If `expr` is already a form of variable then
                 // don't reintroduce a new variable. This is
