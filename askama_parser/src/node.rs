@@ -147,7 +147,7 @@ impl<'a> Target<'a> {
     pub(super) fn parse_one(i: &'a str) -> ParseResult<'a, Self> {
         let mut opt_opening_paren = map(opt(ws(char('('))), |o| o.is_some());
         let mut opt_closing_paren = map(opt(ws(char(')'))), |o| o.is_some());
-        let mut opt_opening_brace = map(opt(ws(char('{' /* } */))), |o| o.is_some());
+        let mut opt_opening_brace = map(opt(ws(char('{'))), |o| o.is_some());
 
         let (i, lit) = opt(Self::lit)(i)?;
         if let Some(lit) = lit {
@@ -211,10 +211,10 @@ impl<'a> Target<'a> {
             let (i, is_named_struct) = opt_opening_brace(i)?;
             if is_named_struct {
                 let (i, targets) = alt((
-                    map(char(/* { */ '}'), |_| Vec::new()),
+                    map(char('}'), |_| Vec::new()),
                     terminated(
                         cut(separated_list1(ws(char(',')), Self::named)),
-                        pair(opt(ws(char(','))), ws(cut(char(/* { */ '}')))),
+                        pair(opt(ws(char(','))), ws(cut(char('}')))),
                     ),
                 ))(i)?;
                 return Ok((i, Self::Struct(path, targets)));
