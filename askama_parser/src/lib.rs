@@ -7,11 +7,10 @@ use std::{fmt, str};
 
 use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_till};
-use nom::character::complete::char;
-use nom::character::complete::{anychar, digit1};
+use nom::character::complete::{anychar, char, one_of, satisfy};
 use nom::combinator::{cut, eof, map, opt, recognize};
 use nom::error::{Error, ErrorKind, FromExternalError};
-use nom::multi::many1;
+use nom::multi::{many0_count, many1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{error_position, AsChar, InputTakeAtPosition};
 
@@ -250,11 +249,72 @@ fn bool_lit(i: &str) -> ParseResult<'_> {
 }
 
 fn num_lit(i: &str) -> ParseResult<'_> {
+    let integer_suffix = |i| {
+        alt((
+            tag("i8"),
+            tag("i16"),
+            tag("i32"),
+            tag("i64"),
+            tag("i128"),
+            tag("isize"),
+            tag("u8"),
+            tag("u16"),
+            tag("u32"),
+            tag("u64"),
+            tag("u128"),
+            tag("usize"),
+        ))(i)
+    };
+    let float_suffix = |i| alt((tag("f32"), tag("f64")))(i);
+
     recognize(tuple((
         opt(char('-')),
-        digit1,
-        opt(pair(char('.'), digit1)),
+        alt((
+            recognize(tuple((
+                char('0'),
+                alt((
+                    recognize(tuple((char('b'), separated_digits(2, false)))),
+                    recognize(tuple((char('o'), separated_digits(8, false)))),
+                    recognize(tuple((char('x'), separated_digits(16, false)))),
+                )),
+                opt(integer_suffix),
+            ))),
+            recognize(tuple((
+                separated_digits(10, true),
+                opt(alt((
+                    integer_suffix,
+                    float_suffix,
+                    recognize(tuple((
+                        opt(tuple((char('.'), separated_digits(10, true)))),
+                        one_of("eE"),
+                        opt(one_of("+-")),
+                        separated_digits(10, false),
+                        opt(float_suffix),
+                    ))),
+                    recognize(tuple((
+                        char('.'),
+                        separated_digits(10, true),
+                        opt(float_suffix),
+                    ))),
+                ))),
+            ))),
+        )),
     )))(i)
+}
+
+/// Underscore separated digits of the given base, unless `start` is true this may start
+/// with an underscore.
+fn separated_digits(radix: u32, start: bool) -> impl Fn(&str) -> ParseResult<'_> {
+    move |i| {
+        recognize(tuple((
+            |i| match start {
+                true => Ok((i, 0)),
+                false => many0_count(char('_'))(i),
+            },
+            satisfy(|ch| ch.is_digit(radix)),
+            many0_count(satisfy(|ch| ch == '_' || ch.is_digit(radix))),
+        )))(i)
+    }
 }
 
 fn str_lit(i: &str) -> ParseResult<'_> {
