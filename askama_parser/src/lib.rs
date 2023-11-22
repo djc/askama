@@ -302,7 +302,7 @@ fn num_lit(i: &str) -> ParseResult<'_> {
     )))(i)
 }
 
-/// Underscore separateed digits of the given base, unless `start` is true this may start
+/// Underscore separated digits of the given base, unless `start` is true this may start
 /// with an underscore.
 fn separated_digits(radix: u32, start: bool) -> impl Fn(&str) -> ParseResult<'_> {
     move |i| {
