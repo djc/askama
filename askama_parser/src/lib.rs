@@ -298,7 +298,7 @@ fn num_lit(i: &str) -> ParseResult<'_> {
                 opt(integer_suffix_tags),
             ))),
             recognize(tuple((
-                separated_digits(10, false),
+                separated_digits(10, true),
                 opt(alt((
                     integer_suffix_tags,
                     float_suffix_tags,
