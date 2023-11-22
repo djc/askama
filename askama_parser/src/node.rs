@@ -350,7 +350,7 @@ impl<'a> CondTest<'a> {
             cut(tuple((
                 opt(delimited(
                     ws(alt((keyword("let"), keyword("set")))),
-                    ws(Target::parse_one),
+                    ws(Target::parse),
                     ws(char('=')),
                 )),
                 ws(|i| Expr::parse(i, s.level.get())),
@@ -423,7 +423,7 @@ impl<'a> Loop<'a> {
             opt(Whitespace::parse),
             ws(keyword("for")),
             cut(tuple((
-                ws(Target::parse_one),
+                ws(Target::parse),
                 ws(keyword("in")),
                 cut(tuple((
                     ws(|i| Expr::parse(i, s.level.get())),
@@ -804,7 +804,7 @@ impl<'a> Let<'a> {
             opt(Whitespace::parse),
             ws(alt((keyword("let"), keyword("set")))),
             cut(tuple((
-                ws(Target::parse_one),
+                ws(Target::parse),
                 opt(preceded(
                     ws(char('=')),
                     ws(|i| Expr::parse(i, s.level.get())),
