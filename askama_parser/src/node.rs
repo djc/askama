@@ -136,15 +136,15 @@ impl<'a> Target<'a> {
     pub(super) fn parse(i: &'a str) -> ParseResult<'a, Self> {
         map(
             separated_list1(ws(tag("or")), Self::parse_one),
-            |opts| match <[_; 1]>::try_from(opts) {
-                Ok([opt]) => opt,
-                Err(opts) => Self::OrChain(opts),
+            |mut opts| match opts.len() {
+                1 => opts.pop().unwrap(),
+                _ => Self::OrChain(opts),
             },
         )(i)
     }
 
     /// Parses a single target without an `or`, unless it is wrapped in parentheses.
-    pub(super) fn parse_one(i: &'a str) -> ParseResult<'a, Self> {
+    fn parse_one(i: &'a str) -> ParseResult<'a, Self> {
         let mut opt_opening_paren = map(opt(ws(char('('))), |o| o.is_some());
         let mut opt_closing_paren = map(opt(ws(char(')'))), |o| o.is_some());
         let mut opt_opening_brace = map(opt(ws(char('{'))), |o| o.is_some());
