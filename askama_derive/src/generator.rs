@@ -515,7 +515,7 @@ impl<'a> Generator<'a> {
                     if is_first {
                         buf.write("if ");
                     } else {
-                        buf.dedent()?; // {
+                        buf.dedent()?;
                         buf.write("} else if ");
                     }
                     is_last = false;
@@ -543,7 +543,7 @@ impl<'a> Generator<'a> {
                 }
                 &Some(CondTest::Defined { name, not }) if not != self.has_local(name) => {
                     if !is_first {
-                        buf.dedent()?; // {
+                        buf.dedent()?;
                         buf.write("} else");
                     }
                     has_else = true;
@@ -555,7 +555,7 @@ impl<'a> Generator<'a> {
                 }
                 None => {
                     if !is_first {
-                        buf.dedent()?; // {
+                        buf.dedent()?;
                         buf.write("} else");
                     }
                     has_else = true;
@@ -565,7 +565,7 @@ impl<'a> Generator<'a> {
             }
 
             if !is_first {
-                buf.writeln(" {")?; // }
+                buf.writeln(" {")?;
 
                 arm_size += self.handle(ctx, &cond.nodes, buf, AstLevel::Nested)?;
                 arm_sizes.push(arm_size);
