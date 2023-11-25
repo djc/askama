@@ -35,6 +35,19 @@ fn test_if_defined() {
 }
 
 #[derive(Template)]
+#[template(
+    source = "Hello{% if name is defined %}, {{ name }}{% endif %}!",
+    ext = "txt"
+)]
+struct UngeneratedIfDefined;
+
+#[test]
+fn test_ungenerated_if_defined() {
+    let t = UngeneratedIfDefined;
+    assert_eq!(t.render().unwrap(), "Hello!");
+}
+
+#[derive(Template)]
 #[template(path = "include-if-defined.html")]
 struct IncludeIfDefined<'a> {
     cond: bool,
