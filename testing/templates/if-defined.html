@@ -1,0 +1,9 @@
+{%- if name is defined -%}
+    Hello {{ name }}!
+{%- else if !cond -%}
+    !cond
+{%- else if other_name is not defined -%}
+    Both names aren't defined
+{%- else -%}
+    Aloha {{ other_name }}!
+{%- endif -%}

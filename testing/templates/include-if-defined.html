@@ -1,0 +1,7 @@
+{% if let Some(other_name) = my_other_name %}
+    {%- include "if-defined.html" -%}
+{% else if let Some(name) = my_name %}
+    {%- include "if-defined.html" -%}
+{% else %}
+    {%- include "if-defined.html" -%}
+{% endif %}

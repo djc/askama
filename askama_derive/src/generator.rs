@@ -472,6 +472,20 @@ impl<'a> Generator<'a> {
         Ok(size_hint)
     }
 
+    fn has_local(&self, name: &str) -> bool {
+        if self.locals.resolve(name).is_some() {
+            true
+        } else {
+            match &self.input.ast.data {
+                syn::Data::Struct(s) => s
+                    .fields
+                    .iter()
+                    .any(|field| field.ident.as_ref().is_some_and(|f| f == name)),
+                _ => false,
+            }
+        }
+    }
+
     fn write_if(
         &mut self,
         ctx: &'a Context<'_>,
@@ -481,63 +495,98 @@ impl<'a> Generator<'a> {
         let mut flushed = 0;
         let mut arm_sizes = Vec::new();
         let mut has_else = false;
-        for (i, cond) in i.branches.iter().enumerate() {
+        let mut is_first = true;
+        let outer_scope = self.locals.scopes.len();
+
+        for cond in i.branches.iter() {
             self.handle_ws(cond.ws);
             flushed += self.write_buf_writable(buf)?;
-            if i > 0 {
+
+            if outer_scope < self.locals.scopes.len() {
                 self.locals.pop();
             }
+            debug_assert_eq!(self.locals.scopes.len(), outer_scope);
 
             self.locals.push();
             let mut arm_size = 0;
-            if let Some(CondTest { target, expr }) = &cond.cond {
-                if i == 0 {
-                    buf.write("if ");
-                } else {
-                    buf.dedent()?;
-                    buf.write("} else if ");
-                }
+            let is_last;
+            match &cond.cond {
+                Some(CondTest::If { target, expr }) => {
+                    if is_first {
+                        buf.write("if ");
+                    } else {
+                        buf.dedent()?; // {
+                        buf.write("} else if ");
+                    }
+                    is_last = false;
+                    is_first = false;
 
-                if let Some(target) = target {
-                    let mut expr_buf = Buffer::new(0);
-                    self.visit_expr(&mut expr_buf, expr)?;
-                    buf.write("let ");
-                    self.visit_target(buf, true, true, target);
-                    buf.write(" = &(");
-                    buf.write(&expr_buf.buf);
-                    buf.write(")");
-                } else {
-                    // The following syntax `*(&(...) as &bool)` is used to
-                    // trigger Rust's automatic dereferencing, to coerce
-                    // e.g. `&&&&&bool` to `bool`. First `&(...) as &bool`
-                    // coerces e.g. `&&&bool` to `&bool`. Then `*(&bool)`
-                    // finally dereferences it to `bool`.
-                    buf.write("*(&(");
-                    let expr_code = self.visit_expr_root(expr)?;
-                    buf.write(&expr_code);
-                    buf.write(") as &bool)");
+                    if let Some(target) = target {
+                        let mut expr_buf = Buffer::new(0);
+                        self.visit_expr(&mut expr_buf, expr)?;
+                        buf.write("let ");
+                        self.visit_target(buf, true, true, target);
+                        buf.write(" = &(");
+                        buf.write(&expr_buf.buf);
+                        buf.write(")");
+                    } else {
+                        // The following syntax `*(&(...) as &bool)` is used to
+                        // trigger Rust's automatic dereferencing, to coerce
+                        // e.g. `&&&&&bool` to `bool`. First `&(...) as &bool`
+                        // coerces e.g. `&&&bool` to `&bool`. Then `*(&bool)`
+                        // finally dereferences it to `bool`.
+                        buf.write("*(&(");
+                        let expr_code = self.visit_expr_root(expr)?;
+                        buf.write(&expr_code);
+                        buf.write(") as &bool)");
+                    }
                 }
-            } else {
-                buf.dedent()?;
-                buf.write("} else");
-                has_else = true;
+                &Some(CondTest::Defined { name, not }) if not != self.has_local(name) => {
+                    if !is_first {
+                        buf.dedent()?; // {
+                        buf.write("} else");
+                    }
+                    has_else = true;
+                    is_first = false;
+                    is_last = true;
+                }
+                &Some(CondTest::Defined { .. }) => {
+                    continue;
+                }
+                None => {
+                    if !is_first {
+                        buf.dedent()?; // {
+                        buf.write("} else");
+                    }
+                    has_else = true;
+                    is_first = false;
+                    is_last = true;
+                }
             }
 
-            buf.writeln(" {")?;
+            if !is_first {
+                buf.writeln(" {")?; // }
 
-            arm_size += self.handle(ctx, &cond.nodes, buf, AstLevel::Nested)?;
-            arm_sizes.push(arm_size);
+                arm_size += self.handle(ctx, &cond.nodes, buf, AstLevel::Nested)?;
+                arm_sizes.push(arm_size);
+            }
+
+            if is_last {
+                break;
+            }
         }
-        self.handle_ws(i.ws);
-        flushed += self.write_buf_writable(buf)?;
-        buf.writeln("}")?;
+        if is_first {
+            Ok(flushed)
+        } else {
+            self.handle_ws(i.ws);
+            flushed += self.write_buf_writable(buf)?;
+            buf.writeln("}")?;
 
-        self.locals.pop();
-
-        if !has_else {
-            arm_sizes.push(0);
+            if !has_else {
+                arm_sizes.push(0);
+            }
+            Ok(flushed + median(&mut arm_sizes))
         }
-        Ok(flushed + median(&mut arm_sizes))
     }
 
     #[allow(clippy::too_many_arguments)]

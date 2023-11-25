@@ -338,26 +338,45 @@ impl<'a> Cond<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct CondTest<'a> {
-    pub target: Option<Target<'a>>,
-    pub expr: Expr<'a>,
+pub enum CondTest<'a> {
+    If {
+        target: Option<Target<'a>>,
+        expr: Expr<'a>,
+    },
+    Defined {
+        not: bool,
+        name: &'a str,
+    },
 }
 
 impl<'a> CondTest<'a> {
     fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
-        let mut p = preceded(
+        preceded(
             ws(keyword("if")),
-            cut(tuple((
-                opt(delimited(
-                    ws(alt((keyword("let"), keyword("set")))),
-                    ws(Target::parse),
-                    ws(char('=')),
-                )),
-                ws(|i| Expr::parse(i, s.level.get())),
+            cut(alt((
+                map(
+                    pair(
+                        ws(identifier),
+                        delimited(ws(tag("is")), opt(ws(tag("not"))), ws(tag("defined"))),
+                    ),
+                    |(name, not)| Self::Defined {
+                        name,
+                        not: not.is_some(),
+                    },
+                ),
+                map(
+                    pair(
+                        opt(delimited(
+                            ws(alt((keyword("let"), keyword("set")))),
+                            ws(Target::parse),
+                            ws(char('=')),
+                        )),
+                        ws(|i| Expr::parse(i, s.level.get())),
+                    ),
+                    |(target, expr)| Self::If { target, expr },
+                ),
             ))),
-        );
-        let (i, (target, expr)) = p(i)?;
-        Ok((i, Self { target, expr }))
+        )(i)
     }
 }
 
