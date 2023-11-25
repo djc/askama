@@ -480,7 +480,8 @@ impl<'a> Generator<'a> {
                 syn::Data::Struct(s) => s
                     .fields
                     .iter()
-                    .any(|field| field.ident.as_ref().is_some_and(|f| f == name)),
+                    .filter_map(|f| f.ident.as_ref())
+                    .any(|f| f == name),
                 _ => false,
             }
         }
