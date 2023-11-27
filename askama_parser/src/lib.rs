@@ -135,7 +135,6 @@ pub(crate) type ParseResult<'a, T = &'a str> = Result<(&'a str, T), nom::Err<Err
 ///
 /// It cannot be used to replace `ParseError` because it expects a generic, which would make
 /// `askama`'s users experience less good (since this generic is only needed for `nom`).
-#[derive(Debug)]
 pub(crate) struct ErrorContext<'a> {
     pub(crate) input: &'a str,
     pub(crate) message: Option<Cow<'static, str>>,

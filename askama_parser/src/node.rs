@@ -224,7 +224,8 @@ impl<'a> Target<'a> {
         }
 
         // neither literal nor struct nor path
-        map(identifier, Self::Name)(i)
+        let (new_i, name) = identifier(i)?;
+        Ok((new_i, Self::verify_name(i, name)?))
     }
 
     fn lit(i: &'a str) -> ParseResult<'a, Self> {
@@ -236,9 +237,24 @@ impl<'a> Target<'a> {
         ))(i)
     }
 
-    fn named(i: &'a str) -> ParseResult<'a, (&str, Self)> {
-        let (i, (src, target)) = pair(identifier, opt(preceded(ws(char(':')), Self::parse)))(i)?;
-        Ok((i, (src, target.unwrap_or(Self::Name(src)))))
+    fn named(init_i: &'a str) -> ParseResult<'a, (&str, Self)> {
+        let (i, (src, target)) =
+            pair(identifier, opt(preceded(ws(char(':')), Self::parse)))(init_i)?;
+        let target = match target {
+            Some(target) => target,
+            None => Self::verify_name(init_i, src)?,
+        };
+        Ok((i, (src, target)))
+    }
+
+    fn verify_name(input: &'a str, name: &'a str) -> Result<Self, nom::Err<ErrorContext<'a>>> {
+        match name {
+            "self" | "writer" => Err(nom::Err::Failure(ErrorContext {
+                input,
+                message: Some(Cow::Owned(format!("Cannot use `{name}` as a name"))),
+            })),
+            _ => Ok(Self::Name(name)),
+        }
     }
 }
 
