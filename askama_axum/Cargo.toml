@@ -20,8 +20,8 @@ http = "1.0"
 
 [dev-dependencies]
 axum = { version = "0.7", default-features = false }
-hyper = { version = "1.0", features = ["full"] }
 http-body-util = "0.1"
+hyper = { version = "1.0", features = ["full"] }
 tokio = { version = "1.0", features = ["full"] }
 tower = { version = "0.4", features = ["util"] }
 
