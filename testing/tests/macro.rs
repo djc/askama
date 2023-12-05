@@ -123,3 +123,20 @@ fn test_named_argument() {
 "
     );
 }
+
+#[derive(Template)]
+#[template(
+    source = r#"{% macro button(label) %}
+{{- label -}}
+{% endmacro %}
+
+{%- call button(label="hi") -%}
+"#,
+    ext = "html"
+)]
+struct OnlyNamedArgument;
+
+#[test]
+fn test_only_named_argument() {
+    assert_eq!(OnlyNamedArgument.render().unwrap(), "hi");
+}
