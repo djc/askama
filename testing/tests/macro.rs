@@ -140,3 +140,33 @@ struct OnlyNamedArgument;
 fn test_only_named_argument() {
     assert_eq!(OnlyNamedArgument.render().unwrap(), "hi");
 }
+
+// Check for trailing commas.
+#[derive(Template)]
+#[template(
+    source = r#"{% macro button(label , ) %}
+{{- label -}}
+{% endmacro %}
+{%- macro button2(label ,) %}
+{% endmacro %}
+{%- macro button3(label,) %}
+{% endmacro %}
+{%- macro button4(label, ) %}
+{% endmacro %}
+{%- macro button5(label ) %}
+{% endmacro %}
+
+{%- call button(label="hi" , ) -%}
+{%- call button(label="hi" ,) -%}
+{%- call button(label="hi",) -%}
+{%- call button(label="hi", ) -%}
+{%- call button(label="hi" ) -%}
+"#,
+    ext = "html"
+)]
+struct TrailingComma;
+
+#[test]
+fn test_trailing_comma() {
+    assert_eq!(TrailingComma.render().unwrap(), "hihihihihi");
+}

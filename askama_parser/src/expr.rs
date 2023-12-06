@@ -119,7 +119,7 @@ impl<'a> Expr<'a> {
                         }
                     }),
                 ),
-                char(')'),
+                tuple((opt(ws(char(','))), char(')'))),
             )),
         )(i)
     }
