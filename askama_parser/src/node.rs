@@ -493,7 +493,7 @@ impl<'a> Macro<'a> {
             delimited(
                 ws(char('(')),
                 separated_list0(char(','), ws(identifier)),
-                ws(char(')')),
+                tuple((opt(ws(char(','))), char(')'))),
             )(i)
         }
 
