@@ -478,6 +478,14 @@ impl<'a> Loop<'a> {
     }
 }
 
+fn parameters(i: &str) -> ParseResult<'_, Vec<&str>> {
+    delimited(
+        ws(char('(')),
+        separated_list0(char(','), ws(identifier)),
+        tuple((opt(ws(char(','))), char(')'))),
+    )(i)
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Macro<'a> {
     pub ws1: Ws,
@@ -489,14 +497,6 @@ pub struct Macro<'a> {
 
 impl<'a> Macro<'a> {
     fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
-        fn parameters(i: &str) -> ParseResult<'_, Vec<&str>> {
-            delimited(
-                ws(char('(')),
-                separated_list0(char(','), ws(identifier)),
-                tuple((opt(ws(char(','))), char(')'))),
-            )(i)
-        }
-
         let mut start = tuple((
             opt(Whitespace::parse),
             ws(keyword("macro")),
@@ -583,6 +583,7 @@ pub struct Call<'a> {
     pub scope: Option<&'a str>,
     pub name: &'a str,
     pub args: Vec<Expr<'a>>,
+    pub caller: Option<Macro<'a>>,
 }
 
 impl<'a> Call<'a> {
@@ -591,22 +592,65 @@ impl<'a> Call<'a> {
             opt(Whitespace::parse),
             ws(keyword("call")),
             cut(tuple((
-                opt(tuple((ws(identifier), ws(tag("::"))))),
+                opt(parameters),
+                opt(terminated(ws(identifier), ws(tag("::")))),
                 ws(identifier),
                 opt(ws(|nested| Expr::arguments(nested, s.level.get(), true))),
                 opt(Whitespace::parse),
+                opt(ws(tag("with"))),
             ))),
         ));
-        let (i, (pws, _, (scope, name, args, nws))) = p(i)?;
-        let scope = scope.map(|(scope, _)| scope);
+        let (i, (pws1, _, (caller_params, scope, name, args, nws1, with))) = p(i)?;
         let args = args.unwrap_or_default();
+        let (i, caller) = if caller_params.is_some() || with.is_some() {
+            let mut end = cut(pair(
+                preceded(|i| s.tag_block_end(i), |i| Node::many(i, s)),
+                cut(tuple((
+                    |i| s.tag_block_start(i),
+                    opt(Whitespace::parse),
+                    ws(keyword("endcall")),
+                    cut(preceded(
+                        opt(pair(
+                            opt(|before| {
+                                let (after, end_scope) =
+                                    terminated(ws(identifier), ws(tag("::")))(before)?;
+                                check_end_name(
+                                    before,
+                                    after,
+                                    scope.unwrap_or(""),
+                                    end_scope,
+                                    "call",
+                                )
+                            }),
+                            |before| {
+                                let (after, end_name) = ws(identifier)(before)?;
+                                check_end_name(before, after, name, end_name, "call")
+                            },
+                        )),
+                        opt(Whitespace::parse),
+                    )),
+                ))),
+            ));
+            let (i, (contents, (_, pws2, _, nws2))) = end(i)?;
+            let caller = Macro {
+                ws1: Ws(pws1, nws1),
+                name: "caller",
+                args: caller_params.unwrap_or_default(),
+                nodes: contents,
+                ws2: Ws(pws2, nws2),
+            };
+            (i, Some(caller))
+        } else {
+            (i, None)
+        };
         Ok((
             i,
             Self {
-                ws: Ws(pws, nws),
+                ws: Ws(pws1, caller.as_ref().map_or(nws1, |c| c.ws2.1)),
                 scope,
                 name,
                 args,
+                caller,
             },
         ))
     }

@@ -170,3 +170,15 @@ struct TrailingComma;
 fn test_trailing_comma() {
     assert_eq!(TrailingComma.render().unwrap(), "hihihihihi");
 }
+
+#[derive(Template)]
+#[template(path = "caller-macro.html")]
+struct CallerMacro {
+    a: u32,
+}
+
+#[test]
+fn test_macro_caller() {
+    let t = CallerMacro { a: 8 };
+    assert_eq!(t.render().unwrap(), "begin 8: 21 [end 8].")
+}

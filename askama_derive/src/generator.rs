@@ -61,7 +61,7 @@ impl<'a> Generator<'a> {
     }
 
     // Takes a Context and generates the relevant implementations.
-    pub(crate) fn build(mut self, ctx: &'a Context<'_>) -> Result<String, CompileError> {
+    pub(crate) fn build(mut self, ctx: &Context<'a>) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
 
         self.impl_template(ctx, &mut buf)?;
@@ -88,11 +88,7 @@ impl<'a> Generator<'a> {
     }
 
     // Implement `Template` for the given context struct.
-    fn impl_template(
-        &mut self,
-        ctx: &'a Context<'_>,
-        buf: &mut Buffer,
-    ) -> Result<(), CompileError> {
+    fn impl_template(&mut self, ctx: &Context<'a>, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama::Template", None)?;
         buf.writeln(
             "fn render_into(&self, writer: &mut (impl ::std::fmt::Write + ?Sized)) -> \
@@ -385,7 +381,7 @@ impl<'a> Generator<'a> {
 
     fn handle(
         &mut self,
-        ctx: &'a Context<'_>,
+        ctx: &Context<'a>,
         nodes: &'a [Node<'_>],
         buf: &mut Buffer,
         level: AstLevel,
@@ -474,7 +470,7 @@ impl<'a> Generator<'a> {
 
     fn write_if(
         &mut self,
-        ctx: &'a Context<'_>,
+        ctx: &Context<'a>,
         buf: &mut Buffer,
         i: &'a If<'_>,
     ) -> Result<usize, CompileError> {
@@ -543,7 +539,7 @@ impl<'a> Generator<'a> {
     #[allow(clippy::too_many_arguments)]
     fn write_match(
         &mut self,
-        ctx: &'a Context<'_>,
+        ctx: &Context<'a>,
         buf: &mut Buffer,
         m: &'a Match<'a>,
     ) -> Result<usize, CompileError> {
@@ -592,7 +588,7 @@ impl<'a> Generator<'a> {
     #[allow(clippy::too_many_arguments)]
     fn write_loop(
         &mut self,
-        ctx: &'a Context<'_>,
+        ctx: &Context<'a>,
         buf: &mut Buffer,
         loop_block: &'a Loop<'_>,
     ) -> Result<usize, CompileError> {
@@ -673,7 +669,7 @@ impl<'a> Generator<'a> {
 
     fn write_call(
         &mut self,
-        ctx: &'a Context<'_>,
+        ctx: &Context<'a>,
         buf: &mut Buffer,
         call: &'a Call<'_>,
     ) -> Result<usize, CompileError> {
@@ -682,6 +678,7 @@ impl<'a> Generator<'a> {
             scope,
             name,
             ref args,
+            ref caller,
         } = *call;
         if name == "super" {
             return self.write_block(buf, None, ws);
@@ -812,6 +809,15 @@ impl<'a> Generator<'a> {
             buf.writeln(&format!("let ({}) = ({});", names.buf, values.buf))?;
         }
 
+        let mut new_ctx;
+        let own_ctx = match caller {
+            Some(caller) => {
+                new_ctx = own_ctx.clone();
+                new_ctx.macros.insert("caller", caller);
+                &new_ctx
+            }
+            None => own_ctx,
+        };
         let mut size_hint = self.handle(own_ctx, &def.nodes, buf, AstLevel::Nested)?;
 
         self.flush_ws(def.ws2);
@@ -824,7 +830,7 @@ impl<'a> Generator<'a> {
 
     fn handle_include(
         &mut self,
-        ctx: &'a Context<'_>,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         i: &'a Include<'_>,
     ) -> Result<usize, CompileError> {

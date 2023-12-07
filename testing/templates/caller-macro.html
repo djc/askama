@@ -1,0 +1,7 @@
+{%- macro m(x) -%}
+    begin {{ x }}: {% call caller(5) %} [end {{ x }}].
+{%- endmacro -%}
+
+{%- call(b) m(a) with -%}
+    {{ a + x + b }}
+{%- endcall -%}
