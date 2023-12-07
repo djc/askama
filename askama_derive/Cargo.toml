@@ -1,6 +1,6 @@
 [package]
 name = "askama_derive"
-version = "0.12.2"
+version = "0.12.3"
 description = "Procedural macro package for Askama"
 homepage = "https://github.com/djc/askama"
 repository = "https://github.com/djc/askama"
@@ -31,7 +31,7 @@ with-tide = []
 with-warp = []
 
 [dependencies]
-parser = { package = "askama_parser", version = "0.1", path = "../askama_parser" }
+parser = { package = "askama_parser", version = "0.2", path = "../askama_parser" }
 mime = "0.3"
 mime_guess = "2"
 proc-macro2 = "1"
