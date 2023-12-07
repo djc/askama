@@ -596,11 +596,11 @@ impl<'a> Call<'a> {
                 opt(terminated(ws(identifier), ws(tag("::")))),
                 ws(identifier),
                 opt(ws(|nested| Expr::arguments(nested, s.level.get(), true))),
-                opt(Whitespace::parse),
                 opt(ws(tag("with"))),
+                opt(Whitespace::parse),
             ))),
         ));
-        let (i, (pws1, _, (caller_params, scope, name, args, nws1, with))) = p(i)?;
+        let (i, (pws1, _, (caller_params, scope, name, args, with, nws1))) = p(i)?;
         let args = args.unwrap_or_default();
         let (i, caller) = if caller_params.is_some() || with.is_some() {
             let mut end = cut(pair(
