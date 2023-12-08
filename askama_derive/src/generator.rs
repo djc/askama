@@ -830,7 +830,7 @@ impl<'a> Generator<'a> {
 
     fn handle_include(
         &mut self,
-        ctx: &Context<'_>,
+        ctx: &Context<'a>,
         buf: &mut Buffer,
         i: &'a Include<'_>,
     ) -> Result<usize, CompileError> {
