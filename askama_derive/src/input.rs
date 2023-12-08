@@ -118,6 +118,12 @@ impl TemplateInput<'_> {
             let mut nested = vec![parsed.nodes()];
             while let Some(nodes) = nested.pop() {
                 for n in nodes {
+                    let mut add_to_check = |path: PathBuf| -> Result<(), CompileError> {
+                        let source = get_template_source(&path)?;
+                        check.push((path, source));
+                        Ok(())
+                    };
+
                     use Node::*;
                     match n {
                         Extends(extends) if top => {
@@ -134,21 +140,18 @@ impl TemplateInput<'_> {
                                 .into());
                             }
                             dependency_graph.push(dependency_path);
-                            let source = get_template_source(&extends)?;
-                            check.push((extends, source));
+                            add_to_check(extends)?;
                         }
                         Macro(m) if top => {
                             nested.push(&m.nodes);
                         }
                         Import(import) if top => {
                             let import = self.config.find_template(import.path, Some(&path))?;
-                            let source = get_template_source(&import)?;
-                            check.push((import, source));
+                            add_to_check(import)?;
                         }
                         Include(include) => {
                             let include = self.config.find_template(include.path, Some(&path))?;
-                            let source = get_template_source(&include)?;
-                            check.push((include, source));
+                            add_to_check(include)?;
                         }
                         BlockDef(b) => {
                             nested.push(&b.nodes);
