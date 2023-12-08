@@ -119,8 +119,13 @@ impl TemplateInput<'_> {
             while let Some(nodes) = nested.pop() {
                 for n in nodes {
                     let mut add_to_check = |path: PathBuf| -> Result<(), CompileError> {
-                        let source = get_template_source(&path)?;
-                        check.push((path, source));
+                        if !map.contains_key(&path) {
+                            // Add a dummy entry to `map` in order to prevent adding `path`
+                            // multiple times to `check`.
+                            map.insert(path.clone(), Parsed::default());
+                            let source = get_template_source(&path)?;
+                            check.push((path, source));
+                        }
                         Ok(())
                     };
 

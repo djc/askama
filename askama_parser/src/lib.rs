@@ -28,6 +28,7 @@ mod _parsed {
     use super::node::Node;
     use super::{Ast, ParseError, Syntax};
 
+    #[derive(Default)]
     pub struct Parsed {
         // `source` must outlive `ast`, so `ast` must be declared before `source`
         ast: Ast<'static>,
@@ -68,7 +69,7 @@ mod _parsed {
 
 pub use _parsed::Parsed;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Ast<'a> {
     nodes: Vec<Node<'a>>,
 }
