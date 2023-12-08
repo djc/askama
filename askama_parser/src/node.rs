@@ -610,23 +610,20 @@ impl<'a> Call<'a> {
                     opt(Whitespace::parse),
                     ws(keyword("endcall")),
                     cut(preceded(
-                        opt(pair(
-                            opt(|before| {
-                                let (after, end_scope) =
-                                    terminated(ws(identifier), ws(tag("::")))(before)?;
-                                check_end_name(
-                                    before,
-                                    after,
-                                    scope.unwrap_or(""),
-                                    end_scope,
-                                    "call",
-                                )
-                            }),
-                            |before| {
-                                let (after, end_name) = ws(identifier)(before)?;
-                                check_end_name(before, after, name, end_name, "call")
-                            },
-                        )),
+                        opt(|before| {
+                            let mut end_tag = pair(
+                                opt(terminated(ws(identifier), ws(tag("::")))),
+                                ws(identifier),
+                            );
+                            let (after, (end_scope, end_name)) = end_tag(before)?;
+                            check_end_name(
+                                before,
+                                after,
+                                &(scope.map_or(String::new(), |s| format!("{s}::")) + name),
+                                &(end_scope.map_or(String::new(), |s| format!("{s}::")) + end_name),
+                                "call",
+                            )
+                        }),
                         opt(Whitespace::parse),
                     )),
                 ))),
@@ -758,12 +755,12 @@ impl<'a> BlockDef<'a> {
 fn check_end_name<'a>(
     before: &'a str,
     after: &'a str,
-    name: &'a str,
-    end_name: &'a str,
+    name: &str,
+    end_name: &str,
     kind: &str,
-) -> ParseResult<'a> {
+) -> ParseResult<'a, ()> {
     if name == end_name {
-        return Ok((after, end_name));
+        return Ok((after, ()));
     }
     let message = if name.is_empty() && !end_name.is_empty() {
         format!("unexpected name `{end_name}` in `end{kind}` tag for unnamed `{kind}`")
