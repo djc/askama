@@ -30,7 +30,6 @@ with-mendes = []
 with-rocket = []
 with-tide = []
 with-warp = []
-i18n = ["fluent-syntax", "fluent-templates", "serde", "basic-toml"]
 
 [dependencies]
 fluent-syntax = { version = "0.11.0", optional = true, default-features = false }
@@ -43,5 +42,3 @@ quote = "1"
 serde = { version = "1.0", optional = true, features = ["derive"] }
 syn = "2"
 basic-toml = { version = "0.1.1", optional = true }
-fluent-syntax = { version = "0.11.0", optional = true, default-features = false }
-fluent-templates = { version = "0.8.0", optional = true, default-features = false }
