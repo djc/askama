@@ -8,9 +8,10 @@ rust-version = "1.58"
 publish = false
 
 [features]
-default = ["serde-json", "markdown"]
-serde-json = ["serde_json", "askama/serde-json"]
+default = ["serde-json", "markdown", "i18n"]
+i18n = ["askama/i18n"]
 markdown = ["comrak", "askama/markdown"]
+serde-json = ["serde_json", "askama/serde-json"]
 
 [dependencies]
 askama = { path = "../askama", version = "0.12" }

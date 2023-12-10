@@ -17,6 +17,7 @@ pub(crate) struct TemplateInput<'a> {
     pub(crate) ext: Option<String>,
     pub(crate) mime_type: String,
     pub(crate) path: PathBuf,
+    #[cfg(feature = "i18n")]
     pub(crate) localizer: Option<String>,
 }
 
@@ -83,6 +84,42 @@ impl TemplateInput<'_> {
             _ => None,
         };
 
+        let localizer = match ast.data {
+            syn::Data::Struct(syn::DataStruct {
+                fields: syn::Fields::Named(ref fields),
+                ..
+            }) => {
+                let mut localizers =
+                    fields
+                        .named
+                        .iter()
+                        .filter(|&f| f.ident.is_some())
+                        .flat_map(
+                            |f| match f.attrs.iter().any(|a| a.path().is_ident("locale")) {
+                                true => Some(f.ident.as_ref()?.to_string()),
+                                false => None,
+                            },
+                        );
+                match localizers.next() {
+                    Some(localizer) => {
+                        if !cfg!(feature = "i18n") {
+                            return Err(
+                                "You need to activate the \"i18n\" feature to use #[locale]."
+                                    .into(),
+                            );
+                        } else if localizers.next().is_some() {
+                            return Err("You cannot mark more than one field as #[locale].".into());
+                        }
+                        Some(localizer)
+                    }
+                    None => None,
+                }
+            }
+            _ => None,
+        };
+        #[cfg(not(feature = "i18n"))]
+        drop(localizer);
+
         // Validate syntax
         let syntax = syntax.map_or_else(
             || Ok(config.syntaxes.get(config.default_syntax).unwrap()),
@@ -129,6 +166,7 @@ impl TemplateInput<'_> {
             ext,
             mime_type,
             path,
+            #[cfg(feature = "i18n")]
             localizer,
         })
     }

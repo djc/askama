@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "i18n"), forbid(unsafe_code))]
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
