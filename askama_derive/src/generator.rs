@@ -1,8 +1,8 @@
 use std::collections::hash_map::{Entry, HashMap};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::{cmp, hash, mem, str};
 
-use crate::config::{get_template_source, WhitespaceHandling};
+use crate::config::WhitespaceHandling;
 use crate::heritage::{Context, Heritage};
 use crate::input::{Source, TemplateInput};
 use crate::CompileError;
@@ -10,7 +10,7 @@ use crate::CompileError;
 use parser::node::{
     Call, Comment, CondTest, If, Include, Let, Lit, Loop, Match, Target, Whitespace, Ws,
 };
-use parser::{Expr, Node, Parsed};
+use parser::{Expr, Node};
 use quote::quote;
 
 pub(crate) struct Generator<'a> {
@@ -20,8 +20,6 @@ pub(crate) struct Generator<'a> {
     contexts: &'a HashMap<&'a Path, Context<'a>>,
     // The heritage contains references to blocks and their ancestry
     heritage: Option<&'a Heritage<'a>>,
-    // Cache ASTs for included templates
-    includes: HashMap<PathBuf, Parsed>,
     // Variables accessible directly from the current scope (not redirected to context)
     locals: MapChain<'a, &'a str, LocalMeta>,
     // Suffix whitespace from the previous literal. Will be flushed to the
@@ -50,7 +48,6 @@ impl<'a> Generator<'a> {
             input,
             contexts,
             heritage,
-            includes: HashMap::default(),
             locals,
             next_ws: None,
             skip_ws: WhitespaceHandling::Preserve,
@@ -846,24 +843,35 @@ impl<'a> Generator<'a> {
             )?;
         }
 
-        // Since nodes must not outlive the Generator, we instantiate a nested `Generator` here to
-        // handle the include's nodes. Unfortunately we can't easily share the `includes` cache.
+        // We clone the context of the child in order to preserve their macros and imports.
+        // But also add all the imports and macros from this template that don't override the
+        // child's ones to preserve this template's context.
+        let child_ctx = &mut self.contexts[path.as_path()].clone();
+        for (name, mac) in &ctx.macros {
+            child_ctx.macros.entry(name).or_insert(mac);
+        }
+        for (name, import) in &ctx.imports {
+            child_ctx
+                .imports
+                .entry(name)
+                .or_insert_with(|| import.clone());
+        }
 
-        let locals = MapChain::with_parent(&self.locals);
-        let mut child = Self::new(self.input, self.contexts, self.heritage, locals);
-
-        let nodes = match self.contexts.get(path.as_path()) {
-            Some(ctx) => ctx.nodes,
-            None => match self.includes.entry(path) {
-                Entry::Occupied(entry) => entry.into_mut().nodes(),
-                Entry::Vacant(entry) => {
-                    let src = get_template_source(entry.key())?;
-                    entry.insert(Parsed::new(src, self.input.syntax)?).nodes()
-                }
-            },
+        // Create a new generator for the child, and call it like in `impl_template` as if it were
+        // a full template, while preserving the context.
+        let heritage = if !child_ctx.blocks.is_empty() || child_ctx.extends.is_some() {
+            Some(Heritage::new(child_ctx, self.contexts))
+        } else {
+            None
         };
 
-        let mut size_hint = child.handle(ctx, nodes, buf, AstLevel::Nested)?;
+        let handle_ctx = match &heritage {
+            Some(heritage) => heritage.root,
+            None => child_ctx,
+        };
+        let locals = MapChain::with_parent(&self.locals);
+        let mut child = Self::new(self.input, self.contexts, heritage.as_ref(), locals);
+        let mut size_hint = child.handle(handle_ctx, handle_ctx.nodes, buf, AstLevel::Top)?;
         size_hint += child.write_buf_writable(buf)?;
         self.prepare_ws(i.ws);
 
