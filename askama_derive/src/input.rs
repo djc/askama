@@ -113,46 +113,74 @@ impl TemplateInput<'_> {
         let mut check = vec![(self.path.clone(), source)];
         while let Some((path, source)) = check.pop() {
             let parsed = Parsed::new(source, self.syntax)?;
-            for n in parsed.nodes() {
-                use Node::*;
-                match n {
-                    Extends(extends) => {
-                        let extends = self.config.find_template(extends.path, Some(&path))?;
-                        let dependency_path = (path.clone(), extends.clone());
-                        if dependency_graph.contains(&dependency_path) {
-                            return Err(format!(
-                                "cyclic dependency in graph {:#?}",
-                                dependency_graph
-                                    .iter()
-                                    .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
-                                    .collect::<Vec<String>>()
-                            )
-                            .into());
+
+            let mut top = true;
+            let mut nested = vec![parsed.nodes()];
+            while let Some(nodes) = nested.pop() {
+                for n in nodes {
+                    use Node::*;
+                    match n {
+                        Extends(extends) if top => {
+                            let extends = self.config.find_template(extends.path, Some(&path))?;
+                            let dependency_path = (path.clone(), extends.clone());
+                            if dependency_graph.contains(&dependency_path) {
+                                return Err(format!(
+                                    "cyclic dependency in graph {:#?}",
+                                    dependency_graph
+                                        .iter()
+                                        .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
+                                        .collect::<Vec<String>>()
+                                )
+                                .into());
+                            }
+                            dependency_graph.push(dependency_path);
+                            let source = get_template_source(&extends)?;
+                            check.push((extends, source));
                         }
-                        dependency_graph.push(dependency_path);
-                        let source = get_template_source(&extends)?;
-                        check.push((extends, source));
+                        Macro(m) if top => {
+                            nested.push(&m.nodes);
+                        }
+                        Import(import) if top => {
+                            let import = self.config.find_template(import.path, Some(&path))?;
+                            let source = get_template_source(&import)?;
+                            check.push((import, source));
+                        }
+                        Include(include) => {
+                            let include = self.config.find_template(include.path, Some(&path))?;
+                            let source = get_template_source(&include)?;
+                            check.push((include, source));
+                        }
+                        BlockDef(b) => {
+                            nested.push(&b.nodes);
+                        }
+                        If(i) => {
+                            for cond in &i.branches {
+                                nested.push(&cond.nodes);
+                            }
+                        }
+                        Loop(l) => {
+                            nested.push(&l.body);
+                            nested.push(&l.else_nodes);
+                        }
+                        Match(m) => {
+                            for arm in &m.arms {
+                                nested.push(&arm.nodes);
+                            }
+                        }
+                        Lit(_)
+                        | Comment(_)
+                        | Expr(_, _)
+                        | Call(_)
+                        | Extends(_)
+                        | Let(_)
+                        | Import(_)
+                        | Macro(_)
+                        | Raw(_)
+                        | Continue(_)
+                        | Break(_) => {}
                     }
-                    Import(import) => {
-                        let import = self.config.find_template(import.path, Some(&path))?;
-                        let source = get_template_source(&import)?;
-                        check.push((import, source));
-                    }
-                    If(_)
-                    | Loop(_)
-                    | Match(_)
-                    | BlockDef(_)
-                    | Include(_)
-                    | Lit(_)
-                    | Comment(_)
-                    | Expr(_, _)
-                    | Call(_)
-                    | Let(_)
-                    | Macro(_)
-                    | Raw(_)
-                    | Continue(_)
-                    | Break(_) => {}
                 }
+                top = false;
             }
             map.insert(path, parsed);
         }
