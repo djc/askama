@@ -20,3 +20,5 @@ default-members = [
     "askama_escape",
     "testing",
 ]
+
+resolver = "2"
