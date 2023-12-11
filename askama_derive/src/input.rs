@@ -114,8 +114,9 @@ impl TemplateInput<'_> {
         while let Some((path, source)) = check.pop() {
             let parsed = Parsed::new(source, self.syntax)?;
             for n in parsed.nodes() {
+                use Node::*;
                 match n {
-                    Node::Extends(extends) => {
+                    Extends(extends) => {
                         let extends = self.config.find_template(extends.path, Some(&path))?;
                         let dependency_path = (path.clone(), extends.clone());
                         if dependency_graph.contains(&dependency_path) {
@@ -132,12 +133,25 @@ impl TemplateInput<'_> {
                         let source = get_template_source(&extends)?;
                         check.push((extends, source));
                     }
-                    Node::Import(import) => {
+                    Import(import) => {
                         let import = self.config.find_template(import.path, Some(&path))?;
                         let source = get_template_source(&import)?;
                         check.push((import, source));
                     }
-                    _ => {}
+                    If(_)
+                    | Loop(_)
+                    | Match(_)
+                    | BlockDef(_)
+                    | Include(_)
+                    | Lit(_)
+                    | Comment(_)
+                    | Expr(_, _)
+                    | Call(_)
+                    | Let(_)
+                    | Macro(_)
+                    | Raw(_)
+                    | Continue(_)
+                    | Break(_) => {}
                 }
             }
             map.insert(path, parsed);
