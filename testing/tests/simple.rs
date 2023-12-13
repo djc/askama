@@ -484,3 +484,17 @@ fn test_num_literals() {
         "[90, -90, 90, 2, 56, 240, 10.5, 10.5, 100000000000, 105000000000]",
     );
 }
+
+#[derive(askama::Template)]
+#[template(source = "{% let word = s %}{{ word }}", ext = "html")]
+struct LetBorrow {
+    s: String,
+}
+
+#[test]
+fn test_let_borrow() {
+    let template = LetBorrow {
+        s: "hello".to_owned(),
+    };
+    assert_eq!(template.render().unwrap(), "hello")
+}
