@@ -1945,7 +1945,7 @@ fn is_copyable_within_op(expr: &Expr<'_>, within_op: bool) -> bool {
 pub(crate) fn is_attr_self(expr: &Expr<'_>) -> bool {
     match expr {
         Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Var("self")) => true,
-        Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Attr(..)) => is_attr_self(expr),
+        Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Attr(..)) => is_attr_self(obj),
         _ => false,
     }
 }
