@@ -158,8 +158,8 @@ pub(crate) struct TemplateArgs {
     escaping: Option<String>,
     ext: Option<String>,
     syntax: Option<String>,
-    config: String,
-    whitespace: Option<String>,
+    config: Option<String>,
+    pub(crate) whitespace: Option<String>,
 }
 
 impl TemplateArgs {
@@ -258,7 +258,7 @@ impl TemplateArgs {
                 }
             } else if ident == "config" {
                 if let syn::Lit::Str(s) = value.lit {
-                    args.config = read_config_file(Some(&s.value()))?;
+                    args.config = Some(s.value());
                 } else {
                     return Err("config value must be string literal".into());
                 }
@@ -276,8 +276,8 @@ impl TemplateArgs {
         Ok(args)
     }
 
-    pub(crate) fn config(&self) -> Result<Config<'_>, CompileError> {
-        Config::new(&self.config, self.whitespace.as_ref())
+    pub(crate) fn config(&self) -> Result<String, CompileError> {
+        read_config_file(self.config.as_deref())
     }
 }
 

@@ -10,6 +10,7 @@ use proc_macro2::Span;
 use parser::ParseError;
 
 mod config;
+use config::Config;
 mod generator;
 use generator::{Generator, MapChain};
 mod heritage;
@@ -35,7 +36,8 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 /// value as passed to the `template()` attribute.
 pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     let template_args = TemplateArgs::new(ast)?;
-    let config = template_args.config()?;
+    let toml = template_args.config()?;
+    let config = Config::new(&toml, template_args.whitespace.as_ref())?;
     let input = TemplateInput::new(ast, &config, &template_args)?;
 
     let mut templates = HashMap::new();
