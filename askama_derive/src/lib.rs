@@ -37,7 +37,7 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     let template_args = TemplateArgs::new(ast)?;
     let toml = template_args.config()?;
-    let config = Config::new(&toml, template_args.whitespace.as_ref())?;
+    let config = Config::new(&toml, template_args.whitespace.as_deref())?;
     let input = TemplateInput::new(ast, &config, &template_args)?;
 
     let mut templates = HashMap::new();

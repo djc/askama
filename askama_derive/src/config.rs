@@ -21,7 +21,7 @@ pub(crate) struct Config<'a> {
 impl<'a> Config<'a> {
     pub(crate) fn new(
         s: &'a str,
-        template_whitespace: Option<&String>,
+        template_whitespace: Option<&str>,
     ) -> std::result::Result<Config<'a>, CompileError> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default_dirs = vec![root.join("templates")];
@@ -54,7 +54,7 @@ impl<'a> Config<'a> {
             ),
         };
         if let Some(template_whitespace) = template_whitespace {
-            whitespace = match template_whitespace.as_str() {
+            whitespace = match template_whitespace {
                 "suppress" => WhitespaceHandling::Suppress,
                 "minimize" => WhitespaceHandling::Minimize,
                 "preserve" => WhitespaceHandling::Preserve,
@@ -636,7 +636,7 @@ mod tests {
 
     #[test]
     fn test_config_whitespace_error() {
-        let config = Config::new(r#""#, Some(&"trim".to_owned()));
+        let config = Config::new(r#""#, Some("trim"));
         if let Err(err) = config {
             assert_eq!(err.msg, "invalid value for `whitespace`: \"trim\"");
         } else {
