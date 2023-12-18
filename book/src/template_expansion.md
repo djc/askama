@@ -8,7 +8,7 @@ following examples might not be up-to-date.
 
 ## Basic explanations
 
-Whwn you add `#[derive(Template)]` and `#[template(...)]` on your type, the
+When you add `#[derive(Template)]` and `#[template(...)]` on your type, the
 `Template` derive proc-macro will then generate an implementation of the
 `askama::Template` trait which will be a Rust version of the template.
 
