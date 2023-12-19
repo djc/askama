@@ -916,7 +916,7 @@ impl<'a> Generator<'a> {
         };
 
         let mut expr_buf = Buffer::new(0);
-        let borrow_val = !is_copyable(val);
+        let borrow_val = !is_copyable(val) && !has_call(val);
         if borrow_val {
             expr_buf.write("&(");
         }
@@ -1918,6 +1918,18 @@ impl<'a, K: Eq + hash::Hash, V> Default for MapChain<'a, K, V> {
             parent: None,
             scopes: vec![HashMap::new()],
         }
+    }
+}
+
+/// Returns `true` if an element of this `Expr` is a function/method call.
+fn has_call(expr: &Expr<'_>) -> bool {
+    use Expr::*;
+    match expr {
+        Filter(_, _) | Call(_, _) | RustMacro(_, _) => true,
+        Unary(_, expr) | Group(expr) | Try(expr) => has_call(expr),
+        Tuple(exprs) => exprs.iter().any(|expr| has_call(expr)),
+        BinOp(_, left_expr, right_expr) => has_call(left_expr) || has_call(right_expr),
+        _ => false,
     }
 }
 
