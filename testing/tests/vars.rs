@@ -131,3 +131,31 @@ fn test_decl_assign_range() {
     let t = DeclAssignRange;
     assert_eq!(t.render().unwrap(), "1");
 }
+
+// This ensures that we do not wrap any call in a reference (which would prevent this template to
+// compile).
+#[derive(Template)]
+#[template(
+    source = r#"{% let my_string -%}
+{% if a == 1 -%}
+{% let my_string = format!("testing {}", true) -%}
+{% else if a == 2 -%}
+{% let my_string = "testing {}"|format(a) -%}
+{% else if a == 3 -%}
+{% let my_string = String::from("yop yop") -%}
+{% else -%}
+{% let my_string = "something else".into() -%}
+{% endif %}
+
+{{- my_string }}"#,
+    ext = "html"
+)]
+struct LetWithoutRef {
+    a: u32,
+}
+
+#[test]
+fn test_let_without_ref() {
+    let t = LetWithoutRef { a: 1 };
+    assert_eq!(t.render().unwrap(), "testing true");
+}
