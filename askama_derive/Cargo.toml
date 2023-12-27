@@ -16,7 +16,7 @@ proc-macro = true
 [features]
 config = ["serde", "basic-toml"]
 humansize = []
-i18n = ["fluent-syntax", "fluent-templates", "serde", "basic-toml"]
+i18n = ["fluent-syntax", "fluent-templates", "serde", "basic-toml", "parser/i18n"]
 markdown = []
 num-traits = []
 serde-json = []
