@@ -83,3 +83,90 @@ fn str_cmp() {
     let t = StrCmpTemplate;
     assert_eq!(t.render().unwrap(), "AfooBotherCneitherD");
 }
+
+#[derive(Template)]
+#[template(path = "macro-self-arg.html")]
+struct MacroSelfArgTemplate<'a> {
+    s: &'a str,
+}
+
+#[test]
+fn test_macro_self_arg() {
+    let t = MacroSelfArgTemplate { s: "foo" };
+    assert_eq!(t.render().unwrap(), "foo");
+}
+
+#[derive(Template)]
+#[template(
+    source = "{%- macro thrice(param1, param2) -%}
+{{ param1 }} {{ param2 }}
+{% endmacro -%}
+
+{%- call thrice(param1=2, param2=3) -%}
+{%- call thrice(param2=3, param1=2) -%}
+{%- call thrice(3, param2=2) -%}
+",
+    ext = "html"
+)]
+struct MacroNamedArg;
+
+#[test]
+// We check that it's always the correct values passed to the
+// expected argument.
+fn test_named_argument() {
+    assert_eq!(
+        MacroNamedArg.render().unwrap(),
+        "\
+2 3
+2 3
+3 2
+"
+    );
+}
+
+#[derive(Template)]
+#[template(
+    source = r#"{% macro button(label) %}
+{{- label -}}
+{% endmacro %}
+
+{%- call button(label="hi") -%}
+"#,
+    ext = "html"
+)]
+struct OnlyNamedArgument;
+
+#[test]
+fn test_only_named_argument() {
+    assert_eq!(OnlyNamedArgument.render().unwrap(), "hi");
+}
+
+// Check for trailing commas.
+#[derive(Template)]
+#[template(
+    source = r#"{% macro button(label , ) %}
+{{- label -}}
+{% endmacro %}
+{%- macro button2(label ,) %}
+{% endmacro %}
+{%- macro button3(label,) %}
+{% endmacro %}
+{%- macro button4(label, ) %}
+{% endmacro %}
+{%- macro button5(label ) %}
+{% endmacro %}
+
+{%- call button(label="hi" , ) -%}
+{%- call button(label="hi" ,) -%}
+{%- call button(label="hi",) -%}
+{%- call button(label="hi", ) -%}
+{%- call button(label="hi" ) -%}
+"#,
+    ext = "html"
+)]
+struct TrailingComma;
+
+#[test]
+fn test_trailing_comma() {
+    assert_eq!(TrailingComma.render().unwrap(), "hihihihihi");
+}

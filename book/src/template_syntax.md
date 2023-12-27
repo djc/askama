@@ -10,6 +10,28 @@ context,
 while `{{ user.name }}` will get the ``name`` field of the ``user``
 field from the template context.
 
+## Using constants in templates
+
+You can use constants defined in your Rust code. For example if you
+have:
+
+```rust
+pub const MAX_NB_USERS: usize = 2;
+```
+
+defined in your crate root, you can then use it in your templates by
+using ``crate::MAX_NB_USERS``:
+
+```jinja
+<p>The user limit is {{ crate::MAX_NB_USERS }}.</p>
+{% set value = 4 %}
+{% if value > crate::MAX_NB_USERS %}
+    <p>{{ value }} is bigger than MAX_NB_USERS.</p>
+{% else %}
+    <p>{{ value }} is less than MAX_NB_USERS.</p>
+{% endif %}
+```
+
 ## Assignments
 
 Inside code blocks, you can also declare variables or assign values
@@ -124,6 +146,122 @@ In this case, they are resolved by the following preference.
 2. Minimize (`~`)
 3. Preserve (`+`)
 
+## Functions
+
+There are several ways that functions can be called within templates, 
+depending on where the function definition resides. These are:
+
+- Template `struct` fields
+- Static functions
+- Struct/Trait implementations
+
+### Template struct field
+
+When the function is a field of the template struct, we can simply call it 
+by invoking the name of the field, followed by parentheses containing any
+required arguments. For example, we can invoke the function `foo` for the 
+following `MyTemplate` struct:
+
+```rust
+#[derive(Template)]
+#[template(source = "{{ foo(123) }}", ext = "txt")]
+struct MyTemplate {
+  foo: fn(u32) -> String,
+}
+```
+
+However, since we'll need to define this function every time we create an
+instance of `MyTemplate`, it's probably not the most ideal way to associate
+some behaviour for our template.
+
+### Static functions
+
+When a function exists within the same Rust module as the template 
+definition, we can invoke it using the `self` path prefix, where `self`
+represents the scope of the module in which the template struct resides. 
+
+For example, here we call the function `foo` by writing `self::foo(123)` 
+within the `MyTemplate` struct source:
+
+```rust
+fn foo(val: u32) -> String {
+  format!("{}", val)
+}
+
+#[derive(Template)]
+#[template(source = "{{ self::foo(123) }}", ext = "txt")]
+struct MyTemplate;
+```
+
+This has the advantage of being able to share functionality across multiple
+templates, without needing to expose the function publicly outside of its 
+module.
+
+However, we are not limited to local functions defined within the same module. 
+We can call _any_ public function by specifying the full path to that function
+within the template source. For example, given a utilities module such as:
+
+```rust
+// src/templates/utils/mod.rs
+
+pub fn foo(val: u32) -> String {
+  format!("{}", val)
+}
+```
+
+Within our `MyTemplate` source, we can call the `foo` function by writing:
+
+```rust
+// src/templates/my_template.rs
+
+#[derive(Template)]
+#[template(source = "{{ crate::templates::utils::foo(123) }}", ext = "txt")]
+struct MyTemplate;
+```
+
+### Struct / trait implementations
+
+Finally, we can invoke functions that are implementation methods of our 
+template struct, by referencing `Self` (note the uppercase `S`) as the path, 
+before calling our function: 
+
+```rust
+#[derive(Template)]
+#[template(source = "{{ Self::foo(self, 123) }}", ext = "txt")]
+struct MyTemplate {
+  count: u32,
+};
+
+impl MyTemplate {
+  fn foo(&self, val: u32) -> String {
+    format!("{} is the count, {} is the value", self.count, val)
+  }
+}
+```
+
+If the implemented method requires a reference to the struct itself, 
+such as is demonstrated in the above example, we can pass `self` 
+(note the lowercase `s`) as the first argument.
+
+Similarly, using the `Self` path, we can also call any method belonging 
+to a trait that has been implemented for our template struct:
+
+```rust
+trait Hello {
+  fn greet(name: &str) -> String;
+}
+
+#[derive(Template)]
+#[template(source = r#"{{ Self::greet("world") }}"#, ext = "txt")]
+struct MyTemplate;
+
+impl Hello for MyTemplate {
+  fn greet(name: &str) -> String {
+    format!("Hello {}", name)
+  }
+}
+```
+
 ## Template inheritance
 
 Template inheritance allows you to build a base template with common
@@ -153,6 +291,13 @@ A base template must define one or more blocks in order to enable
 inheritance. Blocks can only be specified at the top level of a template
 or inside other blocks, not inside `if`/`else` branches or in `for`-loop
 bodies.
+
+It is also possible to use the name of the `block` in `endblock` (both in
+declaration and use):
+
+```html
+{% block content %}<p>Placeholder content</p>{% endblock content %}
+```
 
 ### Child template
 
@@ -415,11 +560,11 @@ struct Item<'a> {
 
 ## Macros
 
-You can define macros within your template by using `{% macro name(args) %}`, ending with `{% endmacro %}`
+You can define macros within your template by using `{% macro name(args) %}`, ending with `{% endmacro %}`.
 
-You can then call it later with `{% call name(args) %}`
+You can then call it with `{% call name(args) %}`:
 
-```
+```jinja
 {% macro heading(arg) %}
 
 <h1>{{arg}}</h1>
@@ -429,10 +574,61 @@ You can then call it later with `{% call name(args) %}`
 {% call heading(s) %}
 ```
 
-You can place templates in a separate file and use it in your templates by using `{% import %}`
+You can place macros in a separate file and use them in your templates by using `{% import %}`:
 
-```
+```jinja
 {%- import "macro.html" as scope -%}
 
 {% call scope::heading(s) %}
+```
+
+You can optionally specify the name of the macro in `endmacro`:
+
+```jinja
+{% macro heading(arg) %}<p>{{arg}}</p>{% endmacro heading %}
+```
+
+You can also specify arguments by their name (as defined in the macro):
+
+```jinja
+{% macro heading(arg, bold) %}
+
+<h1>{{arg}} <b>{{bold}}</b></h1>
+
+{% endmacro %}
+
+{% call heading(bold="something", arg="title") %}
+```
+
+You can use whitespace characters around `=`:
+
+```jinja
+{% call heading(bold = "something", arg = "title") %}
+```
+
+You can mix named and non-named arguments when calling a macro:
+
+```
+{% call heading("title", bold="something") %}
+```
+
+However please note than named arguments must always come **last**.
+
+Another thing to note, if a named argument is referring to an argument that would
+be used for a non-named argument, it will error:
+
+```jinja
+{% macro heading(arg1, arg2, arg3, arg4) %}
+{% endmacro %}
+
+{% call heading("something", "b", arg4="ah", arg2="title") %}
+```
+
+In here it's invalid because `arg2` is the second argument and would be used by
+`"b"`. So either you replace `"b"` with `arg3="b"` or you pass `"title"` before:
+
+```jinja
+{% call heading("something", arg3="b", arg4="ah", arg2="title") %}
+{# Equivalent of: #}
+{% call heading("something", "title", "b", arg4="ah") %}
 ```

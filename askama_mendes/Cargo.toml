@@ -11,11 +11,11 @@ license = "MIT OR Apache-2.0"
 workspace = ".."
 readme = "README.md"
 edition = "2021"
-rust-version = "1.58"
+rust-version = "1.65"
 
 [dependencies]
 askama = { version = "0.12", path = "../askama", default-features = false, features = ["with-mendes", "mime", "mime_guess"] }
-mendes = "0.3.0"
+mendes = "0.5.0"
 
 [dev-dependencies]
 async-trait = "0.1.51"

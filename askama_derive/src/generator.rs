@@ -1,279 +1,19 @@
-use crate::config::{get_template_source, read_config_file, Config, WhitespaceHandling};
-use crate::heritage::{Context, Heritage};
-use crate::input::{Print, Source, TemplateInput};
-use crate::parser::{Cond, CondTest, Expr, Loop, Node, Target, When, Whitespace, Ws};
-use crate::CompileError;
-
-use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
-use syn::punctuated::Punctuated;
-
 use std::collections::hash_map::{Entry, HashMap};
 use std::path::{Path, PathBuf};
 use std::{cmp, hash, mem, str};
 
-/// The actual implementation for askama_derive::Template
-pub(crate) fn derive_template(input: TokenStream) -> TokenStream {
-    let ast: syn::DeriveInput = syn::parse(input).unwrap();
-    match build_template(&ast) {
-        Ok(source) => source.parse().unwrap(),
-        Err(e) => e.into_compile_error(),
-    }
-}
+use crate::config::{get_template_source, WhitespaceHandling};
+use crate::heritage::{Context, Heritage};
+use crate::input::{Source, TemplateInput};
+use crate::CompileError;
 
-/// Takes a `syn::DeriveInput` and generates source code for it
-///
-/// Reads the metadata from the `template()` attribute to get the template
-/// metadata, then fetches the source from the filesystem. The source is
-/// parsed, and the parse tree is fed to the code generator. Will print
-/// the parse tree and/or generated source according to the `print` key's
-/// value as passed to the `template()` attribute.
-fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
-    let template_args = TemplateArgs::new(ast)?;
-    let config_toml = read_config_file(template_args.config_path.as_deref())?;
-    let config = Config::new(&config_toml, template_args.whitespace.as_ref())?;
-    let input = TemplateInput::new(ast, &config, template_args)?;
-    let source: String = match input.source {
-        Source::Source(ref s) => s.clone(),
-        Source::Path(_) => get_template_source(&input.path)?,
-    };
+use parser::node::{
+    Call, Comment, CondTest, If, Include, Let, Lit, Loop, Match, Target, Whitespace, Ws,
+};
+use parser::{Expr, Node, Parsed};
+use quote::quote;
 
-    let mut templates = HashMap::new();
-    find_used_templates(&input, &mut templates, source)?;
-
-    let mut contexts = HashMap::new();
-    for (path, parsed) in &templates {
-        contexts.insert(
-            path.as_path(),
-            Context::new(input.config, path, parsed.nodes())?,
-        );
-    }
-
-    let ctx = &contexts[input.path.as_path()];
-    let heritage = if !ctx.blocks.is_empty() || ctx.extends.is_some() {
-        Some(Heritage::new(ctx, &contexts))
-    } else {
-        None
-    };
-
-    if input.print == Print::Ast || input.print == Print::All {
-        eprintln!("{:?}", templates[input.path.as_path()].nodes());
-    }
-
-    let code = Generator::new(
-        &input,
-        &contexts,
-        heritage.as_ref(),
-        MapChain::new(),
-        config.whitespace,
-    )
-    .build(&contexts[input.path.as_path()])?;
-    if input.print == Print::Code || input.print == Print::All {
-        eprintln!("{code}");
-    }
-    Ok(code)
-}
-
-#[derive(Default)]
-pub(crate) struct TemplateArgs {
-    pub(crate) source: Option<Source>,
-    pub(crate) print: Print,
-    pub(crate) escaping: Option<String>,
-    pub(crate) ext: Option<String>,
-    pub(crate) syntax: Option<String>,
-    pub(crate) config_path: Option<String>,
-    pub(crate) whitespace: Option<String>,
-}
-
-impl TemplateArgs {
-    fn new(ast: &'_ syn::DeriveInput) -> Result<Self, CompileError> {
-        // Check that an attribute called `template()` exists once and that it is
-        // the proper type (list).
-        let mut template_args = None;
-        for attr in &ast.attrs {
-            if !attr.path().is_ident("template") {
-                continue;
-            }
-
-            match attr.parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated) {
-                Ok(args) if template_args.is_none() => template_args = Some(args),
-                Ok(_) => return Err("duplicated 'template' attribute".into()),
-                Err(e) => return Err(format!("unable to parse template arguments: {e}").into()),
-            };
-        }
-
-        let template_args =
-            template_args.ok_or_else(|| CompileError::from("no attribute 'template' found"))?;
-
-        let mut args = Self::default();
-        // Loop over the meta attributes and find everything that we
-        // understand. Return a CompileError if something is not right.
-        // `source` contains an enum that can represent `path` or `source`.
-        for item in template_args {
-            let pair = match item {
-                syn::Meta::NameValue(pair) => pair,
-                _ => {
-                    return Err(format!(
-                        "unsupported attribute argument {:?}",
-                        item.to_token_stream()
-                    )
-                    .into())
-                }
-            };
-
-            let ident = match pair.path.get_ident() {
-                Some(ident) => ident,
-                None => unreachable!("not possible in syn::Meta::NameValue(…)"),
-            };
-
-            let value = match pair.value {
-                syn::Expr::Lit(lit) => lit,
-                syn::Expr::Group(group) => match *group.expr {
-                    syn::Expr::Lit(lit) => lit,
-                    _ => {
-                        return Err(format!("unsupported argument value type for {ident:?}").into())
-                    }
-                },
-                _ => return Err(format!("unsupported argument value type for {ident:?}").into()),
-            };
-
-            if ident == "path" {
-                if let syn::Lit::Str(s) = value.lit {
-                    if args.source.is_some() {
-                        return Err("must specify 'source' or 'path', not both".into());
-                    }
-                    args.source = Some(Source::Path(s.value()));
-                } else {
-                    return Err("template path must be string literal".into());
-                }
-            } else if ident == "source" {
-                if let syn::Lit::Str(s) = value.lit {
-                    if args.source.is_some() {
-                        return Err("must specify 'source' or 'path', not both".into());
-                    }
-                    args.source = Some(Source::Source(s.value()));
-                } else {
-                    return Err("template source must be string literal".into());
-                }
-            } else if ident == "print" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.print = s.value().parse()?;
-                } else {
-                    return Err("print value must be string literal".into());
-                }
-            } else if ident == "escape" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.escaping = Some(s.value());
-                } else {
-                    return Err("escape value must be string literal".into());
-                }
-            } else if ident == "ext" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.ext = Some(s.value());
-                } else {
-                    return Err("ext value must be string literal".into());
-                }
-            } else if ident == "syntax" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.syntax = Some(s.value())
-                } else {
-                    return Err("syntax value must be string literal".into());
-                }
-            } else if ident == "config" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.config_path = Some(s.value())
-                } else {
-                    return Err("config value must be string literal".into());
-                }
-            } else if ident == "whitespace" {
-                if let syn::Lit::Str(s) = value.lit {
-                    args.whitespace = Some(s.value())
-                } else {
-                    return Err("whitespace value must be string literal".into());
-                }
-            } else {
-                return Err(format!("unsupported attribute key {ident:?} found").into());
-            }
-        }
-
-        Ok(args)
-    }
-}
-
-fn find_used_templates(
-    input: &TemplateInput<'_>,
-    map: &mut HashMap<PathBuf, Parsed>,
-    source: String,
-) -> Result<(), CompileError> {
-    let mut dependency_graph = Vec::new();
-    let mut check = vec![(input.path.clone(), source)];
-    while let Some((path, source)) = check.pop() {
-        let parsed = Parsed::new(source, input.syntax)?;
-        for n in parsed.nodes() {
-            match n {
-                Node::Extends(extends) => {
-                    let extends = input.config.find_template(extends, Some(&path))?;
-                    let dependency_path = (path.clone(), extends.clone());
-                    if dependency_graph.contains(&dependency_path) {
-                        return Err(format!(
-                            "cyclic dependency in graph {:#?}",
-                            dependency_graph
-                                .iter()
-                                .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
-                                .collect::<Vec<String>>()
-                        )
-                        .into());
-                    }
-                    dependency_graph.push(dependency_path);
-                    let source = get_template_source(&extends)?;
-                    check.push((extends, source));
-                }
-                Node::Import(_, import, _) => {
-                    let import = input.config.find_template(import, Some(&path))?;
-                    let source = get_template_source(&import)?;
-                    check.push((import, source));
-                }
-                _ => {}
-            }
-        }
-        map.insert(path, parsed);
-    }
-    Ok(())
-}
-
-mod _parsed {
-    use std::mem;
-
-    use crate::config::Syntax;
-    use crate::parser::{parse, Node};
-    use crate::CompileError;
-
-    pub(super) struct Parsed {
-        #[allow(dead_code)]
-        source: String,
-        nodes: Vec<Node<'static>>,
-    }
-
-    impl Parsed {
-        pub(super) fn new(source: String, syntax: &Syntax<'_>) -> Result<Self, CompileError> {
-            // Self-referential borrowing: `self` will keep the source alive as `String`,
-            // internally we will transmute it to `&'static str` to satisfy the compiler.
-            // However, we only expose the nodes with a lifetime limited to `self`.
-            let src = unsafe { mem::transmute::<&str, &'static str>(source.as_str()) };
-            let nodes = parse(src, syntax)?;
-            Ok(Self { source, nodes })
-        }
-
-        // The return value's lifetime must be limited to `self` to uphold the unsafe invariant.
-        pub(super) fn nodes(&self) -> &[Node<'_>] {
-            &self.nodes
-        }
-    }
-}
-
-use _parsed::Parsed;
-
-struct Generator<'a> {
+pub(crate) struct Generator<'a> {
     // The template input state: original struct AST and attributes
     input: &'a TemplateInput<'a>,
     // All contexts, keyed by the package-relative template path
@@ -297,18 +37,14 @@ struct Generator<'a> {
     buf_writable: Vec<Writable<'a>>,
     // Counter for write! hash named arguments
     named: usize,
-    // If set to `suppress`, the whitespace characters will be removed by default unless `+` is
-    // used.
-    whitespace: WhitespaceHandling,
 }
 
 impl<'a> Generator<'a> {
-    fn new<'n>(
+    pub(crate) fn new<'n>(
         input: &'n TemplateInput<'_>,
         contexts: &'n HashMap<&'n Path, Context<'n>>,
         heritage: Option<&'n Heritage<'_>>,
         locals: MapChain<'n, &'n str, LocalMeta>,
-        whitespace: WhitespaceHandling,
     ) -> Generator<'n> {
         Generator {
             input,
@@ -321,12 +57,11 @@ impl<'a> Generator<'a> {
             super_block: None,
             buf_writable: vec![],
             named: 0,
-            whitespace,
         }
     }
 
     // Takes a Context and generates the relevant implementations.
-    fn build(mut self, ctx: &'a Context<'_>) -> Result<String, CompileError> {
+    pub(crate) fn build(mut self, ctx: &'a Context<'_>) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
 
         self.impl_template(ctx, &mut buf)?;
@@ -658,56 +393,53 @@ impl<'a> Generator<'a> {
         let mut size_hint = 0;
         for n in nodes {
             match *n {
-                Node::Lit(lws, val, rws) => {
-                    self.visit_lit(lws, val, rws);
+                Node::Lit(ref lit) => {
+                    self.visit_lit(lit);
                 }
-                Node::Comment(ws) => {
-                    self.write_comment(ws);
+                Node::Comment(ref comment) => {
+                    self.write_comment(comment);
                 }
                 Node::Expr(ws, ref val) => {
                     self.write_expr(ws, val);
                 }
-                Node::LetDecl(ws, ref var) => {
-                    self.write_let_decl(buf, ws, var)?;
+                Node::Let(ref l) => {
+                    self.write_let(buf, l)?;
                 }
-                Node::Let(ws, ref var, ref val) => {
-                    self.write_let(buf, ws, var, val)?;
+                Node::If(ref i) => {
+                    size_hint += self.write_if(ctx, buf, i)?;
                 }
-                Node::Cond(ref conds, ws) => {
-                    size_hint += self.write_cond(ctx, buf, conds, ws)?;
-                }
-                Node::Match(ws1, ref expr, ref arms, ws2) => {
-                    size_hint += self.write_match(ctx, buf, ws1, expr, arms, ws2)?;
+                Node::Match(ref m) => {
+                    size_hint += self.write_match(ctx, buf, m)?;
                 }
                 Node::Loop(ref loop_block) => {
                     size_hint += self.write_loop(ctx, buf, loop_block)?;
                 }
-                Node::BlockDef(ws1, name, _, ws2) => {
-                    size_hint += self.write_block(buf, Some(name), Ws(ws1.0, ws2.1))?;
+                Node::BlockDef(ref b) => {
+                    size_hint += self.write_block(buf, Some(b.name), Ws(b.ws1.0, b.ws2.1))?;
                 }
-                Node::Include(ws, path) => {
-                    size_hint += self.handle_include(ctx, buf, ws, path)?;
+                Node::Include(ref i) => {
+                    size_hint += self.handle_include(ctx, buf, i)?;
                 }
-                Node::Call(ws, scope, name, ref args) => {
-                    size_hint += self.write_call(ctx, buf, ws, scope, name, args)?;
+                Node::Call(ref call) => {
+                    size_hint += self.write_call(ctx, buf, call)?;
                 }
-                Node::Macro(_, ref m) => {
+                Node::Macro(ref m) => {
                     if level != AstLevel::Top {
                         return Err("macro blocks only allowed at the top level".into());
                     }
                     self.flush_ws(m.ws1);
                     self.prepare_ws(m.ws2);
                 }
-                Node::Raw(ws1, lws, val, rws, ws2) => {
-                    self.handle_ws(ws1);
-                    self.visit_lit(lws, val, rws);
-                    self.handle_ws(ws2);
+                Node::Raw(ref raw) => {
+                    self.handle_ws(raw.ws1);
+                    self.visit_lit(&raw.lit);
+                    self.handle_ws(raw.ws2);
                 }
-                Node::Import(ws, _, _) => {
+                Node::Import(ref i) => {
                     if level != AstLevel::Top {
                         return Err("import blocks only allowed at the top level".into());
                     }
-                    self.handle_ws(ws);
+                    self.handle_ws(i.ws);
                 }
                 Node::Extends(_) => {
                     if level != AstLevel::Top {
@@ -740,18 +472,17 @@ impl<'a> Generator<'a> {
         Ok(size_hint)
     }
 
-    fn write_cond(
+    fn write_if(
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        conds: &'a [Cond<'_>],
-        ws: Ws,
+        i: &'a If<'_>,
     ) -> Result<usize, CompileError> {
         let mut flushed = 0;
         let mut arm_sizes = Vec::new();
         let mut has_else = false;
-        for (i, &(cws, ref cond, ref nodes)) in conds.iter().enumerate() {
-            self.handle_ws(cws);
+        for (i, cond) in i.branches.iter().enumerate() {
+            self.handle_ws(cond.ws);
             flushed += self.write_buf_writable(buf)?;
             if i > 0 {
                 self.locals.pop();
@@ -759,7 +490,7 @@ impl<'a> Generator<'a> {
 
             self.locals.push();
             let mut arm_size = 0;
-            if let Some(CondTest { target, expr }) = cond {
+            if let Some(CondTest { target, expr }) = &cond.cond {
                 if i == 0 {
                     buf.write("if ");
                 } else {
@@ -794,10 +525,10 @@ impl<'a> Generator<'a> {
 
             buf.writeln(" {")?;
 
-            arm_size += self.handle(ctx, nodes, buf, AstLevel::Nested)?;
+            arm_size += self.handle(ctx, &cond.nodes, buf, AstLevel::Nested)?;
             arm_sizes.push(arm_size);
         }
-        self.handle_ws(ws);
+        self.handle_ws(i.ws);
         flushed += self.write_buf_writable(buf)?;
         buf.writeln("}")?;
 
@@ -814,11 +545,15 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        ws1: Ws,
-        expr: &Expr<'_>,
-        arms: &'a [When<'_>],
-        ws2: Ws,
+        m: &'a Match<'a>,
     ) -> Result<usize, CompileError> {
+        let Match {
+            ws1,
+            ref expr,
+            ref arms,
+            ws2,
+        } = *m;
+
         self.flush_ws(ws1);
         let flushed = self.write_buf_writable(buf)?;
         let mut arm_sizes = Vec::new();
@@ -828,8 +563,7 @@ impl<'a> Generator<'a> {
 
         let mut arm_size = 0;
         for (i, arm) in arms.iter().enumerate() {
-            let &(ws, ref target, ref body) = arm;
-            self.handle_ws(ws);
+            self.handle_ws(arm.ws);
 
             if i > 0 {
                 arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
@@ -839,10 +573,10 @@ impl<'a> Generator<'a> {
             }
 
             self.locals.push();
-            self.visit_target(buf, true, true, target);
+            self.visit_target(buf, true, true, &arm.target);
             buf.writeln(" => {")?;
 
-            arm_size = self.handle(ctx, body, buf, AstLevel::Nested)?;
+            arm_size = self.handle(ctx, &arm.nodes, buf, AstLevel::Nested)?;
         }
 
         self.handle_ws(ws2);
@@ -867,9 +601,13 @@ impl<'a> Generator<'a> {
 
         let expr_code = self.visit_expr_root(&loop_block.iter)?;
 
+        let has_else_nodes = !loop_block.else_nodes.is_empty();
+
         let flushed = self.write_buf_writable(buf)?;
         buf.writeln("{")?;
-        buf.writeln("let mut _did_loop = false;")?;
+        if has_else_nodes {
+            buf.writeln("let mut _did_loop = false;")?;
+        }
         match loop_block.iter {
             Expr::Range(_, _, _) => buf.writeln(&format!("let _iter = {expr_code};")),
             Expr::Array(..) => buf.writeln(&format!("let _iter = {expr_code}.iter();")),
@@ -905,20 +643,28 @@ impl<'a> Generator<'a> {
         self.visit_target(buf, true, true, &loop_block.var);
         buf.writeln(", _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {")?;
 
-        buf.writeln("_did_loop = true;")?;
+        if has_else_nodes {
+            buf.writeln("_did_loop = true;")?;
+        }
         let mut size_hint1 = self.handle(ctx, &loop_block.body, buf, AstLevel::Nested)?;
         self.handle_ws(loop_block.ws2);
         size_hint1 += self.write_buf_writable(buf)?;
         self.locals.pop();
         buf.writeln("}")?;
 
-        buf.writeln("if !_did_loop {")?;
-        self.locals.push();
-        let mut size_hint2 = self.handle(ctx, &loop_block.else_block, buf, AstLevel::Nested)?;
-        self.handle_ws(loop_block.ws3);
-        size_hint2 += self.write_buf_writable(buf)?;
-        self.locals.pop();
-        buf.writeln("}")?;
+        let mut size_hint2;
+        if has_else_nodes {
+            buf.writeln("if !_did_loop {")?;
+            self.locals.push();
+            size_hint2 = self.handle(ctx, &loop_block.else_nodes, buf, AstLevel::Nested)?;
+            self.handle_ws(loop_block.ws3);
+            size_hint2 += self.write_buf_writable(buf)?;
+            self.locals.pop();
+            buf.writeln("}")?;
+        } else {
+            self.handle_ws(loop_block.ws3);
+            size_hint2 = self.write_buf_writable(buf)?;
+        }
 
         buf.writeln("}")?;
 
@@ -929,11 +675,14 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        ws: Ws,
-        scope: Option<&str>,
-        name: &str,
-        args: &[Expr<'_>],
+        call: &'a Call<'_>,
     ) -> Result<usize, CompileError> {
+        let Call {
+            ws,
+            scope,
+            name,
+            ref args,
+        } = *call;
         if name == "super" {
             return self.write_block(buf, None, ws);
         }
@@ -970,16 +719,63 @@ impl<'a> Generator<'a> {
         let mut names = Buffer::new(0);
         let mut values = Buffer::new(0);
         let mut is_first_variable = true;
-        for (i, arg) in def.args.iter().enumerate() {
-            let expr = args.get(i).ok_or_else(|| {
-                CompileError::from(format!("macro {name:?} takes more than {i} arguments"))
-            })?;
+        if args.len() != def.args.len() {
+            return Err(CompileError::from(format!(
+                "macro {name:?} expected {} argument{}, found {}",
+                def.args.len(),
+                if def.args.len() != 1 { "s" } else { "" },
+                args.len()
+            )));
+        }
+        let mut named_arguments = HashMap::new();
+        // Since named arguments can only be passed last, we only need to check if the last argument
+        // is a named one.
+        if let Some(Expr::NamedArgument(_, _)) = args.last() {
+            // First we check that all named arguments actually exist in the called item.
+            for arg in args.iter().rev() {
+                let Expr::NamedArgument(arg_name, _) = arg else {
+                    break;
+                };
+                if !def.args.iter().any(|arg| arg == arg_name) {
+                    return Err(CompileError::from(format!(
+                        "no argument named `{arg_name}` in macro {name:?}"
+                    )));
+                }
+                named_arguments.insert(arg_name, arg);
+            }
+        }
 
+        // Handling both named and unnamed arguments requires to be careful of the named arguments
+        // order. To do so, we iterate through the macro defined arguments and then check if we have
+        // a named argument with this name:
+        //
+        // * If there is one, we add it and move to the next argument.
+        // * If there isn't one, then we pick the next argument (we can do it without checking
+        //   anything since named arguments are always last).
+        let mut allow_positional = true;
+        for (index, arg) in def.args.iter().enumerate() {
+            let expr = match named_arguments.get(&arg) {
+                Some(expr) => {
+                    allow_positional = false;
+                    expr
+                }
+                None => {
+                    if !allow_positional {
+                        // If there is already at least one named argument, then it's not allowed
+                        // to use unnamed ones at this point anymore.
+                        return Err(CompileError::from(format!(
+                            "cannot have unnamed argument (`{arg}`) after named argument in macro \
+                             {name:?}"
+                        )));
+                    }
+                    &args[index]
+                }
+            };
             match expr {
                 // If `expr` is already a form of variable then
                 // don't reintroduce a new variable. This is
                 // to avoid moving non-copyable values.
-                Expr::Var(name) => {
+                &Expr::Var(name) if name != "self" => {
                     let var = self.locals.resolve_or_self(name);
                     self.locals.insert(arg, LocalMeta::with_ref(var));
                 }
@@ -1030,15 +826,14 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
-        ws: Ws,
-        path: &str,
+        i: &'a Include<'_>,
     ) -> Result<usize, CompileError> {
-        self.flush_ws(ws);
+        self.flush_ws(i.ws);
         self.write_buf_writable(buf)?;
         let path = self
             .input
             .config
-            .find_template(path, Some(&self.input.path))?;
+            .find_template(i.path, Some(&self.input.path))?;
 
         // Make sure the compiler understands that the generated code depends on the template file.
         {
@@ -1055,13 +850,7 @@ impl<'a> Generator<'a> {
         // handle the include's nodes. Unfortunately we can't easily share the `includes` cache.
 
         let locals = MapChain::with_parent(&self.locals);
-        let mut child = Self::new(
-            self.input,
-            self.contexts,
-            self.heritage,
-            locals,
-            self.whitespace,
-        );
+        let mut child = Self::new(self.input, self.contexts, self.heritage, locals);
 
         let nodes = match self.contexts.get(path.as_path()) {
             Some(ctx) => ctx.nodes,
@@ -1076,22 +865,9 @@ impl<'a> Generator<'a> {
 
         let mut size_hint = child.handle(ctx, nodes, buf, AstLevel::Nested)?;
         size_hint += child.write_buf_writable(buf)?;
-        self.prepare_ws(ws);
+        self.prepare_ws(i.ws);
 
         Ok(size_hint)
-    }
-
-    fn write_let_decl(
-        &mut self,
-        buf: &mut Buffer,
-        ws: Ws,
-        var: &'a Target<'_>,
-    ) -> Result<(), CompileError> {
-        self.handle_ws(ws);
-        self.write_buf_writable(buf)?;
-        buf.write("let ");
-        self.visit_target(buf, false, true, var);
-        buf.writeln(";")
     }
 
     fn is_shadowing_variable(&self, var: &Target<'a>) -> Result<bool, CompileError> {
@@ -1129,31 +905,40 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn write_let(
-        &mut self,
-        buf: &mut Buffer,
-        ws: Ws,
-        var: &'a Target<'_>,
-        val: &Expr<'_>,
-    ) -> Result<(), CompileError> {
-        self.handle_ws(ws);
-        let mut expr_buf = Buffer::new(0);
-        self.visit_expr(&mut expr_buf, val)?;
+    fn write_let(&mut self, buf: &mut Buffer, l: &'a Let<'_>) -> Result<(), CompileError> {
+        self.handle_ws(l.ws);
 
-        let shadowed = self.is_shadowing_variable(var)?;
+        let Some(val) = &l.val else {
+            self.write_buf_writable(buf)?;
+            buf.write("let ");
+            self.visit_target(buf, false, true, &l.var);
+            return buf.writeln(";");
+        };
+
+        let mut expr_buf = Buffer::new(0);
+        let borrow_val = !is_copyable(val);
+        if borrow_val {
+            expr_buf.write("&(");
+        }
+        self.visit_expr(&mut expr_buf, val)?;
+        if borrow_val {
+            expr_buf.write(")");
+        }
+
+        let shadowed = self.is_shadowing_variable(&l.var)?;
         if shadowed {
             // Need to flush the buffer if the variable is being shadowed,
             // to ensure the old variable is used.
             self.write_buf_writable(buf)?;
         }
         if shadowed
-            || !matches!(var, &Target::Name(_))
-            || matches!(var, Target::Name(name) if self.locals.get(name).is_none())
+            || !matches!(l.var, Target::Name(_))
+            || matches!(&l.var, Target::Name(name) if self.locals.get(name).is_none())
         {
             buf.write("let ");
         }
 
-        self.visit_target(buf, true, true, var);
+        self.visit_target(buf, true, true, &l.var);
         buf.writeln(&format!(" = {};", &expr_buf.buf))
     }
 
@@ -1189,26 +974,18 @@ impl<'a> Generator<'a> {
         // Get the block definition from the heritage chain
         let heritage = self
             .heritage
-            .as_ref()
             .ok_or_else(|| CompileError::from("no block ancestors available"))?;
-        let (ctx, def) = heritage.blocks[cur.0].get(cur.1).ok_or_else(|| {
+        let (ctx, def) = *heritage.blocks[cur.0].get(cur.1).ok_or_else(|| {
             CompileError::from(match name {
                 None => format!("no super() block found for block '{}'", cur.0),
                 Some(name) => format!("no block found for name '{name}'"),
             })
         })?;
 
-        // Get the nodes and whitespace suppression data from the block definition
-        let (ws1, nodes, ws2) = if let Node::BlockDef(ws1, _, nodes, ws2) = def {
-            (ws1, nodes, ws2)
-        } else {
-            unreachable!()
-        };
-
         // Handle inner whitespace suppression spec and process block nodes
-        self.prepare_ws(*ws1);
+        self.prepare_ws(def.ws1);
         self.locals.push();
-        let size_hint = self.handle(ctx, nodes, buf, AstLevel::Block)?;
+        let size_hint = self.handle(ctx, &def.nodes, buf, AstLevel::Block)?;
 
         if !self.locals.is_current_empty() {
             // Need to flush the buffer before popping the variable stack
@@ -1216,7 +993,7 @@ impl<'a> Generator<'a> {
         }
 
         self.locals.pop();
-        self.flush_ws(*ws2);
+        self.flush_ws(def.ws2);
 
         // Restore original block context and set whitespace suppression for
         // succeeding whitespace according to the outer WS spec
@@ -1274,7 +1051,7 @@ impl<'a> Generator<'a> {
                     };
 
                     let id = match expr_cache.entry(expression.clone()) {
-                        Entry::Occupied(e) if s.is_cacheable() => *e.get(),
+                        Entry::Occupied(e) if is_cacheable(s) => *e.get(),
                         e => {
                             let id = self.named;
                             self.named += 1;
@@ -1308,8 +1085,9 @@ impl<'a> Generator<'a> {
         Ok(size_hint)
     }
 
-    fn visit_lit(&mut self, lws: &'a str, val: &'a str, rws: &'a str) {
+    fn visit_lit(&mut self, lit: &'a Lit<'_>) {
         assert!(self.next_ws.is_none());
+        let Lit { lws, val, rws } = *lit;
         if !lws.is_empty() {
             match self.skip_ws {
                 WhitespaceHandling::Suppress => {}
@@ -1338,8 +1116,8 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn write_comment(&mut self, ws: Ws) {
-        self.handle_ws(ws);
+    fn write_comment(&mut self, comment: &'a Comment<'_>) {
+        self.handle_ws(comment.ws);
     }
 
     /* Visitor methods for expression types */
@@ -1378,6 +1156,7 @@ impl<'a> Generator<'a> {
             Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
             #[cfg(feature = "i18n")]
             Expr::Localize(ref msg_id, ref args) => self.visit_localize(buf, msg_id, args)?,
+            Expr::NamedArgument(_, ref expr) => self.visit_named_argument(buf, expr)?,
         })
     }
 
@@ -1626,7 +1405,7 @@ impl<'a> Generator<'a> {
                 buf.write(", ");
             }
 
-            let borrow = !arg.is_copyable();
+            let borrow = !is_copyable(arg);
             if borrow {
                 buf.write("&(");
             }
@@ -1809,6 +1588,15 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Unwrapped)
     }
 
+    fn visit_named_argument(
+        &mut self,
+        buf: &mut Buffer,
+        expr: &Expr<'_>,
+    ) -> Result<DisplayWrap, CompileError> {
+        self.visit_expr(buf, expr)?;
+        Ok(DisplayWrap::Unwrapped)
+    }
+
     fn visit_array(
         &mut self,
         buf: &mut Buffer,
@@ -1884,6 +1672,16 @@ impl<'a> Generator<'a> {
                 }
                 buf.write(name);
             }
+            Target::OrChain(targets) => match targets.first() {
+                None => buf.write("_"),
+                Some(first_target) => {
+                    self.visit_target(buf, initialized, first_level, first_target);
+                    for target in &targets[1..] {
+                        buf.write(" | ");
+                        self.visit_target(buf, initialized, first_level, target);
+                    }
+                }
+            },
             Target::Tuple(path, targets) => {
                 buf.write(&path.join("::"));
                 buf.write("(");
@@ -1948,7 +1746,7 @@ impl<'a> Generator<'a> {
             Some(Whitespace::Suppress) => WhitespaceHandling::Suppress,
             Some(Whitespace::Preserve) => WhitespaceHandling::Preserve,
             Some(Whitespace::Minimize) => WhitespaceHandling::Minimize,
-            None => self.whitespace,
+            None => self.input.config.whitespace,
         }
     }
 
@@ -2049,7 +1847,7 @@ impl Buffer {
 }
 
 #[derive(Clone, Default)]
-struct LocalMeta {
+pub(crate) struct LocalMeta {
     refs: Option<String>,
     initialized: bool,
 }
@@ -2073,7 +1871,7 @@ impl LocalMeta {
 // type SetChain<'a, T> = MapChain<'a, T, ()>;
 
 #[derive(Debug)]
-struct MapChain<'a, K, V>
+pub(crate) struct MapChain<'a, K, V>
 where
     K: cmp::Eq + hash::Hash,
 {
@@ -2085,13 +1883,6 @@ impl<'a, K: 'a, V: 'a> MapChain<'a, K, V>
 where
     K: cmp::Eq + hash::Hash,
 {
-    fn new() -> MapChain<'a, K, V> {
-        MapChain {
-            parent: None,
-            scopes: vec![HashMap::new()],
-        }
-    }
-
     fn with_parent<'p>(parent: &'p MapChain<'_, K, V>) -> MapChain<'p, K, V> {
         MapChain {
             parent: Some(parent),
@@ -2151,6 +1942,89 @@ impl MapChain<'_, &str, LocalMeta> {
     fn resolve_or_self(&self, name: &str) -> String {
         let name = normalize_identifier(name);
         self.resolve(name).unwrap_or_else(|| format!("self.{name}"))
+    }
+}
+
+impl<'a, K: Eq + hash::Hash, V> Default for MapChain<'a, K, V> {
+    fn default() -> Self {
+        Self {
+            parent: None,
+            scopes: vec![HashMap::new()],
+        }
+    }
+}
+
+/// Returns `true` if enough assumptions can be made,
+/// to determine that `self` is copyable.
+fn is_copyable(expr: &Expr<'_>) -> bool {
+    is_copyable_within_op(expr, false)
+}
+
+fn is_copyable_within_op(expr: &Expr<'_>, within_op: bool) -> bool {
+    use Expr::*;
+    match expr {
+        BoolLit(_) | NumLit(_) | StrLit(_) | CharLit(_) => true,
+        Unary(.., expr) => is_copyable_within_op(expr, true),
+        BinOp(_, lhs, rhs) => is_copyable_within_op(lhs, true) && is_copyable_within_op(rhs, true),
+        Range(..) => true,
+        // The result of a call likely doesn't need to be borrowed,
+        // as in that case the call is more likely to return a
+        // reference in the first place then.
+        Call(..) | Path(..) => true,
+        // If the `expr` is within a `Unary` or `BinOp` then
+        // an assumption can be made that the operand is copy.
+        // If not, then the value is moved and adding `.clone()`
+        // will solve that issue. However, if the operand is
+        // implicitly borrowed, then it's likely not even possible
+        // to get the template to compile.
+        _ => within_op && is_attr_self(expr),
+    }
+}
+
+/// Returns `true` if this is an `Attr` where the `obj` is `"self"`.
+pub(crate) fn is_attr_self(expr: &Expr<'_>) -> bool {
+    match expr {
+        Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Var("self")) => true,
+        Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Attr(..)) => is_attr_self(obj),
+        _ => false,
+    }
+}
+
+/// Returns `true` if the outcome of this expression may be used multiple times in the same
+/// `write!()` call, without evaluating the expression again, i.e. the expression should be
+/// side-effect free.
+pub(crate) fn is_cacheable(expr: &Expr<'_>) -> bool {
+    match expr {
+        // Literals are the definition of pure:
+        Expr::BoolLit(_) => true,
+        Expr::NumLit(_) => true,
+        Expr::StrLit(_) => true,
+        Expr::CharLit(_) => true,
+        // fmt::Display should have no effects:
+        Expr::Var(_) => true,
+        Expr::Path(_) => true,
+        // Check recursively:
+        Expr::Array(args) => args.iter().all(is_cacheable),
+        Expr::Attr(lhs, _) => is_cacheable(lhs),
+        Expr::Index(lhs, rhs) => is_cacheable(lhs) && is_cacheable(rhs),
+        Expr::Filter(_, args) => args.iter().all(is_cacheable),
+        Expr::Unary(_, arg) => is_cacheable(arg),
+        Expr::BinOp(_, lhs, rhs) => is_cacheable(lhs) && is_cacheable(rhs),
+        Expr::Range(_, lhs, rhs) => {
+            lhs.as_ref().map_or(true, |v| is_cacheable(v))
+                && rhs.as_ref().map_or(true, |v| is_cacheable(v))
+        }
+        Expr::Group(arg) => is_cacheable(arg),
+        Expr::Tuple(args) => args.iter().all(is_cacheable),
+        Expr::NamedArgument(_, expr) => is_cacheable(expr),
+				#[cfg(feature = "i18n")]
+				Expr::Localize(msg_id, args) => {
+						msg_id.is_cacheable() && args.iter().all(|(_, arg)| arg.is_cacheable())
+				}
+        // We have too little information to tell if the expression is pure:
+        Expr::Call(_, _) => false,
+        Expr::RustMacro(_, _) => false,
+        Expr::Try(_) => false,
     }
 }
 

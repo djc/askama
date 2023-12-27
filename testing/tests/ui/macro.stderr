@@ -1,0 +1,23 @@
+error: macro "thrice" expected 1 argument, found 2
+ --> tests/ui/macro.rs:3:10
+  |
+3 | #[derive(Template)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: macro "thrice" expected 2 arguments, found 0
+  --> tests/ui/macro.rs:11:10
+   |
+11 | #[derive(Template)]
+   |          ^^^^^^^^
+   |
+   = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: macro "thrice" expected 0 arguments, found 2
+  --> tests/ui/macro.rs:19:10
+   |
+19 | #[derive(Template)]
+   |          ^^^^^^^^
+   |
+   = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)

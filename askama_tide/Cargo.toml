@@ -2,7 +2,7 @@
 name = "askama_tide"
 version = "0.15.1"
 edition = "2021"
-rust-version = "1.58"
+rust-version = "1.65"
 description = "Tide integration for Askama templates"
 keywords = ["markup", "template", "html", "tide", "http-types"]
 homepage = "https://github.com/djc/askama"

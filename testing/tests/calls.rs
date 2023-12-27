@@ -80,3 +80,22 @@ fn test_one_func_binop() {
     };
     assert_eq!(t.render().unwrap(), "246");
 }
+
+fn double_attr_arg_helper(x: u32) -> u32 {
+    x * x + x
+}
+
+#[derive(askama::Template)]
+#[template(
+    source = "{{ self::double_attr_arg_helper(self.x.0 + 2) }}",
+    ext = "txt"
+)]
+struct DoubleAttrArg {
+    x: (u32,),
+}
+
+#[test]
+fn test_double_attr_arg() {
+    let t = DoubleAttrArg { x: (10,) };
+    assert_eq!(t.render().unwrap(), "156");
+}

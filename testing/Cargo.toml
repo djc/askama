@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 workspace = ".."
 edition = "2021"
-rust-version = "1.58"
+rust-version = "1.65"
 publish = false
 
 [features]
@@ -15,7 +15,7 @@ serde-json = ["serde_json", "askama/serde-json"]
 
 [dependencies]
 askama = { path = "../askama", version = "0.12" }
-comrak = { version = "0.18", default-features = false, optional = true }
+comrak = { version = "0.20", default-features = false, optional = true }
 serde_json = { version = "1.0", optional = true }
 
 [dev-dependencies]

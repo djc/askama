@@ -461,3 +461,40 @@ fn test_define_string_var() {
     let template = DefineStringVar;
     assert_eq!(template.render().unwrap(), "");
 }
+
+#[derive(askama::Template)]
+#[template(source = "{% let x = 4.5 %}{{ x }}", ext = "html")]
+struct SimpleFloat;
+
+#[test]
+fn test_simple_float() {
+    let template = SimpleFloat;
+    assert_eq!(template.render().unwrap(), "4.5");
+}
+
+#[derive(askama::Template)]
+#[template(path = "num-literals.html")]
+struct NumLiterals;
+
+#[test]
+fn test_num_literals() {
+    let template = NumLiterals;
+    assert_eq!(
+        template.render().unwrap(),
+        "[90, -90, 90, 2, 56, 240, 10.5, 10.5, 100000000000, 105000000000]",
+    );
+}
+
+#[derive(askama::Template)]
+#[template(source = "{% let word = s %}{{ word }}", ext = "html")]
+struct LetBorrow {
+    s: String,
+}
+
+#[test]
+fn test_let_borrow() {
+    let template = LetBorrow {
+        s: "hello".to_owned(),
+    };
+    assert_eq!(template.render().unwrap(), "hello")
+}

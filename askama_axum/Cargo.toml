@@ -1,8 +1,8 @@
 [package]
 name = "askama_axum"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
-rust-version = "1.58"
+rust-version = "1.65"
 description = "Axum integration for Askama templates"
 keywords = ["markup", "template", "jinja2", "html", "axum"]
 categories = ["template-engine"]
@@ -15,12 +15,13 @@ readme = "README.md"
 
 [dependencies]
 askama = { version = "0.12", path = "../askama", default-features = false, features = ["with-axum", "mime", "mime_guess"] }
-axum-core = "0.3"
-http = "0.2"
+axum-core = "0.4"
+http = "1.0"
 
 [dev-dependencies]
-axum = { version = "0.6", default-features = false }
-hyper = { version = "0.14", features = ["full"] }
+axum = { version = "0.7", default-features = false }
+http-body-util = "0.1"
+hyper = { version = "1.0", features = ["full"] }
 tokio = { version = "1.0", features = ["full"] }
 tower = { version = "0.4", features = ["util"] }
 

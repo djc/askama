@@ -1,17 +1,11 @@
-use crate::config::Syntax;
-use crate::parser::{Expr, Node, Whitespace, Ws};
+use super::node::{Lit, Whitespace, Ws};
+use super::{Ast, Expr, Node, Syntax};
 
 fn check_ws_split(s: &str, res: &(&str, &str, &str)) {
-    match super::split_ws_parts(s) {
-        Node::Lit(lws, s, rws) => {
-            assert_eq!(lws, res.0);
-            assert_eq!(s, res.1);
-            assert_eq!(rws, res.2);
-        }
-        _ => {
-            panic!("fail");
-        }
-    }
+    let Lit { lws, val, rws } = Lit::split_ws_parts(s);
+    assert_eq!(lws, res.0);
+    assert_eq!(val, res.1);
+    assert_eq!(rws, res.2);
 }
 
 #[test]
@@ -26,7 +20,7 @@ fn test_ws_splitter() {
 #[test]
 #[should_panic]
 fn test_invalid_block() {
-    super::parse("{% extend \"blah\" %}", &Syntax::default()).unwrap();
+    Ast::from_str("{% extend \"blah\" %}", &Syntax::default()).unwrap();
 }
 
 #[test]
@@ -34,22 +28,22 @@ fn test_parse_filter() {
     use Expr::*;
     let syntax = Syntax::default();
     assert_eq!(
-        super::parse("{{ strvar|e }}", &syntax).unwrap(),
+        Ast::from_str("{{ strvar|e }}", &syntax).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Filter("e", vec![Var("strvar")]),)],
     );
     assert_eq!(
-        super::parse("{{ 2|abs }}", &syntax).unwrap(),
+        Ast::from_str("{{ 2|abs }}", &syntax).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Filter("abs", vec![NumLit("2")]),)],
     );
     assert_eq!(
-        super::parse("{{ -2|abs }}", &syntax).unwrap(),
+        Ast::from_str("{{ -2|abs }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Filter("abs", vec![Unary("-", NumLit("2").into())]),
         )],
     );
     assert_eq!(
-        super::parse("{{ (1 - 2)|abs }}", &syntax).unwrap(),
+        Ast::from_str("{{ (1 - 2)|abs }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Filter(
@@ -66,11 +60,11 @@ fn test_parse_filter() {
 fn test_parse_numbers() {
     let syntax = Syntax::default();
     assert_eq!(
-        super::parse("{{ 2 }}", &syntax).unwrap(),
+        Ast::from_str("{{ 2 }}", &syntax).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Expr::NumLit("2"),)],
     );
     assert_eq!(
-        super::parse("{{ 2.5 }}", &syntax).unwrap(),
+        Ast::from_str("{{ 2.5 }}", &syntax).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Expr::NumLit("2.5"),)],
     );
 }
@@ -80,16 +74,16 @@ fn test_parse_var() {
     let s = Syntax::default();
 
     assert_eq!(
-        super::parse("{{ foo }}", &s).unwrap(),
+        Ast::from_str("{{ foo }}", &s).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Expr::Var("foo"))],
     );
     assert_eq!(
-        super::parse("{{ foo_bar }}", &s).unwrap(),
+        Ast::from_str("{{ foo_bar }}", &s).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Expr::Var("foo_bar"))],
     );
 
     assert_eq!(
-        super::parse("{{ none }}", &s).unwrap(),
+        Ast::from_str("{{ none }}", &s).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Expr::Var("none"))],
     );
 }
@@ -99,16 +93,16 @@ fn test_parse_const() {
     let s = Syntax::default();
 
     assert_eq!(
-        super::parse("{{ FOO }}", &s).unwrap(),
+        Ast::from_str("{{ FOO }}", &s).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Expr::Path(vec!["FOO"]))],
     );
     assert_eq!(
-        super::parse("{{ FOO_BAR }}", &s).unwrap(),
+        Ast::from_str("{{ FOO_BAR }}", &s).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Expr::Path(vec!["FOO_BAR"]))],
     );
 
     assert_eq!(
-        super::parse("{{ NONE }}", &s).unwrap(),
+        Ast::from_str("{{ NONE }}", &s).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Expr::Path(vec!["NONE"]))],
     );
 }
@@ -118,11 +112,11 @@ fn test_parse_path() {
     let s = Syntax::default();
 
     assert_eq!(
-        super::parse("{{ None }}", &s).unwrap(),
+        Ast::from_str("{{ None }}", &s).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Expr::Path(vec!["None"]))],
     );
     assert_eq!(
-        super::parse("{{ Some(123) }}", &s).unwrap(),
+        Ast::from_str("{{ Some(123) }}", &s).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Expr::Call(
@@ -133,14 +127,14 @@ fn test_parse_path() {
     );
 
     assert_eq!(
-        super::parse("{{ Ok(123) }}", &s).unwrap(),
+        Ast::from_str("{{ Ok(123) }}", &s).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Expr::Call(Box::new(Expr::Path(vec!["Ok"])), vec![Expr::NumLit("123")]),
         )],
     );
     assert_eq!(
-        super::parse("{{ Err(123) }}", &s).unwrap(),
+        Ast::from_str("{{ Err(123) }}", &s).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Expr::Call(Box::new(Expr::Path(vec!["Err"])), vec![Expr::NumLit("123")]),
@@ -151,7 +145,9 @@ fn test_parse_path() {
 #[test]
 fn test_parse_var_call() {
     assert_eq!(
-        super::parse("{{ function(\"123\", 3) }}", &Syntax::default()).unwrap(),
+        Ast::from_str("{{ function(\"123\", 3) }}", &Syntax::default())
+            .unwrap()
+            .nodes,
         vec![Node::Expr(
             Ws(None, None),
             Expr::Call(
@@ -167,14 +163,14 @@ fn test_parse_path_call() {
     let s = Syntax::default();
 
     assert_eq!(
-        super::parse("{{ Option::None }}", &s).unwrap(),
+        Ast::from_str("{{ Option::None }}", &s).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Expr::Path(vec!["Option", "None"])
         )],
     );
     assert_eq!(
-        super::parse("{{ Option::Some(123) }}", &s).unwrap(),
+        Ast::from_str("{{ Option::Some(123) }}", &s).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Expr::Call(
@@ -185,7 +181,9 @@ fn test_parse_path_call() {
     );
 
     assert_eq!(
-        super::parse("{{ self::function(\"123\", 3) }}", &s).unwrap(),
+        Ast::from_str("{{ self::function(\"123\", 3) }}", &s)
+            .unwrap()
+            .nodes,
         vec![Node::Expr(
             Ws(None, None),
             Expr::Call(
@@ -200,7 +198,9 @@ fn test_parse_path_call() {
 fn test_parse_root_path() {
     let syntax = Syntax::default();
     assert_eq!(
-        super::parse("{{ std::string::String::new() }}", &syntax).unwrap(),
+        Ast::from_str("{{ std::string::String::new() }}", &syntax)
+            .unwrap()
+            .nodes,
         vec![Node::Expr(
             Ws(None, None),
             Expr::Call(
@@ -210,7 +210,9 @@ fn test_parse_root_path() {
         )],
     );
     assert_eq!(
-        super::parse("{{ ::std::string::String::new() }}", &syntax).unwrap(),
+        Ast::from_str("{{ ::std::string::String::new() }}", &syntax)
+            .unwrap()
+            .nodes,
         vec![Node::Expr(
             Ws(None, None),
             Expr::Call(
@@ -225,43 +227,45 @@ fn test_parse_root_path() {
 fn test_rust_macro() {
     let syntax = Syntax::default();
     assert_eq!(
-        super::parse("{{ vec!(1, 2, 3) }}", &syntax).unwrap(),
+        Ast::from_str("{{ vec!(1, 2, 3) }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Expr::RustMacro(vec!["vec"], "1, 2, 3",),
         )],
     );
     assert_eq!(
-        super::parse("{{ alloc::vec!(1, 2, 3) }}", &syntax).unwrap(),
+        Ast::from_str("{{ alloc::vec!(1, 2, 3) }}", &syntax)
+            .unwrap()
+            .nodes,
         vec![Node::Expr(
             Ws(None, None),
             Expr::RustMacro(vec!["alloc", "vec"], "1, 2, 3",),
         )],
     );
     assert_eq!(
-        super::parse("{{a!()}}", &syntax).unwrap(),
+        Ast::from_str("{{a!()}}", &syntax).unwrap().nodes,
         [Node::Expr(Ws(None, None), Expr::RustMacro(vec!["a"], ""))],
     );
     assert_eq!(
-        super::parse("{{a !()}}", &syntax).unwrap(),
+        Ast::from_str("{{a !()}}", &syntax).unwrap().nodes,
         [Node::Expr(Ws(None, None), Expr::RustMacro(vec!["a"], ""))],
     );
     assert_eq!(
-        super::parse("{{a! ()}}", &syntax).unwrap(),
+        Ast::from_str("{{a! ()}}", &syntax).unwrap().nodes,
         [Node::Expr(Ws(None, None), Expr::RustMacro(vec!["a"], ""))],
     );
     assert_eq!(
-        super::parse("{{a ! ()}}", &syntax).unwrap(),
+        Ast::from_str("{{a ! ()}}", &syntax).unwrap().nodes,
         [Node::Expr(Ws(None, None), Expr::RustMacro(vec!["a"], ""))],
     );
     assert_eq!(
-        super::parse("{{A!()}}", &syntax).unwrap(),
+        Ast::from_str("{{A!()}}", &syntax).unwrap().nodes,
         [Node::Expr(Ws(None, None), Expr::RustMacro(vec!["A"], ""),)],
     );
     assert_eq!(
-        &*super::parse("{{a.b.c!( hello )}}", &syntax)
+        &*Ast::from_str("{{a.b.c!( hello )}}", &syntax)
             .unwrap_err()
-            .msg,
+            .to_string(),
         "problems parsing template source at row 1, column 7 near:\n\"!( hello )}}\"",
     );
 }
@@ -274,7 +278,7 @@ fn change_delimiters_parse_filter() {
         ..Syntax::default()
     };
 
-    super::parse("{= strvar|e =}", &syntax).unwrap();
+    Ast::from_str("{= strvar|e =}", &syntax).unwrap();
 }
 
 #[test]
@@ -282,7 +286,7 @@ fn test_precedence() {
     use Expr::*;
     let syntax = Syntax::default();
     assert_eq!(
-        super::parse("{{ a + b == c }}", &syntax).unwrap(),
+        Ast::from_str("{{ a + b == c }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             BinOp(
@@ -293,7 +297,9 @@ fn test_precedence() {
         )],
     );
     assert_eq!(
-        super::parse("{{ a + b * c - d / e }}", &syntax).unwrap(),
+        Ast::from_str("{{ a + b * c - d / e }}", &syntax)
+            .unwrap()
+            .nodes,
         vec![Node::Expr(
             Ws(None, None),
             BinOp(
@@ -309,7 +315,9 @@ fn test_precedence() {
         )],
     );
     assert_eq!(
-        super::parse("{{ a * (b + c) / -d }}", &syntax).unwrap(),
+        Ast::from_str("{{ a * (b + c) / -d }}", &syntax)
+            .unwrap()
+            .nodes,
         vec![Node::Expr(
             Ws(None, None),
             BinOp(
@@ -325,7 +333,9 @@ fn test_precedence() {
         )],
     );
     assert_eq!(
-        super::parse("{{ a || b && c || d && e }}", &syntax).unwrap(),
+        Ast::from_str("{{ a || b && c || d && e }}", &syntax)
+            .unwrap()
+            .nodes,
         vec![Node::Expr(
             Ws(None, None),
             BinOp(
@@ -347,7 +357,7 @@ fn test_associativity() {
     use Expr::*;
     let syntax = Syntax::default();
     assert_eq!(
-        super::parse("{{ a + b + c }}", &syntax).unwrap(),
+        Ast::from_str("{{ a + b + c }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             BinOp(
@@ -358,7 +368,7 @@ fn test_associativity() {
         )],
     );
     assert_eq!(
-        super::parse("{{ a * b * c }}", &syntax).unwrap(),
+        Ast::from_str("{{ a * b * c }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             BinOp(
@@ -369,7 +379,7 @@ fn test_associativity() {
         )],
     );
     assert_eq!(
-        super::parse("{{ a && b && c }}", &syntax).unwrap(),
+        Ast::from_str("{{ a && b && c }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             BinOp(
@@ -380,7 +390,7 @@ fn test_associativity() {
         )],
     );
     assert_eq!(
-        super::parse("{{ a + b - c + d }}", &syntax).unwrap(),
+        Ast::from_str("{{ a + b - c + d }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             BinOp(
@@ -396,7 +406,9 @@ fn test_associativity() {
         )],
     );
     assert_eq!(
-        super::parse("{{ a == b != c > d > e == f }}", &syntax).unwrap(),
+        Ast::from_str("{{ a == b != c > d > e == f }}", &syntax)
+            .unwrap()
+            .nodes,
         vec![Node::Expr(
             Ws(None, None),
             BinOp(
@@ -428,7 +440,7 @@ fn test_odd_calls() {
     use Expr::*;
     let syntax = Syntax::default();
     assert_eq!(
-        super::parse("{{ a[b](c) }}", &syntax).unwrap(),
+        Ast::from_str("{{ a[b](c) }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Call(
@@ -438,7 +450,7 @@ fn test_odd_calls() {
         )],
     );
     assert_eq!(
-        super::parse("{{ (a + b)(c) }}", &syntax).unwrap(),
+        Ast::from_str("{{ (a + b)(c) }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Call(
@@ -452,7 +464,7 @@ fn test_odd_calls() {
         )],
     );
     assert_eq!(
-        super::parse("{{ a + b(c) }}", &syntax).unwrap(),
+        Ast::from_str("{{ a + b(c) }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             BinOp(
@@ -463,7 +475,7 @@ fn test_odd_calls() {
         )],
     );
     assert_eq!(
-        super::parse("{{ (-a)(b) }}", &syntax).unwrap(),
+        Ast::from_str("{{ (-a)(b) }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Call(
@@ -473,188 +485,170 @@ fn test_odd_calls() {
         )],
     );
     assert_eq!(
-        super::parse("{{ -a(b) }}", &syntax).unwrap(),
+        Ast::from_str("{{ -a(b) }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
-            Unary("-", Box::new(Call(Box::new(Var("a")), vec![Var("b")])),),
+            Unary("-", Box::new(Call(Box::new(Var("a")), vec![Var("b")]))),
         )],
+    );
+    assert_eq!(
+        Ast::from_str("{{ a(b)|c }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            Filter("c", vec![Call(Box::new(Var("a")), vec![Var("b")])]),
+        )]
+    );
+    assert_eq!(
+        Ast::from_str("{{ a(b)| c }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            Filter("c", vec![Call(Box::new(Var("a")), vec![Var("b")])]),
+        )]
+    );
+    assert_eq!(
+        Ast::from_str("{{ a(b) |c }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            BinOp(
+                "|",
+                Box::new(Call(Box::new(Var("a")), vec![Var("b")])),
+                Box::new(Var("c"))
+            ),
+        )]
     );
 }
 
 #[test]
 fn test_parse_comments() {
-    let s = &Syntax::default();
+    fn one_comment_ws(source: &str, ws: Ws) {
+        let s = &Syntax::default();
+        let mut nodes = Ast::from_str(source, s).unwrap().nodes;
+        assert_eq!(nodes.len(), 1, "expected to parse one node");
+        match nodes.pop().unwrap() {
+            Node::Comment(comment) => assert_eq!(comment.ws, ws),
+            node => panic!("expected a comment not, but parsed {:?}", node),
+        }
+    }
 
-    assert_eq!(
-        super::parse("{##}", s).unwrap(),
-        vec![Node::Comment(Ws(None, None))],
+    one_comment_ws("{##}", Ws(None, None));
+    one_comment_ws("{#- #}", Ws(Some(Whitespace::Suppress), None));
+    one_comment_ws("{# -#}", Ws(None, Some(Whitespace::Suppress)));
+    one_comment_ws(
+        "{#--#}",
+        Ws(Some(Whitespace::Suppress), Some(Whitespace::Suppress)),
     );
-    assert_eq!(
-        super::parse("{#- #}", s).unwrap(),
-        vec![Node::Comment(Ws(Some(Whitespace::Suppress), None))],
+    one_comment_ws(
+        "{#- foo\n bar -#}",
+        Ws(Some(Whitespace::Suppress), Some(Whitespace::Suppress)),
     );
-    assert_eq!(
-        super::parse("{# -#}", s).unwrap(),
-        vec![Node::Comment(Ws(None, Some(Whitespace::Suppress)))],
+    one_comment_ws(
+        "{#- foo\n {#- bar\n -#} baz -#}",
+        Ws(Some(Whitespace::Suppress), Some(Whitespace::Suppress)),
     );
-    assert_eq!(
-        super::parse("{#--#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Suppress),
-            Some(Whitespace::Suppress)
-        ))],
+    one_comment_ws("{#+ #}", Ws(Some(Whitespace::Preserve), None));
+    one_comment_ws("{# +#}", Ws(None, Some(Whitespace::Preserve)));
+    one_comment_ws(
+        "{#++#}",
+        Ws(Some(Whitespace::Preserve), Some(Whitespace::Preserve)),
     );
-    assert_eq!(
-        super::parse("{#- foo\n bar -#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Suppress),
-            Some(Whitespace::Suppress)
-        ))],
+    one_comment_ws(
+        "{#+ foo\n bar +#}",
+        Ws(Some(Whitespace::Preserve), Some(Whitespace::Preserve)),
     );
-    assert_eq!(
-        super::parse("{#- foo\n {#- bar\n -#} baz -#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Suppress),
-            Some(Whitespace::Suppress)
-        ))],
+    one_comment_ws(
+        "{#+ foo\n {#+ bar\n +#} baz -+#}",
+        Ws(Some(Whitespace::Preserve), Some(Whitespace::Preserve)),
     );
-    assert_eq!(
-        super::parse("{#+ #}", s).unwrap(),
-        vec![Node::Comment(Ws(Some(Whitespace::Preserve), None))],
+    one_comment_ws("{#~ #}", Ws(Some(Whitespace::Minimize), None));
+    one_comment_ws("{# ~#}", Ws(None, Some(Whitespace::Minimize)));
+    one_comment_ws(
+        "{#~~#}",
+        Ws(Some(Whitespace::Minimize), Some(Whitespace::Minimize)),
     );
-    assert_eq!(
-        super::parse("{# +#}", s).unwrap(),
-        vec![Node::Comment(Ws(None, Some(Whitespace::Preserve)))],
+    one_comment_ws(
+        "{#~ foo\n bar ~#}",
+        Ws(Some(Whitespace::Minimize), Some(Whitespace::Minimize)),
     );
-    assert_eq!(
-        super::parse("{#++#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Preserve),
-            Some(Whitespace::Preserve)
-        ))],
-    );
-    assert_eq!(
-        super::parse("{#+ foo\n bar +#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Preserve),
-            Some(Whitespace::Preserve)
-        ))],
-    );
-    assert_eq!(
-        super::parse("{#+ foo\n {#+ bar\n +#} baz -+#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Preserve),
-            Some(Whitespace::Preserve)
-        ))],
-    );
-    assert_eq!(
-        super::parse("{#~ #}", s).unwrap(),
-        vec![Node::Comment(Ws(Some(Whitespace::Minimize), None))],
-    );
-    assert_eq!(
-        super::parse("{# ~#}", s).unwrap(),
-        vec![Node::Comment(Ws(None, Some(Whitespace::Minimize)))],
-    );
-    assert_eq!(
-        super::parse("{#~~#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Minimize),
-            Some(Whitespace::Minimize)
-        ))],
-    );
-    assert_eq!(
-        super::parse("{#~ foo\n bar ~#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Minimize),
-            Some(Whitespace::Minimize)
-        ))],
-    );
-    assert_eq!(
-        super::parse("{#~ foo\n {#~ bar\n ~#} baz -~#}", s).unwrap(),
-        vec![Node::Comment(Ws(
-            Some(Whitespace::Minimize),
-            Some(Whitespace::Minimize)
-        ))],
+    one_comment_ws(
+        "{#~ foo\n {#~ bar\n ~#} baz -~#}",
+        Ws(Some(Whitespace::Minimize), Some(Whitespace::Minimize)),
     );
 
-    assert_eq!(
-        super::parse("{# foo {# bar #} {# {# baz #} qux #} #}", s).unwrap(),
-        vec![Node::Comment(Ws(None, None))],
-    );
+    one_comment_ws("{# foo {# bar #} {# {# baz #} qux #} #}", Ws(None, None));
 }
 
 #[test]
 fn test_parse_tuple() {
-    use super::Expr::*;
+    use super::expr::Expr::*;
     let syntax = Syntax::default();
     assert_eq!(
-        super::parse("{{ () }}", &syntax).unwrap(),
+        Ast::from_str("{{ () }}", &syntax).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Tuple(vec![]),)],
     );
     assert_eq!(
-        super::parse("{{ (1) }}", &syntax).unwrap(),
+        Ast::from_str("{{ (1) }}", &syntax).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Group(Box::new(NumLit("1"))),)],
     );
     assert_eq!(
-        super::parse("{{ (1,) }}", &syntax).unwrap(),
+        Ast::from_str("{{ (1,) }}", &syntax).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Tuple(vec![NumLit("1")]),)],
     );
     assert_eq!(
-        super::parse("{{ (1, ) }}", &syntax).unwrap(),
+        Ast::from_str("{{ (1, ) }}", &syntax).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Tuple(vec![NumLit("1")]),)],
     );
     assert_eq!(
-        super::parse("{{ (1 ,) }}", &syntax).unwrap(),
+        Ast::from_str("{{ (1 ,) }}", &syntax).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Tuple(vec![NumLit("1")]),)],
     );
     assert_eq!(
-        super::parse("{{ (1 , ) }}", &syntax).unwrap(),
+        Ast::from_str("{{ (1 , ) }}", &syntax).unwrap().nodes,
         vec![Node::Expr(Ws(None, None), Tuple(vec![NumLit("1")]),)],
     );
     assert_eq!(
-        super::parse("{{ (1, 2) }}", &syntax).unwrap(),
+        Ast::from_str("{{ (1, 2) }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Tuple(vec![NumLit("1"), NumLit("2")]),
         )],
     );
     assert_eq!(
-        super::parse("{{ (1, 2,) }}", &syntax).unwrap(),
+        Ast::from_str("{{ (1, 2,) }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Tuple(vec![NumLit("1"), NumLit("2")]),
         )],
     );
     assert_eq!(
-        super::parse("{{ (1, 2, 3) }}", &syntax).unwrap(),
+        Ast::from_str("{{ (1, 2, 3) }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Tuple(vec![NumLit("1"), NumLit("2"), NumLit("3")]),
         )],
     );
     assert_eq!(
-        super::parse("{{ ()|abs }}", &syntax).unwrap(),
+        Ast::from_str("{{ ()|abs }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Filter("abs", vec![Tuple(vec![])]),
         )],
     );
     assert_eq!(
-        super::parse("{{ () | abs }}", &syntax).unwrap(),
+        Ast::from_str("{{ () | abs }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             BinOp("|", Box::new(Tuple(vec![])), Box::new(Var("abs"))),
         )],
     );
     assert_eq!(
-        super::parse("{{ (1)|abs }}", &syntax).unwrap(),
+        Ast::from_str("{{ (1)|abs }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Filter("abs", vec![Group(Box::new(NumLit("1")))]),
         )],
     );
     assert_eq!(
-        super::parse("{{ (1) | abs }}", &syntax).unwrap(),
+        Ast::from_str("{{ (1) | abs }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             BinOp(
@@ -665,14 +659,14 @@ fn test_parse_tuple() {
         )],
     );
     assert_eq!(
-        super::parse("{{ (1,)|abs }}", &syntax).unwrap(),
+        Ast::from_str("{{ (1,)|abs }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Filter("abs", vec![Tuple(vec![NumLit("1")])]),
         )],
     );
     assert_eq!(
-        super::parse("{{ (1,) | abs }}", &syntax).unwrap(),
+        Ast::from_str("{{ (1,) | abs }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             BinOp(
@@ -683,14 +677,14 @@ fn test_parse_tuple() {
         )],
     );
     assert_eq!(
-        super::parse("{{ (1, 2)|abs }}", &syntax).unwrap(),
+        Ast::from_str("{{ (1, 2)|abs }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             Filter("abs", vec![Tuple(vec![NumLit("1"), NumLit("2")])]),
         )],
     );
     assert_eq!(
-        super::parse("{{ (1, 2) | abs }}", &syntax).unwrap(),
+        Ast::from_str("{{ (1, 2) | abs }}", &syntax).unwrap().nodes,
         vec![Node::Expr(
             Ws(None, None),
             BinOp(
@@ -705,10 +699,10 @@ fn test_parse_tuple() {
 #[test]
 fn test_missing_space_after_kw() {
     let syntax = Syntax::default();
-    let err = super::parse("{%leta=b%}", &syntax).unwrap_err();
+    let err = Ast::from_str("{%leta=b%}", &syntax).unwrap_err();
     assert!(matches!(
-        &*err.msg,
-        "unable to parse template:\n\n\"{%leta=b%}\""
+        &*err.to_string(),
+        "problems parsing template source at row 1, column 0 near:\n\"{%leta=b%}\"",
     ));
 }
 
@@ -778,4 +772,100 @@ fn test_parse_localize() {
             ),
         )],
     );
+}
+
+#[test]
+fn test_parse_array() {
+    let syntax = Syntax::default();
+    assert_eq!(
+        Ast::from_str("{{ [] }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(Ws(None, None), Expr::Array(vec![]))],
+    );
+    assert_eq!(
+        Ast::from_str("{{ [1] }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Array(vec![Expr::NumLit("1")])
+        )],
+    );
+    assert_eq!(
+        Ast::from_str("{{ [ 1] }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Array(vec![Expr::NumLit("1")])
+        )],
+    );
+    assert_eq!(
+        Ast::from_str("{{ [1 ] }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Array(vec![Expr::NumLit("1")])
+        )],
+    );
+    assert_eq!(
+        Ast::from_str("{{ [1,2] }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Array(vec![Expr::NumLit("1"), Expr::NumLit("2")])
+        )],
+    );
+    assert_eq!(
+        Ast::from_str("{{ [1 ,2] }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Array(vec![Expr::NumLit("1"), Expr::NumLit("2")])
+        )],
+    );
+    assert_eq!(
+        Ast::from_str("{{ [1, 2] }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Array(vec![Expr::NumLit("1"), Expr::NumLit("2")])
+        )],
+    );
+    assert_eq!(
+        Ast::from_str("{{ [1,2 ] }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Array(vec![Expr::NumLit("1"), Expr::NumLit("2")])
+        )],
+    );
+    assert_eq!(
+        Ast::from_str("{{ []|foo }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Filter("foo", vec![Expr::Array(vec![])])
+        )],
+    );
+    assert_eq!(
+        Ast::from_str("{{ []| foo }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::Filter("foo", vec![Expr::Array(vec![])])
+        )],
+    );
+    assert_eq!(
+        Ast::from_str("{{ [] |foo }}", &syntax).unwrap().nodes,
+        vec![Node::Expr(
+            Ws(None, None),
+            Expr::BinOp(
+                "|",
+                Box::new(Expr::Array(vec![])),
+                Box::new(Expr::Var("foo"))
+            ),
+        )],
+    );
+}
+
+#[test]
+fn fuzzed_unicode_slice() {
+    let d = "{eeuuu{b&{!!&{!!11{{
+            0!(!1q҄א!)!!!!!!n!";
+    assert!(Ast::from_str(d, &Syntax::default()).is_err());
+}
+
+#[test]
+fn fuzzed_macro_no_end() {
+    let s = "{%macro super%}{%endmacro";
+    assert!(Ast::from_str(s, &Syntax::default()).is_err());
 }

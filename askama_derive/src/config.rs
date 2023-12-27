@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, HashSet};
-use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
@@ -7,6 +6,8 @@ use std::{env, fs};
 use serde::Deserialize;
 
 use crate::CompileError;
+use parser::node::Whitespace;
+use parser::Syntax;
 
 #[derive(Debug)]
 pub(crate) struct Config<'a> {
@@ -20,7 +21,7 @@ pub(crate) struct Config<'a> {
 impl<'a> Config<'a> {
     pub(crate) fn new(
         s: &'a str,
-        template_whitespace: Option<&String>,
+        template_whitespace: Option<&str>,
     ) -> std::result::Result<Config<'a>, CompileError> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default_dirs = vec![root.join("templates")];
@@ -53,7 +54,7 @@ impl<'a> Config<'a> {
             ),
         };
         if let Some(template_whitespace) = template_whitespace {
-            whitespace = match template_whitespace.as_str() {
+            whitespace = match template_whitespace {
                 "suppress" => WhitespaceHandling::Suppress,
                 "minimize" => WhitespaceHandling::Minimize,
                 "preserve" => WhitespaceHandling::Preserve,
@@ -66,7 +67,7 @@ impl<'a> Config<'a> {
                 let name = raw_s.name;
 
                 if syntaxes
-                    .insert(name.to_string(), Syntax::try_from(raw_s)?)
+                    .insert(name.to_string(), raw_s.try_into()?)
                     .is_some()
                 {
                     return Err(format!("syntax \"{name}\" is already defined").into());
@@ -131,41 +132,18 @@ impl<'a> Config<'a> {
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct Syntax<'a> {
-    pub(crate) block_start: &'a str,
-    pub(crate) block_end: &'a str,
-    pub(crate) expr_start: &'a str,
-    pub(crate) expr_end: &'a str,
-    pub(crate) comment_start: &'a str,
-    pub(crate) comment_end: &'a str,
-}
-
-impl Default for Syntax<'static> {
-    fn default() -> Self {
-        Self {
-            block_start: "{%",
-            block_end: "%}",
-            expr_start: "{{",
-            expr_end: "}}",
-            comment_start: "{#",
-            comment_end: "#}",
-        }
-    }
-}
-
-impl<'a> TryFrom<RawSyntax<'a>> for Syntax<'a> {
+impl<'a> TryInto<Syntax<'a>> for RawSyntax<'a> {
     type Error = CompileError;
 
-    fn try_from(raw: RawSyntax<'a>) -> std::result::Result<Self, Self::Error> {
+    fn try_into(self) -> Result<Syntax<'a>, Self::Error> {
         let default = Syntax::default();
-        let syntax = Self {
-            block_start: raw.block_start.unwrap_or(default.block_start),
-            block_end: raw.block_end.unwrap_or(default.block_end),
-            expr_start: raw.expr_start.unwrap_or(default.expr_start),
-            expr_end: raw.expr_end.unwrap_or(default.expr_end),
-            comment_start: raw.comment_start.unwrap_or(default.comment_start),
-            comment_end: raw.comment_end.unwrap_or(default.comment_end),
+        let syntax = Syntax {
+            block_start: self.block_start.unwrap_or(default.block_start),
+            block_end: self.block_end.unwrap_or(default.block_end),
+            expr_start: self.expr_start.unwrap_or(default.expr_start),
+            expr_end: self.expr_end.unwrap_or(default.expr_end),
+            comment_start: self.comment_start.unwrap_or(default.comment_start),
+            comment_end: self.comment_end.unwrap_or(default.comment_end),
         };
 
         for s in [
@@ -224,11 +202,12 @@ impl RawConfig<'_> {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(field_identifier, rename_all = "lowercase"))]
 pub(crate) enum WhitespaceHandling {
     /// The default behaviour. It will leave the whitespace characters "as is".
+    #[default]
     Preserve,
     /// It'll remove all the whitespace characters before and after the jinja block.
     Suppress,
@@ -238,9 +217,13 @@ pub(crate) enum WhitespaceHandling {
     Minimize,
 }
 
-impl Default for WhitespaceHandling {
-    fn default() -> Self {
-        WhitespaceHandling::Preserve
+impl From<WhitespaceHandling> for Whitespace {
+    fn from(ws: WhitespaceHandling) -> Self {
+        match ws {
+            WhitespaceHandling::Suppress => Whitespace::Suppress,
+            WhitespaceHandling::Preserve => Whitespace::Preserve,
+            WhitespaceHandling::Minimize => Whitespace::Minimize,
+        }
     }
 }
 
@@ -316,7 +299,7 @@ pub(crate) fn get_template_source(tpl_path: &Path) -> std::result::Result<String
 static CONFIG_FILE_NAME: &str = "askama.toml";
 static DEFAULT_SYNTAX_NAME: &str = "default";
 static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
-    (&["html", "htm", "xml"], "::askama::Html"),
+    (&["html", "htm", "svg", "xml"], "::askama::Html"),
     (&["md", "none", "txt", "yml", ""], "::askama::Text"),
     (&["j2", "jinja", "jinja2"], "::askama::Html"),
 ];
@@ -581,7 +564,10 @@ mod tests {
             config.escapers,
             vec![
                 (str_set(&["js"]), "::askama::Js".into()),
-                (str_set(&["html", "htm", "xml"]), "::askama::Html".into()),
+                (
+                    str_set(&["html", "htm", "svg", "xml"]),
+                    "::askama::Html".into()
+                ),
                 (
                     str_set(&["md", "none", "txt", "yml", ""]),
                     "::askama::Text".into()
@@ -650,7 +636,7 @@ mod tests {
 
     #[test]
     fn test_config_whitespace_error() {
-        let config = Config::new(r#""#, Some(&"trim".to_owned()));
+        let config = Config::new(r#""#, Some("trim"));
         if let Err(err) = config {
             assert_eq!(err.msg, "invalid value for `whitespace`: \"trim\"");
         } else {
