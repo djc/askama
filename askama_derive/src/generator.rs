@@ -916,14 +916,7 @@ impl<'a> Generator<'a> {
         };
 
         let mut expr_buf = Buffer::new(0);
-        let borrow_val = !is_copyable(val);
-        if borrow_val {
-            expr_buf.write("&(");
-        }
         self.visit_expr(&mut expr_buf, val)?;
-        if borrow_val {
-            expr_buf.write(")");
-        }
 
         let shadowed = self.is_shadowing_variable(&l.var)?;
         if shadowed {
