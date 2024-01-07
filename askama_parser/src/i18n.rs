@@ -1,6 +1,6 @@
+use fluent_templates::LanguageIdentifier;
 use std::borrow::Cow;
 use std::collections::hash_map::Entry;
-use fluent_templates::LanguageIdentifier;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::fs::{DirEntry, OpenOptions};
@@ -65,16 +65,16 @@ pub(crate) struct CompileError {
 }
 
 impl From<&'static str> for CompileError {
-		#[inline]
-		fn from(s: &'static str) -> Self {
-				Self::new(s, Span::call_site())
-		}
+    #[inline]
+    fn from(s: &'static str) -> Self {
+        Self::new(s, Span::call_site())
+    }
 }
 impl From<String> for CompileError {
-		#[inline]
-		fn from(s: String) -> Self {
-				Self::new(s, Span::call_site())
-		}
+    #[inline]
+    fn from(s: String) -> Self {
+        Self::new(s, Span::call_site())
+    }
 }
 
 impl CompileError {
@@ -175,7 +175,6 @@ fn read_lang_dir(
     Ok(Some((language, resources)))
 }
 
-
 fn read_configuration() -> Result<Configuration, String> {
     let root = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
     let root = root.canonicalize().unwrap_or(root);
@@ -259,7 +258,6 @@ fn read_configuration() -> Result<Configuration, String> {
         assets_dir,
     })
 }
-
 
 use fluent_templates::lazy_static::lazy_static;
 

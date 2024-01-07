@@ -14,9 +14,9 @@ use nom::multi::{many0_count, many1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{error_position, AsChar, InputTakeAtPosition};
 
+pub mod expr;
 #[cfg(feature = "i18n")]
 mod i18n;
-pub mod expr;
 pub use expr::Expr;
 pub mod node;
 pub use node::Node;

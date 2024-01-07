@@ -2017,10 +2017,10 @@ pub(crate) fn is_cacheable(expr: &Expr<'_>) -> bool {
         Expr::Group(arg) => is_cacheable(arg),
         Expr::Tuple(args) => args.iter().all(is_cacheable),
         Expr::NamedArgument(_, expr) => is_cacheable(expr),
-				#[cfg(feature = "i18n")]
-				Expr::Localize(msg_id, args) => {
-						is_cacheable(msg_id) && args.iter().all(|(_, arg)| is_cacheable(arg))
-				},
+        #[cfg(feature = "i18n")]
+        Expr::Localize(msg_id, args) => {
+            is_cacheable(msg_id) && args.iter().all(|(_, arg)| is_cacheable(arg))
+        }
         // We have too little information to tell if the expression is pure:
         Expr::Call(_, _) => false,
         Expr::RustMacro(_, _) => false,
