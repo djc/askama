@@ -1200,7 +1200,7 @@ impl<'a> Generator<'a> {
         };
 
         buf.write(&format!(
-            "::askama::filters::markdown({}, ",
+            "::askama::filters::markdown({}, &",
             self.input.escaper
         ));
         self.visit_expr(buf, md)?;

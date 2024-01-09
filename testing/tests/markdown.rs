@@ -70,3 +70,21 @@ before\
 after",
     );
 }
+
+#[derive(Template)]
+#[template(source = "{{content|markdown}}", ext = "html")]
+struct MarkdownStringTemplate {
+    content: String,
+}
+
+// Tests if the markdown filter accepts String
+#[test]
+fn test_markdown_owned_string() {
+    let template = MarkdownStringTemplate {
+        content: "The markdown filter _indeed_ works with __String__".into(),
+    };
+    assert_eq!(
+        template.render().unwrap(),
+        "<p>The markdown filter <em>indeed</em> works with <strong>String</strong></p>\n"
+    )
+}
