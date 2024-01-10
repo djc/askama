@@ -21,6 +21,7 @@ but are disabled by default. Enable them with Cargo features (see below for more
 
 * **[Built-in filters][#built-in-filters]:**  
   [`abs`][#abs],
+  [`as_ref`][#as_ref],
   [`capitalize`][#capitalize],
   [`center`][#center],
   [`escape|e`][#escape],
@@ -60,6 +61,23 @@ Output:
 
 ```
 2
+```
+
+### as_ref
+[#as_ref]: #as_ref
+
+Creates a reference to the given argument.
+
+```
+{{ "a"|as_ref }}
+{{ self.x|as_ref }}
+```
+
+will become:
+
+```
+&a
+&self.x
 ```
 
 ### capitalize
