@@ -309,3 +309,17 @@ fn test_json_script() {
         r#"<script>var user = "\u003c/script\u003e\u003cbutton\u003eHacked!\u003c/button\u003e"</script>"#
     );
 }
+
+#[derive(askama::Template)]
+#[template(source = "{% let word = s|as_ref %}{{ word }}", ext = "html")]
+struct LetBorrow {
+    s: String,
+}
+
+#[test]
+fn test_let_borrow() {
+    let template = LetBorrow {
+        s: "hello".to_owned(),
+    };
+    assert_eq!(template.render().unwrap(), "hello")
+}
