@@ -1210,6 +1210,20 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Wrapped)
     }
 
+    fn _visit_as_ref_filter(
+        &mut self,
+        buf: &mut Buffer,
+        args: &[Expr<'_>],
+    ) -> Result<(), CompileError> {
+        let arg = match args {
+            [arg] => arg,
+            _ => return Err("unexpected argument(s) in `as_ref` filter".into()),
+        };
+        buf.write("&");
+        self.visit_expr(buf, arg)?;
+        Ok(())
+    }
+
     fn visit_filter(
         &mut self,
         buf: &mut Buffer,
@@ -1230,6 +1244,9 @@ impl<'a> Generator<'a> {
             return Ok(DisplayWrap::Unwrapped);
         } else if name == "markdown" {
             return self._visit_markdown_filter(buf, args);
+        } else if name == "as_ref" {
+            self._visit_as_ref_filter(buf, args)?;
+            return Ok(DisplayWrap::Wrapped);
         }
 
         if name == "tojson" {
