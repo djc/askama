@@ -133,9 +133,14 @@ pub enum Target<'a> {
 
 impl<'a> Target<'a> {
     /// Parses multiple targets with `or` separating them
-    pub(super) fn parse(i: &'a str) -> ParseResult<'a, Self> {
+    pub(super) fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         map(
-            separated_list1(ws(tag("or")), Self::parse_one),
+            separated_list1(ws(tag("or")), |i| {
+                s.nest(i)?;
+                let ret = Self::parse_one(i, s)?;
+                s.leave();
+                Ok(ret)
+            }),
             |mut opts| match opts.len() {
                 1 => opts.pop().unwrap(),
                 _ => Self::OrChain(opts),
@@ -144,7 +149,7 @@ impl<'a> Target<'a> {
     }
 
     /// Parses a single target without an `or`, unless it is wrapped in parentheses.
-    fn parse_one(i: &'a str) -> ParseResult<'a, Self> {
+    fn parse_one(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let mut opt_opening_paren = map(opt(ws(char('('))), |o| o.is_some());
         let mut opt_closing_paren = map(opt(ws(char(')'))), |o| o.is_some());
         let mut opt_opening_brace = map(opt(ws(char('{'))), |o| o.is_some());
@@ -162,7 +167,7 @@ impl<'a> Target<'a> {
                 return Ok((i, Self::Tuple(Vec::new(), Vec::new())));
             }
 
-            let (i, first_target) = Self::parse(i)?;
+            let (i, first_target) = Self::parse(i, s)?;
             let (i, is_unused_paren) = opt_closing_paren(i)?;
             if is_unused_paren {
                 return Ok((i, first_target));
@@ -171,7 +176,7 @@ impl<'a> Target<'a> {
             let mut targets = vec![first_target];
             let (i, _) = cut(tuple((
                 fold_many0(
-                    preceded(ws(char(',')), Self::parse),
+                    preceded(ws(char(',')), |i| Self::parse(i, s)),
                     || (),
                     |_, target| {
                         targets.push(target);
@@ -201,7 +206,7 @@ impl<'a> Target<'a> {
                 let (i, targets) = alt((
                     map(char(')'), |_| Vec::new()),
                     terminated(
-                        cut(separated_list1(ws(char(',')), Self::parse)),
+                        cut(separated_list1(ws(char(',')), |i| Self::parse(i, s))),
                         pair(opt(ws(char(','))), ws(cut(char(')')))),
                     ),
                 ))(i)?;
@@ -213,7 +218,7 @@ impl<'a> Target<'a> {
                 let (i, targets) = alt((
                     map(char('}'), |_| Vec::new()),
                     terminated(
-                        cut(separated_list1(ws(char(',')), Self::named)),
+                        cut(separated_list1(ws(char(',')), |i| Self::named(i, s))),
                         pair(opt(ws(char(','))), ws(cut(char('}')))),
                     ),
                 ))(i)?;
@@ -237,13 +242,17 @@ impl<'a> Target<'a> {
         ))(i)
     }
 
-    fn named(init_i: &'a str) -> ParseResult<'a, (&str, Self)> {
-        let (i, (src, target)) =
-            pair(identifier, opt(preceded(ws(char(':')), Self::parse)))(init_i)?;
+    fn named(init_i: &'a str, s: &State<'_>) -> ParseResult<'a, (&'a str, Self)> {
+        let (i, (src, target)) = pair(
+            identifier,
+            opt(preceded(ws(char(':')), |i| Self::parse(i, s))),
+        )(init_i)?;
+
         let target = match target {
             Some(target) => target,
             None => Self::verify_name(init_i, src)?,
         };
+
         Ok((i, (src, target)))
     }
 
@@ -295,7 +304,7 @@ impl<'a> When<'a> {
             opt(Whitespace::parse),
             ws(keyword("when")),
             cut(tuple((
-                ws(Target::parse),
+                ws(|i| Target::parse(i, s)),
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
                 cut(|i| Node::many(i, s)),
@@ -366,7 +375,7 @@ impl<'a> CondTest<'a> {
             cut(tuple((
                 opt(delimited(
                     ws(alt((keyword("let"), keyword("set")))),
-                    ws(Target::parse),
+                    ws(|i| Target::parse(i, s)),
                     ws(char('=')),
                 )),
                 ws(|i| Expr::parse(i, s.level.get())),
@@ -419,6 +428,7 @@ impl<'a> Loop<'a> {
             ws(keyword("if")),
             cut(ws(|i| Expr::parse(i, s.level.get()))),
         );
+
         let else_block = |i| {
             let mut p = preceded(
                 ws(keyword("else")),
@@ -435,11 +445,12 @@ impl<'a> Loop<'a> {
             let (i, (pws, nodes, nws)) = p(i)?;
             Ok((i, (pws, nodes, nws)))
         };
+
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("for")),
             cut(tuple((
-                ws(Target::parse),
+                ws(|i| Target::parse(i, s)),
                 ws(keyword("in")),
                 cut(tuple((
                     ws(|i| Expr::parse(i, s.level.get())),
@@ -820,7 +831,7 @@ impl<'a> Let<'a> {
             opt(Whitespace::parse),
             ws(alt((keyword("let"), keyword("set")))),
             cut(tuple((
-                ws(Target::parse),
+                ws(|i| Target::parse(i, s)),
                 opt(preceded(
                     ws(char('=')),
                     ws(|i| Expr::parse(i, s.level.get())),
