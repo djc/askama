@@ -1191,14 +1191,14 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
-    ) -> Result<(), CompileError> {
+    ) -> Result<DisplayWrap, CompileError> {
         let arg = match args {
             [arg] => arg,
             _ => return Err("unexpected argument(s) in `as_ref` filter".into()),
         };
         buf.write("&");
         self.visit_expr(buf, arg)?;
-        Ok(())
+        Ok(DisplayWrap::Unwrapped)
     }
 
     #[cfg(not(feature = "serde-json"))]
@@ -1250,20 +1250,15 @@ impl<'a> Generator<'a> {
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
         if matches!(name, "escape" | "e") {
-            self._visit_escape_filter(buf, args)?;
-            return Ok(DisplayWrap::Wrapped);
+            return self._visit_escape_filter(buf, args);
         } else if name == "format" {
-            self._visit_format_filter(buf, args)?;
-            return Ok(DisplayWrap::Unwrapped);
+            return self._visit_format_filter(buf, args);
         } else if name == "fmt" {
-            self._visit_fmt_filter(buf, args)?;
-            return Ok(DisplayWrap::Unwrapped);
+            return self._visit_fmt_filter(buf, args);
         } else if name == "join" {
-            self._visit_join_filter(buf, args)?;
-            return Ok(DisplayWrap::Unwrapped);
+            return self._visit_join_filter(buf, args);
         } else if name == "as_ref" {
-            self._visit_as_ref_filter(buf, args)?;
-            return Ok(DisplayWrap::Wrapped);
+            return self._visit_as_ref_filter(buf, args);
         } else if matches!(name, "json" | "tojson") {
             return self._visit_json_filter(buf, args);
         } else if name == "safe" {
@@ -1284,7 +1279,7 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
-    ) -> Result<(), CompileError> {
+    ) -> Result<DisplayWrap, CompileError> {
         if args.len() > 2 {
             return Err("only two arguments allowed to escape filter".into());
         }
@@ -1309,14 +1304,14 @@ impl<'a> Generator<'a> {
         buf.write(", ");
         self._visit_args(buf, &args[..1])?;
         buf.write(")?");
-        Ok(())
+        Ok(DisplayWrap::Wrapped)
     }
 
     fn _visit_format_filter(
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
-    ) -> Result<(), CompileError> {
+    ) -> Result<DisplayWrap, CompileError> {
         buf.write("format!(");
         if let Some(Expr::StrLit(v)) = args.first() {
             self.visit_str_lit(buf, v);
@@ -1328,14 +1323,14 @@ impl<'a> Generator<'a> {
         }
         self._visit_args(buf, &args[1..])?;
         buf.write(")");
-        Ok(())
+        Ok(DisplayWrap::Unwrapped)
     }
 
     fn _visit_fmt_filter(
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
-    ) -> Result<(), CompileError> {
+    ) -> Result<DisplayWrap, CompileError> {
         buf.write("format!(");
         if let Some(Expr::StrLit(v)) = args.get(1) {
             self.visit_str_lit(buf, v);
@@ -1348,7 +1343,7 @@ impl<'a> Generator<'a> {
             return Err("only two arguments allowed to fmt filter".into());
         }
         buf.write(")");
-        Ok(())
+        Ok(DisplayWrap::Unwrapped)
     }
 
     // Force type coercion on first argument to `join` filter (see #39).
@@ -1356,7 +1351,7 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
-    ) -> Result<(), CompileError> {
+    ) -> Result<DisplayWrap, CompileError> {
         buf.write(CRATE);
         buf.write("::filters::join((&");
         for (i, arg) in args.iter().enumerate() {
@@ -1369,7 +1364,7 @@ impl<'a> Generator<'a> {
             }
         }
         buf.write(")?");
-        Ok(())
+        Ok(DisplayWrap::Unwrapped)
     }
 
     fn _visit_args(&mut self, buf: &mut Buffer, args: &[Expr<'_>]) -> Result<(), CompileError> {
