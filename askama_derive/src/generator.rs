@@ -1201,21 +1201,15 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Unwrapped)
     }
 
-    #[cfg(not(feature = "serde-json"))]
-    fn _visit_json_filter(
-        &mut self,
-        _: &mut Buffer,
-        _: &[Expr<'_>],
-    ) -> Result<DisplayWrap, CompileError> {
-        Err("the `json` filter requires the `serde-json` feature to be enabled".into())
-    }
-
-    #[cfg(feature = "serde-json")]
     fn _visit_json_filter(
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
+        if cfg!(not(feature = "serde-json")) {
+            return Err("the `json` filter requires the `serde-json` feature to be enabled".into());
+        }
+
         if args.len() != 1 {
             return Err("unexpected argument(s) in `json` filter".into());
         }
