@@ -1250,11 +1250,11 @@ impl<'a> Generator<'a> {
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
         match name {
-            "escape" | "e" => return self._visit_escape_filter(buf, args),
-            "format" => return self._visit_format_filter(buf, args),
-            "fmt" => return self._visit_fmt_filter(buf, args),
-            "join" => return self._visit_join_filter(buf, args),
             "as_ref" => return self._visit_as_ref_filter(buf, args),
+            "escape" | "e" => return self._visit_escape_filter(buf, args),
+            "fmt" => return self._visit_fmt_filter(buf, args),
+            "format" => return self._visit_format_filter(buf, args),
+            "join" => return self._visit_join_filter(buf, args),
             "json" | "tojson" => return self._visit_json_filter(buf, args),
             "safe" => return self._visit_safe_filter(buf, args),
             _ => {}
