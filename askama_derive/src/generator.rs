@@ -2023,60 +2023,81 @@ enum Writable<'a> {
 // because they are not allowed to be raw identifiers, and *loop*
 // because it's used something like a keyword in the template
 // language.
-static USE_RAW: [(&str, &str); 47] = [
-    ("as", "r#as"),
-    ("break", "r#break"),
-    ("const", "r#const"),
-    ("continue", "r#continue"),
-    ("crate", "r#crate"),
-    ("else", "r#else"),
-    ("enum", "r#enum"),
-    ("extern", "r#extern"),
-    ("false", "r#false"),
-    ("fn", "r#fn"),
-    ("for", "r#for"),
-    ("if", "r#if"),
-    ("impl", "r#impl"),
-    ("in", "r#in"),
-    ("let", "r#let"),
-    ("match", "r#match"),
-    ("mod", "r#mod"),
-    ("move", "r#move"),
-    ("mut", "r#mut"),
-    ("pub", "r#pub"),
-    ("ref", "r#ref"),
-    ("return", "r#return"),
-    ("static", "r#static"),
-    ("struct", "r#struct"),
-    ("trait", "r#trait"),
-    ("true", "r#true"),
-    ("type", "r#type"),
-    ("unsafe", "r#unsafe"),
-    ("use", "r#use"),
-    ("where", "r#where"),
-    ("while", "r#while"),
-    ("async", "r#async"),
-    ("await", "r#await"),
-    ("dyn", "r#dyn"),
-    ("abstract", "r#abstract"),
-    ("become", "r#become"),
-    ("box", "r#box"),
-    ("do", "r#do"),
-    ("final", "r#final"),
-    ("macro", "r#macro"),
-    ("override", "r#override"),
-    ("priv", "r#priv"),
-    ("typeof", "r#typeof"),
-    ("unsized", "r#unsized"),
-    ("virtual", "r#virtual"),
-    ("yield", "r#yield"),
-    ("try", "r#try"),
-];
-
 fn normalize_identifier(ident: &str) -> &str {
-    if let Some(word) = USE_RAW.iter().find(|x| x.0 == ident) {
-        word.1
-    } else {
-        ident
+    const KW0: &[([u8; 8], [u8; 10])] = &[];
+    const KW1: &[([u8; 8], [u8; 10])] = &[];
+    const KW2: &[([u8; 8], [u8; 10])] = &[
+        (*b"as______", *b"r#as______"),
+        (*b"do______", *b"r#do______"),
+        (*b"fn______", *b"r#fn______"),
+        (*b"if______", *b"r#if______"),
+        (*b"in______", *b"r#in______"),
+    ];
+    const KW3: &[([u8; 8], [u8; 10])] = &[
+        (*b"box_____", *b"r#box_____"),
+        (*b"dyn_____", *b"r#dyn_____"),
+        (*b"for_____", *b"r#for_____"),
+        (*b"let_____", *b"r#let_____"),
+        (*b"mod_____", *b"r#mod_____"),
+        (*b"mut_____", *b"r#mut_____"),
+        (*b"pub_____", *b"r#pub_____"),
+        (*b"ref_____", *b"r#ref_____"),
+        (*b"try_____", *b"r#try_____"),
+        (*b"use_____", *b"r#use_____"),
+    ];
+    const KW4: &[([u8; 8], [u8; 10])] = &[
+        (*b"else____", *b"r#else____"),
+        (*b"enum____", *b"r#enum____"),
+        (*b"impl____", *b"r#impl____"),
+        (*b"move____", *b"r#move____"),
+        (*b"priv____", *b"r#priv____"),
+        (*b"true____", *b"r#true____"),
+        (*b"type____", *b"r#type____"),
+    ];
+    const KW5: &[([u8; 8], [u8; 10])] = &[
+        (*b"async___", *b"r#async___"),
+        (*b"await___", *b"r#await___"),
+        (*b"break___", *b"r#break___"),
+        (*b"const___", *b"r#const___"),
+        (*b"crate___", *b"r#crate___"),
+        (*b"false___", *b"r#false___"),
+        (*b"final___", *b"r#final___"),
+        (*b"macro___", *b"r#macro___"),
+        (*b"match___", *b"r#match___"),
+        (*b"trait___", *b"r#trait___"),
+        (*b"where___", *b"r#where___"),
+        (*b"while___", *b"r#while___"),
+        (*b"yield___", *b"r#yield___"),
+    ];
+    const KW6: &[([u8; 8], [u8; 10])] = &[
+        (*b"become__", *b"r#become__"),
+        (*b"extern__", *b"r#extern__"),
+        (*b"return__", *b"r#return__"),
+        (*b"static__", *b"r#static__"),
+        (*b"struct__", *b"r#struct__"),
+        (*b"typeof__", *b"r#typeof__"),
+        (*b"unsafe__", *b"r#unsafe__"),
+    ];
+    const KW7: &[([u8; 8], [u8; 10])] = &[
+        (*b"unsized_", *b"r#unsized_"),
+        (*b"virtual_", *b"r#virtual_"),
+    ];
+    const KW8: &[([u8; 8], [u8; 10])] = &[
+        (*b"abstract", *b"r#abstract"),
+        (*b"continue", *b"r#continue"),
+        (*b"override", *b"r#override"),
+    ];
+    const KWS: &[&[([u8; 8], [u8; 10])]] = &[KW0, KW1, KW2, KW3, KW4, KW5, KW6, KW7, KW8];
+
+    let kws = match KWS.get(ident.len()) {
+        Some(kws) => kws,
+        None => return ident,
+    };
+    match kws.binary_search_by(|(probe, _)| probe[..ident.len()].cmp(ident.as_bytes())) {
+        Ok(idx) => {
+            // SAFETY: We know that the input byte slice is pure-ASCII.
+            unsafe { std::str::from_utf8_unchecked(&kws[idx].1[..ident.len() + 2]) }
+        }
+        Err(_) => ident,
     }
 }
