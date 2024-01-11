@@ -1226,6 +1226,23 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Unwrapped)
     }
 
+    fn _visit_safe_filter(
+        &mut self,
+        buf: &mut Buffer,
+        args: &[Expr<'_>],
+    ) -> Result<DisplayWrap, CompileError> {
+        if args.len() != 1 {
+            return Err("unexpected argument(s) in `safe` filter".into());
+        }
+        buf.write(CRATE);
+        buf.write("::filters::safe(");
+        buf.write(self.input.escaper);
+        buf.write(", ");
+        self._visit_args(buf, args)?;
+        buf.write(")?");
+        Ok(DisplayWrap::Wrapped)
+    }
+
     fn visit_filter(
         &mut self,
         buf: &mut Buffer,
@@ -1249,25 +1266,18 @@ impl<'a> Generator<'a> {
             return Ok(DisplayWrap::Wrapped);
         } else if matches!(name, "json" | "tojson") {
             return self._visit_json_filter(buf, args);
+        } else if name == "safe" {
+            return self._visit_safe_filter(buf, args);
         }
 
-        let display_wrap = if name == "safe" {
-            buf.write(&format!(
-                "{CRATE}::filters::{}({}, ",
-                name, self.input.escaper
-            ));
-            DisplayWrap::Wrapped
-        } else if crate::BUILT_IN_FILTERS.contains(&name) {
+        if crate::BUILT_IN_FILTERS.contains(&name) {
             buf.write(&format!("{CRATE}::filters::{name}("));
-            DisplayWrap::Unwrapped
         } else {
             buf.write(&format!("filters::{name}("));
-            DisplayWrap::Unwrapped
-        };
-
+        }
         self._visit_args(buf, args)?;
         buf.write(")?");
-        Ok(display_wrap)
+        Ok(DisplayWrap::Unwrapped)
     }
 
     fn _visit_escape_filter(
