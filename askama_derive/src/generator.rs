@@ -1201,10 +1201,35 @@ impl<'a> Generator<'a> {
         Ok(())
     }
 
+    #[cfg(not(feature = "serde-json"))]
+    fn _visit_json_filter(
+        &mut self,
+        _: &mut Buffer,
+        _: &[Expr<'_>],
+    ) -> Result<DisplayWrap, CompileError> {
+        Err("the `json` filter requires the `serde-json` feature to be enabled".into())
+    }
+
+    #[cfg(feature = "serde-json")]
+    fn _visit_json_filter(
+        &mut self,
+        buf: &mut Buffer,
+        args: &[Expr<'_>],
+    ) -> Result<DisplayWrap, CompileError> {
+        if args.len() != 1 {
+            return Err("unexpected argument(s) in `json` filter".into());
+        }
+        buf.write(CRATE);
+        buf.write("::filters::json(");
+        self._visit_args(buf, args)?;
+        buf.write(")?");
+        Ok(DisplayWrap::Unwrapped)
+    }
+
     fn visit_filter(
         &mut self,
         buf: &mut Buffer,
-        mut name: &str,
+        name: &str,
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
         if matches!(name, "escape" | "e") {
@@ -1222,15 +1247,8 @@ impl<'a> Generator<'a> {
         } else if name == "as_ref" {
             self._visit_as_ref_filter(buf, args)?;
             return Ok(DisplayWrap::Wrapped);
-        }
-
-        if name == "tojson" {
-            name = "json";
-        }
-
-        #[cfg(not(feature = "serde-json"))]
-        if name == "json" {
-            return Err("the `json` filter requires the `serde-json` feature to be enabled".into());
+        } else if matches!(name, "json" | "tojson") {
+            return self._visit_json_filter(buf, args);
         }
 
         let display_wrap = if name == "safe" {
