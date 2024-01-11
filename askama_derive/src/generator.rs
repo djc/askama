@@ -1301,16 +1301,16 @@ impl<'a> Generator<'a> {
         buf: &mut Buffer,
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
-        buf.write("format!(");
-        if let Some(Expr::StrLit(v)) = args.first() {
-            self.visit_str_lit(buf, v);
-            if args.len() > 1 {
-                buf.write(", ");
-            }
-        } else {
-            return Err("invalid expression type for format filter".into());
+        let fmt = match args {
+            [Expr::StrLit(fmt), ..] => fmt,
+            _ => return Err(r#"use filter format like `"a={} b={}"|format(a, b)`"#.into()),
+        };
+        buf.write("::std::format!(");
+        self.visit_str_lit(buf, fmt);
+        if args.len() > 1 {
+            buf.write(", ");
+            self._visit_args(buf, &args[1..])?;
         }
-        self._visit_args(buf, &args[1..])?;
         buf.write(")");
         Ok(DisplayWrap::Unwrapped)
     }
@@ -1320,17 +1320,14 @@ impl<'a> Generator<'a> {
         buf: &mut Buffer,
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
-        buf.write("format!(");
-        if let Some(Expr::StrLit(v)) = args.get(1) {
-            self.visit_str_lit(buf, v);
-            buf.write(", ");
-        } else {
-            return Err("invalid expression type for fmt filter".into());
-        }
-        self._visit_args(buf, &args[0..1])?;
-        if args.len() > 2 {
-            return Err("only two arguments allowed to fmt filter".into());
-        }
+        let fmt = match args {
+            [_, Expr::StrLit(fmt)] => fmt,
+            _ => return Err(r#"use filter fmt like `value|fmt("{:?}")`"#.into()),
+        };
+        buf.write("::std::format!(");
+        self.visit_str_lit(buf, fmt);
+        buf.write(", ");
+        self._visit_args(buf, &args[..1])?;
         buf.write(")");
         Ok(DisplayWrap::Unwrapped)
     }
