@@ -1179,21 +1179,17 @@ impl<'a> Generator<'a> {
         DisplayWrap::Unwrapped
     }
 
-    #[cfg(not(feature = "markdown"))]
-    fn _visit_markdown_filter(
-        &mut self,
-        _buf: &mut Buffer,
-        _args: &[Expr<'_>],
-    ) -> Result<DisplayWrap, CompileError> {
-        Err("the `markdown` filter requires the `markdown` feature to be enabled".into())
-    }
-
-    #[cfg(feature = "markdown")]
     fn _visit_markdown_filter(
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
+        if cfg!(not(feature = "markdown")) {
+            return Err(
+                "the `markdown` filter requires the `markdown` feature to be enabled".into(),
+            );
+        }
+
         let (md, options) = match args {
             [md] => (md, None),
             [md, options] => (md, Some(options)),
@@ -1232,21 +1228,15 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Unwrapped)
     }
 
-    #[cfg(not(feature = "serde-json"))]
-    fn _visit_json_filter(
-        &mut self,
-        _: &mut Buffer,
-        _: &[Expr<'_>],
-    ) -> Result<DisplayWrap, CompileError> {
-        Err("the `json` filter requires the `serde-json` feature to be enabled".into())
-    }
-
-    #[cfg(feature = "serde-json")]
     fn _visit_json_filter(
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
+        if cfg!(not(feature = "serde-json")) {
+            return Err("the `json` filter requires the `serde-json` feature to be enabled".into());
+        }
+
         if args.len() != 1 {
             return Err("unexpected argument(s) in `json` filter".into());
         }
@@ -1256,21 +1246,15 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Unwrapped)
     }
 
-    #[cfg(not(feature = "serde-yaml"))]
-    fn _visit_yaml_filter(
-        &mut self,
-        _: &mut Buffer,
-        _: &[Expr<'_>],
-    ) -> Result<DisplayWrap, CompileError> {
-        Err("the `yaml` filter requires the `serde-yaml` feature to be enabled".into())
-    }
-
-    #[cfg(feature = "serde-yaml")]
     fn _visit_yaml_filter(
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
+        if cfg!(not(feature = "serde-yaml")) {
+            return Err("the `yaml` filter requires the `serde-yaml` feature to be enabled".into());
+        }
+
         if args.len() != 1 {
             return Err("unexpected argument(s) in `safe` filter".into());
         }
