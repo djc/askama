@@ -1256,6 +1256,32 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Unwrapped)
     }
 
+    #[cfg(not(feature = "serde-yaml"))]
+    fn _visit_yaml_filter(
+        &mut self,
+        _: &mut Buffer,
+        _: &[Expr<'_>],
+    ) -> Result<DisplayWrap, CompileError> {
+        Err("the `yaml` filter requires the `serde-yaml` feature to be enabled".into())
+    }
+
+    #[cfg(feature = "serde-yaml")]
+    fn _visit_yaml_filter(
+        &mut self,
+        buf: &mut Buffer,
+        args: &[Expr<'_>],
+    ) -> Result<DisplayWrap, CompileError> {
+        if args.len() != 1 {
+            return Err("unexpected argument(s) in `safe` filter".into());
+        }
+        buf.write("::askama::filters::yaml(");
+        buf.write(self.input.escaper);
+        buf.write(", ");
+        self._visit_args(buf, args)?;
+        buf.write(")?");
+        Ok(DisplayWrap::Wrapped)
+    }
+
     fn visit_filter(
         &mut self,
         buf: &mut Buffer,
@@ -1281,14 +1307,11 @@ impl<'a> Generator<'a> {
             return Ok(DisplayWrap::Wrapped);
         } else if matches!(name, "json" | "tojson") {
             return self._visit_json_filter(buf, args);
+        } else if name == "yaml" {
+            return self._visit_yaml_filter(buf, args);
         }
 
-        #[cfg(not(feature = "serde-yaml"))]
-        if name == "yaml" {
-            return Err("the `yaml` filter requires the `serde-yaml` feature to be enabled".into());
-        }
-
-        const FILTERS: [&str; 2] = ["safe", "yaml"];
+        const FILTERS: [&str; 1] = ["safe"];
         if FILTERS.contains(&name) {
             buf.write(&format!(
                 "::askama::filters::{}({}, ",
