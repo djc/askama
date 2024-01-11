@@ -1282,6 +1282,22 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Wrapped)
     }
 
+    fn _visit_safe_filter(
+        &mut self,
+        buf: &mut Buffer,
+        args: &[Expr<'_>],
+    ) -> Result<DisplayWrap, CompileError> {
+        if args.len() != 1 {
+            return Err("unexpected argument(s) in `safe` filter".into());
+        }
+        buf.write("::askama::filters::safe(");
+        buf.write(self.input.escaper);
+        buf.write(", ");
+        self._visit_args(buf, args)?;
+        buf.write(")?");
+        Ok(DisplayWrap::Wrapped)
+    }
+
     fn visit_filter(
         &mut self,
         buf: &mut Buffer,
@@ -1309,15 +1325,11 @@ impl<'a> Generator<'a> {
             return self._visit_json_filter(buf, args);
         } else if name == "yaml" {
             return self._visit_yaml_filter(buf, args);
+        } else if name == "safe" {
+            return self._visit_safe_filter(buf, args);
         }
 
-        const FILTERS: [&str; 1] = ["safe"];
-        if FILTERS.contains(&name) {
-            buf.write(&format!(
-                "::askama::filters::{}({}, ",
-                name, self.input.escaper
-            ));
-        } else if crate::BUILT_IN_FILTERS.contains(&name) {
+        if crate::BUILT_IN_FILTERS.contains(&name) {
             buf.write(&format!("::askama::filters::{name}("));
         } else {
             buf.write(&format!("filters::{name}("));
@@ -1325,10 +1337,7 @@ impl<'a> Generator<'a> {
 
         self._visit_args(buf, args)?;
         buf.write(")?");
-        Ok(match FILTERS.contains(&name) {
-            true => DisplayWrap::Wrapped,
-            false => DisplayWrap::Unwrapped,
-        })
+        Ok(DisplayWrap::Unwrapped)
     }
 
     fn _visit_escape_filter(
