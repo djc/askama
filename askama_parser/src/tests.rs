@@ -801,3 +801,9 @@ fn fuzzed_macro_no_end() {
     let s = "{%macro super%}{%endmacro";
     assert!(Ast::from_str(s, &Syntax::default()).is_err());
 }
+
+#[test]
+fn fuzzed_target_recursion() {
+    const TEMPLATE: &str = include_str!("../tests/target-recursion.txt");
+    assert!(Ast::from_str(TEMPLATE, &Syntax::default()).is_err());
+}
