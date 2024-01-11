@@ -1249,20 +1249,15 @@ impl<'a> Generator<'a> {
         name: &str,
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
-        if matches!(name, "escape" | "e") {
-            return self._visit_escape_filter(buf, args);
-        } else if name == "format" {
-            return self._visit_format_filter(buf, args);
-        } else if name == "fmt" {
-            return self._visit_fmt_filter(buf, args);
-        } else if name == "join" {
-            return self._visit_join_filter(buf, args);
-        } else if name == "as_ref" {
-            return self._visit_as_ref_filter(buf, args);
-        } else if matches!(name, "json" | "tojson") {
-            return self._visit_json_filter(buf, args);
-        } else if name == "safe" {
-            return self._visit_safe_filter(buf, args);
+        match name {
+            "escape" | "e" => return self._visit_escape_filter(buf, args),
+            "format" => return self._visit_format_filter(buf, args),
+            "fmt" => return self._visit_fmt_filter(buf, args),
+            "join" => return self._visit_join_filter(buf, args),
+            "as_ref" => return self._visit_as_ref_filter(buf, args),
+            "json" | "tojson" => return self._visit_json_filter(buf, args),
+            "safe" => return self._visit_safe_filter(buf, args),
+            _ => {}
         }
 
         if crate::BUILT_IN_FILTERS.contains(&name) {
