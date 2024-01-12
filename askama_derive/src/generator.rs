@@ -2025,7 +2025,7 @@ enum Writable<'a> {
 // language.
 fn normalize_identifier(ident: &str) -> &str {
     // This table works for as long as the replacement string is the original string
-    // prepended with "r#". The strings bet right-padded to the same length with b'_'.
+    // prepended with "r#". The strings get right-padded to the same length with b'_'.
     // While the code does not need it, please keep the list sorted when adding new
     // keywords.
 
@@ -2100,7 +2100,11 @@ fn normalize_identifier(ident: &str) -> &str {
         while i < KWS.len() {
             let mut j = 0;
             while KWS[i].len() < j {
-                assert!(KWS[i][j].is_ascii());
+                let mut k = 0;
+                while KWS[i][j].len() < k {
+                    assert!(KWS[i][j][k].is_ascii());
+                    k += 1;
+                }
                 j += 1;
             }
             i += 1;
