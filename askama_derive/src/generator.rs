@@ -2040,60 +2040,111 @@ enum Writable<'a> {
 // because they are not allowed to be raw identifiers, and *loop*
 // because it's used something like a keyword in the template
 // language.
-static USE_RAW: [(&str, &str); 47] = [
-    ("as", "r#as"),
-    ("break", "r#break"),
-    ("const", "r#const"),
-    ("continue", "r#continue"),
-    ("crate", "r#crate"),
-    ("else", "r#else"),
-    ("enum", "r#enum"),
-    ("extern", "r#extern"),
-    ("false", "r#false"),
-    ("fn", "r#fn"),
-    ("for", "r#for"),
-    ("if", "r#if"),
-    ("impl", "r#impl"),
-    ("in", "r#in"),
-    ("let", "r#let"),
-    ("match", "r#match"),
-    ("mod", "r#mod"),
-    ("move", "r#move"),
-    ("mut", "r#mut"),
-    ("pub", "r#pub"),
-    ("ref", "r#ref"),
-    ("return", "r#return"),
-    ("static", "r#static"),
-    ("struct", "r#struct"),
-    ("trait", "r#trait"),
-    ("true", "r#true"),
-    ("type", "r#type"),
-    ("unsafe", "r#unsafe"),
-    ("use", "r#use"),
-    ("where", "r#where"),
-    ("while", "r#while"),
-    ("async", "r#async"),
-    ("await", "r#await"),
-    ("dyn", "r#dyn"),
-    ("abstract", "r#abstract"),
-    ("become", "r#become"),
-    ("box", "r#box"),
-    ("do", "r#do"),
-    ("final", "r#final"),
-    ("macro", "r#macro"),
-    ("override", "r#override"),
-    ("priv", "r#priv"),
-    ("typeof", "r#typeof"),
-    ("unsized", "r#unsized"),
-    ("virtual", "r#virtual"),
-    ("yield", "r#yield"),
-    ("try", "r#try"),
-];
-
 fn normalize_identifier(ident: &str) -> &str {
-    if let Some(word) = USE_RAW.iter().find(|x| x.0 == ident) {
-        word.1
-    } else {
-        ident
+    // This table works for as long as the replacement string is the original string
+    // prepended with "r#". The strings get right-padded to the same length with b'_'.
+    // While the code does not need it, please keep the list sorted when adding new
+    // keywords.
+
+    // FIXME: Replace with `[core:ascii::Char; MAX_REPL_LEN]` once
+    //        <https://github.com/rust-lang/rust/issues/110998> is stable.
+
+    const MAX_KW_LEN: usize = 8;
+    const MAX_REPL_LEN: usize = MAX_KW_LEN + 2;
+
+    const KW0: &[[u8; MAX_REPL_LEN]] = &[];
+    const KW1: &[[u8; MAX_REPL_LEN]] = &[];
+    const KW2: &[[u8; MAX_REPL_LEN]] = &[
+        *b"r#as______",
+        *b"r#do______",
+        *b"r#fn______",
+        *b"r#if______",
+        *b"r#in______",
+    ];
+    const KW3: &[[u8; MAX_REPL_LEN]] = &[
+        *b"r#box_____",
+        *b"r#dyn_____",
+        *b"r#for_____",
+        *b"r#let_____",
+        *b"r#mod_____",
+        *b"r#mut_____",
+        *b"r#pub_____",
+        *b"r#ref_____",
+        *b"r#try_____",
+        *b"r#use_____",
+    ];
+    const KW4: &[[u8; MAX_REPL_LEN]] = &[
+        *b"r#else____",
+        *b"r#enum____",
+        *b"r#impl____",
+        *b"r#move____",
+        *b"r#priv____",
+        *b"r#true____",
+        *b"r#type____",
+    ];
+    const KW5: &[[u8; MAX_REPL_LEN]] = &[
+        *b"r#async___",
+        *b"r#await___",
+        *b"r#break___",
+        *b"r#const___",
+        *b"r#crate___",
+        *b"r#false___",
+        *b"r#final___",
+        *b"r#macro___",
+        *b"r#match___",
+        *b"r#trait___",
+        *b"r#where___",
+        *b"r#while___",
+        *b"r#yield___",
+    ];
+    const KW6: &[[u8; MAX_REPL_LEN]] = &[
+        *b"r#become__",
+        *b"r#extern__",
+        *b"r#return__",
+        *b"r#static__",
+        *b"r#struct__",
+        *b"r#typeof__",
+        *b"r#unsafe__",
+    ];
+    const KW7: &[[u8; MAX_REPL_LEN]] = &[*b"r#unsized_", *b"r#virtual_"];
+    const KW8: &[[u8; MAX_REPL_LEN]] = &[*b"r#abstract", *b"r#continue", *b"r#override"];
+
+    const KWS: &[&[[u8; MAX_REPL_LEN]]] = &[KW0, KW1, KW2, KW3, KW4, KW5, KW6, KW7, KW8];
+
+    // Ensure that all strings are ASCII, because we use `from_utf8_unchecked()` further down.
+    const _: () = {
+        let mut i = 0;
+        while i < KWS.len() {
+            let mut j = 0;
+            while KWS[i].len() < j {
+                let mut k = 0;
+                while KWS[i][j].len() < k {
+                    assert!(KWS[i][j][k].is_ascii());
+                    k += 1;
+                }
+                j += 1;
+            }
+            i += 1;
+        }
+    };
+
+    if ident.len() > MAX_KW_LEN {
+        return ident;
     }
+    let kws = KWS[ident.len()];
+
+    let mut padded_ident = [b'_'; MAX_KW_LEN];
+    padded_ident[..ident.len()].copy_from_slice(ident.as_bytes());
+
+    // Since the individual buckets are quite short, a linear search is faster than a binary search.
+    let replacement = match kws
+        .iter()
+        .find(|probe| padded_ident == <[u8; MAX_KW_LEN]>::try_from(&probe[2..]).unwrap())
+    {
+        Some(replacement) => replacement,
+        None => return ident,
+    };
+
+    // SAFETY: We know that the input byte slice is pure-ASCII.
+    unsafe { std::str::from_utf8_unchecked(&replacement[..ident.len() + 2]) }
 }
