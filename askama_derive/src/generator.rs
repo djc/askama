@@ -2024,16 +2024,27 @@ enum Writable<'a> {
 // because it's used something like a keyword in the template
 // language.
 fn normalize_identifier(ident: &str) -> &str {
-    const KW0: &[[u8; 10]] = &[];
-    const KW1: &[[u8; 10]] = &[];
-    const KW2: &[[u8; 10]] = &[
+    // This table works for as long as the replacement string is the original string
+    // prepended with "r#". The strings bet right-padded to the same length with b'_'.
+    // While the code does not need it, please keep the list sorted when adding new
+    // keywords.
+
+    // FIXME: Replace with `[core:ascii::Char; MAX_REPL_LEN]` once
+    //        <https://github.com/rust-lang/rust/issues/110998> is stable.
+
+    const MAX_KW_LEN: usize = 8;
+    const MAX_REPL_LEN: usize = MAX_KW_LEN + 2;
+
+    const KW0: &[[u8; MAX_REPL_LEN]] = &[];
+    const KW1: &[[u8; MAX_REPL_LEN]] = &[];
+    const KW2: &[[u8; MAX_REPL_LEN]] = &[
         *b"r#as______",
         *b"r#do______",
         *b"r#fn______",
         *b"r#if______",
         *b"r#in______",
     ];
-    const KW3: &[[u8; 10]] = &[
+    const KW3: &[[u8; MAX_REPL_LEN]] = &[
         *b"r#box_____",
         *b"r#dyn_____",
         *b"r#for_____",
@@ -2045,7 +2056,7 @@ fn normalize_identifier(ident: &str) -> &str {
         *b"r#try_____",
         *b"r#use_____",
     ];
-    const KW4: &[[u8; 10]] = &[
+    const KW4: &[[u8; MAX_REPL_LEN]] = &[
         *b"r#else____",
         *b"r#enum____",
         *b"r#impl____",
@@ -2054,7 +2065,7 @@ fn normalize_identifier(ident: &str) -> &str {
         *b"r#true____",
         *b"r#type____",
     ];
-    const KW5: &[[u8; 10]] = &[
+    const KW5: &[[u8; MAX_REPL_LEN]] = &[
         *b"r#async___",
         *b"r#await___",
         *b"r#break___",
@@ -2069,7 +2080,7 @@ fn normalize_identifier(ident: &str) -> &str {
         *b"r#while___",
         *b"r#yield___",
     ];
-    const KW6: &[[u8; 10]] = &[
+    const KW6: &[[u8; MAX_REPL_LEN]] = &[
         *b"r#become__",
         *b"r#extern__",
         *b"r#return__",
@@ -2078,28 +2089,40 @@ fn normalize_identifier(ident: &str) -> &str {
         *b"r#typeof__",
         *b"r#unsafe__",
     ];
-    const KW7: &[[u8; 10]] = &[*b"r#unsized_", *b"r#virtual_"];
-    const KW8: &[[u8; 10]] = &[*b"r#abstract", *b"r#continue", *b"r#override"];
-    const KWS: &[&[[u8; 10]]] = &[KW0, KW1, KW2, KW3, KW4, KW5, KW6, KW7, KW8];
+    const KW7: &[[u8; MAX_REPL_LEN]] = &[*b"r#unsized_", *b"r#virtual_"];
+    const KW8: &[[u8; MAX_REPL_LEN]] = &[*b"r#abstract", *b"r#continue", *b"r#override"];
 
-    if ident.len() > 8 {
+    const KWS: &[&[[u8; MAX_REPL_LEN]]] = &[KW0, KW1, KW2, KW3, KW4, KW5, KW6, KW7, KW8];
+
+    // Ensure that all strings are ASCII, because we use `from_utf8_unchecked()` further down.
+    const _: () = {
+        let mut i = 0;
+        while i < KWS.len() {
+            let mut j = 0;
+            while KWS[i].len() < j {
+                assert!(KWS[i][j].is_ascii());
+                j += 1;
+            }
+            i += 1;
+        }
+    };
+
+    if ident.len() > MAX_KW_LEN {
         return ident;
     }
     let kws = KWS[ident.len()];
 
-    let mut padded_ident = [b'_'; 8];
+    let mut padded_ident = [b'_'; MAX_KW_LEN];
     padded_ident[..ident.len()].copy_from_slice(ident.as_bytes());
 
+    // Since the individual buckets are quite short, a linear search is faster than a binary search.
     let replacement = match kws
         .iter()
-        .find(|probe| padded_ident == <[u8; 8]>::try_from(&probe[2..]).unwrap())
+        .find(|probe| padded_ident == <[u8; MAX_KW_LEN]>::try_from(&probe[2..]).unwrap())
     {
         Some(replacement) => replacement,
         None => return ident,
     };
-
-    // FIXME: This `unsafe` code can be removed once
-    //        [`core:ascii::Char`](https://github.com/rust-lang/rust/issues/110998) is stable.
 
     // SAFETY: We know that the input byte slice is pure-ASCII.
     unsafe { std::str::from_utf8_unchecked(&replacement[..ident.len() + 2]) }
