@@ -2024,80 +2024,80 @@ enum Writable<'a> {
 // because it's used something like a keyword in the template
 // language.
 fn normalize_identifier(ident: &str) -> &str {
-    const KW0: &[([u8; 8], [u8; 10])] = &[];
-    const KW1: &[([u8; 8], [u8; 10])] = &[];
-    const KW2: &[([u8; 8], [u8; 10])] = &[
-        (*b"as______", *b"r#as______"),
-        (*b"do______", *b"r#do______"),
-        (*b"fn______", *b"r#fn______"),
-        (*b"if______", *b"r#if______"),
-        (*b"in______", *b"r#in______"),
+    const KW0: &[[u8; 10]] = &[];
+    const KW1: &[[u8; 10]] = &[];
+    const KW2: &[[u8; 10]] = &[
+        *b"r#as______",
+        *b"r#do______",
+        *b"r#fn______",
+        *b"r#if______",
+        *b"r#in______",
     ];
-    const KW3: &[([u8; 8], [u8; 10])] = &[
-        (*b"box_____", *b"r#box_____"),
-        (*b"dyn_____", *b"r#dyn_____"),
-        (*b"for_____", *b"r#for_____"),
-        (*b"let_____", *b"r#let_____"),
-        (*b"mod_____", *b"r#mod_____"),
-        (*b"mut_____", *b"r#mut_____"),
-        (*b"pub_____", *b"r#pub_____"),
-        (*b"ref_____", *b"r#ref_____"),
-        (*b"try_____", *b"r#try_____"),
-        (*b"use_____", *b"r#use_____"),
+    const KW3: &[[u8; 10]] = &[
+        *b"r#box_____",
+        *b"r#dyn_____",
+        *b"r#for_____",
+        *b"r#let_____",
+        *b"r#mod_____",
+        *b"r#mut_____",
+        *b"r#pub_____",
+        *b"r#ref_____",
+        *b"r#try_____",
+        *b"r#use_____",
     ];
-    const KW4: &[([u8; 8], [u8; 10])] = &[
-        (*b"else____", *b"r#else____"),
-        (*b"enum____", *b"r#enum____"),
-        (*b"impl____", *b"r#impl____"),
-        (*b"move____", *b"r#move____"),
-        (*b"priv____", *b"r#priv____"),
-        (*b"true____", *b"r#true____"),
-        (*b"type____", *b"r#type____"),
+    const KW4: &[[u8; 10]] = &[
+        *b"r#else____",
+        *b"r#enum____",
+        *b"r#impl____",
+        *b"r#move____",
+        *b"r#priv____",
+        *b"r#true____",
+        *b"r#type____",
     ];
-    const KW5: &[([u8; 8], [u8; 10])] = &[
-        (*b"async___", *b"r#async___"),
-        (*b"await___", *b"r#await___"),
-        (*b"break___", *b"r#break___"),
-        (*b"const___", *b"r#const___"),
-        (*b"crate___", *b"r#crate___"),
-        (*b"false___", *b"r#false___"),
-        (*b"final___", *b"r#final___"),
-        (*b"macro___", *b"r#macro___"),
-        (*b"match___", *b"r#match___"),
-        (*b"trait___", *b"r#trait___"),
-        (*b"where___", *b"r#where___"),
-        (*b"while___", *b"r#while___"),
-        (*b"yield___", *b"r#yield___"),
+    const KW5: &[[u8; 10]] = &[
+        *b"r#async___",
+        *b"r#await___",
+        *b"r#break___",
+        *b"r#const___",
+        *b"r#crate___",
+        *b"r#false___",
+        *b"r#final___",
+        *b"r#macro___",
+        *b"r#match___",
+        *b"r#trait___",
+        *b"r#where___",
+        *b"r#while___",
+        *b"r#yield___",
     ];
-    const KW6: &[([u8; 8], [u8; 10])] = &[
-        (*b"become__", *b"r#become__"),
-        (*b"extern__", *b"r#extern__"),
-        (*b"return__", *b"r#return__"),
-        (*b"static__", *b"r#static__"),
-        (*b"struct__", *b"r#struct__"),
-        (*b"typeof__", *b"r#typeof__"),
-        (*b"unsafe__", *b"r#unsafe__"),
+    const KW6: &[[u8; 10]] = &[
+        *b"r#become__",
+        *b"r#extern__",
+        *b"r#return__",
+        *b"r#static__",
+        *b"r#struct__",
+        *b"r#typeof__",
+        *b"r#unsafe__",
     ];
-    const KW7: &[([u8; 8], [u8; 10])] = &[
-        (*b"unsized_", *b"r#unsized_"),
-        (*b"virtual_", *b"r#virtual_"),
-    ];
-    const KW8: &[([u8; 8], [u8; 10])] = &[
-        (*b"abstract", *b"r#abstract"),
-        (*b"continue", *b"r#continue"),
-        (*b"override", *b"r#override"),
-    ];
-    const KWS: &[&[([u8; 8], [u8; 10])]] = &[KW0, KW1, KW2, KW3, KW4, KW5, KW6, KW7, KW8];
+    const KW7: &[[u8; 10]] = &[*b"r#unsized_", *b"r#virtual_"];
+    const KW8: &[[u8; 10]] = &[*b"r#abstract", *b"r#continue", *b"r#override"];
+    const KWS: &[&[[u8; 10]]] = &[KW0, KW1, KW2, KW3, KW4, KW5, KW6, KW7, KW8];
 
-    let kws = match KWS.get(ident.len()) {
-        Some(kws) => kws,
+    if ident.len() > 8 {
+        return ident;
+    }
+    let kws = KWS[ident.len()];
+
+    let mut padded_ident = [b'_'; 8];
+    padded_ident[..ident.len()].copy_from_slice(ident.as_bytes());
+
+    let replacement = match kws
+        .iter()
+        .find(|probe| padded_ident == <[u8; 8]>::try_from(&probe[2..]).unwrap())
+    {
+        Some(replacement) => replacement,
         None => return ident,
     };
-    match kws.binary_search_by(|(probe, _)| probe[..ident.len()].cmp(ident.as_bytes())) {
-        Ok(idx) => {
-            // SAFETY: We know that the input byte slice is pure-ASCII.
-            unsafe { std::str::from_utf8_unchecked(&kws[idx].1[..ident.len() + 2]) }
-        }
-        Err(_) => ident,
-    }
+
+    // SAFETY: We know that the input byte slice is pure-ASCII.
+    unsafe { std::str::from_utf8_unchecked(&replacement[..ident.len() + 2]) }
 }

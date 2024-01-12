@@ -33,8 +33,8 @@ fn functions(c: &mut Criterion) {
     bench_function! {
         normalize_identifier_linear
         normalize_identifier_linear_replacement_only
-        normalize_identifier_binary_search
-        normalize_identifier_binary_search_replacement_only
+        normalize_identifier_bisect
+        normalize_identifier_bisect_replacement_only
         normalize_identifier_linear_by_len
         normalize_identifier_linear_by_len_replacement_only
         normalize_identifier_bisect_by_len
@@ -101,7 +101,7 @@ fn normalize_identifier_linear(ident: &str) -> &str {
     }
 }
 
-fn normalize_identifier_binary_search(ident: &str) -> &str {
+fn normalize_identifier_bisect(ident: &str) -> &str {
     static USE_RAW: [(&str, &str); 47] = [
         ("abstract", "r#abstract"),
         ("as", "r#as"),
@@ -217,7 +217,7 @@ fn normalize_identifier_linear_replacement_only(ident: &str) -> &str {
         .unwrap_or(ident)
 }
 
-fn normalize_identifier_binary_search_replacement_only(ident: &str) -> &str {
+fn normalize_identifier_bisect_replacement_only(ident: &str) -> &str {
     static USE_RAW: [&str; 47] = [
         "r#abstract",
         "r#as",
@@ -341,19 +341,21 @@ fn normalize_identifier_linear_by_len(ident: &str) -> &str {
     ];
     const KWS: &[&[([u8; 8], [u8; 10])]] = &[KW0, KW1, KW2, KW3, KW4, KW5, KW6, KW7, KW8];
 
-    let kws = match KWS.get(ident.len()) {
-        Some(kws) => kws,
+    if ident.len() > 8 {
+        return ident;
+    }
+    let kws = KWS[ident.len()];
+
+    let mut padded_ident = [b'_'; 8];
+    padded_ident[..ident.len()].copy_from_slice(ident.as_bytes());
+
+    let replacement = match kws.iter().find(|(kw, _)| *kw == padded_ident) {
+        Some((_, replacement)) => replacement,
         None => return ident,
     };
-    kws.iter()
-        .find_map(|(kw, rkw)| match &kw[..ident.len()] == ident.as_bytes() {
-            true => {
-                // SAFETY: We know that the input byte slice is pure-ASCII.
-                Some(unsafe { std::str::from_utf8_unchecked(&rkw[..ident.len() + 2]) })
-            }
-            false => None,
-        })
-        .unwrap_or(ident)
+
+    // SAFETY: We know that the input byte slice is pure-ASCII.
+    unsafe { std::str::from_utf8_unchecked(&replacement[..ident.len() + 2]) }
 }
 
 fn normalize_identifier_linear_by_len_replacement_only(ident: &str) -> &str {
@@ -415,19 +417,24 @@ fn normalize_identifier_linear_by_len_replacement_only(ident: &str) -> &str {
     const KW8: &[[u8; 10]] = &[*b"r#abstract", *b"r#continue", *b"r#override"];
     const KWS: &[&[[u8; 10]]] = &[KW0, KW1, KW2, KW3, KW4, KW5, KW6, KW7, KW8];
 
-    let kws = match KWS.get(ident.len()) {
-        Some(kws) => kws,
+    if ident.len() > 8 {
+        return ident;
+    }
+    let kws = KWS[ident.len()];
+
+    let mut padded_ident = [b'_'; 8];
+    padded_ident[..ident.len()].copy_from_slice(ident.as_bytes());
+
+    let replacement = match kws
+        .iter()
+        .find(|probe| padded_ident == <[u8; 8]>::try_from(&probe[2..]).unwrap())
+    {
+        Some(replacement) => replacement,
         None => return ident,
     };
-    kws.iter()
-        .find_map(|kw| match &kw[2..][..ident.len()] == ident.as_bytes() {
-            true => {
-                // SAFETY: We know that the input byte slice is pure-ASCII.
-                Some(unsafe { std::str::from_utf8_unchecked(&kw[..ident.len() + 2]) })
-            }
-            false => None,
-        })
-        .unwrap_or(ident)
+
+    // SAFETY: We know that the input byte slice is pure-ASCII.
+    unsafe { std::str::from_utf8_unchecked(&replacement[..ident.len() + 2]) }
 }
 
 fn normalize_identifier_bisect_by_len(ident: &str) -> &str {
@@ -496,16 +503,19 @@ fn normalize_identifier_bisect_by_len(ident: &str) -> &str {
     ];
     const KWS: &[&[([u8; 8], [u8; 10])]] = &[KW0, KW1, KW2, KW3, KW4, KW5, KW6, KW7, KW8];
 
-    let kws = match KWS.get(ident.len()) {
-        Some(kws) => kws,
-        None => return ident,
-    };
-    match kws.binary_search_by(|(probe, _)| probe[..ident.len()].cmp(ident.as_bytes())) {
-        Ok(idx) => {
-            // SAFETY: We know that the input byte slice is pure-ASCII.
-            unsafe { std::str::from_utf8_unchecked(&kws[idx].1[..ident.len() + 2]) }
-        }
-        Err(_) => ident,
+    if ident.len() > 8 {
+        return ident;
+    }
+    let kws = KWS[ident.len()];
+
+    let mut padded_ident = [b'_'; 8];
+    padded_ident[..ident.len()].copy_from_slice(ident.as_bytes());
+
+    if let Ok(idx) = kws.binary_search_by(|(probe, _)| probe.cmp(&padded_ident)) {
+        // SAFETY: We know that the input byte slice is pure-ASCII.
+        unsafe { std::str::from_utf8_unchecked(&kws[idx].1[..ident.len() + 2]) }
+    } else {
+        ident
     }
 }
 
@@ -568,11 +578,17 @@ fn normalize_identifier_bisect_by_len_replacement_only(ident: &str) -> &str {
     const KW8: &[[u8; 10]] = &[*b"r#abstract", *b"r#continue", *b"r#override"];
     const KWS: &[&[[u8; 10]]] = &[KW0, KW1, KW2, KW3, KW4, KW5, KW6, KW7, KW8];
 
-    let kws = match KWS.get(ident.len()) {
-        Some(kws) => kws,
-        None => return ident,
-    };
-    match kws.binary_search_by(|probe| probe[2..][..ident.len()].cmp(ident.as_bytes())) {
+    if ident.len() > 8 {
+        return ident;
+    }
+    let kws = KWS[ident.len()];
+
+    let mut padded_ident = [b'_'; 8];
+    padded_ident[..ident.len()].copy_from_slice(ident.as_bytes());
+
+    let idx =
+        kws.binary_search_by(|probe| <[u8; 8]>::try_from(&probe[2..]).unwrap().cmp(&padded_ident));
+    match idx {
         Ok(idx) => unsafe { std::str::from_utf8_unchecked(&kws[idx][..ident.len() + 2]) },
         Err(_) => ident,
     }
