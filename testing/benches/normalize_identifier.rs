@@ -7,7 +7,7 @@ criterion_main!(benches);
 criterion_group!(benches, functions);
 
 fn functions(c: &mut Criterion) {
-    let words: Vec<_> = Words::default().collect();
+    let words = Words::default().collect::<Vec<_>>();
 
     macro_rules! bench_function {
         ($($func:ident)*) => {
