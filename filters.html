@@ -192,6 +192,7 @@ but are disabled by default. Enable them with Cargo features (see below for more
 <li>
 <p><strong><a href="#built-in-filters">Built-in filters</a>:</strong><br />
 <a href="#abs"><code>abs</code></a>,
+<a href="#as_ref"><code>as_ref</code></a>,
 <a href="#capitalize"><code>capitalize</code></a>,
 <a href="#center"><code>center</code></a>,
 <a href="#escape--e"><code>escape|e</code></a>,
@@ -225,6 +226,15 @@ but are disabled by default. Enable them with Cargo features (see below for more
 </code></pre>
 <p>Output:</p>
 <pre><code>2
+</code></pre>
+<h3 id="as_ref"><a class="header" href="#as_ref">as_ref</a></h3>
+<p>Creates a reference to the given argument.</p>
+<pre><code>{{ &quot;a&quot;|as_ref }}
+{{ self.x|as_ref }}
+</code></pre>
+<p>will become:</p>
+<pre><code>&amp;a
+&amp;self.x
 </code></pre>
 <h3 id="capitalize"><a class="header" href="#capitalize">capitalize</a></h3>
 <p>Capitalize a value. The first character will be uppercase, all others lowercase:</p>
