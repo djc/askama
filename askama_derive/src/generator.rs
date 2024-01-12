@@ -2098,6 +2098,9 @@ fn normalize_identifier(ident: &str) -> &str {
         None => return ident,
     };
 
+    // FIXME: This `unsafe` code can be removed once
+    //        [`core:ascii::Char`](https://github.com/rust-lang/rust/issues/110998) is stable.
+
     // SAFETY: We know that the input byte slice is pure-ASCII.
     unsafe { std::str::from_utf8_unchecked(&replacement[..ident.len() + 2]) }
 }
