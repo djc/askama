@@ -196,112 +196,70 @@ impl<'a> Generator<'a> {
     // Implement `From<Template> for hyper::Response<Body>` and `From<Template> for hyper::Body.
     #[cfg(feature = "with-hyper")]
     fn impl_hyper_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let (impl_generics, orig_ty_generics, where_clause) =
-            self.input.ast.generics.split_for_impl();
-        let ident = &self.input.ast.ident;
+        let generics_with_bounds = self.input.ast.generics.display_with_bounds();
+        let orig_ty_generics = &self.input.ast.generics;
+        let type_name = &self.input.ast.ident;
+        let where_clause = &self.input.ast.where_clause;
+
         // From<Template> for hyper::Response<Body>
         buf.writeln(&format!(
-            "{} {{",
-            quote!(
-                impl #impl_generics ::core::convert::From<&#ident #orig_ty_generics>
-                for ::askama_hyper::hyper::Response<::askama_hyper::hyper::Body>
-                #where_clause
-            )
-        ))?;
-        buf.writeln("#[inline]")?;
-        buf.writeln(&format!(
-            "{} {{",
-            quote!(fn from(value: &#ident #orig_ty_generics) -> Self)
-        ))?;
-        buf.writeln("::askama_hyper::respond(value)")?;
-        buf.writeln("}")?;
-        buf.writeln("}")?;
+            "\
+impl {generics_with_bounds} ::core::convert::From<&{type_name} {orig_ty_generics}>
+for ::askama_hyper::hyper::Response<::askama_hyper::hyper::Body>
+{where_clause}
+{{
+    #[inline]
+    fn from(value: &{type_name} {orig_ty_generics}) -> Self {{
+        ::askama_hyper::respond(value)
+    }}
+}}
 
-        // TryFrom<Template> for hyper::Body
-        buf.writeln(&format!(
-            "{} {{",
-            quote!(
-                impl #impl_generics ::core::convert::TryFrom<&#ident #orig_ty_generics>
-                for ::askama_hyper::hyper::Body
-                #where_clause
-            )
-        ))?;
-        buf.writeln("type Error = ::askama::Error;")?;
-        buf.writeln("#[inline]")?;
-        buf.writeln(&format!(
-            "{} {{",
-            quote!(fn try_from(value: &#ident #orig_ty_generics) -> Result<Self, Self::Error>)
-        ))?;
-        buf.writeln("::askama::Template::render(value).map(Into::into)")?;
-        buf.writeln("}")?;
-        buf.writeln("}")
+impl {generics_with_bounds} ::core::convert::TryFrom<&{type_name} {orig_ty_generics}>
+for ::askama_hyper::hyper::Body
+{where_clause}
+{{
+    type Error = ::askama::Error;
+
+    #[inline]
+    fn try_from(value: &{type_name} {orig_ty_generics}) -> Result<Self, Self::Error> {{
+        ::askama::Template::render(value).map(Into::into)
+    }}
+}}"
+        ))
     }
 
     // Implement mendes' `Responder`.
     #[cfg(feature = "with-mendes")]
     fn impl_mendes_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let param = syn::parse_str("A: ::mendes::Application").unwrap();
-
         let mut generics = self.input.ast.generics.clone();
-        generics.params.push(param);
-        let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
+        generics.add_generic("A", "::mendes::Application");
 
-        let mut where_clause = match where_clause {
-            Some(clause) => clause.clone(),
-            None => syn::WhereClause {
-                where_token: syn::Token![where](proc_macro2::Span::call_site()),
-                predicates: syn::punctuated::Punctuated::new(),
-            },
-        };
+        let generics_with_bounds = generics.display_with_bounds();
+        let orig_ty_generics = &self.input.ast.generics;
+        let type_name = &self.input.ast.ident;
+        let mut where_clause = self.input.ast.where_clause.clone();
 
-        where_clause
-            .predicates
-            .push(syn::parse_str("A::ResponseBody: From<String>").unwrap());
-        where_clause
-            .predicates
-            .push(syn::parse_str("A::Error: From<::askama_mendes::Error>").unwrap());
+        where_clause.add_predicate("A::ResponseBody: From<String>");
+        where_clause.add_predicate("A::Error: From<::askama_mendes::Error>");
 
-        buf.writeln(
-            format!(
-                "{} {} for {} {} {{",
-                quote!(impl #impl_generics),
-                "::mendes::application::IntoResponse<A>",
-                self.input.ast.ident,
-                quote!(#orig_ty_generics #where_clause),
-            )
-            .as_ref(),
-        )?;
-
-        buf.writeln(
-            "fn into_response(self, app: &A, req: &::mendes::http::request::Parts) \
-             -> ::mendes::http::Response<A::ResponseBody> {",
-        )?;
-
-        buf.writeln("::askama_mendes::into_response(app, req, &self)")?;
-        buf.writeln("}")?;
-        buf.writeln("}")?;
-        Ok(())
+        buf.writeln(&format!(
+            "\
+impl {generics_with_bounds} ::mendes::application::IntoResponse<A> for {type_name} {orig_ty_generics} {{
+    fn into_response(self, app: &A, req: &::mendes::http::request::Parts) \
+             -> ::mendes::http::Response<A::ResponseBody> {{
+        ::askama_mendes::into_response(app, req, &self)
+    }}
+}}",
+        ))
     }
 
     // Implement Rocket's `Responder`.
     #[cfg(feature = "with-rocket")]
     fn impl_rocket_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let lifetime1 = syn::Lifetime::new("'askama1", proc_macro2::Span::call_site());
-        let lifetime2 = syn::Lifetime::new("'askama2", proc_macro2::Span::call_site());
-
-        let mut param2 = syn::LifetimeParam::new(lifetime2);
-        param2.colon_token = Some(syn::Token![:](proc_macro2::Span::call_site()));
-        param2.bounds = syn::punctuated::Punctuated::new();
-        param2.bounds.push_value(lifetime1.clone());
-
-        let param1 = syn::GenericParam::Lifetime(syn::LifetimeParam::new(lifetime1));
-        let param2 = syn::GenericParam::Lifetime(param2);
-
         self.write_header(
             buf,
             "::askama_rocket::Responder<'askama1, 'askama2>",
-            Some(vec![param1, param2]),
+            Some(&[("'askama1", ""), ("'askama2", "'askama1")]),
         )?;
 
         buf.writeln("#[inline]")?;
@@ -324,30 +282,39 @@ impl<'a> Generator<'a> {
             None,
         )?;
         buf.writeln(
-            "type Error = ::askama_tide::askama::Error;\n\
-            #[inline]\n\
-            fn try_into(self) -> ::askama_tide::askama::Result<::askama_tide::tide::Body> {",
+            "\
+    type Error = ::askama_tide::askama::Error;
+
+    #[inline]
+    fn try_into(self) -> ::askama_tide::askama::Result<::askama_tide::tide::Body> {
+        ::askama_tide::try_into_body(&self)
+    }
+}",
         )?;
-        buf.writeln("::askama_tide::try_into_body(&self)")?;
-        buf.writeln("}")?;
-        buf.writeln("}")?;
 
         buf.writeln("#[allow(clippy::from_over_into)]")?;
         self.write_header(buf, "Into<::askama_tide::tide::Response>", None)?;
-        buf.writeln("#[inline]")?;
-        buf.writeln("fn into(self) -> ::askama_tide::tide::Response {")?;
-        buf.writeln("::askama_tide::into_response(&self)")?;
-        buf.writeln("}\n}")
+        buf.writeln(
+            "\
+    #[inline]
+    fn into(self) -> ::askama_tide::tide::Response {
+        ::askama_tide::into_response(&self)
+    }
+}",
+        )
     }
 
     #[cfg(feature = "with-warp")]
     fn impl_warp_reply(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, "::askama_warp::warp::reply::Reply", None)?;
-        buf.writeln("#[inline]")?;
-        buf.writeln("fn into_response(self) -> ::askama_warp::warp::reply::Response {")?;
-        buf.writeln("::askama_warp::reply(&self)")?;
-        buf.writeln("}")?;
-        buf.writeln("}")
+        buf.writeln(
+            "\
+    #[inline]
+    fn into_response(self) -> ::askama_warp::warp::reply::Response {
+        ::askama_warp::reply(&self)
+    }
+}",
+        )
     }
 
     // Writes header for the `impl` for `TraitFromPathName` or `Template`
@@ -356,25 +323,25 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         target: &str,
-        params: Option<Vec<syn::GenericParam>>,
+        lifetimes: Option<&[(&str, &str)]>,
     ) -> Result<(), CompileError> {
-        let mut generics = self.input.ast.generics.clone();
-        if let Some(params) = params {
-            for param in params {
-                generics.params.push(param);
+        let mut generics;
+        let generics = if let Some(lifetimes) = lifetimes {
+            generics = self.input.ast.generics.clone();
+            for (lifetime, bound) in lifetimes {
+                generics.add_lifetime(lifetime, bound);
             }
-        }
-        let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
+            &generics
+        } else {
+            &self.input.ast.generics
+        };
+        let generics_with_bounds = generics.display_with_bounds();
+        let orig_ty_generics = &self.input.ast.generics;
+        let type_name = &self.input.ast.ident;
+        let where_clause = &self.input.ast.where_clause;
         buf.writeln(
-            format!(
-                "{} {} for {}{} {{",
-                quote!(impl #impl_generics),
-                target,
-                self.input.ast.ident,
-                quote!(#orig_ty_generics #where_clause),
-            )
-            .as_ref(),
+            format!("impl{generics_with_bounds} {target} for {type_name}{orig_ty_generics} {where_clause} {{")
+                .as_ref(),
         )
     }
 
