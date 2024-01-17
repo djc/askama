@@ -214,14 +214,20 @@ impl<'a> Expr<'a> {
         Ok((i, res))
     }
 
-    fn prefix(i: &'a str, level: Level) -> ParseResult<'a, Self> {
-        let (_, level) = level.nest(i)?;
+    fn prefix(i: &'a str, mut level: Level) -> ParseResult<'a, Self> {
+        let (_, nested) = level.nest(i)?;
         let (i, (ops, mut expr)) = pair(many0(ws(alt((tag("!"), tag("-"))))), |i| {
-            Suffix::parse(i, level)
+            Suffix::parse(i, nested)
         })(i)?;
+
         for op in ops.iter().rev() {
+            // This is a rare place where we create recursion in the parsed AST
+            // without recursing the parser call stack. However, this can lead
+            // to stack overflows in drop glue when the AST is very deep.
+            level = level.nest(i)?.1;
             expr = Self::Unary(op, Box::new(expr));
         }
+
         Ok((i, expr))
     }
 

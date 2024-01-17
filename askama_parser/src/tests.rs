@@ -807,3 +807,9 @@ fn fuzzed_target_recursion() {
     const TEMPLATE: &str = include_str!("../tests/target-recursion.txt");
     assert!(Ast::from_str(TEMPLATE, &Syntax::default()).is_err());
 }
+
+#[test]
+fn fuzzed_unary_recursion() {
+    const TEMPLATE: &str = include_str!("../tests/unary-recursion.txt");
+    assert!(Ast::from_str(TEMPLATE, &Syntax::default()).is_err());
+}
