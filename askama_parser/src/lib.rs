@@ -349,9 +349,9 @@ fn path_or_identifier(i: &str) -> ParseResult<'_, PathOrIdentifier<'_>> {
     let rest = rest.as_deref().unwrap_or_default();
 
     // The returned identifier can be assumed to be path if:
-    // - Contains both a lowercase and uppercase character, i.e. a type name like `None`
-    // - Doesn't contain any lowercase characters, i.e. it's a constant
-    // In short, if it contains any uppercase characters it's a path.
+    // - it is an absolute path (starts with `::`), or
+    // - it has multiple components (at least one `::`), or
+    // - the first letter is uppercase
     match (root, start, rest) {
         (Some(_), start, tail) => {
             let mut path = Vec::with_capacity(2 + tail.len());
@@ -360,7 +360,7 @@ fn path_or_identifier(i: &str) -> ParseResult<'_, PathOrIdentifier<'_>> {
             path.extend(rest);
             Ok((i, PathOrIdentifier::Path(path)))
         }
-        (None, name, []) if !name.contains(char::is_uppercase) => {
+        (None, name, []) if name.chars().next().map_or(true, |c| c.is_lowercase()) => {
             Ok((i, PathOrIdentifier::Identifier(name)))
         }
         (None, start, tail) => {

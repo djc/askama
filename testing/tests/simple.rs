@@ -484,3 +484,23 @@ fn test_num_literals() {
         "[90, -90, 90, 2, 56, 240, 10.5, 10.5, 100000000000, 105000000000]",
     );
 }
+
+#[allow(non_snake_case)]
+#[derive(askama::Template)]
+#[template(source = "{{ xY }}", ext = "txt")]
+struct MixedCase {
+    xY: &'static str,
+}
+
+/// Test that we can use mixed case in variable names
+///
+/// We use some heuristics to distinguish paths (`std::str::String`) from
+/// variable names (`foo`). Previously, this test would fail because any
+/// name containing uppercase characters would be considered a path.
+///
+/// https://github.com/djc/askama/issues/924
+#[test]
+fn test_mixed_case() {
+    let template = MixedCase { xY: "foo" };
+    assert_eq!(template.render().unwrap(), "foo");
+}
