@@ -11,7 +11,6 @@ use parser::node::{
     Call, Comment, CondTest, If, Include, Let, Lit, Loop, Match, Target, Whitespace, Ws,
 };
 use parser::{Expr, Node};
-use quote::quote;
 
 pub(crate) struct Generator<'a> {
     // The template input state: original struct AST and attributes
@@ -105,12 +104,7 @@ impl<'a> Generator<'a> {
             };
             if path_is_valid {
                 let path = path.to_str().unwrap();
-                buf.writeln(
-                    &quote! {
-                        include_bytes!(#path);
-                    }
-                    .to_string(),
-                )?;
+                buf.writeln(&format!("include_bytes!({path:?});"))?;
             }
         }
 
@@ -244,13 +238,15 @@ for ::askama_hyper::hyper::Body
 
         buf.writeln(&format!(
             "\
-impl {generics_with_bounds} ::mendes::application::IntoResponse<A> for {type_name} {orig_ty_generics} {{
+impl {generics_with_bounds} ::mendes::application::IntoResponse<A> for {type_name} {orig_ty_generics}
+{where_clause} {{
     fn into_response(self, app: &A, req: &::mendes::http::request::Parts) \
              -> ::mendes::http::Response<A::ResponseBody> {{
         ::askama_mendes::into_response(app, req, &self)
     }}
 }}",
-        ))
+        ))?;
+        Ok(())
     }
 
     // Implement Rocket's `Responder`.
@@ -802,12 +798,7 @@ impl {generics_with_bounds} ::mendes::application::IntoResponse<A> for {type_nam
         // Make sure the compiler understands that the generated code depends on the template file.
         {
             let path = path.to_str().unwrap();
-            buf.writeln(
-                &quote! {
-                    include_bytes!(#path);
-                }
-                .to_string(),
-            )?;
+            buf.writeln(&format!("include_bytes!({path:?});"))?;
         }
 
         // We clone the context of the child in order to preserve their macros and imports.
