@@ -328,6 +328,16 @@ blocks from the base template with those from the child template. Inside
 a block in a child template, the `super()` macro can be called to render
 the parent block's contents.
 
+Because top-level content from the child template is thus ignored, the `extends`
+tag doesn't support whitespace control:
+
+```html
+{%- extends "base.html" +%}
+```
+
+The above code is rejected because we used `-` and `+`. For more information
+about whitespace control, take a look [here](#whitespace-control).
+
 ## HTML escaping
 
 Askama by default escapes variables if it thinks it is rendering HTML
