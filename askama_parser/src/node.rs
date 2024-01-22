@@ -928,8 +928,22 @@ pub struct Extends<'a> {
 
 impl<'a> Extends<'a> {
     fn parse(i: &'a str) -> ParseResult<'a, Self> {
-        let (i, path) = preceded(ws(keyword("extends")), cut(ws(str_lit)))(i)?;
-        Ok((i, Self { path }))
+        let start = i;
+
+        let (i, (pws, _, (path, nws))) = tuple((
+            opt(Whitespace::parse),
+            ws(keyword("extends")),
+            cut(pair(ws(str_lit), opt(Whitespace::parse))),
+        ))(i)?;
+        match (pws, nws) {
+            (None, None) => Ok((i, Self { path })),
+            (_, _) => Err(nom::Err::Failure(ErrorContext {
+                input: start,
+                message: Some(Cow::Borrowed(
+                    "whitespace control is not allowed on `extends`",
+                )),
+            })),
+        }
     }
 }
 
