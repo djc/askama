@@ -765,6 +765,12 @@ render the top-level content from the base template, and substitute
 blocks from the base template with those from the child template. Inside
 a block in a child template, the <code>super()</code> macro can be called to render
 the parent block's contents.</p>
+<p>Because top-level content from the child template is thus ignored, the <code>extends</code>
+tag doesn't support whitespace control:</p>
+<pre><code class="language-html">{%- extends &quot;base.html&quot; +%}
+</code></pre>
+<p>The above code is rejected because we used <code>-</code> and <code>+</code>. For more information
+about whitespace control, take a look <a href="template_syntax.html#whitespace-control">here</a>.</p>
 <h2 id="html-escaping"><a class="header" href="#html-escaping">HTML escaping</a></h2>
 <p>Askama by default escapes variables if it thinks it is rendering HTML
 content. It infers the escaping context from the extension of template
