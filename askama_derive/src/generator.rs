@@ -74,6 +74,8 @@ impl<'a> Generator<'a> {
         self.impl_hyper_into_response(&mut buf)?;
         #[cfg(feature = "with-mendes")]
         self.impl_mendes_responder(&mut buf)?;
+        #[cfg(feature = "with-poem")]
+        self.impl_poem_into_response(&mut buf)?;
         #[cfg(feature = "with-rocket")]
         self.impl_rocket_responder(&mut buf)?;
         #[cfg(feature = "with-tide")]
@@ -282,6 +284,20 @@ impl<'a> Generator<'a> {
         buf.writeln("}")?;
         buf.writeln("}")?;
         Ok(())
+    }
+
+    // Implement Poem's `IntoResponse`.
+    #[cfg(feature = "with-poem")]
+    fn impl_poem_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
+        self.write_header(buf, "::askama_poem::IntoResponse", None)?;
+        buf.writeln("#[inline]")?;
+        buf.writeln(
+            "fn into_response(self)\
+             -> ::askama_poem::Response {",
+        )?;
+        buf.writeln("::askama_poem::into_response(&self)")?;
+        buf.writeln("}")?;
+        buf.writeln("}")
     }
 
     // Implement Rocket's `Responder`.
