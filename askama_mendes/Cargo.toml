@@ -15,7 +15,7 @@ rust-version = "1.65"
 
 [dependencies]
 askama = { version = "0.12", path = "../askama", default-features = false, features = ["with-mendes", "mime", "mime_guess"] }
-mendes = "0.5.0"
+mendes = "0.7.0"
 
 [dev-dependencies]
 async-trait = "0.1.51"
