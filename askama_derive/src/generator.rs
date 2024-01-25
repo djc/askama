@@ -1051,7 +1051,7 @@ impl<'a> Generator<'a> {
                         ),
                     };
 
-                    let id = match expr_cache.entry(expression.clone()) {
+                    let id = match expr_cache.entry(expression) {
                         Entry::Occupied(e) if is_cacheable(s) => *e.get(),
                         e => {
                             let id = self.named;
@@ -1059,7 +1059,7 @@ impl<'a> Generator<'a> {
 
                             buf_expr.write(&format!("expr{id} = "));
                             buf_expr.write("&");
-                            buf_expr.write(&expression);
+                            buf_expr.write(e.key());
                             buf_expr.writeln(",")?;
 
                             if let Entry::Vacant(e) = e {
