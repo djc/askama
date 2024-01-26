@@ -14,7 +14,7 @@ markdown = ["comrak", "askama/markdown"]
 
 [dependencies]
 askama = { path = "../askama", version = "0.12" }
-comrak = { version = "0.20", default-features = false, optional = true }
+comrak = { version = "0.21", default-features = false, optional = true }
 phf = { version = "0.11", features = ["macros" ]}
 serde_json = { version = "1.0", optional = true }
 
