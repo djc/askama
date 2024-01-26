@@ -72,6 +72,8 @@ pub enum Expr<'a> {
     Call(Box<Expr<'a>>, Vec<Expr<'a>>),
     RustMacro(Vec<&'a str>, &'a str),
     Try(Box<Expr<'a>>),
+    /// This variant should never be used directly. It is created when generating filter blocks.
+    Generated(String),
 }
 
 impl<'a> Expr<'a> {
