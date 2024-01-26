@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::hash_map::{Entry, HashMap};
 use std::path::Path;
 use std::{cmp, hash, mem, str};
@@ -22,7 +23,7 @@ pub(crate) struct Generator<'a> {
     // The heritage contains references to blocks and their ancestry
     heritage: Option<&'a Heritage<'a>>,
     // Variables accessible directly from the current scope (not redirected to context)
-    locals: MapChain<'a, &'a str, LocalMeta>,
+    locals: MapChain<'a, Cow<'a, str>, LocalMeta>,
     // Suffix whitespace from the previous literal. Will be flushed to the
     // output buffer unless suppressed by whitespace suppression on the next
     // non-literal.
@@ -43,7 +44,7 @@ impl<'a> Generator<'a> {
         input: &'n TemplateInput<'_>,
         contexts: &'n HashMap<&'n Path, Context<'n>>,
         heritage: Option<&'n Heritage<'_>>,
-        locals: MapChain<'n, &'n str, LocalMeta>,
+        locals: MapChain<'n, Cow<'n, str>, LocalMeta>,
     ) -> Generator<'n> {
         Generator {
             input,
@@ -635,7 +636,7 @@ impl<'a> Generator<'a> {
                         "no argument named `{arg_name}` in macro {name:?}"
                     )));
                 }
-                named_arguments.insert(arg_name, arg);
+                named_arguments.insert(Cow::Borrowed(arg_name), arg);
             }
         }
 
@@ -648,7 +649,7 @@ impl<'a> Generator<'a> {
         //   anything since named arguments are always last).
         let mut allow_positional = true;
         for (index, arg) in def.args.iter().enumerate() {
-            let expr = match named_arguments.get(&arg) {
+            let expr = match named_arguments.get(&Cow::Borrowed(arg)) {
                 Some(expr) => {
                     allow_positional = false;
                     expr
@@ -671,14 +672,16 @@ impl<'a> Generator<'a> {
                 // to avoid moving non-copyable values.
                 &Expr::Var(name) if name != "self" => {
                     let var = self.locals.resolve_or_self(name);
-                    self.locals.insert(arg, LocalMeta::with_ref(var));
+                    self.locals
+                        .insert(Cow::Borrowed(arg), LocalMeta::with_ref(var));
                 }
                 Expr::Attr(obj, attr) => {
                     let mut attr_buf = Buffer::new(0);
                     self.visit_attr(&mut attr_buf, obj, attr)?;
 
                     let var = self.locals.resolve(&attr_buf.buf).unwrap_or(attr_buf.buf);
-                    self.locals.insert(arg, LocalMeta::with_ref(var));
+                    self.locals
+                        .insert(Cow::Borrowed(arg), LocalMeta::with_ref(var));
                 }
                 // Everything else still needs to become variables,
                 // to avoid having the same logic be executed
@@ -696,7 +699,7 @@ impl<'a> Generator<'a> {
                     values.write("(");
                     values.write(&self.visit_expr_root(expr)?);
                     values.write(")");
-                    self.locals.insert_with_default(arg);
+                    self.locals.insert_with_default(Cow::Borrowed(arg));
                 }
             }
         }
@@ -831,7 +834,7 @@ impl<'a> Generator<'a> {
         match var {
             Target::Name(name) => {
                 let name = normalize_identifier(name);
-                match self.locals.get(&name) {
+                match self.locals.get(&Cow::Borrowed(name)) {
                     // declares a new variable
                     None => Ok(false),
                     // an initialized variable gets shadowed
@@ -883,7 +886,7 @@ impl<'a> Generator<'a> {
         }
         if shadowed
             || !matches!(l.var, Target::Name(_))
-            || matches!(&l.var, Target::Name(name) if self.locals.get(name).is_none())
+            || matches!(&l.var, Target::Name(name) if self.locals.get(&Cow::Borrowed(name)).is_none())
         {
             buf.write("let ");
         }
@@ -1676,8 +1679,10 @@ impl<'a> Generator<'a> {
             Target::Name(name) => {
                 let name = normalize_identifier(name);
                 match initialized {
-                    true => self.locals.insert(name, LocalMeta::initialized()),
-                    false => self.locals.insert_with_default(name),
+                    true => self
+                        .locals
+                        .insert(Cow::Borrowed(name), LocalMeta::initialized()),
+                    false => self.locals.insert_with_default(Cow::Borrowed(name)),
                 }
                 buf.write(name);
             }
@@ -1940,10 +1945,10 @@ where
     }
 }
 
-impl MapChain<'_, &str, LocalMeta> {
+impl MapChain<'_, Cow<'_, str>, LocalMeta> {
     fn resolve(&self, name: &str) -> Option<String> {
         let name = normalize_identifier(name);
-        self.get(&name).map(|meta| match &meta.refs {
+        self.get(&Cow::Borrowed(name)).map(|meta| match &meta.refs {
             Some(expr) => expr.clone(),
             None => name.to_string(),
         })
