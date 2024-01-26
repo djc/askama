@@ -154,6 +154,9 @@ impl TemplateInput<'_> {
                             let import = self.config.find_template(import.path, Some(&path))?;
                             add_to_check(import)?;
                         }
+                        FilterBlock(f) => {
+                            nested.push(&f.nodes);
+                        }
                         Include(include) => {
                             let include = self.config.find_template(include.path, Some(&path))?;
                             add_to_check(include)?;

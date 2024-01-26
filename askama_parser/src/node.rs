@@ -37,6 +37,7 @@ pub enum Node<'a> {
     Raw(Raw<'a>),
     Break(Ws),
     Continue(Ws),
+    FilterBlock(FilterBlock<'a>),
 }
 
 impl<'a> Node<'a> {
@@ -66,6 +67,7 @@ impl<'a> Node<'a> {
                 map(|i| Raw::parse(i, s), Self::Raw),
                 |i| Self::r#break(i, s),
                 |i| Self::r#continue(i, s),
+                map(|i| FilterBlock::parse(i, s), Self::FilterBlock),
             )),
             cut(|i| s.tag_block_end(i)),
         );
@@ -552,6 +554,53 @@ impl<'a> Macro<'a> {
                 name,
                 args: params.unwrap_or_default(),
                 nodes: contents,
+                ws2: Ws(pws2, nws2),
+            },
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct FilterBlock<'a> {
+    pub ws1: Ws,
+    pub filter_name: &'a str,
+    pub args: Vec<Expr<'a>>,
+    pub nodes: Vec<Node<'a>>,
+    pub ws2: Ws,
+}
+
+impl<'a> FilterBlock<'a> {
+    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+        let mut start = tuple((
+            opt(Whitespace::parse),
+            ws(keyword("filter")),
+            cut(tuple((
+                ws(identifier),
+                opt(|i| Expr::arguments(i, s.level.get(), false)),
+                opt(Whitespace::parse),
+                |i| s.tag_block_end(i),
+            ))),
+        ));
+        let (i, (pws1, _, (filter_name, params, nws1, _))) = start(i)?;
+
+        let mut end = cut(tuple((
+            |i| Node::many(i, s),
+            cut(tuple((
+                |i| s.tag_block_start(i),
+                opt(Whitespace::parse),
+                ws(keyword("endfilter")),
+                opt(Whitespace::parse),
+            ))),
+        )));
+        let (i, (nodes, (_, pws2, _, nws2))) = end(i)?;
+
+        Ok((
+            i,
+            Self {
+                ws1: Ws(pws1, nws1),
+                filter_name,
+                args: params.unwrap_or_default(),
+                nodes,
                 ws2: Ws(pws2, nws2),
             },
         ))
