@@ -1068,10 +1068,9 @@ impl<'a> Generator<'a> {
         cacheable: bool,
         expr_cache: &mut HashMap<String, usize>,
     ) -> Result<usize, CompileError> {
-        use self::DisplayWrap::*;
         let expression = match wrapped {
-            Wrapped => expr,
-            Unwrapped => format!(
+            DisplayWrap::Wrapped => expr,
+            DisplayWrap::Unwrapped => format!(
                 "{CRATE}::MarkupDisplay::new_unsafe(&({}), {})",
                 expr, self.input.escaper
             ),
