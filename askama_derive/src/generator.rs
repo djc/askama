@@ -726,7 +726,14 @@ impl<'a> Generator<'a> {
         filter: &'a FilterBlock<'_>,
     ) -> Result<usize, CompileError> {
         self.flush_ws(filter.ws1);
-        let var_name = "__filter_block";
+        let mut var_name = String::new();
+        for id in 0.. {
+            var_name = format!("__filter_block{id}");
+            if self.locals.get(&Cow::Borrowed(var_name.as_str())).is_none() {
+                // No variable with this name exists, we're in the clear!
+                break;
+            }
+        }
         let current_buf = mem::take(&mut self.buf_writable);
 
         self.prepare_ws(filter.ws1);
@@ -760,13 +767,17 @@ impl<'a> Generator<'a> {
 
         let mut filter_buf = Buffer::new(buf.indent);
         let mut args = filter.args.clone();
-        args.insert(0, Expr::Generated(var_name.to_string()));
+        args.insert(0, Expr::Generated(var_name.clone()));
 
         let wrap = self.visit_filter(&mut filter_buf, filter.filter_name, &args)?;
 
         self.buf_writable
             .push(Writable::Generated(filter_buf.buf, wrap));
         self.prepare_ws(filter.ws2);
+
+        // We don't forget to add the created variable into the list of variables in the scope.
+        self.locals
+            .insert(Cow::Owned(var_name), LocalMeta::initialized());
 
         Ok(size_hint)
     }
