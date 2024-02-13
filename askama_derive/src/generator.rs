@@ -5,7 +5,7 @@ use std::{cmp, hash, mem, str};
 use crate::config::WhitespaceHandling;
 use crate::heritage::{Context, Heritage};
 use crate::input::{Source, TemplateInput};
-use crate::CompileError;
+use crate::{CompileError, CRATE};
 
 use parser::node::{
     Call, Comment, CondTest, If, Include, Let, Lit, Loop, Match, Target, Whitespace, Ws,
@@ -90,11 +90,10 @@ impl<'a> Generator<'a> {
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
     ) -> Result<(), CompileError> {
-        self.write_header(buf, "::askama::Template", None)?;
-        buf.writeln(
-            "fn render_into(&self, writer: &mut (impl ::std::fmt::Write + ?Sized)) -> \
-             ::askama::Result<()> {",
-        )?;
+        self.write_header(buf, &format!("{CRATE}::Template"), None)?;
+        buf.write("fn render_into(&self, writer: &mut (impl ::std::fmt::Write + ?Sized)) -> ");
+        buf.write(CRATE);
+        buf.writeln("::Result<()> {")?;
 
         // Make sure the compiler understands that the generated code depends on the template files.
         for path in self.contexts.keys() {
@@ -121,7 +120,8 @@ impl<'a> Generator<'a> {
         }?;
 
         self.flush_ws(Ws(None, None));
-        buf.writeln("::askama::Result::Ok(())")?;
+        buf.write(CRATE);
+        buf.writeln("::Result::Ok(())")?;
         buf.writeln("}")?;
 
         buf.writeln("const EXTENSION: ::std::option::Option<&'static ::std::primitive::str> = ")?;
@@ -145,7 +145,8 @@ impl<'a> Generator<'a> {
         self.write_header(buf, "::std::fmt::Display", None)?;
         buf.writeln("#[inline]")?;
         buf.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {")?;
-        buf.writeln("::askama::Template::render_into(self, f).map_err(|_| ::std::fmt::Error {})")?;
+        buf.write(CRATE);
+        buf.writeln("::Template::render_into(self, f).map_err(|_| ::std::fmt::Error {})")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
@@ -226,13 +227,13 @@ impl<'a> Generator<'a> {
                 #where_clause
             )
         ))?;
-        buf.writeln("type Error = ::askama::Error;")?;
+        buf.writeln("type Error = ::askama_hyper::Error;")?;
         buf.writeln("#[inline]")?;
         buf.writeln(&format!(
             "{} {{",
             quote!(fn try_from(value: &#ident #orig_ty_generics) -> Result<Self, Self::Error>)
         ))?;
-        buf.writeln("::askama::Template::render(value).map(Into::into)")?;
+        buf.writeln("::askama_hyper::Template::render(value).map(Into::into)")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
@@ -307,7 +308,7 @@ impl<'a> Generator<'a> {
         buf.writeln("#[inline]")?;
         buf.writeln(
             "fn respond_to(self, _: &'askama1 ::askama_rocket::Request) \
-             -> ::askama_rocket::Result<'askama2> {",
+             -> ::askama_rocket::RocketResult<'askama2> {",
         )?;
         buf.writeln("::askama_rocket::respond(&self)")?;
 
@@ -324,9 +325,10 @@ impl<'a> Generator<'a> {
             None,
         )?;
         buf.writeln(
-            "type Error = ::askama_tide::askama::Error;\n\
+            "type Error = ::askama_tide::Error;\n\
             #[inline]\n\
-            fn try_into(self) -> ::askama_tide::askama::Result<::askama_tide::tide::Body> {",
+            fn try_into(self) -> \
+			::askama_tide::Result<::askama_tide::tide::Body> {",
         )?;
         buf.writeln("::askama_tide::try_into_body(&self)")?;
         buf.writeln("}")?;
@@ -638,7 +640,9 @@ impl<'a> Generator<'a> {
         self.locals.push();
         buf.write("for (");
         self.visit_target(buf, true, true, &loop_block.var);
-        buf.writeln(", _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {")?;
+        buf.write(", _loop_item) in ");
+        buf.write(CRATE);
+        buf.writeln("::helpers::TemplateLoop::new(_iter) {")?;
 
         if has_else_nodes {
             buf.writeln("_did_loop = true;")?;
@@ -1046,7 +1050,7 @@ impl<'a> Generator<'a> {
                     let expression = match wrapped {
                         Wrapped => expr_buf.buf,
                         Unwrapped => format!(
-                            "::askama::MarkupDisplay::new_unsafe(&({}), {})",
+                            "{CRATE}::MarkupDisplay::new_unsafe(&({}), {})",
                             expr_buf.buf, self.input.escaper
                         ),
                     };
@@ -1166,7 +1170,9 @@ impl<'a> Generator<'a> {
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("::core::result::Result::map_err(");
         self.visit_expr(buf, expr)?;
-        buf.write(", |err| ::askama::shared::Error::Custom(::core::convert::Into::into(err)))?");
+        buf.write(", |err| ");
+        buf.write(CRATE);
+        buf.write("::shared::Error::Custom(::core::convert::Into::into(err)))?");
         Ok(DisplayWrap::Unwrapped)
     }
 
@@ -1201,7 +1207,7 @@ impl<'a> Generator<'a> {
         };
 
         buf.write(&format!(
-            "::askama::filters::markdown({}, &",
+            "{CRATE}::filters::markdown({}, &",
             self.input.escaper
         ));
         self.visit_expr(buf, md)?;
@@ -1273,11 +1279,11 @@ impl<'a> Generator<'a> {
         const FILTERS: [&str; 2] = ["safe", "yaml"];
         if FILTERS.contains(&name) {
             buf.write(&format!(
-                "::askama::filters::{}({}, ",
+                "{CRATE}::filters::{}({}, ",
                 name, self.input.escaper
             ));
         } else if crate::BUILT_IN_FILTERS.contains(&name) {
-            buf.write(&format!("::askama::filters::{name}("));
+            buf.write(&format!("{CRATE}::filters::{name}("));
         } else {
             buf.write(&format!("filters::{name}("));
         }
@@ -1313,7 +1319,8 @@ impl<'a> Generator<'a> {
                 .ok_or_else(|| CompileError::from("invalid escaper for escape filter"))?,
             None => self.input.escaper,
         };
-        buf.write("::askama::filters::escape(");
+        buf.write(CRATE);
+        buf.write("::filters::escape(");
         buf.write(escaper);
         buf.write(", ");
         self._visit_args(buf, &args[..1])?;
@@ -1366,7 +1373,8 @@ impl<'a> Generator<'a> {
         buf: &mut Buffer,
         args: &[Expr<'_>],
     ) -> Result<(), CompileError> {
-        buf.write("::askama::filters::join((&");
+        buf.write(CRATE);
+        buf.write("::filters::join((&");
         for (i, arg) in args.iter().enumerate() {
             if i > 0 {
                 buf.write(", &");
@@ -1476,7 +1484,9 @@ impl<'a> Generator<'a> {
                         buf.writeln(");")?;
                         buf.writeln("let _len = _cycle.len();")?;
                         buf.writeln("if _len == 0 {")?;
-                        buf.writeln("return ::core::result::Result::Err(::askama::Error::Fmt(::core::fmt::Error));")?;
+                        buf.write("return ::core::result::Result::Err(");
+                        buf.write(CRATE);
+                        buf.writeln("::Error::Fmt(::core::fmt::Error));")?;
                         buf.writeln("}")?;
                         buf.writeln("_cycle[_loop_item.index % _len]")?;
                         buf.writeln("})")?;
@@ -1815,6 +1825,7 @@ impl Buffer {
             }
             self.start = false;
         }
+
         self.buf.push_str(s);
     }
 

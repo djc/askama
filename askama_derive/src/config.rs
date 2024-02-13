@@ -5,7 +5,7 @@ use std::{env, fs};
 #[cfg(feature = "serde")]
 use serde::Deserialize;
 
-use crate::CompileError;
+use crate::{CompileError, CRATE};
 use parser::node::Whitespace;
 use parser::Syntax;
 
@@ -93,7 +93,7 @@ impl<'a> Config<'a> {
             }
         }
         for (extensions, path) in DEFAULT_ESCAPERS {
-            escapers.push((str_set(extensions), (*path).to_string()));
+            escapers.push((str_set(extensions), format!("{CRATE}{path}")));
         }
 
         Ok(Config {
@@ -299,9 +299,9 @@ pub(crate) fn get_template_source(tpl_path: &Path) -> std::result::Result<String
 static CONFIG_FILE_NAME: &str = "askama.toml";
 static DEFAULT_SYNTAX_NAME: &str = "default";
 static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
-    (&["html", "htm", "svg", "xml"], "::askama::Html"),
-    (&["md", "none", "txt", "yml", ""], "::askama::Text"),
-    (&["j2", "jinja", "jinja2"], "::askama::Html"),
+    (&["html", "htm", "svg", "xml"], "::Html"),
+    (&["md", "none", "txt", "yml", ""], "::Text"),
+    (&["j2", "jinja", "jinja2"], "::Html"),
 ];
 
 #[cfg(test)]

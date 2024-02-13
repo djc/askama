@@ -8,9 +8,9 @@ pub use askama::*;
 use rocket::http::{Header, Status};
 pub use rocket::request::Request;
 use rocket::response::Response;
-pub use rocket::response::{Responder, Result};
+pub use rocket::response::{Responder, Result as RocketResult};
 
-pub fn respond<T: Template>(t: &T) -> Result<'static> {
+pub fn respond<T: Template>(t: &T) -> RocketResult<'static> {
     let rsp = t.render().map_err(|_| Status::InternalServerError)?;
     Response::build()
         .header(Header::new("content-type", T::MIME_TYPE))

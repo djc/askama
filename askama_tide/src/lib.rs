@@ -2,7 +2,6 @@
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
-pub use askama;
 pub use tide;
 
 pub use askama::*;
