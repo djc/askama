@@ -4,8 +4,7 @@ First, add the following to your crate's `Cargo.toml`:
 
 ```toml
 # in section [dependencies]
-askama = "0.11.2"
-
+askama = "0.12.1"
 ```
 
 Now create a directory called `templates` in your crate root.
@@ -35,3 +34,25 @@ fn main() {
 ```
 
 You should now be able to compile and run this code.
+
+## Using integrations
+
+To use one of the [integrations](./integrations.md), with axum as an example:
+
+First, add this to your `Cargo.toml` instead:
+
+```toml
+# in section [dependencies]
+askama_axum = "0.4.0"
+```
+
+Then, import from askama_axum instead of askama:
+
+```rust
+use askama_axum::Template;
+```
+
+This enables the implementation for axum's `IntoResponse` trait,
+so an instance of the template can be returned as a response.
+
+For other integrations, import and use their crate accordingly.

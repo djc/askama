@@ -156,3 +156,23 @@ const BUILT_IN_FILTERS: &[&str] = &[
     "markdown",
     "yaml",
 ];
+
+const CRATE: &str = if cfg!(feature = "with-actix-web") {
+    "::askama_actix"
+} else if cfg!(feature = "with-axum") {
+    "::askama_axum"
+} else if cfg!(feature = "with-gotham") {
+    "::askama_gotham"
+} else if cfg!(feature = "with-hyper") {
+    "::askama_hyper"
+} else if cfg!(feature = "with-mendes") {
+    "::askama_mendes"
+} else if cfg!(feature = "with-rocket") {
+    "::askama_rocket"
+} else if cfg!(feature = "with-tide") {
+    "::askama_tide"
+} else if cfg!(feature = "with-warp") {
+    "::askama_warp"
+} else {
+    "::askama"
+};
