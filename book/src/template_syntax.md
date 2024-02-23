@@ -642,3 +642,38 @@ In here it's invalid because `arg2` is the second argument and would be used by
 {# Equivalent of: #}
 {% call heading("something", "title", "b", arg4="ah") %}
 ```
+
+## Calling Rust macros
+
+It is possible to call rust macros directly in your templates:
+
+```jinja
+{% let s = format!("{}", 12) %}
+```
+
+One important thing to note is that contrary to the rest of the expressions,
+Askama cannot know if a token given to a macro is a variable or something
+else, so it will always default to generate it "as is". So if you have:
+
+```rust
+macro_rules! test_macro{
+    ($entity:expr) => {
+        println!("{:?}", &$entity);
+    }
+}
+
+#[derive(Template)]
+#[template(source = "{{ test_macro!(entity) }}", ext = "txt")]
+struct TestTemplate<'a> {
+    entity: &'a str,
+}
+```
+
+It will not compile, telling you it doesn't know `entity`. It didn't infer
+that `entity` was a field of the current type unlike usual. You can go
+around this limitation by binding your field's value into a variable:
+
+```jinja
+{% let entity = entity; %}
+{{ test_macro!(entity) }}
+```
