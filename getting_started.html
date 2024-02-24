@@ -176,7 +176,7 @@
                         <h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
 <p>First, add the following to your crate's <code>Cargo.toml</code>:</p>
 <pre><code class="language-toml"># in section [dependencies]
-askama = &quot;0.11.2&quot;
+askama = "0.11.2"
 
 </code></pre>
 <p>Now create a directory called <code>templates</code> in your crate root.
@@ -187,7 +187,7 @@ In it, create a file called <code>hello.html</code>, containing the following:</
 <pre><pre class="playground"><code class="language-rust">use askama::Template; // bring trait in scope
 
 #[derive(Template)] // this will generate the code...
-#[template(path = &quot;hello.html&quot;)] // using the template in this path, relative
+#[template(path = "hello.html")] // using the template in this path, relative
                                  // to the `templates` dir in the crate root
 struct HelloTemplate&lt;'a&gt; { // the name of the struct can be anything
     name: &amp;'a str, // the field name should match the variable name
@@ -195,8 +195,8 @@ struct HelloTemplate&lt;'a&gt; { // the name of the struct can be anything
 }
 
 fn main() {
-    let hello = HelloTemplate { name: &quot;world&quot; }; // instantiate your struct
-    println!(&quot;{}&quot;, hello.render().unwrap()); // then render it.
+    let hello = HelloTemplate { name: "world" }; // instantiate your struct
+    println!("{}", hello.render().unwrap()); // then render it.
 }</code></pre></pre>
 <p>You should now be able to compile and run this code.</p>
 

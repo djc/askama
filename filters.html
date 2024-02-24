@@ -182,9 +182,9 @@ Note that the pipe symbol must not be surrounded by spaces;
 otherwise, it will be interpreted as the <code>BitOr</code> operator.
 Filters can be chained, in which case the output from one filter
 is passed to the next.</p>
-<pre><code>{{ &quot;HELLO&quot;|lower }}
+<pre><code>{{ "HELLO"|lower }}
 </code></pre>
-<p>Askama has a collection of built-in filters, documented below, but can also include custom filters. 
+<p>Askama has a collection of built-in filters, documented below, but can also include custom filters.
 Additionally, the <code>json</code> and <code>yaml</code> filters are included in the built-in filters,
 but are disabled by default. Enable them with Cargo features (see below for more information).</p>
 <p><strong>Table of contents</strong></p>
@@ -229,7 +229,7 @@ but are disabled by default. Enable them with Cargo features (see below for more
 </code></pre>
 <h3 id="as_ref"><a class="header" href="#as_ref">as_ref</a></h3>
 <p>Creates a reference to the given argument.</p>
-<pre><code>{{ &quot;a&quot;|as_ref }}
+<pre><code>{{ "a"|as_ref }}
 {{ self.x|as_ref }}
 </code></pre>
 <p>will become:</p>
@@ -238,34 +238,34 @@ but are disabled by default. Enable them with Cargo features (see below for more
 </code></pre>
 <h3 id="capitalize"><a class="header" href="#capitalize">capitalize</a></h3>
 <p>Capitalize a value. The first character will be uppercase, all others lowercase:</p>
-<pre><code>{{ &quot;hello&quot;|capitalize }}
+<pre><code>{{ "hello"|capitalize }}
 </code></pre>
 <p>Output:</p>
 <pre><code>Hello
 </code></pre>
 <h3 id="center"><a class="header" href="#center">center</a></h3>
 <p>Centers the value in a field of a given width:</p>
-<pre><code>-{{ &quot;a&quot;|center(5) }}-
+<pre><code>-{{ "a"|center(5) }}-
 </code></pre>
 <p>Output:</p>
 <pre><code>-  a  -
 </code></pre>
 <h3 id="escape--e"><a class="header" href="#escape--e">escape | e</a></h3>
 <p>Escapes HTML characters in strings:</p>
-<pre><code>{{ &quot;Escape &lt;&gt;&amp;&quot;|e }}
+<pre><code>{{ "Escape &lt;&gt;&amp;"|e }}
 </code></pre>
 <p>Output:</p>
 <pre><code>Escape &amp;lt;&amp;gt;&amp;amp;
 </code></pre>
-<p>Optionally, it is possible to specify and override which escaper is used. 
-Consider a template where the escaper is configured as <a href="creating_templates.html#the-template-attribute"><code>escape = &quot;none&quot;</code></a>. 
-However, somewhere escaping using the HTML escaper is desired. 
+<p>Optionally, it is possible to specify and override which escaper is used.
+Consider a template where the escaper is configured as <a href="creating_templates.html#the-template-attribute"><code>escape = "none"</code></a>.
+However, somewhere escaping using the HTML escaper is desired.
 Then it is possible to override and use the HTML escaper like this:</p>
-<pre><code class="language-jinja">{{ &quot;Don't Escape &lt;&gt;&amp;&quot;|escape }}
-{{ &quot;Don't Escape &lt;&gt;&amp;&quot;|e }}
+<pre><code class="language-jinja">{{ "Don't Escape &lt;&gt;&amp;"|escape }}
+{{ "Don't Escape &lt;&gt;&amp;"|e }}
 
-{{ &quot;Escape &lt;&gt;&amp;&quot;|escape(&quot;html&quot;) }}
-{{ &quot;Escape &lt;&gt;&amp;&quot;|e(&quot;html&quot;) }}
+{{ "Escape &lt;&gt;&amp;"|escape("html") }}
+{{ "Escape &lt;&gt;&amp;"|e("html") }}
 </code></pre>
 <p>Output:</p>
 <pre><code class="language-text">Don't Escape &lt;&gt;&amp;
@@ -285,11 +285,11 @@ Escape &amp;lt;&amp;gt;&amp;amp;
 <p>Formats arguments according to the specified format.</p>
 <p>The first argument to this filter must be a string literal (as in normal Rust).</p>
 <p>All arguments are passed through to the <code>format!()</code> macro by the Askama code generator.</p>
-<pre><code>{{ &quot;{:?}&quot;|format(var) }}
+<pre><code>{{ "{:?}"|format(var) }}
 </code></pre>
 <h3 id="indent"><a class="header" href="#indent">indent</a></h3>
 <p>Indent newlines with width spaces.</p>
-<pre><code>{{ &quot;hello\nfoo\nbar&quot;|indent(4) }}
+<pre><code>{{ "hello\nfoo\nbar"|indent(4) }}
 </code></pre>
 <p>Output:</p>
 <pre><code>hello
@@ -298,9 +298,9 @@ Escape &amp;lt;&amp;gt;&amp;amp;
 </code></pre>
 <h3 id="join"><a class="header" href="#join">join</a></h3>
 <p>Joins iterable into a string separated by provided argument.</p>
-<pre><code>array = &amp;[&quot;foo&quot;, &quot;bar&quot;, &quot;bazz&quot;]
+<pre><code>array = &amp;["foo", "bar", "bazz"]
 </code></pre>
-<pre><code>{{ array|join(&quot;, &quot;) }}
+<pre><code>{{ array|join(", ") }}
 </code></pre>
 <p>Output:</p>
 <pre><code>foo, bar, bazz
@@ -308,14 +308,14 @@ Escape &amp;lt;&amp;gt;&amp;amp;
 <h3 id="linebreaks"><a class="header" href="#linebreaks">linebreaks</a></h3>
 <p>Replaces line breaks in plain text with appropriate HTML.</p>
 <p>A single newline becomes an HTML line break <code>&lt;br&gt;</code> and a new line followed by a blank line becomes a paragraph break <code>&lt;p&gt;</code>.</p>
-<pre><code>{{ &quot;hello\nworld\n\nfrom\naskama&quot;|linebreaks }}
+<pre><code>{{ "hello\nworld\n\nfrom\naskama"|linebreaks }}
 </code></pre>
 <p>Output:</p>
 <pre><code>&lt;p&gt;hello&lt;br /&gt;world&lt;/p&gt;&lt;p&gt;from&lt;br /&gt;askama&lt;/p&gt;
 </code></pre>
 <h3 id="linebreaksbr"><a class="header" href="#linebreaksbr">linebreaksbr</a></h3>
 <p>Converts all newlines in a piece of plain text to HTML line breaks.</p>
-<pre><code>{{ &quot;hello\nworld\n\nfrom\naskama&quot;|linebreaks }}
+<pre><code>{{ "hello\nworld\n\nfrom\naskama"|linebreaks }}
 </code></pre>
 <p>Output:</p>
 <pre><code>hello&lt;br /&gt;world&lt;br /&gt;&lt;br /&gt;from&lt;br /&gt;askama
@@ -324,49 +324,49 @@ Escape &amp;lt;&amp;gt;&amp;amp;
 <p>A new line followed by a blank line becomes <code>&lt;p&gt;</code>, but, unlike <code>linebreaks</code>, single new lines are ignored and no <code>&lt;br/&gt;</code> tags are generated.</p>
 <p>Consecutive double line breaks will be reduced down to a single paragraph break.</p>
 <p>This is useful in contexts where changing single line breaks to line break tags would interfere with other HTML elements, such as lists and nested <code>&lt;div&gt;</code> tags.</p>
-<pre><code>{{ &quot;hello\nworld\n\nfrom\n\n\n\naskama&quot;|paragraphbreaks }}
+<pre><code>{{ "hello\nworld\n\nfrom\n\n\n\naskama"|paragraphbreaks }}
 </code></pre>
 <p>Output:</p>
 <pre><code>&lt;p&gt;hello\nworld&lt;/p&gt;&lt;p&gt;from&lt;/p&gt;&lt;p&gt;askama&lt;/p&gt;
 </code></pre>
 <h3 id="lower--lowercase"><a class="header" href="#lower--lowercase">lower | lowercase</a></h3>
 <p>Converts to lowercase.</p>
-<pre><code>{{ &quot;HELLO&quot;|lower }}
+<pre><code>{{ "HELLO"|lower }}
 </code></pre>
 <p>Output:</p>
 <pre><code>hello
 </code></pre>
 <h3 id="safe"><a class="header" href="#safe">safe</a></h3>
 <p>Marks a string (or other Display type) as safe. By default all strings are escaped according to the format.</p>
-<pre><code>{{ &quot;&lt;p&gt;I'm Safe&lt;/p&gt;&quot;|safe }}
+<pre><code>{{ "&lt;p&gt;I'm Safe&lt;/p&gt;"|safe }}
 </code></pre>
 <p>Output:</p>
 <pre><code>&lt;p&gt;I'm Safe&lt;/p&gt;
 </code></pre>
 <h3 id="trim"><a class="header" href="#trim">trim</a></h3>
 <p>Strip leading and trailing whitespace.</p>
-<pre><code>{{ &quot; hello &quot;|trim }}
+<pre><code>{{ " hello "|trim }}
 </code></pre>
 <p>Output:</p>
 <pre><code>hello
 </code></pre>
 <h3 id="truncate"><a class="header" href="#truncate">truncate</a></h3>
 <p>Limit string length, appends '...' if truncated.</p>
-<pre><code>{{ &quot;hello&quot;|truncate(2) }}
+<pre><code>{{ "hello"|truncate(2) }}
 </code></pre>
 <p>Output:</p>
 <pre><code>he...
 </code></pre>
 <h3 id="upper--uppercase"><a class="header" href="#upper--uppercase">upper | uppercase</a></h3>
 <p>Converts to uppercase.</p>
-<pre><code>{{ &quot;hello&quot;|upper }}
+<pre><code>{{ "hello"|upper }}
 </code></pre>
 <p>Output:</p>
 <pre><code>HELLO
 </code></pre>
 <h3 id="wordcount"><a class="header" href="#wordcount">wordcount</a></h3>
 <p>Count the words in that string.</p>
-<pre><code>{{ &quot;askama is sort of cool&quot;|wordcount }}
+<pre><code>{{ "askama is sort of cool"|wordcount }}
 </code></pre>
 <p>Output:</p>
 <pre><code>5
@@ -375,7 +375,7 @@ Escape &amp;lt;&amp;gt;&amp;amp;
 <p>The following filters can be enabled by requesting the respective feature in the Cargo.toml
 <a href="https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html">dependencies section</a>, e.g.</p>
 <pre><code>[dependencies]
-askama = { version = &quot;0.11.2&quot;, features = &quot;serde-json&quot; }
+askama = { version = "0.11.2", features = "serde-json" }
 </code></pre>
 <h3 id="json--tojson"><a class="header" href="#json--tojson"><code>json</code> | <code>tojson</code></a></h3>
 <p>Enabling the <code>serde-json</code> feature will enable the use of the <code>json</code> filter.
@@ -383,19 +383,19 @@ This will output formatted JSON for any value that implements the required
 <a href="https://docs.rs/serde/1.*/serde/trait.Serialize.html"><code>Serialize</code></a> trait.
 The generated string does not contain ampersands <code>&amp;</code>, chevrons <code>&lt; &gt;</code>, or apostrophes <code>'</code>.</p>
 <p>To use it in a <code>&lt;script&gt;</code> you can combine it with the safe filter.
-In HTML attributes, you can either use it in quotation marks <code>&quot;{{data|json}}&quot;</code> as is,
+In HTML attributes, you can either use it in quotation marks <code>"{{data|json}}"</code> as is,
 or in apostrophes with the (optional) safe filter <code>'{{data|json|safe}}'</code>.
 In HTML texts the output of e.g. <code>&lt;pre&gt;{{data|json|safe}}&lt;/pre&gt;</code> is safe, too.</p>
-<pre><code>Good: &lt;li data-extra=&quot;{{data|json}}&quot;&gt;…&lt;/li&gt;
+<pre><code>Good: &lt;li data-extra="{{data|json}}"&gt;…&lt;/li&gt;
 Good: &lt;li data-extra='{{data|json|safe}}'&gt;…&lt;/li&gt;
 Good: &lt;pre&gt;{{data|json|safe}}&lt;/pre&gt;
 Good: &lt;script&gt;var data = {{data|json|safe}};&lt;/script&gt;
 
-Bad:  &lt;li data-extra=&quot;{{data|json|safe}}&quot;&gt;…&lt;/li&gt;
+Bad:  &lt;li data-extra="{{data|json|safe}}"&gt;…&lt;/li&gt;
 Bad:  &lt;script&gt;var data = {{data|json}};&lt;/script&gt;
-Bad:  &lt;script&gt;var data = &quot;{{data|json|safe}}&quot;;&lt;/script&gt;
+Bad:  &lt;script&gt;var data = "{{data|json|safe}}";&lt;/script&gt;
 
-Ugly: &lt;script&gt;var data = &quot;{{data|json}}&quot;;&lt;/script&gt;
+Ugly: &lt;script&gt;var data = "{{data|json}}";&lt;/script&gt;
 Ugly: &lt;script&gt;var data = '{{data|json|safe}}';&lt;/script&gt;
 </code></pre>
 <h3 id="markdown"><a class="header" href="#markdown"><code>markdown</code></a></h3>
@@ -403,7 +403,7 @@ Ugly: &lt;script&gt;var data = '{{data|json|safe}}';&lt;/script&gt;
 This will render a value using a <a href="https://docs.rs/comrak/0.14.*/comrak/">GitHub flavored CommonMark</a> syntax.
 By default the extensions “autolink”, “strikethrough”, “tagfilter”, and “table” are enabled.
 Any raw HTML gets escaped.</p>
-<pre><code class="language-jinja">{{ &quot;**&lt;i&gt;Hello&lt;/i&gt;, world!**&quot;|markdown }}
+<pre><code class="language-jinja">{{ "**&lt;i&gt;Hello&lt;/i&gt;, world!**"|markdown }}
 </code></pre>
 <p>Output:</p>
 <pre><code class="language-html">&lt;p&gt;&lt;strong&gt;&amp;lt;i&amp;gt;Hello&amp;lt;/i&amp;gt;, world!&lt;/strong&gt;&lt;/p&gt;
@@ -417,25 +417,25 @@ This will output formatted YAML for any value that implements the required
 <pre><code class="language-jinja">{{ foo|yaml }}
 </code></pre>
 <h2 id="custom-filters"><a class="header" href="#custom-filters">Custom Filters</a></h2>
-<p>To define your own filters, simply have a module named <code>filters</code> in scope of the context deriving a <code>Template</code> impl 
-and define the filters as functions within this module. 
+<p>To define your own filters, simply have a module named <code>filters</code> in scope of the context deriving a <code>Template</code> impl
+and define the filters as functions within this module.
 The functions must have at least one argument and the return type must be <code>::askama::Result&lt;T&gt;</code>.
-Although there are no restrictions on <code>T</code> for a single filter, 
-the final result of a chain of filters must implement <code>Display</code>. </p>
-<p>The arguments to the filters are passed as follows. 
-The first argument corresponds to the expression they are applied to. 
-Subsequent arguments, if any, must be given directly when calling the filter. 
-The first argument may or may not be a reference, depending on the context in which the filter is called. 
+Although there are no restrictions on <code>T</code> for a single filter,
+the final result of a chain of filters must implement <code>Display</code>.</p>
+<p>The arguments to the filters are passed as follows.
+The first argument corresponds to the expression they are applied to.
+Subsequent arguments, if any, must be given directly when calling the filter.
+The first argument may or may not be a reference, depending on the context in which the filter is called.
 To abstract over ownership, consider defining your argument as a trait bound.
-For example, the <code>trim</code> built-in filter accepts any value implementing <code>Display</code>. 
+For example, the <code>trim</code> built-in filter accepts any value implementing <code>Display</code>.
 Its signature is similar to <code>fn trim(s: impl std::fmt::Display) -&gt; ::askama::Result&lt;String&gt;</code>.</p>
 <p>Note that built-in filters have preference over custom filters, so, in case of name collision, the built-in filter is applied.</p>
 <h3 id="examples"><a class="header" href="#examples">Examples</a></h3>
-<p>Implementing a filter that replaces all instances of <code>&quot;oo&quot;</code> for <code>&quot;aa&quot;</code>.</p>
+<p>Implementing a filter that replaces all instances of <code>"oo"</code> for <code>"aa"</code>.</p>
 <pre><pre class="playground"><code class="language-rust">use askama::Template;
 
 #[derive(Template)]
-#[template(source = &quot;{{ s|myfilter }}&quot;, ext = &quot;txt&quot;)]
+#[template(source = "{{ s|myfilter }}", ext = "txt")]
 struct MyFilterTemplate&lt;'a&gt; {
     s: &amp;'a str,
 }
@@ -445,19 +445,19 @@ mod filters {
     // This filter does not have extra arguments
     pub fn myfilter&lt;T: std::fmt::Display&gt;(s: T) -&gt; ::askama::Result&lt;String&gt; {
         let s = s.to_string();
-        Ok(s.replace(&quot;oo&quot;, &quot;aa&quot;))
+        Ok(s.replace("oo", "aa"))
     }
 }
 
 fn main() {
-    let t = MyFilterTemplate { s: &quot;foo&quot; };
-    assert_eq!(t.render().unwrap(), &quot;faa&quot;);
+    let t = MyFilterTemplate { s: "foo" };
+    assert_eq!(t.render().unwrap(), "faa");
 }</code></pre></pre>
-<p>Implementing a filter that replaces all instances of <code>&quot;oo&quot;</code> for <code>n</code> times <code>&quot;a&quot;</code>.</p>
+<p>Implementing a filter that replaces all instances of <code>"oo"</code> for <code>n</code> times <code>"a"</code>.</p>
 <pre><pre class="playground"><code class="language-rust">use askama::Template;
 
 #[derive(Template)]
-#[template(source = &quot;{{ s|myfilter(4) }}&quot;, ext = &quot;txt&quot;)]
+#[template(source = "{{ s|myfilter(4) }}", ext = "txt")]
 struct MyFilterTemplate&lt;'a&gt; {
     s: &amp;'a str,
 }
@@ -468,14 +468,14 @@ mod filters {
     pub fn myfilter&lt;T: std::fmt::Display&gt;(s: T, n: usize) -&gt; ::askama::Result&lt;String&gt; {
         let s = s.to_string();
     	  let mut replace = String::with_capacity(n);
-    	  replace.extend((0..n).map(|_| &quot;a&quot;));
-        Ok(s.replace(&quot;oo&quot;, &amp;replace))
+    	  replace.extend((0..n).map(|_| "a"));
+        Ok(s.replace("oo", &amp;replace))
     }
 }
 
 fn main() {
-    let t = MyFilterTemplate { s: &quot;foo&quot; };
-    assert_eq!(t.render().unwrap(), &quot;faaaa&quot;);
+    let t = MyFilterTemplate { s: "foo" };
+    assert_eq!(t.render().unwrap(), "faaaa");
 }</code></pre></pre>
 
                     </main>

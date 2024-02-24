@@ -187,7 +187,7 @@ as well as Jinja-derivatives like <a href="http://twig.sensiolabs.org/">Twig</a>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)] // this will generate the code...
-#[template(path = &quot;hello.html&quot;)] // using the template in this path, relative
+#[template(path = "hello.html")] // using the template in this path, relative
                                  // to the `templates` dir in the crate root
 struct HelloTemplate&lt;'a&gt; { // the name of the struct can be anything
     name: &amp;'a str, // the field name should match the variable name
@@ -202,7 +202,7 @@ the <code>template()</code> attribute. The following sub-attributes are currentl
 recognized:</p>
 <ul>
 <li>
-<p><code>path</code> (as <code>path = &quot;foo.html&quot;</code>): sets the path to the template file. The
+<p><code>path</code> (as <code>path = "foo.html"</code>): sets the path to the template file. The
 path is interpreted as relative to the configured template directories
 (by default, this is a <code>templates</code> directory next to your <code>Cargo.toml</code>).
 The file name extension is used to infer an escape mode (see below). In
@@ -212,12 +212,12 @@ Cannot be used together with <code>source</code>.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
-#[template(path = &quot;hello.html&quot;)]
+#[template(path = "hello.html")]
 struct HelloTemplate&lt;'a&gt; { ... }
 <span class="boring">}</span></code></pre></pre>
 </li>
 <li>
-<p><code>source</code> (as <code>source = &quot;{{ foo }}&quot;</code>): directly sets the template source.
+<p><code>source</code> (as <code>source = "{{ foo }}"</code>): directly sets the template source.
 This can be useful for test cases or short templates. The generated path
 is undefined, which generally makes it impossible to refer to this
 template from other templates. If <code>source</code> is specified, <code>ext</code> must also
@@ -225,67 +225,67 @@ be specified (see below). Cannot be used together with <code>path</code>.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
-#[template(source = &quot;Hello {{ name }}&quot;)]
+#[template(source = "Hello {{ name }}")]
 struct HelloTemplate&lt;'a&gt; {
     name: &amp;'a str,
 }
 <span class="boring">}</span></code></pre></pre>
 </li>
 <li>
-<p><code>ext</code> (as <code>ext = &quot;txt&quot;</code>): lets you specify the content type as a file
+<p><code>ext</code> (as <code>ext = "txt"</code>): lets you specify the content type as a file
 extension. This is used to infer an escape mode (see below), and some
 web framework integrations use it to determine the content type.
 Cannot be used together with <code>path</code>.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
-#[template(source = &quot;Hello {{ name }}&quot;, ext = &quot;txt&quot;)]
+#[template(source = "Hello {{ name }}", ext = "txt")]
 struct HelloTemplate&lt;'a&gt; {
     name: &amp;'a str,
 }
 <span class="boring">}</span></code></pre></pre>
 </li>
 <li>
-<p><code>print</code> (as <code>print = &quot;code&quot;</code>): enable debugging by printing nothing
+<p><code>print</code> (as <code>print = "code"</code>): enable debugging by printing nothing
 (<code>none</code>), the parsed syntax tree (<code>ast</code>), the generated code (<code>code</code>)
 or <code>all</code> for both. The requested data will be printed to stdout at
 compile time.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
-#[template(path = &quot;hello.html&quot;, print = &quot;all&quot;)]
+#[template(path = "hello.html", print = "all")]
 struct HelloTemplate&lt;'a&gt; { ... }
 <span class="boring">}</span></code></pre></pre>
 </li>
 <li>
-<p><code>escape</code> (as <code>escape = &quot;none&quot;</code>): override the template's extension used for
+<p><code>escape</code> (as <code>escape = "none"</code>): override the template's extension used for
 the purpose of determining the escaper for this template. See the section
 on configuring custom escapers for more information.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
-#[template(path = &quot;hello.html&quot;, escape = &quot;none&quot;)]
+#[template(path = "hello.html", escape = "none")]
 struct HelloTemplate&lt;'a&gt; { ... }
 <span class="boring">}</span></code></pre></pre>
 </li>
 <li>
-<p><code>syntax</code> (as <code>syntax = &quot;foo&quot;</code>): set the syntax name for a parser defined
-in the configuration file. The default syntax , &quot;default&quot;, is the one
+<p><code>syntax</code> (as <code>syntax = "foo"</code>): set the syntax name for a parser defined
+in the configuration file. The default syntax , "default", is the one
 provided by Askama.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
-#[template(path = &quot;hello.html&quot;, syntax = &quot;foo&quot;)]
+#[template(path = "hello.html", syntax = "foo")]
 struct HelloTemplate&lt;'a&gt; { ... }
 <span class="boring">}</span></code></pre></pre>
 </li>
 <li>
-<p><code>config</code> (as <code>config = &quot;config_file_path&quot;</code>): set the path for the config file
+<p><code>config</code> (as <code>config = "config_file_path"</code>): set the path for the config file
 to be used. The path is interpreted as relative to your crate root.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
-#[template(path = &quot;hello.html&quot;, config = &quot;config.toml&quot;)]
+#[template(path = "hello.html", config = "config.toml")]
 struct HelloTemplate&lt;'a&gt; { ... }
 <span class="boring">}</span></code></pre></pre>
 </li>

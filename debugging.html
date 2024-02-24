@@ -179,7 +179,7 @@ changing the <code>template</code> attribute item list for the template struct:<
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
-#[template(path = &quot;hello.html&quot;, print = &quot;all&quot;)]
+#[template(path = "hello.html", print = "all")]
 struct HelloTemplate&lt;'a&gt; { ... }
 <span class="boring">}</span></code></pre></pre>
 <p>The <code>print</code> key can take one of four values:</p>
@@ -191,8 +191,8 @@ struct HelloTemplate&lt;'a&gt; { ... }
 </ul>
 <p>The resulting output will be printed to <code>stderr</code> during the compilation process.</p>
 <p>The parse tree looks like this for the example template:</p>
-<pre><code>[Lit(&quot;&quot;, &quot;Hello,&quot;, &quot; &quot;), Expr(WS(false, false), Var(&quot;name&quot;)),
-Lit(&quot;&quot;, &quot;!&quot;, &quot;\n&quot;)]
+<pre><code>[Lit("", "Hello,", " "), Expr(WS(false, false), Var("name")),
+Lit("", "!", "\n")]
 </code></pre>
 <p>The generated code looks like this:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -201,13 +201,13 @@ Lit(&quot;&quot;, &quot;!&quot;, &quot;\n&quot;)]
     fn render_into(&amp;self, writer: &amp;mut ::std::fmt::Write) -&gt; ::askama::Result&lt;()&gt; {
         write!(
             writer,
-            &quot;Hello, {expr0}!&quot;,
+            "Hello, {expr0}!",
             expr0 = &amp;::askama::MarkupDisplay::from(&amp;self.name),
         )?;
         Ok(())
     }
     fn extension() -&gt; Option&lt;&amp;'static str&gt; {
-        Some(&quot;html&quot;)
+        Some("html")
     }
 }
 impl &lt; 'a &gt; ::std::fmt::Display for HelloTemplate&lt; 'a &gt; {

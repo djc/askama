@@ -209,17 +209,17 @@ Assignments can't be imported by other templates.</p>
 
 {% let val -%}
 {% if len == 0 -%}
-  {% let val = &quot;foo&quot; -%}
+  {% let val = "foo" -%}
 {% else -%}
   {% let val = name -%}
 {% endif -%}
 {{ val }}
 </code></pre>
 <p>Like Rust, Askama also supports shadowing variables.</p>
-<pre><code class="language-jinja">{% let foo = &quot;bar&quot; %}
+<pre><code class="language-jinja">{% let foo = "bar" %}
 {{ foo }}
 
-{% let foo = &quot;baz&quot; %}
+{% let foo = "baz" %}
 {{ foo }}
 </code></pre>
 <p>For compatibility with Jinja, <code>set</code> can be used in place of <code>let</code>.</p>
@@ -230,7 +230,7 @@ Filters are applied to values using the pipe symbol (<code>|</code>) and may
 have optional extra arguments in parentheses.
 Filters can be chained, in which case the output from one filter
 is passed to the next.</p>
-<p>For example, <code>{{ &quot;{:?}&quot;|format(name|escape) }}</code> will escape HTML
+<p>For example, <code>{{ "{:?}"|format(name|escape) }}</code> will escape HTML
 characters from the value obtained by accessing the <code>name</code> field,
 and print the resulting string as a Rust literal.</p>
 <p>The built-in filters are documented as part of the
@@ -256,31 +256,31 @@ start delimiter or leading into an end delimiter.</p>
 (any part of the template not surrounded by <code>{% %}</code> or <code>{{ }}</code>)
 includes only whitespace, whitespace suppression on either side will
 completely suppress that literal content.</p>
-<p>If the whitespace default control is set to &quot;suppress&quot; and you want
+<p>If the whitespace default control is set to "suppress" and you want
 to preserve whitespace characters on one side of a block or of an
 expression, you need to use <code>+</code>. Example:</p>
-<pre><code class="language-text">&lt;a href=&quot;/&quot; {#+ #}
-   class=&quot;something&quot;&gt;text&lt;/a&gt;
+<pre><code class="language-text">&lt;a href="/" {#+ #}
+   class="something"&gt;text&lt;/a&gt;
 </code></pre>
 <p>In the above example, one whitespace character is kept
 between the <code>href</code> and the <code>class</code> attributes.</p>
 <p>There is a third possibility. In case you want to suppress all whitespace
-characters except one (<code>&quot;minimize&quot;</code>), you can use <code>~</code>:</p>
+characters except one (<code>"minimize"</code>), you can use <code>~</code>:</p>
 <pre><code class="language-jinja">{% if something ~%}
 Hello
 {%~ endif %}
 </code></pre>
 <p>To be noted, if one of the trimmed characters is a newline, then the only
 character remaining will be a newline.</p>
-<p>Whitespace controls can also be defined by a 
-<a href="configuration.html">configuration file</a> or in the derive macro. 
+<p>Whitespace controls can also be defined by a
+<a href="configuration.html">configuration file</a> or in the derive macro.
 These definitions follow the global-to-local preference:</p>
 <ol>
 <li>Inline (<code>-</code>, <code>+</code>, <code>~</code>)</li>
-<li>Derive (<code>#[template(whitespace = &quot;suppress&quot;)]</code>)</li>
-<li>Configuration (in <code>askama.toml</code>, <code>whitespace = &quot;preserve&quot;</code>)</li>
+<li>Derive (<code>#[template(whitespace = "suppress")]</code>)</li>
+<li>Configuration (in <code>askama.toml</code>, <code>whitespace = "preserve"</code>)</li>
 </ol>
-<p>Two inline whitespace controls may point to the same whitespace span. 
+<p>Two inline whitespace controls may point to the same whitespace span.
 In this case, they are resolved by the following preference.</p>
 <ol>
 <li>Suppress (<code>-</code>)</li>
@@ -288,7 +288,7 @@ In this case, they are resolved by the following preference.</p>
 <li>Preserve (<code>+</code>)</li>
 </ol>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
-<p>There are several ways that functions can be called within templates, 
+<p>There are several ways that functions can be called within templates,
 depending on where the function definition resides. These are:</p>
 <ul>
 <li>Template <code>struct</code> fields</li>
@@ -296,14 +296,14 @@ depending on where the function definition resides. These are:</p>
 <li>Struct/Trait implementations</li>
 </ul>
 <h3 id="template-struct-field"><a class="header" href="#template-struct-field">Template struct field</a></h3>
-<p>When the function is a field of the template struct, we can simply call it 
+<p>When the function is a field of the template struct, we can simply call it
 by invoking the name of the field, followed by parentheses containing any
-required arguments. For example, we can invoke the function <code>foo</code> for the 
+required arguments. For example, we can invoke the function <code>foo</code> for the
 following <code>MyTemplate</code> struct:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
-#[template(source = &quot;{{ foo(123) }}&quot;, ext = &quot;txt&quot;)]
+#[template(source = "{{ foo(123) }}", ext = "txt")]
 struct MyTemplate {
   foo: fn(u32) -&gt; String,
 }
@@ -312,25 +312,25 @@ struct MyTemplate {
 instance of <code>MyTemplate</code>, it's probably not the most ideal way to associate
 some behaviour for our template.</p>
 <h3 id="static-functions"><a class="header" href="#static-functions">Static functions</a></h3>
-<p>When a function exists within the same Rust module as the template 
+<p>When a function exists within the same Rust module as the template
 definition, we can invoke it using the <code>self</code> path prefix, where <code>self</code>
-represents the scope of the module in which the template struct resides. </p>
-<p>For example, here we call the function <code>foo</code> by writing <code>self::foo(123)</code> 
+represents the scope of the module in which the template struct resides.</p>
+<p>For example, here we call the function <code>foo</code> by writing <code>self::foo(123)</code>
 within the <code>MyTemplate</code> struct source:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn foo(val: u32) -&gt; String {
-  format!(&quot;{}&quot;, val)
+  format!("{}", val)
 }
 
 #[derive(Template)]
-#[template(source = &quot;{{ self::foo(123) }}&quot;, ext = &quot;txt&quot;)]
+#[template(source = "{{ self::foo(123) }}", ext = "txt")]
 struct MyTemplate;
 <span class="boring">}</span></code></pre></pre>
 <p>This has the advantage of being able to share functionality across multiple
-templates, without needing to expose the function publicly outside of its 
+templates, without needing to expose the function publicly outside of its
 module.</p>
-<p>However, we are not limited to local functions defined within the same module. 
+<p>However, we are not limited to local functions defined within the same module.
 We can call <em>any</em> public function by specifying the full path to that function
 within the template source. For example, given a utilities module such as:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -338,7 +338,7 @@ within the template source. For example, given a utilities module such as:</p>
 </span>// src/templates/utils/mod.rs
 
 pub fn foo(val: u32) -&gt; String {
-  format!(&quot;{}&quot;, val)
+  format!("{}", val)
 }
 <span class="boring">}</span></code></pre></pre>
 <p>Within our <code>MyTemplate</code> source, we can call the <code>foo</code> function by writing:</p>
@@ -347,31 +347,31 @@ pub fn foo(val: u32) -&gt; String {
 </span>// src/templates/my_template.rs
 
 #[derive(Template)]
-#[template(source = &quot;{{ crate::templates::utils::foo(123) }}&quot;, ext = &quot;txt&quot;)]
+#[template(source = "{{ crate::templates::utils::foo(123) }}", ext = "txt")]
 struct MyTemplate;
 <span class="boring">}</span></code></pre></pre>
 <h3 id="struct--trait-implementations"><a class="header" href="#struct--trait-implementations">Struct / trait implementations</a></h3>
-<p>Finally, we can invoke functions that are implementation methods of our 
-template struct, by referencing <code>Self</code> (note the uppercase <code>S</code>) as the path, 
-before calling our function: </p>
+<p>Finally, we can invoke functions that are implementation methods of our
+template struct, by referencing <code>Self</code> (note the uppercase <code>S</code>) as the path,
+before calling our function:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[derive(Template)]
-#[template(source = &quot;{{ Self::foo(self, 123) }}&quot;, ext = &quot;txt&quot;)]
+#[template(source = "{{ Self::foo(self, 123) }}", ext = "txt")]
 struct MyTemplate {
   count: u32,
 };
 
 impl MyTemplate {
   fn foo(&amp;self, val: u32) -&gt; String {
-    format!(&quot;{} is the count, {} is the value&quot;, self.count, val)
+    format!("{} is the count, {} is the value", self.count, val)
   }
 }
 <span class="boring">}</span></code></pre></pre>
-<p>If the implemented method requires a reference to the struct itself, 
-such as is demonstrated in the above example, we can pass <code>self</code> 
+<p>If the implemented method requires a reference to the struct itself,
+such as is demonstrated in the above example, we can pass <code>self</code>
 (note the lowercase <code>s</code>) as the first argument.</p>
-<p>Similarly, using the <code>Self</code> path, we can also call any method belonging 
+<p>Similarly, using the <code>Self</code> path, we can also call any method belonging
 to a trait that has been implemented for our template struct:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -380,12 +380,12 @@ to a trait that has been implemented for our template struct:</p>
 }
 
 #[derive(Template)]
-#[template(source = r#&quot;{{ Self::greet(&quot;world&quot;) }}&quot;#, ext = &quot;txt&quot;)]
+#[template(source = r#"{{ Self::greet("world") }}"#, ext = "txt")]
 struct MyTemplate;
 
 impl Hello for MyTemplate {
   fn greet(name: &amp;str) -&gt; String {
-    format!(&quot;Hello {}&quot;, name)
+    format!("Hello {}", name)
   }
 }
 <span class="boring">}</span></code></pre></pre>
@@ -395,13 +395,13 @@ elements that can be shared by all inheriting templates.
 A base template defines <strong>blocks</strong> that child templates can override.</p>
 <h3 id="base-template"><a class="header" href="#base-template">Base template</a></h3>
 <pre><code class="language-html">&lt;!DOCTYPE html&gt;
-&lt;html lang=&quot;en&quot;&gt;
+&lt;html lang="en"&gt;
   &lt;head&gt;
     &lt;title&gt;{% block title %}{{ title }} - My Site{% endblock %}&lt;/title&gt;
     {% block head %}{% endblock %}
   &lt;/head&gt;
   &lt;body&gt;
-    &lt;div id=&quot;content&quot;&gt;
+    &lt;div id="content"&gt;
       {% block content %}&lt;p&gt;Placeholder content&lt;/p&gt;{% endblock %}
     &lt;/div&gt;
   &lt;/body&gt;
@@ -419,7 +419,7 @@ declaration and use):</p>
 </code></pre>
 <h3 id="child-template"><a class="header" href="#child-template">Child template</a></h3>
 <p>Here's an example child template:</p>
-<pre><code class="language-html">{% extends &quot;base.html&quot; %}
+<pre><code class="language-html">{% extends "base.html" %}
 
 {% block title %}Index{% endblock %}
 
@@ -443,7 +443,7 @@ a block in a child template, the <code>super()</code> macro can be called to ren
 the parent block's contents.</p>
 <p>Because top-level content from the child template is thus ignored, the <code>extends</code>
 tag doesn't support whitespace control:</p>
-<pre><code class="language-html">{%- extends &quot;base.html&quot; +%}
+<pre><code class="language-html">{%- extends "base.html" +%}
 </code></pre>
 <p>The above code is rejected because we used <code>-</code> and <code>+</code>. For more information
 about whitespace control, take a look <a href="#whitespace-control">here</a>.</p>
@@ -455,24 +455,24 @@ or <code>xml</code>. When specifying a template as <code>source</code> in an att
 <code>ext</code> attribute parameter must be used to specify a type. Additionally,
 you can specify an escape mode explicitly for your template by setting
 the <code>escape</code> attribute parameter value (to <code>none</code> or <code>html</code>).</p>
-<p>Askama escapes <code>&lt;</code>, <code>&gt;</code>, <code>&amp;</code>, <code>&quot;</code>, and <code>'</code>, according to the
+<p>Askama escapes <code>&lt;</code>, <code>&gt;</code>, <code>&amp;</code>, <code>"</code>, and <code>'</code>, according to the
 <a href="https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html#output-encoding-for-html-contexts">OWASP escaping recommendations</a>. Use the <code>safe</code> filter to
 prevent escaping for a single expression, or the <code>escape</code> (or <code>e</code>)
 filter to escape a single expression in an unescaped context.</p>
 <pre><pre class="playground"><code class="language-rust">#[derive(Template)]
-#[template(source = &quot;{{strvar}}&quot;)]
+#[template(source = "{{strvar}}")]
 struct TestTemplate {
     strvar: String,
 }
 
 fn main() {
     let s = TestTemplate {
-        strvar: &quot;// my &lt;html&gt; is \&quot;unsafe\&quot; &amp; should be 'escaped'&quot;.to_string(),
+        strvar: "// my &lt;html&gt; is \"unsafe\" &amp; should be 'escaped'".to_string(),
     };
     assert_eq!(
         s.render().unwrap(),
-        &quot;&amp;#x2f;&amp;#x2f; my &amp;lt;html&amp;gt; is &amp;quot;unsafe&amp;quot; &amp;amp; \
-         should be &amp;#x27;escaped&amp;#x27;&quot;
+        "&amp;#x2f;&amp;#x2f; my &amp;lt;html&amp;gt; is &amp;quot;unsafe&amp;quot; &amp;amp; \
+         should be &amp;#x27;escaped&amp;#x27;"
     );
 }</code></pre></pre>
 <h2 id="control-structures"><a class="header" href="#control-structures">Control structures</a></h2>
@@ -518,7 +518,7 @@ fn main() {
 match blocks from version 0.6. Here is a simple example showing how to
 expand an <code>Option</code>:</p>
 <pre><code class="language-text">{% match item %}
-  {% when Some with (&quot;foo&quot;) %}
+  {% when Some with ("foo") %}
     Found literal foo
   {% when Some with (val) %}
     Found {{ val }}
@@ -539,7 +539,7 @@ for the fields can be specified after a colon in the list of matches
 separate template files. Included templates get full access to the context
 in which they're used, including local variables like those from loops:</p>
 <pre><code class="language-text">{% for i in iter %}
-  {% include &quot;item.html&quot; %}
+  {% include "item.html" %}
 {% endfor %}
 </code></pre>
 <pre><code class="language-text">* Item: {{ i }}
@@ -550,7 +550,7 @@ to the including template's path before falling back to the absolute
 template path. Use <code>include</code> within the branches of an <code>if</code>/<code>else</code>
 block to use includes more dynamically.</p>
 <h2 id="expressions"><a class="header" href="#expressions">Expressions</a></h2>
-<p>Askama supports string literals (<code>&quot;foo&quot;</code>) and integer literals (<code>1</code>).
+<p>Askama supports string literals (<code>"foo"</code>) and integer literals (<code>1</code>).
 It supports almost all binary operators that Rust supports,
 including arithmetic, comparison and logic operators.
 The parser applies the same precedence order as the Rust compiler.
@@ -578,20 +578,20 @@ testing and reuse.</p>
 </span><span class="boring">fn main() {
 </span>use askama::Template;
 #[derive(Template)]
-#[template(source = &quot;Section 1: {{ s1 }}&quot;, ext = &quot;txt&quot;)]
+#[template(source = "Section 1: {{ s1 }}", ext = "txt")]
 struct RenderInPlace&lt;'a&gt; {
    s1: SectionOne&lt;'a&gt;
 }
 
 #[derive(Template)]
-#[template(source = &quot;A={{ a }}\nB={{ b }}&quot;, ext = &quot;txt&quot;)]
+#[template(source = "A={{ a }}\nB={{ b }}", ext = "txt")]
 struct SectionOne&lt;'a&gt; {
    a: &amp;'a str,
    b: &amp;'a str,
 }
 
-let t = RenderInPlace { s1: SectionOne { a: &quot;a&quot;, b: &quot;b&quot; } };
-assert_eq!(t.render().unwrap(), &quot;Section 1: A=a\nB=b&quot;)
+let t = RenderInPlace { s1: SectionOne { a: "a", b: "b" } };
+assert_eq!(t.render().unwrap(), "Section 1: A=a\nB=b")
 <span class="boring">}</span></code></pre></pre>
 <p>See the example
 <a href="https://github.com/djc/askama/blob/main/testing/tests/render_in_place.rs">render in place</a>
@@ -616,11 +616,11 @@ Including self does not work, see #105 and #220 .</p>
 </span>use askama::Template;
 
 #[derive(Template)]
-#[template(source = r#&quot;
+#[template(source = r#"
 //! {% for item in children %}
    {{ item }}
 {% endfor %}
-&quot;#, ext = &quot;html&quot;, escape = &quot;none&quot;)]
+"#, ext = "html", escape = "none")]
 struct Item&lt;'a&gt; {
     name: &amp;'a str,
     children: &amp;'a [Item&lt;'a&gt;],
@@ -638,7 +638,7 @@ struct Item&lt;'a&gt; {
 {% call heading(s) %}
 </code></pre>
 <p>You can place macros in a separate file and use them in your templates by using <code>{% import %}</code>:</p>
-<pre><code class="language-jinja">{%- import &quot;macro.html&quot; as scope -%}
+<pre><code class="language-jinja">{%- import "macro.html" as scope -%}
 
 {% call scope::heading(s) %}
 </code></pre>
@@ -652,13 +652,13 @@ struct Item&lt;'a&gt; {
 
 {% endmacro %}
 
-{% call heading(bold=&quot;something&quot;, arg=&quot;title&quot;) %}
+{% call heading(bold="something", arg="title") %}
 </code></pre>
 <p>You can use whitespace characters around <code>=</code>:</p>
-<pre><code class="language-jinja">{% call heading(bold = &quot;something&quot;, arg = &quot;title&quot;) %}
+<pre><code class="language-jinja">{% call heading(bold = "something", arg = "title") %}
 </code></pre>
 <p>You can mix named and non-named arguments when calling a macro:</p>
-<pre><code>{% call heading(&quot;title&quot;, bold=&quot;something&quot;) %}
+<pre><code>{% call heading("title", bold="something") %}
 </code></pre>
 <p>However please note than named arguments must always come <strong>last</strong>.</p>
 <p>Another thing to note, if a named argument is referring to an argument that would
@@ -666,13 +666,40 @@ be used for a non-named argument, it will error:</p>
 <pre><code class="language-jinja">{% macro heading(arg1, arg2, arg3, arg4) %}
 {% endmacro %}
 
-{% call heading(&quot;something&quot;, &quot;b&quot;, arg4=&quot;ah&quot;, arg2=&quot;title&quot;) %}
+{% call heading("something", "b", arg4="ah", arg2="title") %}
 </code></pre>
 <p>In here it's invalid because <code>arg2</code> is the second argument and would be used by
-<code>&quot;b&quot;</code>. So either you replace <code>&quot;b&quot;</code> with <code>arg3=&quot;b&quot;</code> or you pass <code>&quot;title&quot;</code> before:</p>
-<pre><code class="language-jinja">{% call heading(&quot;something&quot;, arg3=&quot;b&quot;, arg4=&quot;ah&quot;, arg2=&quot;title&quot;) %}
+<code>"b"</code>. So either you replace <code>"b"</code> with <code>arg3="b"</code> or you pass <code>"title"</code> before:</p>
+<pre><code class="language-jinja">{% call heading("something", arg3="b", arg4="ah", arg2="title") %}
 {# Equivalent of: #}
-{% call heading(&quot;something&quot;, &quot;title&quot;, &quot;b&quot;, arg4=&quot;ah&quot;) %}
+{% call heading("something", "title", "b", arg4="ah") %}
+</code></pre>
+<h2 id="calling-rust-macros"><a class="header" href="#calling-rust-macros">Calling Rust macros</a></h2>
+<p>It is possible to call rust macros directly in your templates:</p>
+<pre><code class="language-jinja">{% let s = format!("{}", 12) %}
+</code></pre>
+<p>One important thing to note is that contrary to the rest of the expressions,
+Askama cannot know if a token given to a macro is a variable or something
+else, so it will always default to generate it "as is". So if you have:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>macro_rules! test_macro{
+    ($entity:expr) =&gt; {
+        println!("{:?}", &amp;$entity);
+    }
+}
+
+#[derive(Template)]
+#[template(source = "{{ test_macro!(entity) }}", ext = "txt")]
+struct TestTemplate&lt;'a&gt; {
+    entity: &amp;'a str,
+}
+<span class="boring">}</span></code></pre></pre>
+<p>It will not compile, telling you it doesn't know <code>entity</code>. It didn't infer
+that <code>entity</code> was a field of the current type unlike usual. You can go
+around this limitation by binding your field's value into a variable:</p>
+<pre><code class="language-jinja">{% let entity = entity; %}
+{{ test_macro!(entity) }}
 </code></pre>
 
                     </main>
