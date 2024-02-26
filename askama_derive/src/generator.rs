@@ -1179,21 +1179,47 @@ impl<'a> Generator<'a> {
         DisplayWrap::Unwrapped
     }
 
-    #[cfg(not(feature = "markdown"))]
-    fn _visit_markdown_filter(
+    fn visit_filter(
         &mut self,
-        _buf: &mut Buffer,
-        _args: &[Expr<'_>],
+        buf: &mut Buffer,
+        name: &str,
+        args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
-        Err("the `markdown` filter requires the `markdown` feature to be enabled".into())
+        match name {
+            "as_ref" => return self._visit_as_ref_filter(buf, args),
+            "escape" | "e" => return self._visit_escape_filter(buf, args),
+            "fmt" => return self._visit_fmt_filter(buf, args),
+            "format" => return self._visit_format_filter(buf, args),
+            "join" => return self._visit_join_filter(buf, args),
+            "json" | "tojson" => return self._visit_json_filter(buf, args),
+            "markdown" => return self._visit_markdown_filter(buf, args),
+            "safe" => return self._visit_safe_filter(buf, args),
+            "yaml" => return self._visit_yaml_filter(buf, args),
+            _ => {}
+        }
+
+        if crate::BUILT_IN_FILTERS.contains(&name) {
+            buf.write(&format!("::askama::filters::{name}("));
+        } else {
+            buf.write(&format!("filters::{name}("));
+        }
+
+        self._visit_args(buf, args)?;
+        buf.write(")?");
+        Ok(DisplayWrap::Unwrapped)
     }
 
-    #[cfg(feature = "markdown")]
     fn _visit_markdown_filter(
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
+        if cfg!(not(feature = "markdown")) {
+            return Err(
+                "the `markdown` filter requires the `markdown` feature to be enabled".into(),
+            );
+        }
+
         let (md, options) = match args {
             [md] => (md, None),
             [md, options] => (md, Some(options)),
@@ -1222,79 +1248,75 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
-    ) -> Result<(), CompileError> {
+    ) -> Result<DisplayWrap, CompileError> {
         let arg = match args {
             [arg] => arg,
             _ => return Err("unexpected argument(s) in `as_ref` filter".into()),
         };
         buf.write("&");
         self.visit_expr(buf, arg)?;
-        Ok(())
+        Ok(DisplayWrap::Unwrapped)
     }
 
-    fn visit_filter(
+    fn _visit_json_filter(
         &mut self,
         buf: &mut Buffer,
-        mut name: &str,
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
-        if matches!(name, "escape" | "e") {
-            self._visit_escape_filter(buf, args)?;
-            return Ok(DisplayWrap::Wrapped);
-        } else if name == "format" {
-            self._visit_format_filter(buf, args)?;
-            return Ok(DisplayWrap::Unwrapped);
-        } else if name == "fmt" {
-            self._visit_fmt_filter(buf, args)?;
-            return Ok(DisplayWrap::Unwrapped);
-        } else if name == "join" {
-            self._visit_join_filter(buf, args)?;
-            return Ok(DisplayWrap::Unwrapped);
-        } else if name == "markdown" {
-            return self._visit_markdown_filter(buf, args);
-        } else if name == "as_ref" {
-            self._visit_as_ref_filter(buf, args)?;
-            return Ok(DisplayWrap::Wrapped);
-        }
-
-        if name == "tojson" {
-            name = "json";
-        }
-
-        #[cfg(not(feature = "serde-json"))]
-        if name == "json" {
+        if cfg!(not(feature = "serde-json")) {
             return Err("the `json` filter requires the `serde-json` feature to be enabled".into());
         }
-        #[cfg(not(feature = "serde-yaml"))]
-        if name == "yaml" {
+
+        if args.len() != 1 {
+            return Err("unexpected argument(s) in `json` filter".into());
+        }
+        buf.write("::askama::filters::json(");
+        self._visit_args(buf, args)?;
+        buf.write(")?");
+        Ok(DisplayWrap::Unwrapped)
+    }
+
+    fn _visit_yaml_filter(
+        &mut self,
+        buf: &mut Buffer,
+        args: &[Expr<'_>],
+    ) -> Result<DisplayWrap, CompileError> {
+        if cfg!(not(feature = "serde-yaml")) {
             return Err("the `yaml` filter requires the `serde-yaml` feature to be enabled".into());
         }
 
-        const FILTERS: [&str; 2] = ["safe", "yaml"];
-        if FILTERS.contains(&name) {
-            buf.write(&format!(
-                "::askama::filters::{}({}, ",
-                name, self.input.escaper
-            ));
-        } else if crate::BUILT_IN_FILTERS.contains(&name) {
-            buf.write(&format!("::askama::filters::{name}("));
-        } else {
-            buf.write(&format!("filters::{name}("));
+        if args.len() != 1 {
+            return Err("unexpected argument(s) in `safe` filter".into());
         }
-
+        buf.write("::askama::filters::yaml(");
+        buf.write(self.input.escaper);
+        buf.write(", ");
         self._visit_args(buf, args)?;
         buf.write(")?");
-        Ok(match FILTERS.contains(&name) {
-            true => DisplayWrap::Wrapped,
-            false => DisplayWrap::Unwrapped,
-        })
+        Ok(DisplayWrap::Wrapped)
+    }
+
+    fn _visit_safe_filter(
+        &mut self,
+        buf: &mut Buffer,
+        args: &[Expr<'_>],
+    ) -> Result<DisplayWrap, CompileError> {
+        if args.len() != 1 {
+            return Err("unexpected argument(s) in `safe` filter".into());
+        }
+        buf.write("::askama::filters::safe(");
+        buf.write(self.input.escaper);
+        buf.write(", ");
+        self._visit_args(buf, args)?;
+        buf.write(")?");
+        Ok(DisplayWrap::Wrapped)
     }
 
     fn _visit_escape_filter(
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
-    ) -> Result<(), CompileError> {
+    ) -> Result<DisplayWrap, CompileError> {
         if args.len() > 2 {
             return Err("only two arguments allowed to escape filter".into());
         }
@@ -1318,46 +1340,43 @@ impl<'a> Generator<'a> {
         buf.write(", ");
         self._visit_args(buf, &args[..1])?;
         buf.write(")?");
-        Ok(())
+        Ok(DisplayWrap::Wrapped)
     }
 
     fn _visit_format_filter(
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
-    ) -> Result<(), CompileError> {
-        buf.write("format!(");
-        if let Some(Expr::StrLit(v)) = args.first() {
-            self.visit_str_lit(buf, v);
-            if args.len() > 1 {
-                buf.write(", ");
-            }
-        } else {
-            return Err("invalid expression type for format filter".into());
+    ) -> Result<DisplayWrap, CompileError> {
+        let fmt = match args {
+            [Expr::StrLit(fmt), ..] => fmt,
+            _ => return Err(r#"use filter format like `"a={} b={}"|format(a, b)`"#.into()),
+        };
+        buf.write("::std::format!(");
+        self.visit_str_lit(buf, fmt);
+        if args.len() > 1 {
+            buf.write(", ");
+            self._visit_args(buf, &args[1..])?;
         }
-        self._visit_args(buf, &args[1..])?;
         buf.write(")");
-        Ok(())
+        Ok(DisplayWrap::Unwrapped)
     }
 
     fn _visit_fmt_filter(
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
-    ) -> Result<(), CompileError> {
-        buf.write("format!(");
-        if let Some(Expr::StrLit(v)) = args.get(1) {
-            self.visit_str_lit(buf, v);
-            buf.write(", ");
-        } else {
-            return Err("invalid expression type for fmt filter".into());
-        }
-        self._visit_args(buf, &args[0..1])?;
-        if args.len() > 2 {
-            return Err("only two arguments allowed to fmt filter".into());
-        }
+    ) -> Result<DisplayWrap, CompileError> {
+        let fmt = match args {
+            [_, Expr::StrLit(fmt)] => fmt,
+            _ => return Err(r#"use filter fmt like `value|fmt("{:?}")`"#.into()),
+        };
+        buf.write("::std::format!(");
+        self.visit_str_lit(buf, fmt);
+        buf.write(", ");
+        self._visit_args(buf, &args[..1])?;
         buf.write(")");
-        Ok(())
+        Ok(DisplayWrap::Unwrapped)
     }
 
     // Force type coercion on first argument to `join` filter (see #39).
@@ -1365,7 +1384,7 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         args: &[Expr<'_>],
-    ) -> Result<(), CompileError> {
+    ) -> Result<DisplayWrap, CompileError> {
         buf.write("::askama::filters::join((&");
         for (i, arg) in args.iter().enumerate() {
             if i > 0 {
@@ -1377,7 +1396,7 @@ impl<'a> Generator<'a> {
             }
         }
         buf.write(")?");
-        Ok(())
+        Ok(DisplayWrap::Unwrapped)
     }
 
     fn _visit_args(&mut self, buf: &mut Buffer, args: &[Expr<'_>]) -> Result<(), CompileError> {
