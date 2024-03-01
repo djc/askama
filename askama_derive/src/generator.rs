@@ -1040,38 +1040,17 @@ impl<'a> Generator<'a> {
                     size_hint += s.len();
                 }
                 Writable::Expr(s) => {
-                    use self::DisplayWrap::*;
                     let mut expr_buf = Buffer::new(0);
                     let wrapped = self.visit_expr(&mut expr_buf, s)?;
-                    let expression = match wrapped {
-                        Wrapped => expr_buf.buf,
-                        Unwrapped => format!(
-                            "::askama::MarkupDisplay::new_unsafe(&({}), {})",
-                            expr_buf.buf, self.input.escaper
-                        ),
-                    };
-
-                    let id = match expr_cache.entry(expression.clone()) {
-                        Entry::Occupied(e) if is_cacheable(s) => *e.get(),
-                        e => {
-                            let id = self.named;
-                            self.named += 1;
-
-                            buf_expr.write(&format!("expr{id} = "));
-                            buf_expr.write("&");
-                            buf_expr.write(&expression);
-                            buf_expr.writeln(",")?;
-
-                            if let Entry::Vacant(e) = e {
-                                e.insert(id);
-                            }
-
-                            id
-                        }
-                    };
-
-                    buf_format.write(&format!("{{expr{id}}}"));
-                    size_hint += 3;
+                    let cacheable = is_cacheable(s);
+                    size_hint += self.named_expression(
+                        &mut buf_expr,
+                        &mut buf_format,
+                        expr_buf.buf,
+                        wrapped,
+                        cacheable,
+                        &mut expr_cache,
+                    )?;
                 }
             }
         }
@@ -1084,6 +1063,47 @@ impl<'a> Generator<'a> {
         buf.dedent()?;
         buf.writeln(")?;")?;
         Ok(size_hint)
+    }
+
+    fn named_expression(
+        &mut self,
+        buf_expr: &mut Buffer,
+        buf_format: &mut Buffer,
+        expr: String,
+        wrapped: DisplayWrap,
+        cacheable: bool,
+        expr_cache: &mut HashMap<String, usize>,
+    ) -> Result<usize, CompileError> {
+        use self::DisplayWrap::*;
+        let expression = match wrapped {
+            Wrapped => expr,
+            Unwrapped => format!(
+                "::askama::MarkupDisplay::new_unsafe(&({}), {})",
+                buf_expr.buf, self.input.escaper
+            ),
+        };
+
+        let id = match expr_cache.entry(expression.clone()) {
+            Entry::Occupied(e) if cacheable => *e.get(),
+            e => {
+                let id = self.named;
+                self.named += 1;
+
+                buf_expr.write(&format!("expr{id} = "));
+                buf_expr.write("&");
+                buf_expr.write(&expression);
+                buf_expr.writeln(",")?;
+
+                if let Entry::Vacant(e) = e {
+                    e.insert(id);
+                }
+
+                id
+            }
+        };
+
+        buf_format.write(&format!("{{expr{id}}}"));
+        Ok(3)
     }
 
     fn visit_lit(&mut self, lit: &'a Lit<'_>) {
