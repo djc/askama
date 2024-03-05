@@ -1372,17 +1372,6 @@ from the Askama test suite for more on how to integrate.</p>
 <p>In case of a run-time error occurring during templating, the response will be of the same
 signature, with a status code of <code>500 Internal Server Error</code>, mime <code>*/*</code>, and an empty <code>Body</code>.
 This preserves the response chain if any custom error handling needs to occur.</p>
-<h2 id="gotham-integration"><a class="header" href="#gotham-integration">Gotham integration</a></h2>
-<p>In your template definitions, replace <code>askama::Template</code> with
-<a href="https://docs.rs/askama_gotham"><code>askama_gotham::Template</code></a>.</p>
-<p>Enabling the <code>with-gotham</code> feature appends an implementation of Gotham's
-<code>IntoResponse</code> trait for each template type. This makes it easy to trivially
-return a value of that type in a Gotham handler. See
-<a href="https://github.com/djc/askama/blob/main/askama_gotham/tests/basic.rs">the example</a>
-from the Askama test suite for more on how to integrate.</p>
-<p>In case of a run-time error occurring during templating, the response will be of the same
-signature, with a status code of <code>500 Internal Server Error</code>, mime <code>*/*</code>, and an empty <code>Body</code>.
-This preserves the response chain if any custom error handling needs to occur.</p>
 <h2 id="warp-integration"><a class="header" href="#warp-integration">Warp integration</a></h2>
 <p>In your template definitions, replace <code>askama::Template</code> with
 <a href="https://docs.rs/askama_warp"><code>askama_warp::Template</code></a>.</p>
