@@ -3,7 +3,6 @@ members = [
     "askama",
     "askama_actix",
     "askama_axum",
-    "askama_gotham",
     "askama_derive",
     "askama_escape",
     "askama_parser",

@@ -68,8 +68,6 @@ impl<'a> Generator<'a> {
         self.impl_actix_web_responder(&mut buf)?;
         #[cfg(feature = "with-axum")]
         self.impl_axum_into_response(&mut buf)?;
-        #[cfg(feature = "with-gotham")]
-        self.impl_gotham_into_response(&mut buf)?;
         #[cfg(feature = "with-hyper")]
         self.impl_hyper_into_response(&mut buf)?;
         #[cfg(feature = "with-rocket")]
@@ -174,20 +172,6 @@ impl<'a> Generator<'a> {
              -> ::askama_axum::Response {",
         )?;
         buf.writeln("::askama_axum::into_response(&self)")?;
-        buf.writeln("}")?;
-        buf.writeln("}")
-    }
-
-    // Implement gotham's `IntoResponse`.
-    #[cfg(feature = "with-gotham")]
-    fn impl_gotham_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        self.write_header(buf, "::askama_gotham::IntoResponse", None)?;
-        buf.writeln("#[inline]")?;
-        buf.writeln(
-            "fn into_response(self, _state: &::askama_gotham::State)\
-             -> ::askama_gotham::Response<::askama_gotham::Body> {",
-        )?;
-        buf.writeln("::askama_gotham::respond(&self)")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
