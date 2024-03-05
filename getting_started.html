@@ -176,8 +176,7 @@
                         <h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
 <p>First, add the following to your crate's <code>Cargo.toml</code>:</p>
 <pre><code class="language-toml"># in section [dependencies]
-askama = "0.11.2"
-
+askama = "0.12.1"
 </code></pre>
 <p>Now create a directory called <code>templates</code> in your crate root.
 In it, create a file called <code>hello.html</code>, containing the following:</p>
@@ -199,6 +198,20 @@ fn main() {
     println!("{}", hello.render().unwrap()); // then render it.
 }</code></pre></pre>
 <p>You should now be able to compile and run this code.</p>
+<h2 id="using-integrations"><a class="header" href="#using-integrations">Using integrations</a></h2>
+<p>To use one of the <a href="./integrations.html">integrations</a>, with axum as an example:</p>
+<p>First, add this to your <code>Cargo.toml</code> instead:</p>
+<pre><code class="language-toml"># in section [dependencies]
+askama_axum = "0.4.0"
+</code></pre>
+<p>Then, import from askama_axum instead of askama:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use askama_axum::Template;
+<span class="boring">}</span></code></pre></pre>
+<p>This enables the implementation for axum's <code>IntoResponse</code> trait,
+so an instance of the template can be returned as a response.</p>
+<p>For other integrations, import and use their crate accordingly.</p>
 
                     </main>
 
