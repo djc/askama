@@ -32,7 +32,7 @@ jobs:
     strategy:
       matrix:
         package: [
-          askama, askama_actix, askama_axum, askama_derive, askama_escape, askama_gotham,
+          askama, askama_actix, askama_axum, askama_derive, askama_escape,
           askama_hyper, askama_parser, askama_rocket, askama_tide, askama_warp, testing,
         ]
     runs-on: ubuntu-latest

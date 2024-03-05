@@ -41,21 +41,6 @@ In case of a run-time error occurring during templating, the response will be of
 signature, with a status code of `500 Internal Server Error`, mime `*/*`, and an empty `Body`.
 This preserves the response chain if any custom error handling needs to occur.
 
-## Gotham integration
-
-In your template definitions, replace `askama::Template` with
-[`askama_gotham::Template`][askama_gotham].
-
-Enabling the `with-gotham` feature appends an implementation of Gotham's
-`IntoResponse` trait for each template type. This makes it easy to trivially
-return a value of that type in a Gotham handler. See
-[the example](https://github.com/djc/askama/blob/main/askama_gotham/tests/basic.rs)
-from the Askama test suite for more on how to integrate.
-
-In case of a run-time error occurring during templating, the response will be of the same
-signature, with a status code of `500 Internal Server Error`, mime `*/*`, and an empty `Body`.
-This preserves the response chain if any custom error handling needs to occur.
-
 ## Warp integration
 
 In your template definitions, replace `askama::Template` with
