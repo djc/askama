@@ -6,7 +6,6 @@ members = [
     "askama_gotham",
     "askama_derive",
     "askama_escape",
-    "askama_mendes",
     "askama_parser",
     "askama_rocket",
     "askama_tide",
