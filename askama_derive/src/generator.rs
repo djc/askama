@@ -68,8 +68,6 @@ impl<'a> Generator<'a> {
         self.impl_actix_web_responder(&mut buf)?;
         #[cfg(feature = "with-axum")]
         self.impl_axum_into_response(&mut buf)?;
-        #[cfg(feature = "with-hyper")]
-        self.impl_hyper_into_response(&mut buf)?;
         #[cfg(feature = "with-rocket")]
         self.impl_rocket_responder(&mut buf)?;
         #[cfg(feature = "with-tide")]
@@ -172,50 +170,6 @@ impl<'a> Generator<'a> {
              -> ::askama_axum::Response {",
         )?;
         buf.writeln("::askama_axum::into_response(&self)")?;
-        buf.writeln("}")?;
-        buf.writeln("}")
-    }
-
-    // Implement `From<Template> for hyper::Response<Body>` and `From<Template> for hyper::Body.
-    #[cfg(feature = "with-hyper")]
-    fn impl_hyper_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let (impl_generics, orig_ty_generics, where_clause) =
-            self.input.ast.generics.split_for_impl();
-        let ident = &self.input.ast.ident;
-        // From<Template> for hyper::Response<Body>
-        buf.writeln(&format!(
-            "{} {{",
-            quote!(
-                impl #impl_generics ::core::convert::From<&#ident #orig_ty_generics>
-                for ::askama_hyper::hyper::Response<::askama_hyper::hyper::Body>
-                #where_clause
-            )
-        ))?;
-        buf.writeln("#[inline]")?;
-        buf.writeln(&format!(
-            "{} {{",
-            quote!(fn from(value: &#ident #orig_ty_generics) -> Self)
-        ))?;
-        buf.writeln("::askama_hyper::respond(value)")?;
-        buf.writeln("}")?;
-        buf.writeln("}")?;
-
-        // TryFrom<Template> for hyper::Body
-        buf.writeln(&format!(
-            "{} {{",
-            quote!(
-                impl #impl_generics ::core::convert::TryFrom<&#ident #orig_ty_generics>
-                for ::askama_hyper::hyper::Body
-                #where_clause
-            )
-        ))?;
-        buf.writeln("type Error = ::askama_hyper::Error;")?;
-        buf.writeln("#[inline]")?;
-        buf.writeln(&format!(
-            "{} {{",
-            quote!(fn try_from(value: &#ident #orig_ty_generics) -> Result<Self, Self::Error>)
-        ))?;
-        buf.writeln("::askama_hyper::Template::render(value).map(Into::into)")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
