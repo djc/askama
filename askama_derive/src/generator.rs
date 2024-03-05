@@ -72,8 +72,6 @@ impl<'a> Generator<'a> {
         self.impl_gotham_into_response(&mut buf)?;
         #[cfg(feature = "with-hyper")]
         self.impl_hyper_into_response(&mut buf)?;
-        #[cfg(feature = "with-mendes")]
-        self.impl_mendes_responder(&mut buf)?;
         #[cfg(feature = "with-rocket")]
         self.impl_rocket_responder(&mut buf)?;
         #[cfg(feature = "with-tide")]
@@ -236,53 +234,6 @@ impl<'a> Generator<'a> {
         buf.writeln("::askama_hyper::Template::render(value).map(Into::into)")?;
         buf.writeln("}")?;
         buf.writeln("}")
-    }
-
-    // Implement mendes' `Responder`.
-    #[cfg(feature = "with-mendes")]
-    fn impl_mendes_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let param = syn::parse_str("A: ::mendes::Application").unwrap();
-
-        let mut generics = self.input.ast.generics.clone();
-        generics.params.push(param);
-        let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
-
-        let mut where_clause = match where_clause {
-            Some(clause) => clause.clone(),
-            None => syn::WhereClause {
-                where_token: syn::Token![where](proc_macro2::Span::call_site()),
-                predicates: syn::punctuated::Punctuated::new(),
-            },
-        };
-
-        where_clause
-            .predicates
-            .push(syn::parse_str("A::ResponseBody: From<String>").unwrap());
-        where_clause
-            .predicates
-            .push(syn::parse_str("A::Error: From<::askama_mendes::Error>").unwrap());
-
-        buf.writeln(
-            format!(
-                "{} {} for {} {} {{",
-                quote!(impl #impl_generics),
-                "::mendes::application::IntoResponse<A>",
-                self.input.ast.ident,
-                quote!(#orig_ty_generics #where_clause),
-            )
-            .as_ref(),
-        )?;
-
-        buf.writeln(
-            "fn into_response(self, app: &A, req: &::mendes::http::request::Parts) \
-             -> ::mendes::http::Response<A::ResponseBody> {",
-        )?;
-
-        buf.writeln("::askama_mendes::into_response(app, req, &self)")?;
-        buf.writeln("}")?;
-        buf.writeln("}")?;
-        Ok(())
     }
 
     // Implement Rocket's `Responder`.
