@@ -1,6 +1,6 @@
 [package]
 name = "askama_hyper"
-version = "0.1.0"
+version = "0.2.0"
 description = "Hyper integration for Askama templates"
 documentation = "https://docs.rs/askama"
 keywords = ["markup", "template", "jinja2", "html"]
@@ -14,7 +14,7 @@ edition = "2021"
 rust-version = "1.65"
 
 [dependencies]
-askama = { version = "0.12", path = "../askama", default-features = false, features = ["with-hyper"] }
+askama = { version = "0.13", path = "../askama", default-features = false, features = ["with-hyper"] }
 hyper = { version = "0.14", default-features = false }
 
 [dev-dependencies]

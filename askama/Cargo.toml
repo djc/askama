@@ -1,6 +1,6 @@
 [package]
 name = "askama"
-version = "0.12.1"
+version = "0.13.0"
 description = "Type-safe, compiled Jinja-like templates for Rust"
 documentation = "https://docs.rs/askama"
 keywords = ["markup", "template", "jinja2", "html"]
@@ -39,7 +39,7 @@ mime = []
 mime_guess = []
 
 [dependencies]
-askama_derive = { version = "0.12.0", path = "../askama_derive" }
+askama_derive = { version = "0.13", path = "../askama_derive" }
 askama_escape = { version = "0.10.3", path = "../askama_escape" }
 comrak = { version = "0.21", optional = true, default-features = false }
 dep_humansize = { package = "humansize", version = "2", optional = true }
