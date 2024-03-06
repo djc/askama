@@ -157,7 +157,7 @@ impl<'a> Generator<'a> {
             "fn respond_to(self, _req: &::askama_actix::actix_web::HttpRequest) \
              -> ::askama_actix::actix_web::HttpResponse<Self::Body> {",
         )?;
-        buf.writeln("<Self as ::askama_actix::TemplateToResponse>::to_response(&self)")?;
+        buf.writeln("::askama_actix::into_response(&self)")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
