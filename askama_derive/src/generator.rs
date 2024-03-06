@@ -72,8 +72,6 @@ impl<'a> Generator<'a> {
         self.impl_axum_into_response(&mut buf)?;
         #[cfg(feature = "with-rocket")]
         self.impl_rocket_responder(&mut buf)?;
-        #[cfg(feature = "with-tide")]
-        self.impl_tide_integrations(&mut buf)?;
         #[cfg(feature = "with-warp")]
         self.impl_warp_reply(&mut buf)?;
 
@@ -200,31 +198,6 @@ impl<'a> Generator<'a> {
         buf.writeln("}")?;
         buf.writeln("}")?;
         Ok(())
-    }
-
-    #[cfg(feature = "with-tide")]
-    fn impl_tide_integrations(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        self.write_header(
-            buf,
-            "::std::convert::TryInto<::askama_tide::tide::Body>",
-            None,
-        )?;
-        buf.writeln(
-            "type Error = ::askama_tide::Error;\n\
-            #[inline]\n\
-            fn try_into(self) -> \
-			::askama_tide::Result<::askama_tide::tide::Body> {",
-        )?;
-        buf.writeln("::askama_tide::try_into_body(&self)")?;
-        buf.writeln("}")?;
-        buf.writeln("}")?;
-
-        buf.writeln("#[allow(clippy::from_over_into)]")?;
-        self.write_header(buf, "Into<::askama_tide::tide::Response>", None)?;
-        buf.writeln("#[inline]")?;
-        buf.writeln("fn into(self) -> ::askama_tide::tide::Response {")?;
-        buf.writeln("::askama_tide::into_response(&self)")?;
-        buf.writeln("}\n}")
     }
 
     #[cfg(feature = "with-warp")]
