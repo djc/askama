@@ -28,7 +28,6 @@ urlencode = ["askama_derive/urlencode", "percent-encoding"]
 with-actix-web = ["askama_derive/with-actix-web"]
 with-axum = ["askama_derive/with-axum"]
 with-rocket = ["askama_derive/with-rocket"]
-with-tide = ["askama_derive/with-tide"]
 with-warp = ["askama_derive/with-warp"]
 
 # deprecated
