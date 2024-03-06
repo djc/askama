@@ -4,16 +4,42 @@
 
 use std::io::Cursor;
 
+#[doc(no_inline)]
 pub use askama::*;
-use rocket::http::{Header, Status};
-pub use rocket::request::Request;
-use rocket::response::Response;
-pub use rocket::response::{Responder, Result as RocketResult};
+#[doc(no_inline)]
+pub use rocket;
+use rocket::Response;
 
-pub fn respond<T: Template>(t: &T) -> RocketResult<'static> {
-    let rsp = t.render().map_err(|_| Status::InternalServerError)?;
-    Response::build()
-        .header(Header::new("content-type", T::MIME_TYPE))
-        .sized_body(rsp.len(), Cursor::new(rsp))
-        .ok()
+#[inline]
+pub fn respond<T: ?Sized + askama::Template>(tmpl: &T) -> rocket::response::Result<'static> {
+    try_into_response(tmpl).map_err(|_| rocket::http::Status::InternalServerError)
+}
+
+/// Render a [`Template`] into a [`Response`], or render an error page.
+pub fn into_response<T: ?Sized + askama::Template>(tmpl: &T) -> Response<'static> {
+    match try_into_response(tmpl) {
+        Ok(response) => response,
+        Err(err) => {
+            let value = err.to_string();
+            Response::build()
+                .status(rocket::http::Status::InternalServerError)
+                .header(rocket::http::Header::new(
+                    "content-type",
+                    "text/plain; charset=utf-8",
+                ))
+                .sized_body(value.len(), Cursor::new(value))
+                .finalize()
+        }
+    }
+}
+
+/// Try to render a [`Template`] into a [`Response`].
+pub fn try_into_response<T: ?Sized + askama::Template>(
+    tmpl: &T,
+) -> Result<Response<'static>, Error> {
+    let value = tmpl.render()?;
+    Ok(Response::build()
+        .header(rocket::http::Header::new("content-type", T::MIME_TYPE))
+        .sized_body(value.len(), Cursor::new(value))
+        .finalize())
 }

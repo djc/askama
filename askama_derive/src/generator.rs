@@ -184,29 +184,19 @@ impl<'a> Generator<'a> {
     #[cfg(feature = "with-rocket")]
     fn impl_rocket_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         let lifetime1 = syn::Lifetime::new("'askama1", proc_macro2::Span::call_site());
-        let lifetime2 = syn::Lifetime::new("'askama2", proc_macro2::Span::call_site());
-
-        let mut param2 = syn::LifetimeParam::new(lifetime2);
-        param2.colon_token = Some(syn::Token![:](proc_macro2::Span::call_site()));
-        param2.bounds = syn::punctuated::Punctuated::new();
-        param2.bounds.push_value(lifetime1.clone());
-
         let param1 = syn::GenericParam::Lifetime(syn::LifetimeParam::new(lifetime1));
-        let param2 = syn::GenericParam::Lifetime(param2);
 
         self.write_header(
             buf,
-            "::askama_rocket::Responder<'askama1, 'askama2>",
-            Some(vec![param1, param2]),
+            "::askama_rocket::rocket::response::Responder<'askama1, 'static>",
+            Some(vec![param1]),
         )?;
-
         buf.writeln("#[inline]")?;
         buf.writeln(
-            "fn respond_to(self, _: &'askama1 ::askama_rocket::Request) \
-             -> ::askama_rocket::RocketResult<'askama2> {",
+            "fn respond_to(self, _: &'askama1 ::askama_rocket::rocket::request::Request<'_>) \
+             -> ::askama_rocket::rocket::response::Result<'static> {",
         )?;
         buf.writeln("::askama_rocket::respond(&self)")?;
-
         buf.writeln("}")?;
         buf.writeln("}")?;
         Ok(())
