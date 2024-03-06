@@ -1048,8 +1048,41 @@ impl<'a> Generator<'a> {
             Expr::RustMacro(ref path, args) => self.visit_rust_macro(buf, path, args),
             Expr::Try(ref expr) => self.visit_try(buf, expr.as_ref())?,
             Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
+            #[cfg(feature = "i18n")]
+            Expr::Localize(ref msg_id, ref args) => self.visit_localize(buf, msg_id, args)?,
             Expr::NamedArgument(_, ref expr) => self.visit_named_argument(buf, expr)?,
         })
+    }
+
+    #[cfg(feature = "i18n")]
+    fn visit_localize(
+        &mut self,
+        buf: &mut Buffer,
+        msg_id: &Expr<'_>,
+        args: &[(&str, Expr<'_>)],
+    ) -> Result<DisplayWrap, CompileError> {
+        let localizer =
+            self.input.localizer.as_deref().ok_or(
+                "You need to annotate a field with #[locale] to use the localize() function.",
+            )?;
+
+        buf.write(&format!(
+            "self.{}.translate(",
+            normalize_identifier(localizer)
+        ));
+        self.visit_expr(buf, msg_id)?;
+        buf.writeln(", [")?;
+        buf.indent();
+        for (k, v) in args {
+            buf.write(&format!("({:?}, ::askama::i18n::FluentValue::from(", k));
+            self.visit_expr(buf, v)?;
+            buf.writeln(")),")?;
+        }
+        buf.dedent()?;
+        // Safe to unwrap, as `msg_id` is checked at compile time.
+        buf.write("]).unwrap()");
+
+        Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_try(
@@ -1902,6 +1935,10 @@ pub(crate) fn is_cacheable(expr: &Expr<'_>) -> bool {
         Expr::Group(arg) => is_cacheable(arg),
         Expr::Tuple(args) => args.iter().all(is_cacheable),
         Expr::NamedArgument(_, expr) => is_cacheable(expr),
+        #[cfg(feature = "i18n")]
+        Expr::Localize(msg_id, args) => {
+            is_cacheable(msg_id) && args.iter().all(|(_, arg)| is_cacheable(arg))
+        }
         // We have too little information to tell if the expression is pure:
         Expr::Call(_, _) => false,
         Expr::RustMacro(_, _) => false,

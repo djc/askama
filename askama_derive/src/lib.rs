@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "i18n"), forbid(unsafe_code))]
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
@@ -14,11 +15,13 @@ use config::Config;
 mod generator;
 use generator::{Generator, MapChain};
 mod heritage;
+#[cfg(feature = "i18n")]
+mod i18n;
 use heritage::{Context, Heritage};
 mod input;
 use input::{Print, TemplateArgs, TemplateInput};
 
-#[proc_macro_derive(Template, attributes(template))]
+#[proc_macro_derive(Template, attributes(template, locale))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast = syn::parse::<syn::DeriveInput>(input).unwrap();
     match build_template(&ast) {
@@ -68,6 +71,18 @@ pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileEr
         eprintln!("{code}");
     }
     Ok(code)
+}
+
+#[proc_macro]
+pub fn i18n_load(_input: TokenStream) -> TokenStream {
+    #[cfg(feature = "i18n")]
+    match i18n::load(_input) {
+        Ok(ts) => ts,
+        Err(err) => err.into_compile_error(),
+    }
+
+    #[cfg(not(feature = "i18n"))]
+    CompileError::from(r#"Activate the "i18n" feature to use i18n_load!()."#).into_compile_error()
 }
 
 #[derive(Debug, Clone)]

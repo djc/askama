@@ -10,7 +10,6 @@ members = [
     "askama_warp",
     "testing",
 ]
-resolver = "2"
 
 default-members = [
     "askama",
@@ -19,3 +18,5 @@ default-members = [
     "askama_parser",
     "testing",
 ]
+
+resolver = "2"

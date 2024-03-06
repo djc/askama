@@ -13,5 +13,14 @@ readme = "README.md"
 edition = "2021"
 rust-version = "1.65"
 
+[features]
+i18n = ["fluent-syntax", "fluent-templates", "serde", "basic-toml"]
+
 [dependencies]
 nom = { version = "7", default-features = false, features = ["alloc"] }
+fluent-syntax = { version = "0.11.0", default-features = false, optional = true }
+fluent-templates = { version = "0.8.0", default-features = false, optional = true }
+serde = { version = "1.0.193", default-features = false, features = ["derive"], optional = true }
+basic-toml = { version = "0.1.7", default-features = false, optional = true }
+syn = { version = "2.0.43", default-features = false }
+proc-macro2 = { version = "1.0.71", default-features = false }
