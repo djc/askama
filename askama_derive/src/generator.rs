@@ -218,14 +218,20 @@ impl<'a> Generator<'a> {
         target: &str,
         params: Option<Vec<syn::GenericParam>>,
     ) -> Result<(), CompileError> {
-        let mut generics = self.input.ast.generics.clone();
-        if let Some(params) = params {
+        let mut generics;
+        let (impl_generics, orig_ty_generics, where_clause) = if let Some(params) = params {
+            generics = self.input.ast.generics.clone();
             for param in params {
                 generics.params.push(param);
             }
-        }
-        let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
+
+            let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
+            let (impl_generics, _, where_clause) = generics.split_for_impl();
+            (impl_generics, orig_ty_generics, where_clause)
+        } else {
+            self.input.ast.generics.split_for_impl()
+        };
+
         buf.writeln(
             format!(
                 "{} {} for {}{} {{",
