@@ -232,16 +232,13 @@ impl<'a> Generator<'a> {
             self.input.ast.generics.split_for_impl()
         };
 
-        buf.writeln(
-            format!(
-                "{} {} for {}{} {{",
-                quote!(impl #impl_generics),
-                target,
-                self.input.ast.ident,
-                quote!(#orig_ty_generics #where_clause),
-            )
-            .as_ref(),
-        )
+        buf.writeln(&format!(
+            "{} {} for {}{} {{",
+            quote!(impl #impl_generics),
+            target,
+            self.input.ast.ident,
+            quote!(#orig_ty_generics #where_clause),
+        ))
     }
 
     /* Helper methods for handling node types */
@@ -1152,7 +1149,7 @@ impl<'a> Generator<'a> {
             Expr::Group(ref inner) => self.visit_group(buf, inner)?,
             Expr::Call(ref obj, ref args) => self.visit_call(buf, obj, args)?,
             Expr::RustMacro(ref path, args) => self.visit_rust_macro(buf, path, args),
-            Expr::Try(ref expr) => self.visit_try(buf, expr.as_ref())?,
+            Expr::Try(ref expr) => self.visit_try(buf, expr)?,
             Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
             Expr::NamedArgument(_, ref expr) => self.visit_named_argument(buf, expr)?,
             Expr::Generated(ref s) => self.visit_generated(buf, s),
