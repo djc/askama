@@ -242,7 +242,7 @@ impl<'a> Generator<'a> {
         self.write_header(buf, "::askama_warp::warp::reply::Reply", None)?;
         buf.writeln("#[inline]")?;
         buf.writeln("fn into_response(self) -> ::askama_warp::warp::reply::Response {")?;
-        buf.writeln("::askama_warp::reply(&self)")?;
+        buf.writeln("::askama_warp::into_response(&self)")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
