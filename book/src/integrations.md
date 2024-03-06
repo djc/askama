@@ -66,6 +66,5 @@ from the Askama test suite for more on how to integrate.
 [askama_rocket]: https://docs.rs/askama_rocket
 [askama_actix]: https://docs.rs/askama_actix
 [askama_axum]: https://docs.rs/askama_axum
-[askama_gotham]: https://docs.rs/askama_gotham
 [askama_warp]: https://docs.rs/askama_warp
 [askama_tide]: https://docs.rs/askama_tide
