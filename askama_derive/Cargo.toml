@@ -24,7 +24,6 @@ num-traits = []
 with-actix-web = []
 with-axum = []
 with-rocket = []
-with-tide = []
 with-warp = []
 
 [dependencies]

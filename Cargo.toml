@@ -7,7 +7,6 @@ members = [
     "askama_escape",
     "askama_parser",
     "askama_rocket",
-    "askama_tide",
     "askama_warp",
     "testing",
 ]
