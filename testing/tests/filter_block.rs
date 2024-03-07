@@ -128,3 +128,22 @@ fn filter_block_not_html_escape() {
     let template = E;
     assert_eq!(template.render().unwrap(), r#"<block>"#);
 }
+
+// This test checks that the filter chaining is working as expected.
+#[derive(Template)]
+#[template(
+    source = r#"{% filter lower|indent(2)|capitalize -%}
+HELLO
+{{v}}
+{%- endfilter %}"#,
+    ext = "txt"
+)]
+struct F {
+    v: &'static str,
+}
+
+#[test]
+fn filter_block_chaining() {
+    let template = F { v: "pIKA" };
+    assert_eq!(template.render().unwrap(), "Hello\n  pika");
+}
