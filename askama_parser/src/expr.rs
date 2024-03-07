@@ -8,7 +8,7 @@ use nom::character::complete::char;
 use nom::combinator::{cut, map, not, opt, peek, recognize};
 use nom::error::ErrorKind;
 use nom::error_position;
-use nom::multi::{fold_many0, many0, separated_list0};
+use nom::multi::{fold_many0, many0, many_m_n, separated_list0};
 use nom::sequence::{pair, preceded, terminated, tuple};
 
 use super::{
@@ -198,8 +198,10 @@ impl<'a> Expr<'a> {
             Ok((i, (fname, args)))
         }
 
-        let (i, (obj, filters)) =
-            tuple((|i| Self::prefix(i, level), many0(|i| filter(i, level))))(i)?;
+        let (i, (obj, filters)) = tuple((
+            |i| Self::prefix(i, level),
+            many_m_n(0, 16, |i| filter(i, level)),
+        ))(i)?;
 
         let mut res = obj;
         for (fname, args) in filters {
