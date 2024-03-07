@@ -504,3 +504,23 @@ fn test_mixed_case() {
     let template = MixedCase { xY: "foo" };
     assert_eq!(template.render().unwrap(), "foo");
 }
+
+#[allow(non_snake_case)]
+#[derive(askama::Template)]
+#[template(source = "Hello, {{ user }}!", ext = "txt")]
+struct Referenced {
+    user: &'static str,
+}
+
+#[test]
+#[allow(clippy::needless_borrows_for_generic_args)]
+fn test_referenced() {
+    fn template_to_string(template: impl Template) -> String {
+        template.to_string()
+    }
+
+    let template = Referenced { user: "person" };
+    assert_eq!(template_to_string(&&template), "Hello, person!");
+    assert_eq!(template_to_string(&template), "Hello, person!");
+    assert_eq!(template_to_string(template), "Hello, person!");
+}
