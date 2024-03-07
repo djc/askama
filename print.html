@@ -575,6 +575,14 @@ and print the resulting string as a Rust literal.</p>
 <p>To define your own filters, simply have a module named <code>filters</code> in
 scope of the context deriving a <code>Template</code> <code>impl</code>. Note that in case of
 name collision, the built in filters take precedence.</p>
+<h2 id="filter-blocks"><a class="header" href="#filter-blocks">Filter blocks</a></h2>
+<p>You can apply a <strong>filter</strong> on a whole block at once using <strong>filter
+blocks</strong>:</p>
+<pre><code class="language-text">{% filter lower %}
+    {{ t }} / HELLO / {{ u }}
+{% endfilter %}
+</code></pre>
+<p>The <code>lower</code> filter will be applied on the whole content.</p>
 <h2 id="whitespace-control-1"><a class="header" href="#whitespace-control-1">Whitespace control</a></h2>
 <p>Askama considers all tabs, spaces, newlines and carriage returns to be
 whitespace. By default, it preserves all whitespace in template code,
