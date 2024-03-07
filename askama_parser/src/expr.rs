@@ -115,6 +115,7 @@ impl<'a> Expr<'a> {
                                 message: Some(Cow::Borrowed(
                                     "named arguments must always be passed last",
                                 )),
+                                kind: ErrorKind::Fail,
                             }))
                         } else {
                             Ok((i, expr))
@@ -150,6 +151,7 @@ impl<'a> Expr<'a> {
                 message: Some(Cow::Owned(format!(
                     "named argument `{argument}` was passed more than once"
                 ))),
+                kind: ErrorKind::Count,
             }))
         }
     }

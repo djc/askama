@@ -263,6 +263,7 @@ impl<'a> Target<'a> {
             "self" | "writer" => Err(nom::Err::Failure(ErrorContext {
                 input,
                 message: Some(Cow::Owned(format!("Cannot use `{name}` as a name"))),
+                kind: ErrorKind::NoneOf,
             })),
             _ => Ok(Self::Name(name)),
         }
@@ -343,6 +344,7 @@ impl<'a> Cond<'a> {
                     message: Some(Cow::Borrowed(
                         "unknown `elif` keyword; did you mean `else if`?",
                     )),
+                    kind: ErrorKind::Tag,
                 }))
             }))),
             cut(tuple((
@@ -789,6 +791,7 @@ fn check_end_name<'a>(
     Err(nom::Err::Failure(ErrorContext {
         input: before,
         message: Some(Cow::Owned(message)),
+        kind: ErrorKind::Tag,
     }))
 }
 
@@ -991,6 +994,7 @@ impl<'a> Extends<'a> {
                 message: Some(Cow::Borrowed(
                     "whitespace control is not allowed on `extends`",
                 )),
+                kind: ErrorKind::NoneOf,
             })),
         }
     }
