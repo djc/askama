@@ -85,6 +85,19 @@ To define your own filters, simply have a module named `filters` in
 scope of the context deriving a `Template` `impl`. Note that in case of
 name collision, the built in filters take precedence.
 
+## Filter blocks
+
+You can apply a **filter** on a whole block at once using **filter
+blocks**:
+
+```text
+{% filter lower %}
+    {{ t }} / HELLO / {{ u }}
+{% endfilter %}
+```
+
+The `lower` filter will be applied on the whole content.
+
 ## Whitespace control
 
 Askama considers all tabs, spaces, newlines and carriage returns to be
