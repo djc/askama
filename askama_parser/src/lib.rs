@@ -201,16 +201,16 @@ fn skip_till<'a, O>(
 ) -> impl FnMut(&'a str) -> ParseResult<'a, (&'a str, O)> {
     enum Next<O> {
         IsEnd(O),
-        NotEnd(char),
+        NotEnd,
     }
-    let mut next = alt((map(end, Next::IsEnd), map(anychar, Next::NotEnd)));
+    let mut next = alt((map(end, Next::IsEnd), map(anychar, |_| Next::NotEnd)));
     move |start: &'a str| {
         let mut i = start;
         loop {
             let (j, is_end) = next(i)?;
             match is_end {
                 Next::IsEnd(lookahead) => return Ok((i, (j, lookahead))),
-                Next::NotEnd(_) => i = j,
+                Next::NotEnd => i = j,
             }
         }
     }
