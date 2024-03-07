@@ -736,10 +736,15 @@ impl<'a> Generator<'a> {
         mem::drop(mem::replace(&mut self.buf_writable, current_buf));
 
         let mut filter_buf = Buffer::new(buf.indent);
-        let mut args = filter.args.clone();
-        args.insert(0, Expr::Generated(var_name.clone()));
+        let Filter {
+            name: filter_name,
+            arguments,
+        } = &filter.filters;
+        let mut arguments = arguments.clone();
 
-        let wrap = self.visit_filter(&mut filter_buf, filter.filter_name, &args)?;
+        insert_first_filter_argument(&mut arguments, var_name.clone());
+
+        let wrap = self.visit_filter(&mut filter_buf, filter_name, &arguments)?;
 
         self.buf_writable
             .push(Writable::Generated(filter_buf.buf, wrap));
@@ -2030,6 +2035,46 @@ fn median(sizes: &mut [usize]) -> usize {
         sizes[sizes.len() / 2]
     } else {
         (sizes[sizes.len() / 2 - 1] + sizes[sizes.len() / 2]) / 2
+    }
+}
+
+/// In `FilterBlock`, we have a recursive `Expr::Filter` entry, where the more you go "down",
+/// the sooner you are called in the Rust code. Example:
+///
+/// ```text
+/// {% filter a|b|c %}bla{% endfilter %}
+/// ```
+///
+/// Will be translated as:
+///
+/// ```text
+/// FilterBlock {
+///    filters: Filter {
+///        name: "c",
+///        arguments: vec![
+///            Filter {
+///                name: "b",
+///                arguments: vec![
+///                    Filter {
+///                        name: "a",
+///                        arguments: vec![],
+///                    }.
+///                ],
+///            }
+///        ],
+///    },
+///    // ...
+/// }
+/// ```
+///
+/// So in here, we want to insert the variable containing the content of the filter block inside
+/// the call to `"a"`. To do so, we recursively go through all `Filter` and finally insert our
+/// variable as the first argument to the `"a"` call.
+fn insert_first_filter_argument(args: &mut Vec<Expr<'_>>, var_name: String) {
+    if let Some(Expr::Filter(Filter { arguments, .. })) = args.first_mut() {
+        insert_first_filter_argument(arguments, var_name);
+    } else {
+        args.insert(0, Expr::Generated(var_name));
     }
 }
 

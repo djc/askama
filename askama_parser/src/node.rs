@@ -15,8 +15,8 @@ use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use crate::{ErrorContext, ParseResult};
 
 use super::{
-    bool_lit, char_lit, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
-    str_lit, ws, Expr, PathOrIdentifier, State,
+    bool_lit, char_lit, filter, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
+    str_lit, ws, Expr, Filter, PathOrIdentifier, State,
 };
 
 #[derive(Debug, PartialEq)]
@@ -563,8 +563,7 @@ impl<'a> Macro<'a> {
 #[derive(Debug, PartialEq)]
 pub struct FilterBlock<'a> {
     pub ws1: Ws,
-    pub filter_name: &'a str,
-    pub args: Vec<Expr<'a>>,
+    pub filters: Filter<'a>,
     pub nodes: Vec<Node<'a>>,
     pub ws2: Ws,
 }
@@ -577,11 +576,27 @@ impl<'a> FilterBlock<'a> {
             cut(tuple((
                 ws(identifier),
                 opt(|i| Expr::arguments(i, s.level.get(), false)),
+                many0(|i| filter(i, s.level.get())),
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
             ))),
         ));
-        let (i, (pws1, _, (filter_name, params, nws1, _))) = start(i)?;
+        let (i, (pws1, _, (filter_name, params, extra_filters, nws1, _))) = start(i)?;
+
+        let mut filters = Filter {
+            name: filter_name,
+            arguments: params.unwrap_or_default(),
+        };
+        for (filter_name, args) in extra_filters {
+            filters = Filter {
+                name: filter_name,
+                arguments: {
+                    let mut args = args.unwrap_or_default();
+                    args.insert(0, Expr::Filter(filters));
+                    args
+                },
+            };
+        }
 
         let mut end = cut(tuple((
             |i| Node::many(i, s),
@@ -598,8 +613,7 @@ impl<'a> FilterBlock<'a> {
             i,
             Self {
                 ws1: Ws(pws1, nws1),
-                filter_name,
-                args: params.unwrap_or_default(),
+                filters,
                 nodes,
                 ws2: Ws(pws2, nws2),
             },
