@@ -98,6 +98,17 @@ blocks**:
 
 The `lower` filter will be applied on the whole content.
 
+Just like filters, you can combine them:
+
+```text
+{% filter lower|capitalize %}
+    {{ t }} / HELLO / {{ u }}
+{% endfilter %}
+```
+
+In this case, `lower` will be called and then `capitalize` will be
+called on what `lower` returned.
+
 ## Whitespace control
 
 Askama considers all tabs, spaces, newlines and carriage returns to be
