@@ -12,7 +12,8 @@ use nom::multi::{fold_many0, many0, separated_list0};
 use nom::sequence::{pair, preceded, terminated, tuple};
 
 use super::{
-    char_lit, identifier, not_ws, num_lit, path_or_identifier, str_lit, ws, Level, PathOrIdentifier,
+    char_lit, filter, identifier, not_ws, num_lit, path_or_identifier, str_lit, ws, Level,
+    PathOrIdentifier,
 };
 use crate::{ErrorContext, ParseResult};
 
@@ -188,16 +189,6 @@ impl<'a> Expr<'a> {
 
     fn filtered(i: &'a str, level: Level) -> ParseResult<'a, Self> {
         let (_, level) = level.nest(i)?;
-        #[allow(clippy::type_complexity)]
-        fn filter(i: &str, level: Level) -> ParseResult<'_, (&str, Option<Vec<Expr<'_>>>)> {
-            let (i, (_, fname, args)) = tuple((
-                char('|'),
-                ws(identifier),
-                opt(|i| Expr::arguments(i, level, false)),
-            ))(i)?;
-            Ok((i, (fname, args)))
-        }
-
         let (i, (obj, filters)) =
             tuple((|i| Self::prefix(i, level), many0(|i| filter(i, level))))(i)?;
 

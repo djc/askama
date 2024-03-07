@@ -477,3 +477,13 @@ impl Level {
 
     const MAX_DEPTH: u8 = 128;
 }
+
+#[allow(clippy::type_complexity)]
+fn filter(i: &str, level: Level) -> ParseResult<'_, (&str, Option<Vec<Expr<'_>>>)> {
+    let (i, (_, fname, args)) = tuple((
+        char('|'),
+        ws(identifier),
+        opt(|i| Expr::arguments(i, level, false)),
+    ))(i)?;
+    Ok((i, (fname, args)))
+}
