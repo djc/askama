@@ -76,7 +76,7 @@ Creates a reference to the given argument.
 will become:
 
 ```
-&a
+&"a"
 &self.x
 ```
 
