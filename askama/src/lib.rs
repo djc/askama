@@ -115,6 +115,29 @@ pub trait Template: fmt::Display {
     const MIME_TYPE: &'static str;
 }
 
+impl<T: Template + ?Sized> Template for &T {
+    #[inline]
+    fn render_into(&self, writer: &mut (impl std::fmt::Write + ?Sized)) -> Result<()> {
+        T::render_into(self, writer)
+    }
+
+    #[inline]
+    fn render(&self) -> Result<String> {
+        T::render(self)
+    }
+
+    #[inline]
+    fn write_into(&self, writer: &mut (impl std::io::Write + ?Sized)) -> std::io::Result<()> {
+        T::write_into(self, writer)
+    }
+
+    const EXTENSION: Option<&'static str> = T::EXTENSION;
+
+    const SIZE_HINT: usize = T::SIZE_HINT;
+
+    const MIME_TYPE: &'static str = T::MIME_TYPE;
+}
+
 /// Object-safe wrapper trait around [`Template`] implementers
 ///
 /// This trades reduced performance (mostly due to writing into `dyn Write`) for object safety.
