@@ -570,13 +570,14 @@ pub struct FilterBlock<'a> {
 
 impl<'a> FilterBlock<'a> {
     fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+        let mut level = s.level.get();
         let mut start = tuple((
             opt(Whitespace::parse),
             ws(keyword("filter")),
             cut(tuple((
                 ws(identifier),
                 opt(|i| Expr::arguments(i, s.level.get(), false)),
-                many0(|i| filter(i, s.level.get())),
+                many0(|i| filter(i, &mut level)),
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
             ))),

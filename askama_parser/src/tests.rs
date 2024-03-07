@@ -882,3 +882,9 @@ fn fuzzed_unary_recursion() {
     const TEMPLATE: &str = include_str!("../tests/unary-recursion.txt");
     assert!(Ast::from_str(TEMPLATE, &Syntax::default()).is_err());
 }
+
+#[test]
+fn fuzzed_filter_recursion() {
+    const TEMPLATE: &str = include_str!("../tests/filter-recursion.txt");
+    assert!(Ast::from_str(TEMPLATE, &Syntax::default()).is_err());
+}
