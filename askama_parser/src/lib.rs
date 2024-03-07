@@ -22,7 +22,6 @@ pub use node::Node;
 mod tests;
 
 mod _parsed {
-    use std::cmp::PartialEq;
     use std::{fmt, mem};
 
     use super::node::Node;
