@@ -62,7 +62,7 @@ pub enum Expr<'a> {
     Array(Vec<Expr<'a>>),
     Attr(Box<Expr<'a>>, &'a str),
     Index(Box<Expr<'a>>, Box<Expr<'a>>),
-    Filter(&'a str, Vec<Expr<'a>>),
+    Filter(Filter<'a>),
     NamedArgument(&'a str, Box<Expr<'a>>),
     Unary(&'a str, Box<Expr<'a>>),
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
@@ -203,13 +203,16 @@ impl<'a> Expr<'a> {
 
         let mut res = obj;
         for (fname, args) in filters {
-            res = Self::Filter(fname, {
-                let mut args = match args {
-                    Some(inner) => inner,
-                    None => Vec::new(),
-                };
-                args.insert(0, res);
-                args
+            res = Self::Filter(Filter {
+                name: fname,
+                arguments: {
+                    let mut args = match args {
+                        Some(inner) => inner,
+                        None => Vec::new(),
+                    };
+                    args.insert(0, res);
+                    args
+                },
             });
         }
 
@@ -308,6 +311,12 @@ impl<'a> Expr<'a> {
     fn char(i: &'a str) -> ParseResult<'a, Self> {
         map(char_lit, Self::CharLit)(i)
     }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Filter<'a> {
+    pub name: &'a str,
+    pub arguments: Vec<Expr<'a>>,
 }
 
 enum Suffix<'a> {

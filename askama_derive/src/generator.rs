@@ -12,7 +12,7 @@ use parser::node::{
     Call, Comment, CondTest, FilterBlock, If, Include, Let, Lit, Loop, Match, Target, Whitespace,
     Ws,
 };
-use parser::{Expr, Node};
+use parser::{Expr, Filter, Node};
 use quote::quote;
 
 pub(crate) struct Generator<'a> {
@@ -1140,7 +1140,10 @@ impl<'a> Generator<'a> {
             Expr::Array(ref elements) => self.visit_array(buf, elements)?,
             Expr::Attr(ref obj, name) => self.visit_attr(buf, obj, name)?,
             Expr::Index(ref obj, ref key) => self.visit_index(buf, obj, key)?,
-            Expr::Filter(name, ref args) => self.visit_filter(buf, name, args)?,
+            Expr::Filter(Filter {
+                name,
+                ref arguments,
+            }) => self.visit_filter(buf, name, arguments)?,
             Expr::Unary(op, ref inner) => self.visit_unary(buf, op, inner)?,
             Expr::BinOp(op, ref left, ref right) => self.visit_binop(buf, op, left, right)?,
             Expr::Range(op, ref left, ref right) => {
@@ -2003,7 +2006,7 @@ pub(crate) fn is_cacheable(expr: &Expr<'_>) -> bool {
         Expr::Array(args) => args.iter().all(is_cacheable),
         Expr::Attr(lhs, _) => is_cacheable(lhs),
         Expr::Index(lhs, rhs) => is_cacheable(lhs) && is_cacheable(rhs),
-        Expr::Filter(_, args) => args.iter().all(is_cacheable),
+        Expr::Filter(Filter { arguments, .. }) => arguments.iter().all(is_cacheable),
         Expr::Unary(_, arg) => is_cacheable(arg),
         Expr::BinOp(_, lhs, rhs) => is_cacheable(lhs) && is_cacheable(rhs),
         Expr::Range(_, lhs, rhs) => {
