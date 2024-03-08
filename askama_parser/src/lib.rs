@@ -15,7 +15,7 @@ use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{error_position, AsChar, InputTakeAtPosition};
 
 pub mod expr;
-pub use expr::Expr;
+pub use expr::{Expr, Filter};
 pub mod node;
 pub use node::Node;
 #[cfg(test)]
