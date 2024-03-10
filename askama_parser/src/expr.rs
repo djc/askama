@@ -8,7 +8,7 @@ use nom::character::complete::char;
 use nom::combinator::{cut, map, not, opt, peek, recognize};
 use nom::error::ErrorKind;
 use nom::error_position;
-use nom::multi::{fold_many0, many0, separated_list0};
+use nom::multi::{fold_many0, many0, many_m_n, separated_list0};
 use nom::sequence::{pair, preceded, terminated, tuple};
 
 use super::{
@@ -115,6 +115,7 @@ impl<'a> Expr<'a> {
                                 message: Some(Cow::Borrowed(
                                     "named arguments must always be passed last",
                                 )),
+                                kind: ErrorKind::Fail,
                             }))
                         } else {
                             Ok((i, expr))
@@ -150,6 +151,7 @@ impl<'a> Expr<'a> {
                 message: Some(Cow::Owned(format!(
                     "named argument `{argument}` was passed more than once"
                 ))),
+                kind: ErrorKind::Count,
             }))
         }
     }
@@ -198,8 +200,22 @@ impl<'a> Expr<'a> {
             Ok((i, (fname, args)))
         }
 
-        let (i, (obj, filters)) =
-            tuple((|i| Self::prefix(i, level), many0(|i| filter(i, level))))(i)?;
+        let result = tuple((
+            |i| Self::prefix(i, level),
+            many_m_n(0, 16, |i| filter(i, level)),
+        ))(i);
+
+        let (i, (obj, filters)) = match result {
+            Ok((i, (obj, filters))) => (i, (obj, filters)),
+            Err(nom::Err::Error(err)) if dbg!(err.kind) == ErrorKind::ManyMN => {
+                return Err(nom::Err::Failure(ErrorContext {
+                    input: i,
+                    message: Some(Cow::Borrowed("too many nested filters")),
+                    kind: ErrorKind::ManyMN,
+                }))
+            }
+            Err(e) => return Err(e),
+        };
 
         let mut res = obj;
         for (fname, args) in filters {
