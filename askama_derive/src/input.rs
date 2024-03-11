@@ -107,15 +107,18 @@ impl TemplateInput<'_> {
         &self,
         map: &mut HashMap<Rc<Path>, Parsed>,
     ) -> Result<(), CompileError> {
-        let source = match &self.source {
-            Source::Source(s) => s.clone(),
-            Source::Path(_) => get_template_source(&self.path)?,
+        let (source, source_path) = match &self.source {
+            Source::Source(s) => (s.into(), None),
+            Source::Path(_) => (
+                get_template_source(&self.path)?,
+                Some(Rc::clone(&self.path)),
+            ),
         };
 
         let mut dependency_graph = Vec::new();
-        let mut check = vec![(self.path.clone(), source)];
-        while let Some((path, source)) = check.pop() {
-            let parsed = Parsed::new(source, self.syntax)?;
+        let mut check = vec![(Rc::clone(&self.path), source, source_path)];
+        while let Some((path, source, source_path)) = check.pop() {
+            let parsed = Parsed::new(source, source_path, self.syntax)?;
 
             let mut top = true;
             let mut nested = vec![parsed.nodes()];
@@ -125,9 +128,9 @@ impl TemplateInput<'_> {
                         if !map.contains_key(&path) {
                             // Add a dummy entry to `map` in order to prevent adding `path`
                             // multiple times to `check`.
-                            map.insert(path.clone(), Parsed::default());
+                            map.insert(Rc::clone(&path), Parsed::default());
                             let source = get_template_source(&path)?;
-                            check.push((path, source));
+                            check.push((path.clone(), source, Some(path)));
                         }
                         Ok(())
                     };

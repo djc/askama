@@ -1,5 +1,5 @@
 error: unknown `elif` keyword; did you mean `else if`?
-       problems parsing template source at row 1, column 16 near:
+       failed to parse template source at row 1, column 16 near:
        "elif false %}{% endif %}"
  --> tests/ui/elif.rs:3:10
   |

@@ -1,5 +1,5 @@
 error: whitespace control is not allowed on `extends`
-       problems parsing template source at row 1, column 2 near:
+       failed to parse template source at row 1, column 2 near:
        "- extends \"whatever.html\" %}"
  --> tests/ui/extends.rs:3:10
   |
@@ -9,7 +9,7 @@ error: whitespace control is not allowed on `extends`
   = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: whitespace control is not allowed on `extends`
-       problems parsing template source at row 1, column 2 near:
+       failed to parse template source at row 1, column 2 near:
        " extends \"whatever.html\" -%}"
   --> tests/ui/extends.rs:10:10
    |

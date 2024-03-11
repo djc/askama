@@ -7,7 +7,7 @@ error: no argument named `param3` in macro "thrice"
   = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: named argument `param1` was passed more than once
-       problems parsing template source at row 5, column 15 near:
+       failed to parse template source at row 5, column 15 near:
        "(param1=2, param1=3) -%}"
   --> tests/ui/macro_named_argument.rs:11:10
    |
@@ -16,7 +16,7 @@ error: named argument `param1` was passed more than once
    |
    = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error: problems parsing template source at row 5, column 29 near:
+error: failed to parse template source at row 5, column 29 near:
        "| filter(param1=12) -%}"
   --> tests/ui/macro_named_argument.rs:20:10
    |
@@ -26,7 +26,7 @@ error: problems parsing template source at row 5, column 29 near:
    = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: named arguments must always be passed last
-       problems parsing template source at row 4, column 15 near:
+       failed to parse template source at row 4, column 15 near:
        "(param1=2, 3) -%}"
   --> tests/ui/macro_named_argument.rs:29:10
    |
