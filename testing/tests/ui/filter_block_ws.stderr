@@ -1,0 +1,21 @@
+error: problems parsing template source at row 1, column 27 near:
+       " %}\nHELLO\n{{v}}\n{%- endfilter %}"
+ --> tests/ui/filter_block_ws.rs:3:10
+  |
+3 | #[derive(Template)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `render` found for struct `A` in the current scope
+  --> tests/ui/filter_block_ws.rs:11:7
+   |
+8  | struct A;
+   | -------- method `render` not found for this struct
+...
+11 |     A.render().unwrap();
+   |       ^^^^^^ method not found in `A`
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+   = note: the following trait defines an item `render`, perhaps you need to implement it:
+           candidate #1: `Template`
