@@ -3,6 +3,7 @@
 
 use std::borrow::Cow;
 use std::cell::Cell;
+use std::path::Path;
 use std::{fmt, str};
 
 use nom::branch::alt;
@@ -22,6 +23,7 @@ pub use node::Node;
 mod tests;
 
 mod _parsed {
+    use std::path::Path;
     use std::{fmt, mem};
 
     use super::node::Node;
@@ -36,12 +38,18 @@ mod _parsed {
     }
 
     impl Parsed {
-        pub fn new(source: String, syntax: &Syntax<'_>) -> Result<Self, ParseError> {
+        /// If `file_path` is `None`, it means the `source` is an inline template. Therefore, if
+        /// a parsing error occurs, we won't display the path as it wouldn't be useful.
+        pub fn new(
+            source: String,
+            file_path: Option<&Path>,
+            syntax: &Syntax<'_>,
+        ) -> Result<Self, ParseError> {
             // Self-referential borrowing: `self` will keep the source alive as `String`,
             // internally we will transmute it to `&'static str` to satisfy the compiler.
             // However, we only expose the nodes with a lifetime limited to `self`.
             let src = unsafe { mem::transmute::<&str, &'static str>(source.as_str()) };
-            let ast = Ast::from_str(src, syntax)?;
+            let ast = Ast::from_str(src, file_path, syntax)?;
             Ok(Self { ast, source })
         }
 
@@ -74,7 +82,13 @@ pub struct Ast<'a> {
 }
 
 impl<'a> Ast<'a> {
-    pub fn from_str(src: &'a str, syntax: &Syntax<'_>) -> Result<Self, ParseError> {
+    /// If `file_path` is `None`, it means the `source` is an inline template. Therefore, if
+    /// a parsing error occurs, we won't display the path as it wouldn't be useful.
+    pub fn from_str(
+        src: &'a str,
+        file_path: Option<&Path>,
+        syntax: &Syntax<'_>,
+    ) -> Result<Self, ParseError> {
         let parse = |i: &'a str| Node::many(i, &State::new(syntax));
         let (input, message) = match terminated(parse, cut(eof))(src) {
             Ok(("", nodes)) => return Ok(Self { nodes }),
@@ -97,12 +111,20 @@ impl<'a> Ast<'a> {
         let (row, last_line) = source_before.lines().enumerate().last().unwrap_or_default();
         let column = last_line.chars().count();
 
+        let file_info = file_path.and_then(|file_path| {
+            let cwd = std::env::current_dir().ok()?;
+            Some((cwd, file_path))
+        });
         let msg = format!(
-            "{}problems parsing template source at row {}, column {} near:\n{}",
+            "{}problems parsing template source{} at row {}, column {} near:\n{}",
             if let Some(message) = message {
                 format!("{message}\n")
             } else {
                 String::new()
+            },
+            match file_info {
+                Some((cwd, file_path)) => format!(" in `{}`", strip_common(&cwd, file_path)),
+                None => String::new(),
             },
             row + 1,
             column,
@@ -486,4 +508,78 @@ fn filter(i: &str, level: Level) -> ParseResult<'_, (&str, Option<Vec<Expr<'_>>>
         opt(|i| Expr::arguments(i, level, false)),
     ))(i)?;
     Ok((i, (fname, args)))
+}
+
+/// The goal of this function is to reduce the path length based on the `base` argument
+/// (generally the path where the program is running into). For example:
+///
+/// ```text
+/// current dir: /a/b/c
+/// path:        /a/b/c/d/e.txt
+/// ```
+///
+/// `strip_common` will return `d/e.txt`.
+fn strip_common(base: &Path, path: &Path) -> String {
+    let path = match path.canonicalize() {
+        Ok(path) => path,
+        Err(_) => return path.display().to_string(),
+    };
+    let mut components_iter = path.components().peekable();
+
+    for current_path_component in base.components() {
+        match components_iter.peek() {
+            Some(path_component) => {
+                if current_path_component != *path_component {
+                    break;
+                }
+                components_iter.next();
+            }
+            None => return path.display().to_string(),
+        }
+    }
+    let path_parts = components_iter
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>();
+    if path_parts.is_empty() {
+        path.display().to_string()
+    } else {
+        path_parts.join("/")
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::strip_common;
+    use std::path::Path;
+
+    #[test]
+    #[cfg(not(windows))]
+    fn test_strip_common() {
+        let cwd = std::env::current_dir().expect("current_dir failed");
+
+        // We need actual existing paths for `canonicalize` to work, so let's do that.
+        let entry = cwd
+            .read_dir()
+            .expect("read_dir failed")
+            .filter_map(|f| f.ok())
+            .find(|f| f.path().is_file())
+            .expect("no entry");
+
+        // Since they have the complete path in common except for the folder entry name, it should
+        // return only the folder entry name.
+        assert_eq!(
+            strip_common(&cwd, &entry.path()),
+            entry.file_name().to_string_lossy()
+        );
+
+        #[cfg(target_os = "linux")]
+        {
+            // They both start with `/home` (normally), making the path empty, so in this case,
+            // the whole path should be returned.
+            assert_eq!(strip_common(&cwd, Path::new("/home")), "/home");
+        }
+
+        // In this case it cannot canonicalize `/a/b/c` so it returns the path as is.
+        assert_eq!(strip_common(&cwd, Path::new("/a/b/c")), "/a/b/c");
+    }
 }
