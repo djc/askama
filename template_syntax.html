@@ -246,6 +246,13 @@ blocks</strong>:</p>
 {% endfilter %}
 </code></pre>
 <p>The <code>lower</code> filter will be applied on the whole content.</p>
+<p>Just like filters, you can combine them:</p>
+<pre><code class="language-text">{% filter lower|capitalize %}
+    {{ t }} / HELLO / {{ u }}
+{% endfilter %}
+</code></pre>
+<p>In this case, <code>lower</code> will be called and then <code>capitalize</code> will be
+called on what <code>lower</code> returned.</p>
 <h2 id="whitespace-control"><a class="header" href="#whitespace-control">Whitespace control</a></h2>
 <p>Askama considers all tabs, spaces, newlines and carriage returns to be
 whitespace. By default, it preserves all whitespace in template code,
