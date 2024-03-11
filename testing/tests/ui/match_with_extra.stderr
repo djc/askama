@@ -1,4 +1,4 @@
-error: problems parsing template source at row 3, column 4 near:
+error: failed to parse template source at row 3, column 4 near:
        "// Help, I forgot how to write comments!"...
  --> tests/ui/match_with_extra.rs:3:10
   |

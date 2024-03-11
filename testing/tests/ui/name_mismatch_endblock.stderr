@@ -1,5 +1,5 @@
 error: expected name `foo` in `endblock` tag, found `not_foo`
-       problems parsing template source at row 1, column 27 near:
+       failed to parse template source at row 1, column 27 near:
        "not_foo %}"
  --> tests/ui/name_mismatch_endblock.rs:3:10
   |

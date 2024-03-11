@@ -1,4 +1,4 @@
-error: problems parsing template source at row 1, column 9 near:
+error: failed to parse template source at row 1, column 9 near:
        "break%}, have a parsing error!"
  --> tests/ui/since_1.58/break_outside_of_loop.rs:3:10
   |
