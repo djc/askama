@@ -147,3 +147,53 @@ fn filter_block_chaining() {
     let template = F { v: "pIKA" };
     assert_eq!(template.render().unwrap(), "Hello\n  pika");
 }
+
+// This test checks that the filter chaining is working as expected when ending
+// followed by whitespace character(s).
+#[derive(Template)]
+#[template(
+    source = r#"{% filter lower|indent(2) -%}
+HELLO
+{{v}}
+{%- endfilter %}
+
+{% filter lower|indent(2)   -%}
+HELLO
+{{v}}
+{%- endfilter %}
+
+{% filter lower|indent(2) %}
+HELLO
+{{v}}
+{%- endfilter %}
+
+{% filter lower|indent(2)   %}
+HELLO
+{{v}}
+{%- endfilter %}"#,
+    ext = "txt"
+)]
+struct G {
+    v: &'static str,
+}
+
+#[test]
+fn filter_block_chaining_paren_followed_by_whitespace() {
+    let template = G { v: "pIKA" };
+    assert_eq!(
+        template.render().unwrap(),
+        r#"hello
+  pika
+
+hello
+  pika
+
+
+  hello
+  pika
+
+
+  hello
+  pika"#
+    );
+}

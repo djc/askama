@@ -577,11 +577,12 @@ impl<'a> FilterBlock<'a> {
                 ws(identifier),
                 opt(|i| Expr::arguments(i, s.level.get(), false)),
                 many0(|i| filter(i, s.level.get())),
+                ws(|i| Ok((i, ()))),
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
             ))),
         ));
-        let (i, (pws1, _, (filter_name, params, extra_filters, nws1, _))) = start(i)?;
+        let (i, (pws1, _, (filter_name, params, extra_filters, _, nws1, _))) = start(i)?;
 
         let mut filters = Filter {
             name: filter_name,
