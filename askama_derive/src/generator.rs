@@ -65,7 +65,7 @@ impl<'a> Generator<'a> {
     }
 
     // Takes a Context and generates the relevant implementations.
-    pub(crate) fn build(mut self, ctx: &'a Context<'_>) -> Result<String, CompileError> {
+    pub(crate) fn build(mut self, ctx: &Context<'a>) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
 
         self.impl_template(ctx, &mut buf)?;
@@ -84,11 +84,7 @@ impl<'a> Generator<'a> {
     }
 
     // Implement `Template` for the given context struct.
-    fn impl_template(
-        &mut self,
-        ctx: &'a Context<'_>,
-        buf: &mut Buffer,
-    ) -> Result<(), CompileError> {
+    fn impl_template(&mut self, ctx: &Context<'a>, buf: &mut Buffer) -> Result<(), CompileError> {
         self.write_header(buf, &format!("{CRATE}::Template"), None)?;
         buf.write("fn render_into(&self, writer: &mut (impl ::std::fmt::Write + ?Sized)) -> ");
         buf.write(CRATE);
@@ -250,7 +246,7 @@ impl<'a> Generator<'a> {
 
     fn handle(
         &mut self,
-        ctx: &'a Context<'_>,
+        ctx: &Context<'a>,
         nodes: &'a [Node<'_>],
         buf: &mut Buffer,
         level: AstLevel,
@@ -280,7 +276,7 @@ impl<'a> Generator<'a> {
                     size_hint += self.write_loop(ctx, buf, loop_block)?;
                 }
                 Node::BlockDef(ref b) => {
-                    size_hint += self.write_block(buf, Some(b.name), Ws(b.ws1.0, b.ws2.1))?;
+                    size_hint += self.write_block(ctx, buf, Some(b.name), Ws(b.ws1.0, b.ws2.1))?;
                 }
                 Node::Include(ref i) => {
                     size_hint += self.handle_include(ctx, buf, i)?;
@@ -342,7 +338,7 @@ impl<'a> Generator<'a> {
 
     fn write_if(
         &mut self,
-        ctx: &'a Context<'_>,
+        ctx: &Context<'a>,
         buf: &mut Buffer,
         i: &'a If<'_>,
     ) -> Result<usize, CompileError> {
@@ -411,7 +407,7 @@ impl<'a> Generator<'a> {
     #[allow(clippy::too_many_arguments)]
     fn write_match(
         &mut self,
-        ctx: &'a Context<'_>,
+        ctx: &Context<'a>,
         buf: &mut Buffer,
         m: &'a Match<'a>,
     ) -> Result<usize, CompileError> {
@@ -460,7 +456,7 @@ impl<'a> Generator<'a> {
     #[allow(clippy::too_many_arguments)]
     fn write_loop(
         &mut self,
-        ctx: &'a Context<'_>,
+        ctx: &Context<'a>,
         buf: &mut Buffer,
         loop_block: &'a Loop<'_>,
     ) -> Result<usize, CompileError> {
@@ -543,7 +539,7 @@ impl<'a> Generator<'a> {
 
     fn write_call(
         &mut self,
-        ctx: &'a Context<'_>,
+        ctx: &Context<'a>,
         buf: &mut Buffer,
         call: &'a Call<'_>,
     ) -> Result<usize, CompileError> {
@@ -554,7 +550,7 @@ impl<'a> Generator<'a> {
             ref args,
         } = *call;
         if name == "super" {
-            return self.write_block(buf, None, ws);
+            return self.write_block(ctx, buf, None, ws);
         }
 
         let (def, own_ctx) = match scope {
@@ -696,7 +692,7 @@ impl<'a> Generator<'a> {
 
     fn write_filter_block(
         &mut self,
-        ctx: &'a Context<'_>,
+        ctx: &Context<'a>,
         buf: &mut Buffer,
         filter: &'a FilterBlock<'_>,
     ) -> Result<usize, CompileError> {
@@ -764,7 +760,7 @@ impl<'a> Generator<'a> {
 
     fn handle_include(
         &mut self,
-        ctx: &'a Context<'_>,
+        ctx: &Context<'a>,
         buf: &mut Buffer,
         i: &'a Include<'_>,
     ) -> Result<usize, CompileError> {
@@ -891,6 +887,7 @@ impl<'a> Generator<'a> {
     // is from a `super()` call, and we can get the name from `self.super_block`.
     fn write_block(
         &mut self,
+        ctx: &Context<'a>,
         buf: &mut Buffer,
         name: Option<&'a str>,
         outer: Ws,
@@ -905,8 +902,7 @@ impl<'a> Generator<'a> {
         // Flush preceding whitespace according to the outer WS spec
         self.flush_ws(outer);
 
-        let prev_block = self.super_block;
-        let cur = match (name, prev_block) {
+        let cur = match (name, self.super_block) {
             // The top-level context contains a block definition
             (Some(cur_name), None) => (cur_name, 0),
             // A block definition contains a block definition of the same name
@@ -920,35 +916,57 @@ impl<'a> Generator<'a> {
             // `super()` is called from outside a block
             (None, None) => return Err("cannot call 'super()' outside block".into()),
         };
-        self.super_block = Some(cur);
 
         // Get the block definition from the heritage chain
         let heritage = self
             .heritage
             .ok_or_else(|| CompileError::from("no block ancestors available"))?;
-        let (ctx, def) = *heritage.blocks[cur.0].get(cur.1).ok_or_else(|| {
+        let (child_ctx, def) = *heritage.blocks[cur.0].get(cur.1).ok_or_else(|| {
             CompileError::from(match name {
                 None => format!("no super() block found for block '{}'", cur.0),
                 Some(name) => format!("no block found for name '{name}'"),
             })
         })?;
 
-        // Handle inner whitespace suppression spec and process block nodes
-        self.prepare_ws(def.ws1);
-        self.locals.push();
-        let size_hint = self.handle(ctx, &def.nodes, buf, AstLevel::Block)?;
-
-        if !self.locals.is_current_empty() {
-            // Need to flush the buffer before popping the variable stack
-            self.write_buf_writable(buf)?;
+        // We clone the context of the child in order to preserve their macros and imports.
+        // But also add all the imports and macros from this template that don't override the
+        // child's ones to preserve this template's context.
+        let mut child_ctx = child_ctx.clone();
+        for (name, mac) in &ctx.macros {
+            child_ctx.macros.entry(name).or_insert(mac);
+        }
+        for (name, import) in &ctx.imports {
+            child_ctx
+                .imports
+                .entry(name)
+                .or_insert_with(|| import.clone());
         }
 
-        self.locals.pop();
-        self.flush_ws(def.ws2);
+        let mut child = Self::new(
+            self.input,
+            self.contexts,
+            Some(heritage),
+            // Variables are NOT inherited from the parent scope.
+            MapChain::default(),
+        );
+        child.buf_writable = mem::take(&mut self.buf_writable);
+
+        // Handle inner whitespace suppression spec and process block nodes
+        child.prepare_ws(def.ws1);
+
+        child.super_block = Some(cur);
+        let size_hint = child.handle(&child_ctx, &def.nodes, buf, AstLevel::Block)?;
+
+        if !child.locals.is_current_empty() {
+            // Need to flush the buffer before popping the variable stack
+            child.write_buf_writable(buf)?;
+        }
+        child.flush_ws(def.ws2);
+        let buf_writable = mem::take(&mut child.buf_writable);
+        self.buf_writable = buf_writable;
 
         // Restore original block context and set whitespace suppression for
         // succeeding whitespace according to the outer WS spec
-        self.super_block = prev_block;
         self.prepare_ws(outer);
 
         // Restore the original buffer discarding state
@@ -1855,7 +1873,7 @@ impl LocalMeta {
 
 // type SetChain<'a, T> = MapChain<'a, T, ()>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct MapChain<'a, K, V>
 where
     K: cmp::Eq + hash::Hash,
