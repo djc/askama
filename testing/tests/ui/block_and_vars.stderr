@@ -1,0 +1,7 @@
+error[E0609]: no field `x` on type `&A`
+ --> tests/ui/block_and_vars.rs:3:10
+  |
+3 | #[derive(Template)]
+  |          ^^^^^^^^ unknown field
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
