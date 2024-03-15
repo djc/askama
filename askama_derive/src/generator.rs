@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::hash_map::{Entry, HashMap};
+use std::ops::Deref;
 use std::path::Path;
 use std::{cmp, hash, mem, str};
 
@@ -33,8 +34,8 @@ pub(crate) struct Generator<'a> {
     skip_ws: WhitespaceHandling,
     // If currently in a block, this will contain the name of a potential parent block
     super_block: Option<(&'a str, usize)>,
-    // buffer for writable
-    buf_writable: Vec<Writable<'a>>,
+    // Buffer for writable
+    buf_writable: WritableBuffer<'a>,
     // Counter for write! hash named arguments
     named: usize,
 }
@@ -45,6 +46,7 @@ impl<'a> Generator<'a> {
         contexts: &'n HashMap<&'n Path, Context<'n>>,
         heritage: Option<&'n Heritage<'_>>,
         locals: MapChain<'n, Cow<'n, str>, LocalMeta>,
+        discard: bool,
     ) -> Generator<'n> {
         Generator {
             input,
@@ -54,7 +56,10 @@ impl<'a> Generator<'a> {
             next_ws: None,
             skip_ws: WhitespaceHandling::Preserve,
             super_block: None,
-            buf_writable: vec![],
+            buf_writable: WritableBuffer {
+                discard,
+                ..Default::default()
+            },
             named: 0,
         }
     }
@@ -808,7 +813,13 @@ impl<'a> Generator<'a> {
             None => child_ctx,
         };
         let locals = MapChain::with_parent(&self.locals);
-        let mut child = Self::new(self.input, self.contexts, heritage.as_ref(), locals);
+        let mut child = Self::new(
+            self.input,
+            self.contexts,
+            heritage.as_ref(),
+            locals,
+            self.buf_writable.discard,
+        );
         let mut size_hint = child.handle(handle_ctx, handle_ctx.nodes, buf, AstLevel::Top)?;
         size_hint += child.write_buf_writable(buf)?;
         self.prepare_ws(i.ws);
@@ -890,6 +901,13 @@ impl<'a> Generator<'a> {
         name: Option<&'a str>,
         outer: Ws,
     ) -> Result<usize, CompileError> {
+        let block_fragment_write = self.input.block == name && self.buf_writable.discard;
+
+        // Allow writing to the buffer if we're in the block fragment
+        if block_fragment_write {
+            self.buf_writable.discard = false;
+        }
+
         // Flush preceding whitespace according to the outer WS spec
         self.flush_ws(outer);
 
@@ -938,6 +956,12 @@ impl<'a> Generator<'a> {
         // succeeding whitespace according to the outer WS spec
         self.super_block = prev_block;
         self.prepare_ws(outer);
+
+        // Restore the original buffer discarding state
+        if block_fragment_write {
+            self.buf_writable.discard = true;
+        }
+
         Ok(size_hint)
     }
 
@@ -2089,6 +2113,37 @@ enum AstLevel {
 enum DisplayWrap {
     Wrapped,
     Unwrapped,
+}
+
+#[derive(Default, Debug)]
+struct WritableBuffer<'a> {
+    buf: Vec<Writable<'a>>,
+    discard: bool,
+}
+
+impl<'a> WritableBuffer<'a> {
+    fn push(&mut self, writable: Writable<'a>) {
+        if !self.discard {
+            self.buf.push(writable);
+        }
+    }
+}
+
+impl<'a> IntoIterator for WritableBuffer<'a> {
+    type Item = Writable<'a>;
+    type IntoIter = <Vec<Writable<'a>> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.buf.into_iter()
+    }
+}
+
+impl<'a> Deref for WritableBuffer<'a> {
+    type Target = [Writable<'a>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.buf[..]
+    }
 }
 
 #[derive(Debug)]

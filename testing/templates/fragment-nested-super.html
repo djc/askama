@@ -1,0 +1,12 @@
+{% extends "fragment-mid-super.html" %}
+
+{% block body %}
+<p>Hello {{ name }}!</p>
+{% call super() %}
+{% endblock %}
+
+{% block other_body %}
+<p>Don't render me.</p>
+{% call super() %}
+{% endblock %}
+
