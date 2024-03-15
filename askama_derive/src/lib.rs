@@ -10,6 +10,7 @@ use proc_macro2::Span;
 use parser::ParseError;
 
 mod config;
+use config::Config;
 mod generator;
 use generator::{Generator, MapChain};
 mod heritage;
@@ -35,7 +36,8 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 /// value as passed to the `template()` attribute.
 pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     let template_args = TemplateArgs::new(ast)?;
-    let config = template_args.config()?;
+    let toml = template_args.config()?;
+    let config = Config::new(&toml, template_args.whitespace.as_deref())?;
     let input = TemplateInput::new(ast, &config, &template_args)?;
 
     let mut templates = HashMap::new();
@@ -168,3 +170,15 @@ const BUILT_IN_FILTERS: &[&str] = &[
     "markdown",
     "yaml",
 ];
+
+const CRATE: &str = if cfg!(feature = "with-actix-web") {
+    "::askama_actix"
+} else if cfg!(feature = "with-axum") {
+    "::askama_axum"
+} else if cfg!(feature = "with-rocket") {
+    "::askama_rocket"
+} else if cfg!(feature = "with-warp") {
+    "::askama_warp"
+} else {
+    "::askama"
+};

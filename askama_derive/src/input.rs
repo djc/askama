@@ -116,32 +116,85 @@ impl TemplateInput<'_> {
         let mut check = vec![(self.path.clone(), source)];
         while let Some((path, source)) = check.pop() {
             let parsed = Parsed::new(source, self.syntax)?;
-            for n in parsed.nodes() {
-                match n {
-                    Node::Extends(extends) => {
-                        let extends = self.config.find_template(extends.path, Some(&path))?;
-                        let dependency_path = (path.clone(), extends.clone());
-                        if dependency_graph.contains(&dependency_path) {
-                            return Err(format!(
-                                "cyclic dependency in graph {:#?}",
-                                dependency_graph
-                                    .iter()
-                                    .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
-                                    .collect::<Vec<String>>()
-                            )
-                            .into());
+
+            let mut top = true;
+            let mut nested = vec![parsed.nodes()];
+            while let Some(nodes) = nested.pop() {
+                for n in nodes {
+                    let mut add_to_check = |path: PathBuf| -> Result<(), CompileError> {
+                        if !map.contains_key(&path) {
+                            // Add a dummy entry to `map` in order to prevent adding `path`
+                            // multiple times to `check`.
+                            map.insert(path.clone(), Parsed::default());
+                            let source = get_template_source(&path)?;
+                            check.push((path, source));
                         }
-                        dependency_graph.push(dependency_path);
-                        let source = get_template_source(&extends)?;
-                        check.push((extends, source));
+                        Ok(())
+                    };
+
+                    use Node::*;
+                    match n {
+                        Extends(extends) if top => {
+                            let extends = self.config.find_template(extends.path, Some(&path))?;
+                            let dependency_path = (path.clone(), extends.clone());
+                            if dependency_graph.contains(&dependency_path) {
+                                return Err(format!(
+                                    "cyclic dependency in graph {:#?}",
+                                    dependency_graph
+                                        .iter()
+                                        .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
+                                        .collect::<Vec<String>>()
+                                )
+                                .into());
+                            }
+                            dependency_graph.push(dependency_path);
+                            add_to_check(extends)?;
+                        }
+                        Macro(m) if top => {
+                            nested.push(&m.nodes);
+                        }
+                        Import(import) if top => {
+                            let import = self.config.find_template(import.path, Some(&path))?;
+                            add_to_check(import)?;
+                        }
+                        FilterBlock(f) => {
+                            nested.push(&f.nodes);
+                        }
+                        Include(include) => {
+                            let include = self.config.find_template(include.path, Some(&path))?;
+                            add_to_check(include)?;
+                        }
+                        BlockDef(b) => {
+                            nested.push(&b.nodes);
+                        }
+                        If(i) => {
+                            for cond in &i.branches {
+                                nested.push(&cond.nodes);
+                            }
+                        }
+                        Loop(l) => {
+                            nested.push(&l.body);
+                            nested.push(&l.else_nodes);
+                        }
+                        Match(m) => {
+                            for arm in &m.arms {
+                                nested.push(&arm.nodes);
+                            }
+                        }
+                        Lit(_)
+                        | Comment(_)
+                        | Expr(_, _)
+                        | Call(_)
+                        | Extends(_)
+                        | Let(_)
+                        | Import(_)
+                        | Macro(_)
+                        | Raw(_)
+                        | Continue(_)
+                        | Break(_) => {}
                     }
-                    Node::Import(import) => {
-                        let import = self.config.find_template(import.path, Some(&path))?;
-                        let source = get_template_source(&import)?;
-                        check.push((import, source));
-                    }
-                    _ => {}
                 }
+                top = false;
             }
             map.insert(path, parsed);
         }
@@ -162,8 +215,8 @@ pub(crate) struct TemplateArgs {
     escaping: Option<String>,
     ext: Option<String>,
     syntax: Option<String>,
-    config: String,
-    whitespace: Option<String>,
+    config: Option<String>,
+    pub(crate) whitespace: Option<String>,
 }
 
 impl TemplateArgs {
@@ -268,7 +321,7 @@ impl TemplateArgs {
                 }
             } else if ident == "config" {
                 if let syn::Lit::Str(s) = value.lit {
-                    args.config = read_config_file(Some(&s.value()))?;
+                    args.config = Some(s.value());
                 } else {
                     return Err("config value must be string literal".into());
                 }
@@ -286,8 +339,8 @@ impl TemplateArgs {
         Ok(args)
     }
 
-    pub(crate) fn config(&self) -> Result<Config<'_>, CompileError> {
-        Config::new(&self.config, self.whitespace.as_ref())
+    pub(crate) fn config(&self) -> Result<String, CompileError> {
+        read_config_file(self.config.as_deref())
     }
 }
 
@@ -355,7 +408,7 @@ pub(crate) fn extension_to_mime_type(ext: &str) -> Mime {
     basic_type
 }
 
-const TEXT_TYPES: [(Mime, Mime); 6] = [
+const TEXT_TYPES: [(Mime, Mime); 7] = [
     (mime::TEXT_PLAIN, mime::TEXT_PLAIN_UTF_8),
     (mime::TEXT_HTML, mime::TEXT_HTML_UTF_8),
     (mime::TEXT_CSS, mime::TEXT_CSS_UTF_8),
@@ -368,6 +421,7 @@ const TEXT_TYPES: [(Mime, Mime); 6] = [
         mime::APPLICATION_JAVASCRIPT,
         mime::APPLICATION_JAVASCRIPT_UTF_8,
     ),
+    (mime::IMAGE_SVG, mime::IMAGE_SVG),
 ];
 
 #[cfg(test)]
@@ -379,10 +433,12 @@ mod tests {
         assert_eq!(extension(Path::new("foo-bar.txt")), Some("txt"));
         assert_eq!(extension(Path::new("foo-bar.html")), Some("html"));
         assert_eq!(extension(Path::new("foo-bar.unknown")), Some("unknown"));
+        assert_eq!(extension(Path::new("foo-bar.svg")), Some("svg"));
 
         assert_eq!(extension(Path::new("foo/bar/baz.txt")), Some("txt"));
         assert_eq!(extension(Path::new("foo/bar/baz.html")), Some("html"));
         assert_eq!(extension(Path::new("foo/bar/baz.unknown")), Some("unknown"));
+        assert_eq!(extension(Path::new("foo/bar/baz.svg")), Some("svg"));
     }
 
     #[test]

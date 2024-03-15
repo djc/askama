@@ -5,6 +5,7 @@ use axum::{
     routing::get,
     Router,
 };
+use http_body_util::BodyExt;
 use tower::util::ServiceExt;
 
 #[derive(Template)]
@@ -30,6 +31,6 @@ async fn template_to_response() {
     let headers = res.headers();
     assert_eq!(headers["Content-Type"], "text/html; charset=utf-8");
 
-    let body = hyper::body::to_bytes(res.into_body()).await.unwrap();
+    let body = res.into_body().collect().await.unwrap().to_bytes();
     assert_eq!(&body[..], b"Hello, world!");
 }

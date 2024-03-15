@@ -15,8 +15,8 @@ use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use crate::{ErrorContext, ParseResult};
 
 use super::{
-    bool_lit, char_lit, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
-    str_lit, ws, Expr, PathOrIdentifier, State,
+    bool_lit, char_lit, filter, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
+    str_lit, ws, Expr, Filter, PathOrIdentifier, State,
 };
 
 #[derive(Debug, PartialEq)]
@@ -37,6 +37,7 @@ pub enum Node<'a> {
     Raw(Raw<'a>),
     Break(Ws),
     Continue(Ws),
+    FilterBlock(FilterBlock<'a>),
 }
 
 impl<'a> Node<'a> {
@@ -66,6 +67,7 @@ impl<'a> Node<'a> {
                 map(|i| Raw::parse(i, s), Self::Raw),
                 |i| Self::r#break(i, s),
                 |i| Self::r#continue(i, s),
+                map(|i| FilterBlock::parse(i, s), Self::FilterBlock),
             )),
             cut(|i| s.tag_block_end(i)),
         );
@@ -118,7 +120,7 @@ impl<'a> Node<'a> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Target<'a> {
     Name(&'a str),
     Tuple(Vec<&'a str>, Vec<Target<'a>>),
@@ -128,10 +130,28 @@ pub enum Target<'a> {
     CharLit(&'a str),
     BoolLit(&'a str),
     Path(Vec<&'a str>),
+    OrChain(Vec<Target<'a>>),
 }
 
 impl<'a> Target<'a> {
-    pub(super) fn parse(i: &'a str) -> ParseResult<'a, Self> {
+    /// Parses multiple targets with `or` separating them
+    pub(super) fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+        map(
+            separated_list1(ws(tag("or")), |i| {
+                s.nest(i)?;
+                let ret = Self::parse_one(i, s)?;
+                s.leave();
+                Ok(ret)
+            }),
+            |mut opts| match opts.len() {
+                1 => opts.pop().unwrap(),
+                _ => Self::OrChain(opts),
+            },
+        )(i)
+    }
+
+    /// Parses a single target without an `or`, unless it is wrapped in parentheses.
+    fn parse_one(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
         let mut opt_opening_paren = map(opt(ws(char('('))), |o| o.is_some());
         let mut opt_closing_paren = map(opt(ws(char(')'))), |o| o.is_some());
         let mut opt_opening_brace = map(opt(ws(char('{'))), |o| o.is_some());
@@ -149,7 +169,7 @@ impl<'a> Target<'a> {
                 return Ok((i, Self::Tuple(Vec::new(), Vec::new())));
             }
 
-            let (i, first_target) = Self::parse(i)?;
+            let (i, first_target) = Self::parse(i, s)?;
             let (i, is_unused_paren) = opt_closing_paren(i)?;
             if is_unused_paren {
                 return Ok((i, first_target));
@@ -158,7 +178,7 @@ impl<'a> Target<'a> {
             let mut targets = vec![first_target];
             let (i, _) = cut(tuple((
                 fold_many0(
-                    preceded(ws(char(',')), Self::parse),
+                    preceded(ws(char(',')), |i| Self::parse(i, s)),
                     || (),
                     |_, target| {
                         targets.push(target);
@@ -188,7 +208,7 @@ impl<'a> Target<'a> {
                 let (i, targets) = alt((
                     map(char(')'), |_| Vec::new()),
                     terminated(
-                        cut(separated_list1(ws(char(',')), Self::parse)),
+                        cut(separated_list1(ws(char(',')), |i| Self::parse(i, s))),
                         pair(opt(ws(char(','))), ws(cut(char(')')))),
                     ),
                 ))(i)?;
@@ -200,7 +220,7 @@ impl<'a> Target<'a> {
                 let (i, targets) = alt((
                     map(char('}'), |_| Vec::new()),
                     terminated(
-                        cut(separated_list1(ws(char(',')), Self::named)),
+                        cut(separated_list1(ws(char(',')), |i| Self::named(i, s))),
                         pair(opt(ws(char(','))), ws(cut(char('}')))),
                     ),
                 ))(i)?;
@@ -211,7 +231,8 @@ impl<'a> Target<'a> {
         }
 
         // neither literal nor struct nor path
-        map(identifier, Self::Name)(i)
+        let (new_i, name) = identifier(i)?;
+        Ok((new_i, Self::verify_name(i, name)?))
     }
 
     fn lit(i: &'a str) -> ParseResult<'a, Self> {
@@ -223,9 +244,28 @@ impl<'a> Target<'a> {
         ))(i)
     }
 
-    fn named(i: &'a str) -> ParseResult<'a, (&str, Self)> {
-        let (i, (src, target)) = pair(identifier, opt(preceded(ws(char(':')), Self::parse)))(i)?;
-        Ok((i, (src, target.unwrap_or(Self::Name(src)))))
+    fn named(init_i: &'a str, s: &State<'_>) -> ParseResult<'a, (&'a str, Self)> {
+        let (i, (src, target)) = pair(
+            identifier,
+            opt(preceded(ws(char(':')), |i| Self::parse(i, s))),
+        )(init_i)?;
+
+        let target = match target {
+            Some(target) => target,
+            None => Self::verify_name(init_i, src)?,
+        };
+
+        Ok((i, (src, target)))
+    }
+
+    fn verify_name(input: &'a str, name: &'a str) -> Result<Self, nom::Err<ErrorContext<'a>>> {
+        match name {
+            "self" | "writer" => Err(nom::Err::Failure(ErrorContext {
+                input,
+                message: Some(Cow::Owned(format!("Cannot use `{name}` as a name"))),
+            })),
+            _ => Ok(Self::Name(name)),
+        }
     }
 }
 
@@ -266,7 +306,7 @@ impl<'a> When<'a> {
             opt(Whitespace::parse),
             ws(keyword("when")),
             cut(tuple((
-                ws(Target::parse),
+                ws(|i| Target::parse(i, s)),
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
                 cut(|i| Node::many(i, s)),
@@ -337,7 +377,7 @@ impl<'a> CondTest<'a> {
             cut(tuple((
                 opt(delimited(
                     ws(alt((keyword("let"), keyword("set")))),
-                    ws(Target::parse),
+                    ws(|i| Target::parse(i, s)),
                     ws(char('=')),
                 )),
                 ws(|i| Expr::parse(i, s.level.get())),
@@ -390,6 +430,7 @@ impl<'a> Loop<'a> {
             ws(keyword("if")),
             cut(ws(|i| Expr::parse(i, s.level.get()))),
         );
+
         let else_block = |i| {
             let mut p = preceded(
                 ws(keyword("else")),
@@ -406,11 +447,12 @@ impl<'a> Loop<'a> {
             let (i, (pws, nodes, nws)) = p(i)?;
             Ok((i, (pws, nodes, nws)))
         };
+
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("for")),
             cut(tuple((
-                ws(Target::parse),
+                ws(|i| Target::parse(i, s)),
                 ws(keyword("in")),
                 cut(tuple((
                     ws(|i| Expr::parse(i, s.level.get())),
@@ -464,7 +506,7 @@ impl<'a> Macro<'a> {
             delimited(
                 ws(char('(')),
                 separated_list0(char(','), ws(identifier)),
-                ws(char(')')),
+                tuple((opt(ws(char(','))), char(')'))),
             )(i)
         }
 
@@ -519,6 +561,67 @@ impl<'a> Macro<'a> {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct FilterBlock<'a> {
+    pub ws1: Ws,
+    pub filters: Filter<'a>,
+    pub nodes: Vec<Node<'a>>,
+    pub ws2: Ws,
+}
+
+impl<'a> FilterBlock<'a> {
+    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+        let mut start = tuple((
+            opt(Whitespace::parse),
+            ws(keyword("filter")),
+            cut(tuple((
+                ws(identifier),
+                opt(|i| Expr::arguments(i, s.level.get(), false)),
+                many0(|i| filter(i, s.level.get())),
+                opt(Whitespace::parse),
+                |i| s.tag_block_end(i),
+            ))),
+        ));
+        let (i, (pws1, _, (filter_name, params, extra_filters, nws1, _))) = start(i)?;
+
+        let mut filters = Filter {
+            name: filter_name,
+            arguments: params.unwrap_or_default(),
+        };
+        for (filter_name, args) in extra_filters {
+            filters = Filter {
+                name: filter_name,
+                arguments: {
+                    let mut args = args.unwrap_or_default();
+                    args.insert(0, Expr::Filter(filters));
+                    args
+                },
+            };
+        }
+
+        let mut end = cut(tuple((
+            |i| Node::many(i, s),
+            cut(tuple((
+                |i| s.tag_block_start(i),
+                opt(Whitespace::parse),
+                ws(keyword("endfilter")),
+                opt(Whitespace::parse),
+            ))),
+        )));
+        let (i, (nodes, (_, pws2, _, nws2))) = end(i)?;
+
+        Ok((
+            i,
+            Self {
+                ws1: Ws(pws1, nws1),
+                filters,
+                nodes,
+                ws2: Ws(pws2, nws2),
+            },
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct Import<'a> {
     pub ws: Ws,
     pub path: &'a str,
@@ -564,7 +667,7 @@ impl<'a> Call<'a> {
             cut(tuple((
                 opt(tuple((ws(identifier), ws(tag("::"))))),
                 ws(identifier),
-                opt(ws(|nested| Expr::arguments(nested, s.level.get()))),
+                opt(ws(|nested| Expr::arguments(nested, s.level.get(), true))),
                 opt(Whitespace::parse),
             ))),
         ));
@@ -791,7 +894,7 @@ impl<'a> Let<'a> {
             opt(Whitespace::parse),
             ws(alt((keyword("let"), keyword("set")))),
             cut(tuple((
-                ws(Target::parse),
+                ws(|i| Target::parse(i, s)),
                 opt(preceded(
                     ws(char('=')),
                     ws(|i| Expr::parse(i, s.level.get())),
@@ -888,8 +991,22 @@ pub struct Extends<'a> {
 
 impl<'a> Extends<'a> {
     fn parse(i: &'a str) -> ParseResult<'a, Self> {
-        let (i, path) = preceded(ws(keyword("extends")), cut(ws(str_lit)))(i)?;
-        Ok((i, Self { path }))
+        let start = i;
+
+        let (i, (pws, _, (path, nws))) = tuple((
+            opt(Whitespace::parse),
+            ws(keyword("extends")),
+            cut(pair(ws(str_lit), opt(Whitespace::parse))),
+        ))(i)?;
+        match (pws, nws) {
+            (None, None) => Ok((i, Self { path })),
+            (_, _) => Err(nom::Err::Failure(ErrorContext {
+                input: start,
+                message: Some(Cow::Borrowed(
+                    "whitespace control is not allowed on `extends`",
+                )),
+            })),
+        }
     }
 }
 

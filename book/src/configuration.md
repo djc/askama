@@ -68,7 +68,7 @@ pub struct SomeTemplate;
 
 If you configure `whitespace` directly into the `template` derive proc-macro,
 it will take precedence over the one in your configuration file. So in this
-case, if you already set `whitespace = "minimize` into your configuration file,
+case, if you already set `whitespace = "minimize"` into your configuration file,
 it will be replaced by `suppress` for this template.
 
 ## Custom syntaxes

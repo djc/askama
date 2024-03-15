@@ -1,17 +1,19 @@
+use std::borrow::Cow;
 use std::collections::hash_map::{Entry, HashMap};
 use std::ops::Deref;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::{cmp, hash, mem, str};
 
-use crate::config::{get_template_source, WhitespaceHandling};
+use crate::config::WhitespaceHandling;
 use crate::heritage::{Context, Heritage};
 use crate::input::{Source, TemplateInput};
-use crate::CompileError;
+use crate::{CompileError, CRATE};
 
 use parser::node::{
-    Call, Comment, CondTest, If, Include, Let, Lit, Loop, Match, Target, Whitespace, Ws,
+    Call, Comment, CondTest, FilterBlock, If, Include, Let, Lit, Loop, Match, Target, Whitespace,
+    Ws,
 };
-use parser::{Expr, Node, Parsed};
+use parser::{Expr, Filter, Node};
 use quote::quote;
 
 pub(crate) struct Generator<'a> {
@@ -21,10 +23,8 @@ pub(crate) struct Generator<'a> {
     contexts: &'a HashMap<&'a Path, Context<'a>>,
     // The heritage contains references to blocks and their ancestry
     heritage: Option<&'a Heritage<'a>>,
-    // Cache ASTs for included templates
-    includes: HashMap<PathBuf, Parsed>,
     // Variables accessible directly from the current scope (not redirected to context)
-    locals: MapChain<'a, &'a str, LocalMeta>,
+    locals: MapChain<'a, Cow<'a, str>, LocalMeta>,
     // Suffix whitespace from the previous literal. Will be flushed to the
     // output buffer unless suppressed by whitespace suppression on the next
     // non-literal.
@@ -45,14 +45,13 @@ impl<'a> Generator<'a> {
         input: &'n TemplateInput<'_>,
         contexts: &'n HashMap<&'n Path, Context<'n>>,
         heritage: Option<&'n Heritage<'_>>,
-        locals: MapChain<'n, &'n str, LocalMeta>,
+        locals: MapChain<'n, Cow<'n, str>, LocalMeta>,
         discard: bool,
     ) -> Generator<'n> {
         Generator {
             input,
             contexts,
             heritage,
-            includes: HashMap::default(),
             locals,
             next_ws: None,
             skip_ws: WhitespaceHandling::Preserve,
@@ -76,16 +75,8 @@ impl<'a> Generator<'a> {
         self.impl_actix_web_responder(&mut buf)?;
         #[cfg(feature = "with-axum")]
         self.impl_axum_into_response(&mut buf)?;
-        #[cfg(feature = "with-gotham")]
-        self.impl_gotham_into_response(&mut buf)?;
-        #[cfg(feature = "with-hyper")]
-        self.impl_hyper_into_response(&mut buf)?;
-        #[cfg(feature = "with-mendes")]
-        self.impl_mendes_responder(&mut buf)?;
         #[cfg(feature = "with-rocket")]
         self.impl_rocket_responder(&mut buf)?;
-        #[cfg(feature = "with-tide")]
-        self.impl_tide_integrations(&mut buf)?;
         #[cfg(feature = "with-warp")]
         self.impl_warp_reply(&mut buf)?;
 
@@ -98,11 +89,10 @@ impl<'a> Generator<'a> {
         ctx: &'a Context<'_>,
         buf: &mut Buffer,
     ) -> Result<(), CompileError> {
-        self.write_header(buf, "::askama::Template", None)?;
-        buf.writeln(
-            "fn render_into(&self, writer: &mut (impl ::std::fmt::Write + ?Sized)) -> \
-             ::askama::Result<()> {",
-        )?;
+        self.write_header(buf, &format!("{CRATE}::Template"), None)?;
+        buf.write("fn render_into(&self, writer: &mut (impl ::std::fmt::Write + ?Sized)) -> ");
+        buf.write(CRATE);
+        buf.writeln("::Result<()> {")?;
 
         // Make sure the compiler understands that the generated code depends on the template files.
         for path in self.contexts.keys() {
@@ -129,7 +119,8 @@ impl<'a> Generator<'a> {
         }?;
 
         self.flush_ws(Ws(None, None));
-        buf.writeln("::askama::Result::Ok(())")?;
+        buf.write(CRATE);
+        buf.writeln("::Result::Ok(())")?;
         buf.writeln("}")?;
 
         buf.writeln("const EXTENSION: ::std::option::Option<&'static ::std::primitive::str> = ")?;
@@ -153,7 +144,8 @@ impl<'a> Generator<'a> {
         self.write_header(buf, "::std::fmt::Display", None)?;
         buf.writeln("#[inline]")?;
         buf.writeln("fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {")?;
-        buf.writeln("::askama::Template::render_into(self, f).map_err(|_| ::std::fmt::Error {})")?;
+        buf.write(CRATE);
+        buf.writeln("::Template::render_into(self, f).map_err(|_| ::std::fmt::Error {})")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
@@ -168,7 +160,7 @@ impl<'a> Generator<'a> {
             "fn respond_to(self, _req: &::askama_actix::actix_web::HttpRequest) \
              -> ::askama_actix::actix_web::HttpResponse<Self::Body> {",
         )?;
-        buf.writeln("<Self as ::askama_actix::TemplateToResponse>::to_response(&self)")?;
+        buf.writeln("::askama_actix::into_response(&self)")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
@@ -176,176 +168,41 @@ impl<'a> Generator<'a> {
     // Implement Axum's `IntoResponse`.
     #[cfg(feature = "with-axum")]
     fn impl_axum_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        self.write_header(buf, "::askama_axum::IntoResponse", None)?;
+        self.write_header(
+            buf,
+            "::askama_axum::axum_core::response::IntoResponse",
+            None,
+        )?;
         buf.writeln("#[inline]")?;
         buf.writeln(
             "fn into_response(self)\
-             -> ::askama_axum::Response {",
+             -> ::askama_axum::axum_core::response::Response {",
         )?;
         buf.writeln("::askama_axum::into_response(&self)")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
 
-    // Implement gotham's `IntoResponse`.
-    #[cfg(feature = "with-gotham")]
-    fn impl_gotham_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        self.write_header(buf, "::askama_gotham::IntoResponse", None)?;
-        buf.writeln("#[inline]")?;
-        buf.writeln(
-            "fn into_response(self, _state: &::askama_gotham::State)\
-             -> ::askama_gotham::Response<::askama_gotham::Body> {",
-        )?;
-        buf.writeln("::askama_gotham::respond(&self)")?;
-        buf.writeln("}")?;
-        buf.writeln("}")
-    }
-
-    // Implement `From<Template> for hyper::Response<Body>` and `From<Template> for hyper::Body.
-    #[cfg(feature = "with-hyper")]
-    fn impl_hyper_into_response(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let (impl_generics, orig_ty_generics, where_clause) =
-            self.input.ast.generics.split_for_impl();
-        let ident = &self.input.ast.ident;
-        // From<Template> for hyper::Response<Body>
-        buf.writeln(&format!(
-            "{} {{",
-            quote!(
-                impl #impl_generics ::core::convert::From<&#ident #orig_ty_generics>
-                for ::askama_hyper::hyper::Response<::askama_hyper::hyper::Body>
-                #where_clause
-            )
-        ))?;
-        buf.writeln("#[inline]")?;
-        buf.writeln(&format!(
-            "{} {{",
-            quote!(fn from(value: &#ident #orig_ty_generics) -> Self)
-        ))?;
-        buf.writeln("::askama_hyper::respond(value)")?;
-        buf.writeln("}")?;
-        buf.writeln("}")?;
-
-        // TryFrom<Template> for hyper::Body
-        buf.writeln(&format!(
-            "{} {{",
-            quote!(
-                impl #impl_generics ::core::convert::TryFrom<&#ident #orig_ty_generics>
-                for ::askama_hyper::hyper::Body
-                #where_clause
-            )
-        ))?;
-        buf.writeln("type Error = ::askama::Error;")?;
-        buf.writeln("#[inline]")?;
-        buf.writeln(&format!(
-            "{} {{",
-            quote!(fn try_from(value: &#ident #orig_ty_generics) -> Result<Self, Self::Error>)
-        ))?;
-        buf.writeln("::askama::Template::render(value).map(Into::into)")?;
-        buf.writeln("}")?;
-        buf.writeln("}")
-    }
-
-    // Implement mendes' `Responder`.
-    #[cfg(feature = "with-mendes")]
-    fn impl_mendes_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        let param = syn::parse_str("A: ::mendes::Application").unwrap();
-
-        let mut generics = self.input.ast.generics.clone();
-        generics.params.push(param);
-        let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
-
-        let mut where_clause = match where_clause {
-            Some(clause) => clause.clone(),
-            None => syn::WhereClause {
-                where_token: syn::Token![where](proc_macro2::Span::call_site()),
-                predicates: syn::punctuated::Punctuated::new(),
-            },
-        };
-
-        where_clause
-            .predicates
-            .push(syn::parse_str("A::ResponseBody: From<String>").unwrap());
-        where_clause
-            .predicates
-            .push(syn::parse_str("A::Error: From<::askama_mendes::Error>").unwrap());
-
-        buf.writeln(
-            format!(
-                "{} {} for {} {} {{",
-                quote!(impl #impl_generics),
-                "::mendes::application::IntoResponse<A>",
-                self.input.ast.ident,
-                quote!(#orig_ty_generics #where_clause),
-            )
-            .as_ref(),
-        )?;
-
-        buf.writeln(
-            "fn into_response(self, app: &A, req: &::mendes::http::request::Parts) \
-             -> ::mendes::http::Response<A::ResponseBody> {",
-        )?;
-
-        buf.writeln("::askama_mendes::into_response(app, req, &self)")?;
-        buf.writeln("}")?;
-        buf.writeln("}")?;
-        Ok(())
-    }
-
     // Implement Rocket's `Responder`.
     #[cfg(feature = "with-rocket")]
     fn impl_rocket_responder(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
         let lifetime1 = syn::Lifetime::new("'askama1", proc_macro2::Span::call_site());
-        let lifetime2 = syn::Lifetime::new("'askama2", proc_macro2::Span::call_site());
-
-        let mut param2 = syn::LifetimeParam::new(lifetime2);
-        param2.colon_token = Some(syn::Token![:](proc_macro2::Span::call_site()));
-        param2.bounds = syn::punctuated::Punctuated::new();
-        param2.bounds.push_value(lifetime1.clone());
-
         let param1 = syn::GenericParam::Lifetime(syn::LifetimeParam::new(lifetime1));
-        let param2 = syn::GenericParam::Lifetime(param2);
 
         self.write_header(
             buf,
-            "::askama_rocket::Responder<'askama1, 'askama2>",
-            Some(vec![param1, param2]),
+            "::askama_rocket::rocket::response::Responder<'askama1, 'static>",
+            Some(vec![param1]),
         )?;
-
         buf.writeln("#[inline]")?;
         buf.writeln(
-            "fn respond_to(self, _: &'askama1 ::askama_rocket::Request) \
-             -> ::askama_rocket::Result<'askama2> {",
+            "fn respond_to(self, _: &'askama1 ::askama_rocket::rocket::request::Request<'_>) \
+             -> ::askama_rocket::rocket::response::Result<'static> {",
         )?;
         buf.writeln("::askama_rocket::respond(&self)")?;
-
         buf.writeln("}")?;
         buf.writeln("}")?;
         Ok(())
-    }
-
-    #[cfg(feature = "with-tide")]
-    fn impl_tide_integrations(&mut self, buf: &mut Buffer) -> Result<(), CompileError> {
-        self.write_header(
-            buf,
-            "::std::convert::TryInto<::askama_tide::tide::Body>",
-            None,
-        )?;
-        buf.writeln(
-            "type Error = ::askama_tide::askama::Error;\n\
-            #[inline]\n\
-            fn try_into(self) -> ::askama_tide::askama::Result<::askama_tide::tide::Body> {",
-        )?;
-        buf.writeln("::askama_tide::try_into_body(&self)")?;
-        buf.writeln("}")?;
-        buf.writeln("}")?;
-
-        buf.writeln("#[allow(clippy::from_over_into)]")?;
-        self.write_header(buf, "Into<::askama_tide::tide::Response>", None)?;
-        buf.writeln("#[inline]")?;
-        buf.writeln("fn into(self) -> ::askama_tide::tide::Response {")?;
-        buf.writeln("::askama_tide::into_response(&self)")?;
-        buf.writeln("}\n}")
     }
 
     #[cfg(feature = "with-warp")]
@@ -353,7 +210,7 @@ impl<'a> Generator<'a> {
         self.write_header(buf, "::askama_warp::warp::reply::Reply", None)?;
         buf.writeln("#[inline]")?;
         buf.writeln("fn into_response(self) -> ::askama_warp::warp::reply::Response {")?;
-        buf.writeln("::askama_warp::reply(&self)")?;
+        buf.writeln("::askama_warp::into_response(&self)")?;
         buf.writeln("}")?;
         buf.writeln("}")
     }
@@ -366,24 +223,27 @@ impl<'a> Generator<'a> {
         target: &str,
         params: Option<Vec<syn::GenericParam>>,
     ) -> Result<(), CompileError> {
-        let mut generics = self.input.ast.generics.clone();
-        if let Some(params) = params {
+        let mut generics;
+        let (impl_generics, orig_ty_generics, where_clause) = if let Some(params) = params {
+            generics = self.input.ast.generics.clone();
             for param in params {
                 generics.params.push(param);
             }
-        }
-        let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
-        buf.writeln(
-            format!(
-                "{} {} for {}{} {{",
-                quote!(impl #impl_generics),
-                target,
-                self.input.ast.ident,
-                quote!(#orig_ty_generics #where_clause),
-            )
-            .as_ref(),
-        )
+
+            let (_, orig_ty_generics, _) = self.input.ast.generics.split_for_impl();
+            let (impl_generics, _, where_clause) = generics.split_for_impl();
+            (impl_generics, orig_ty_generics, where_clause)
+        } else {
+            self.input.ast.generics.split_for_impl()
+        };
+
+        buf.writeln(&format!(
+            "{} {} for {}{} {{",
+            quote!(impl #impl_generics),
+            target,
+            self.input.ast.ident,
+            quote!(#orig_ty_generics #where_clause),
+        ))
     }
 
     /* Helper methods for handling node types */
@@ -427,6 +287,9 @@ impl<'a> Generator<'a> {
                 }
                 Node::Call(ref call) => {
                     size_hint += self.write_call(ctx, buf, call)?;
+                }
+                Node::FilterBlock(ref filter) => {
+                    size_hint += self.write_filter_block(ctx, buf, filter)?;
                 }
                 Node::Macro(ref m) => {
                     if level != AstLevel::Top {
@@ -646,7 +509,9 @@ impl<'a> Generator<'a> {
         self.locals.push();
         buf.write("for (");
         self.visit_target(buf, true, true, &loop_block.var);
-        buf.writeln(", _loop_item) in ::askama::helpers::TemplateLoop::new(_iter) {")?;
+        buf.write(", _loop_item) in ");
+        buf.write(CRATE);
+        buf.writeln("::helpers::TemplateLoop::new(_iter) {")?;
 
         if has_else_nodes {
             buf.writeln("_did_loop = true;")?;
@@ -724,25 +589,74 @@ impl<'a> Generator<'a> {
         let mut names = Buffer::new(0);
         let mut values = Buffer::new(0);
         let mut is_first_variable = true;
-        for (i, arg) in def.args.iter().enumerate() {
-            let expr = args.get(i).ok_or_else(|| {
-                CompileError::from(format!("macro {name:?} takes more than {i} arguments"))
-            })?;
+        if args.len() != def.args.len() {
+            return Err(CompileError::from(format!(
+                "macro {name:?} expected {} argument{}, found {}",
+                def.args.len(),
+                if def.args.len() != 1 { "s" } else { "" },
+                args.len()
+            )));
+        }
+        let mut named_arguments = HashMap::new();
+        // Since named arguments can only be passed last, we only need to check if the last argument
+        // is a named one.
+        if let Some(Expr::NamedArgument(_, _)) = args.last() {
+            // First we check that all named arguments actually exist in the called item.
+            for arg in args.iter().rev() {
+                let Expr::NamedArgument(arg_name, _) = arg else {
+                    break;
+                };
+                if !def.args.iter().any(|arg| arg == arg_name) {
+                    return Err(CompileError::from(format!(
+                        "no argument named `{arg_name}` in macro {name:?}"
+                    )));
+                }
+                named_arguments.insert(Cow::Borrowed(arg_name), arg);
+            }
+        }
 
+        // Handling both named and unnamed arguments requires to be careful of the named arguments
+        // order. To do so, we iterate through the macro defined arguments and then check if we have
+        // a named argument with this name:
+        //
+        // * If there is one, we add it and move to the next argument.
+        // * If there isn't one, then we pick the next argument (we can do it without checking
+        //   anything since named arguments are always last).
+        let mut allow_positional = true;
+        for (index, arg) in def.args.iter().enumerate() {
+            let expr = match named_arguments.get(&Cow::Borrowed(arg)) {
+                Some(expr) => {
+                    allow_positional = false;
+                    expr
+                }
+                None => {
+                    if !allow_positional {
+                        // If there is already at least one named argument, then it's not allowed
+                        // to use unnamed ones at this point anymore.
+                        return Err(CompileError::from(format!(
+                            "cannot have unnamed argument (`{arg}`) after named argument in macro \
+                             {name:?}"
+                        )));
+                    }
+                    &args[index]
+                }
+            };
             match expr {
                 // If `expr` is already a form of variable then
                 // don't reintroduce a new variable. This is
                 // to avoid moving non-copyable values.
                 &Expr::Var(name) if name != "self" => {
                     let var = self.locals.resolve_or_self(name);
-                    self.locals.insert(arg, LocalMeta::with_ref(var));
+                    self.locals
+                        .insert(Cow::Borrowed(arg), LocalMeta::with_ref(var));
                 }
                 Expr::Attr(obj, attr) => {
                     let mut attr_buf = Buffer::new(0);
                     self.visit_attr(&mut attr_buf, obj, attr)?;
 
                     let var = self.locals.resolve(&attr_buf.buf).unwrap_or(attr_buf.buf);
-                    self.locals.insert(arg, LocalMeta::with_ref(var));
+                    self.locals
+                        .insert(Cow::Borrowed(arg), LocalMeta::with_ref(var));
                 }
                 // Everything else still needs to become variables,
                 // to avoid having the same logic be executed
@@ -760,7 +674,7 @@ impl<'a> Generator<'a> {
                     values.write("(");
                     values.write(&self.visit_expr_root(expr)?);
                     values.write(")");
-                    self.locals.insert_with_default(arg);
+                    self.locals.insert_with_default(Cow::Borrowed(arg));
                 }
             }
         }
@@ -777,6 +691,74 @@ impl<'a> Generator<'a> {
         buf.writeln("}")?;
         self.locals.pop();
         self.prepare_ws(ws);
+        Ok(size_hint)
+    }
+
+    fn write_filter_block(
+        &mut self,
+        ctx: &'a Context<'_>,
+        buf: &mut Buffer,
+        filter: &'a FilterBlock<'_>,
+    ) -> Result<usize, CompileError> {
+        self.flush_ws(filter.ws1);
+        let mut var_name = String::new();
+        for id in 0.. {
+            var_name = format!("__filter_block{id}");
+            if self.locals.get(&Cow::Borrowed(var_name.as_str())).is_none() {
+                // No variable with this name exists, we're in the clear!
+                break;
+            }
+        }
+        let current_buf = mem::take(&mut self.buf_writable);
+
+        self.prepare_ws(filter.ws1);
+        let mut size_hint = self.handle(ctx, &filter.nodes, buf, AstLevel::Nested)?;
+        self.flush_ws(filter.ws2);
+
+        let WriteParts {
+            size_hint: write_size_hint,
+            buffers,
+        } = self.prepare_format(buf.indent + 1)?;
+        size_hint += match buffers {
+            None => return Ok(0),
+            Some(WritePartsBuffers { format, expr: None }) => {
+                buf.writeln(&format!("let {var_name} = {:#?};", &format.buf))?;
+                write_size_hint
+            }
+            Some(WritePartsBuffers {
+                format,
+                expr: Some(expr),
+            }) => {
+                buf.writeln(&format!(
+                    "let {var_name} = format!({:#?}, {});",
+                    &format.buf,
+                    expr.buf.trim(),
+                ))?;
+                write_size_hint
+            }
+        };
+
+        mem::drop(mem::replace(&mut self.buf_writable, current_buf));
+
+        let mut filter_buf = Buffer::new(buf.indent);
+        let Filter {
+            name: filter_name,
+            arguments,
+        } = &filter.filters;
+        let mut arguments = arguments.clone();
+
+        insert_first_filter_argument(&mut arguments, var_name.clone());
+
+        let wrap = self.visit_filter(&mut filter_buf, filter_name, &arguments)?;
+
+        self.buf_writable
+            .push(Writable::Generated(filter_buf.buf, wrap));
+        self.prepare_ws(filter.ws2);
+
+        // We don't forget to add the created variable into the list of variables in the scope.
+        self.locals
+            .insert(Cow::Owned(var_name), LocalMeta::initialized());
+
         Ok(size_hint)
     }
 
@@ -804,30 +786,41 @@ impl<'a> Generator<'a> {
             )?;
         }
 
-        // Since nodes must not outlive the Generator, we instantiate a nested `Generator` here to
-        // handle the include's nodes. Unfortunately we can't easily share the `includes` cache.
+        // We clone the context of the child in order to preserve their macros and imports.
+        // But also add all the imports and macros from this template that don't override the
+        // child's ones to preserve this template's context.
+        let child_ctx = &mut self.contexts[path.as_path()].clone();
+        for (name, mac) in &ctx.macros {
+            child_ctx.macros.entry(name).or_insert(mac);
+        }
+        for (name, import) in &ctx.imports {
+            child_ctx
+                .imports
+                .entry(name)
+                .or_insert_with(|| import.clone());
+        }
 
+        // Create a new generator for the child, and call it like in `impl_template` as if it were
+        // a full template, while preserving the context.
+        let heritage = if !child_ctx.blocks.is_empty() || child_ctx.extends.is_some() {
+            Some(Heritage::new(child_ctx, self.contexts))
+        } else {
+            None
+        };
+
+        let handle_ctx = match &heritage {
+            Some(heritage) => heritage.root,
+            None => child_ctx,
+        };
         let locals = MapChain::with_parent(&self.locals);
         let mut child = Self::new(
             self.input,
             self.contexts,
-            self.heritage,
+            heritage.as_ref(),
             locals,
             self.buf_writable.discard,
         );
-
-        let nodes = match self.contexts.get(path.as_path()) {
-            Some(ctx) => ctx.nodes,
-            None => match self.includes.entry(path) {
-                Entry::Occupied(entry) => entry.into_mut().nodes(),
-                Entry::Vacant(entry) => {
-                    let src = get_template_source(entry.key())?;
-                    entry.insert(Parsed::new(src, self.input.syntax)?).nodes()
-                }
-            },
-        };
-
-        let mut size_hint = child.handle(ctx, nodes, buf, AstLevel::Nested)?;
+        let mut size_hint = child.handle(handle_ctx, handle_ctx.nodes, buf, AstLevel::Top)?;
         size_hint += child.write_buf_writable(buf)?;
         self.prepare_ws(i.ws);
 
@@ -838,7 +831,7 @@ impl<'a> Generator<'a> {
         match var {
             Target::Name(name) => {
                 let name = normalize_identifier(name);
-                match self.locals.get(&name) {
+                match self.locals.get(&Cow::Borrowed(name)) {
                     // declares a new variable
                     None => Ok(false),
                     // an initialized variable gets shadowed
@@ -890,7 +883,7 @@ impl<'a> Generator<'a> {
         }
         if shadowed
             || !matches!(l.var, Target::Name(_))
-            || matches!(&l.var, Target::Name(name) if self.locals.get(name).is_none())
+            || matches!(&l.var, Target::Name(name) if self.locals.get(&Cow::Borrowed(name)).is_none())
         {
             buf.write("let ");
         }
@@ -979,8 +972,38 @@ impl<'a> Generator<'a> {
 
     // Write expression buffer and empty
     fn write_buf_writable(&mut self, buf: &mut Buffer) -> Result<usize, CompileError> {
+        let WriteParts { size_hint, buffers } = self.prepare_format(buf.indent)?;
+        match buffers {
+            None => Ok(size_hint),
+            Some(WritePartsBuffers { format, expr: None }) => {
+                buf.writeln(&format!("writer.write_str({:#?})?;", &format.buf))?;
+                Ok(size_hint)
+            }
+            Some(WritePartsBuffers {
+                format,
+                expr: Some(expr),
+            }) => {
+                buf.writeln("::std::write!(")?;
+                buf.indent();
+                buf.writeln("writer,")?;
+                buf.writeln(&format!("{:#?},", &format.buf))?;
+                buf.writeln(expr.buf.trim())?;
+                buf.dedent()?;
+                buf.writeln(")?;")?;
+                Ok(size_hint)
+            }
+        }
+    }
+
+    /// This is the common code to generate an expression. It is used for filter blocks and for
+    /// expressions more generally. It stores the size it represents and the buffers. Take a look
+    /// at `WriteParts` for more details.
+    fn prepare_format(&mut self, indent: u8) -> Result<WriteParts, CompileError> {
         if self.buf_writable.is_empty() {
-            return Ok(0);
+            return Ok(WriteParts {
+                size_hint: 0,
+                buffers: None,
+            });
         }
 
         if self
@@ -994,14 +1017,21 @@ impl<'a> Generator<'a> {
                     buf_lit.write(s);
                 };
             }
-            buf.writeln(&format!("writer.write_str({:#?})?;", &buf_lit.buf))?;
-            return Ok(buf_lit.buf.len());
+            return Ok(WriteParts {
+                size_hint: buf_lit.buf.len(),
+                buffers: Some(WritePartsBuffers {
+                    format: buf_lit,
+                    expr: None,
+                }),
+            });
         }
+
+        let mut expr_cache = HashMap::with_capacity(self.buf_writable.len());
 
         let mut size_hint = 0;
         let mut buf_format = Buffer::new(0);
-        let mut buf_expr = Buffer::new(buf.indent + 1);
-        let mut expr_cache = HashMap::with_capacity(self.buf_writable.len());
+        let mut buf_expr = Buffer::new(indent + 1);
+
         for s in mem::take(&mut self.buf_writable) {
             match s {
                 Writable::Lit(s) => {
@@ -1009,50 +1039,76 @@ impl<'a> Generator<'a> {
                     size_hint += s.len();
                 }
                 Writable::Expr(s) => {
-                    use self::DisplayWrap::*;
                     let mut expr_buf = Buffer::new(0);
                     let wrapped = self.visit_expr(&mut expr_buf, s)?;
-                    let expression = match wrapped {
-                        Wrapped => expr_buf.buf,
-                        Unwrapped => format!(
-                            "::askama::MarkupDisplay::new_unsafe(&({}), {})",
-                            expr_buf.buf, self.input.escaper
-                        ),
-                    };
-
-                    let id = match expr_cache.entry(expression.clone()) {
-                        Entry::Occupied(e) if is_cacheable(s) => *e.get(),
-                        e => {
-                            let id = self.named;
-                            self.named += 1;
-
-                            buf_expr.write(&format!("expr{id} = "));
-                            buf_expr.write("&");
-                            buf_expr.write(&expression);
-                            buf_expr.writeln(",")?;
-
-                            if let Entry::Vacant(e) = e {
-                                e.insert(id);
-                            }
-
-                            id
-                        }
-                    };
-
-                    buf_format.write(&format!("{{expr{id}}}"));
-                    size_hint += 3;
+                    let cacheable = is_cacheable(s);
+                    size_hint += self.named_expression(
+                        &mut buf_expr,
+                        &mut buf_format,
+                        expr_buf.buf,
+                        wrapped,
+                        cacheable,
+                        &mut expr_cache,
+                    )?;
+                }
+                Writable::Generated(s, wrapped) => {
+                    size_hint += self.named_expression(
+                        &mut buf_expr,
+                        &mut buf_format,
+                        s,
+                        wrapped,
+                        false,
+                        &mut expr_cache,
+                    )?;
                 }
             }
         }
+        Ok(WriteParts {
+            size_hint,
+            buffers: Some(WritePartsBuffers {
+                format: buf_format,
+                expr: Some(buf_expr),
+            }),
+        })
+    }
 
-        buf.writeln("::std::write!(")?;
-        buf.indent();
-        buf.writeln("writer,")?;
-        buf.writeln(&format!("{:#?},", &buf_format.buf))?;
-        buf.writeln(buf_expr.buf.trim())?;
-        buf.dedent()?;
-        buf.writeln(")?;")?;
-        Ok(size_hint)
+    fn named_expression(
+        &mut self,
+        buf_expr: &mut Buffer,
+        buf_format: &mut Buffer,
+        expr: String,
+        wrapped: DisplayWrap,
+        cacheable: bool,
+        expr_cache: &mut HashMap<String, usize>,
+    ) -> Result<usize, CompileError> {
+        let expression = match wrapped {
+            DisplayWrap::Wrapped => expr,
+            DisplayWrap::Unwrapped => format!(
+                "{CRATE}::MarkupDisplay::new_unsafe(&({}), {})",
+                expr, self.input.escaper
+            ),
+        };
+        let id = match expr_cache.entry(expression) {
+            Entry::Occupied(e) if cacheable => *e.get(),
+            entry => {
+                let id = self.named;
+                self.named += 1;
+
+                buf_expr.write(&format!("expr{id} = "));
+                buf_expr.write("&");
+                buf_expr.write(entry.key());
+                buf_expr.writeln(",")?;
+
+                if let Entry::Vacant(e) = entry {
+                    e.insert(id);
+                }
+
+                id
+            }
+        };
+
+        buf_format.write(&format!("{{expr{id}}}"));
+        Ok(3)
     }
 
     fn visit_lit(&mut self, lit: &'a Lit<'_>) {
@@ -1113,7 +1169,10 @@ impl<'a> Generator<'a> {
             Expr::Array(ref elements) => self.visit_array(buf, elements)?,
             Expr::Attr(ref obj, name) => self.visit_attr(buf, obj, name)?,
             Expr::Index(ref obj, ref key) => self.visit_index(buf, obj, key)?,
-            Expr::Filter(name, ref args) => self.visit_filter(buf, name, args)?,
+            Expr::Filter(Filter {
+                name,
+                ref arguments,
+            }) => self.visit_filter(buf, name, arguments)?,
             Expr::Unary(op, ref inner) => self.visit_unary(buf, op, inner)?,
             Expr::BinOp(op, ref left, ref right) => self.visit_binop(buf, op, left, right)?,
             Expr::Range(op, ref left, ref right) => {
@@ -1122,8 +1181,10 @@ impl<'a> Generator<'a> {
             Expr::Group(ref inner) => self.visit_group(buf, inner)?,
             Expr::Call(ref obj, ref args) => self.visit_call(buf, obj, args)?,
             Expr::RustMacro(ref path, args) => self.visit_rust_macro(buf, path, args),
-            Expr::Try(ref expr) => self.visit_try(buf, expr.as_ref())?,
+            Expr::Try(ref expr) => self.visit_try(buf, expr)?,
             Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
+            Expr::NamedArgument(_, ref expr) => self.visit_named_argument(buf, expr)?,
+            Expr::Generated(ref s) => self.visit_generated(buf, s),
         })
     }
 
@@ -1134,7 +1195,9 @@ impl<'a> Generator<'a> {
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("::core::result::Result::map_err(");
         self.visit_expr(buf, expr)?;
-        buf.write(", |err| ::askama::shared::Error::Custom(::core::convert::Into::into(err)))?");
+        buf.write(", |err| ");
+        buf.write(CRATE);
+        buf.write("::shared::Error::Custom(::core::convert::Into::into(err)))?");
         Ok(DisplayWrap::Unwrapped)
     }
 
@@ -1169,7 +1232,7 @@ impl<'a> Generator<'a> {
         };
 
         buf.write(&format!(
-            "::askama::filters::markdown({}, ",
+            "{CRATE}::filters::markdown({}, &",
             self.input.escaper
         ));
         self.visit_expr(buf, md)?;
@@ -1184,6 +1247,20 @@ impl<'a> Generator<'a> {
         buf.write(")?");
 
         Ok(DisplayWrap::Wrapped)
+    }
+
+    fn _visit_as_ref_filter(
+        &mut self,
+        buf: &mut Buffer,
+        args: &[Expr<'_>],
+    ) -> Result<(), CompileError> {
+        let arg = match args {
+            [arg] => arg,
+            _ => return Err("unexpected argument(s) in `as_ref` filter".into()),
+        };
+        buf.write("&");
+        self.visit_expr(buf, arg)?;
+        Ok(())
     }
 
     fn visit_filter(
@@ -1206,6 +1283,9 @@ impl<'a> Generator<'a> {
             return Ok(DisplayWrap::Unwrapped);
         } else if name == "markdown" {
             return self._visit_markdown_filter(buf, args);
+        } else if name == "as_ref" {
+            self._visit_as_ref_filter(buf, args)?;
+            return Ok(DisplayWrap::Wrapped);
         }
 
         if name == "tojson" {
@@ -1224,11 +1304,11 @@ impl<'a> Generator<'a> {
         const FILTERS: [&str; 2] = ["safe", "yaml"];
         if FILTERS.contains(&name) {
             buf.write(&format!(
-                "::askama::filters::{}({}, ",
+                "{CRATE}::filters::{}({}, ",
                 name, self.input.escaper
             ));
         } else if crate::BUILT_IN_FILTERS.contains(&name) {
-            buf.write(&format!("::askama::filters::{name}("));
+            buf.write(&format!("{CRATE}::filters::{name}("));
         } else {
             buf.write(&format!("filters::{name}("));
         }
@@ -1264,7 +1344,8 @@ impl<'a> Generator<'a> {
                 .ok_or_else(|| CompileError::from("invalid escaper for escape filter"))?,
             None => self.input.escaper,
         };
-        buf.write("::askama::filters::escape(");
+        buf.write(CRATE);
+        buf.write("::filters::escape(");
         buf.write(escaper);
         buf.write(", ");
         self._visit_args(buf, &args[..1])?;
@@ -1317,7 +1398,8 @@ impl<'a> Generator<'a> {
         buf: &mut Buffer,
         args: &[Expr<'_>],
     ) -> Result<(), CompileError> {
-        buf.write("::askama::filters::join((&");
+        buf.write(CRATE);
+        buf.write("::filters::join((&");
         for (i, arg) in args.iter().enumerate() {
             if i > 0 {
                 buf.write(", &");
@@ -1427,7 +1509,9 @@ impl<'a> Generator<'a> {
                         buf.writeln(");")?;
                         buf.writeln("let _len = _cycle.len();")?;
                         buf.writeln("if _len == 0 {")?;
-                        buf.writeln("return ::core::result::Result::Err(::askama::Error::Fmt(::core::fmt::Error));")?;
+                        buf.write("return ::core::result::Result::Err(");
+                        buf.write(CRATE);
+                        buf.writeln("::Error::Fmt(::core::fmt::Error));")?;
                         buf.writeln("}")?;
                         buf.writeln("_cycle[_loop_item.index % _len]")?;
                         buf.writeln("})")?;
@@ -1524,6 +1608,15 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Unwrapped)
     }
 
+    fn visit_named_argument(
+        &mut self,
+        buf: &mut Buffer,
+        expr: &Expr<'_>,
+    ) -> Result<DisplayWrap, CompileError> {
+        self.visit_expr(buf, expr)?;
+        Ok(DisplayWrap::Unwrapped)
+    }
+
     fn visit_array(
         &mut self,
         buf: &mut Buffer,
@@ -1557,6 +1650,11 @@ impl<'a> Generator<'a> {
         }
 
         buf.write(normalize_identifier(&self.locals.resolve_or_self(s)));
+        DisplayWrap::Unwrapped
+    }
+
+    fn visit_generated(&mut self, buf: &mut Buffer, s: &str) -> DisplayWrap {
+        buf.write(s);
         DisplayWrap::Unwrapped
     }
 
@@ -1594,11 +1692,23 @@ impl<'a> Generator<'a> {
             Target::Name(name) => {
                 let name = normalize_identifier(name);
                 match initialized {
-                    true => self.locals.insert(name, LocalMeta::initialized()),
-                    false => self.locals.insert_with_default(name),
+                    true => self
+                        .locals
+                        .insert(Cow::Borrowed(name), LocalMeta::initialized()),
+                    false => self.locals.insert_with_default(Cow::Borrowed(name)),
                 }
                 buf.write(name);
             }
+            Target::OrChain(targets) => match targets.first() {
+                None => buf.write("_"),
+                Some(first_target) => {
+                    self.visit_target(buf, initialized, first_level, first_target);
+                    for target in &targets[1..] {
+                        buf.write(" | ");
+                        self.visit_target(buf, initialized, first_level, target);
+                    }
+                }
+            },
             Target::Tuple(path, targets) => {
                 buf.write(&path.join("::"));
                 buf.write("(");
@@ -1747,6 +1857,7 @@ impl Buffer {
             }
             self.start = false;
         }
+
         self.buf.push_str(s);
     }
 
@@ -1847,10 +1958,10 @@ where
     }
 }
 
-impl MapChain<'_, &str, LocalMeta> {
+impl MapChain<'_, Cow<'_, str>, LocalMeta> {
     fn resolve(&self, name: &str) -> Option<String> {
         let name = normalize_identifier(name);
-        self.get(&name).map(|meta| match &meta.refs {
+        self.get(&Cow::Borrowed(name)).map(|meta| match &meta.refs {
             Some(expr) => expr.clone(),
             None => name.to_string(),
         })
@@ -1902,7 +2013,7 @@ fn is_copyable_within_op(expr: &Expr<'_>, within_op: bool) -> bool {
 pub(crate) fn is_attr_self(expr: &Expr<'_>) -> bool {
     match expr {
         Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Var("self")) => true,
-        Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Attr(..)) => is_attr_self(expr),
+        Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Attr(..)) => is_attr_self(obj),
         _ => false,
     }
 }
@@ -1924,7 +2035,7 @@ pub(crate) fn is_cacheable(expr: &Expr<'_>) -> bool {
         Expr::Array(args) => args.iter().all(is_cacheable),
         Expr::Attr(lhs, _) => is_cacheable(lhs),
         Expr::Index(lhs, rhs) => is_cacheable(lhs) && is_cacheable(rhs),
-        Expr::Filter(_, args) => args.iter().all(is_cacheable),
+        Expr::Filter(Filter { arguments, .. }) => arguments.iter().all(is_cacheable),
         Expr::Unary(_, arg) => is_cacheable(arg),
         Expr::BinOp(_, lhs, rhs) => is_cacheable(lhs) && is_cacheable(rhs),
         Expr::Range(_, lhs, rhs) => {
@@ -1933,10 +2044,12 @@ pub(crate) fn is_cacheable(expr: &Expr<'_>) -> bool {
         }
         Expr::Group(arg) => is_cacheable(arg),
         Expr::Tuple(args) => args.iter().all(is_cacheable),
+        Expr::NamedArgument(_, expr) => is_cacheable(expr),
         // We have too little information to tell if the expression is pure:
         Expr::Call(_, _) => false,
         Expr::RustMacro(_, _) => false,
         Expr::Try(_) => false,
+        Expr::Generated(_) => true,
     }
 }
 
@@ -1949,6 +2062,46 @@ fn median(sizes: &mut [usize]) -> usize {
     }
 }
 
+/// In `FilterBlock`, we have a recursive `Expr::Filter` entry, where the more you go "down",
+/// the sooner you are called in the Rust code. Example:
+///
+/// ```text
+/// {% filter a|b|c %}bla{% endfilter %}
+/// ```
+///
+/// Will be translated as:
+///
+/// ```text
+/// FilterBlock {
+///    filters: Filter {
+///        name: "c",
+///        arguments: vec![
+///            Filter {
+///                name: "b",
+///                arguments: vec![
+///                    Filter {
+///                        name: "a",
+///                        arguments: vec![],
+///                    }.
+///                ],
+///            }
+///        ],
+///    },
+///    // ...
+/// }
+/// ```
+///
+/// So in here, we want to insert the variable containing the content of the filter block inside
+/// the call to `"a"`. To do so, we recursively go through all `Filter` and finally insert our
+/// variable as the first argument to the `"a"` call.
+fn insert_first_filter_argument(args: &mut Vec<Expr<'_>>, var_name: String) {
+    if let Some(Expr::Filter(Filter { arguments, .. })) = args.first_mut() {
+        insert_first_filter_argument(arguments, var_name);
+    } else {
+        args.insert(0, Expr::Generated(var_name));
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 enum AstLevel {
     Top,
@@ -1956,7 +2109,7 @@ enum AstLevel {
     Nested,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum DisplayWrap {
     Wrapped,
     Unwrapped,
@@ -1997,6 +2150,28 @@ impl<'a> Deref for WritableBuffer<'a> {
 enum Writable<'a> {
     Lit(&'a str),
     Expr(&'a Expr<'a>),
+    Generated(String, DisplayWrap),
+}
+
+struct WriteParts {
+    size_hint: usize,
+    buffers: Option<WritePartsBuffers>,
+}
+
+/// If "expr" is `None`, it means we can generate code like this:
+///
+/// ```ignore
+/// let var = format;
+/// ```
+///
+/// Otherwise we need to format "expr" using "format":
+///
+/// ```ignore
+/// let var = format!(format, expr);
+/// ```
+struct WritePartsBuffers {
+    format: Buffer,
+    expr: Option<Buffer>,
 }
 
 // Identifiers to be replaced with raw identifiers, so as to avoid
@@ -2010,60 +2185,111 @@ enum Writable<'a> {
 // because they are not allowed to be raw identifiers, and *loop*
 // because it's used something like a keyword in the template
 // language.
-static USE_RAW: [(&str, &str); 47] = [
-    ("as", "r#as"),
-    ("break", "r#break"),
-    ("const", "r#const"),
-    ("continue", "r#continue"),
-    ("crate", "r#crate"),
-    ("else", "r#else"),
-    ("enum", "r#enum"),
-    ("extern", "r#extern"),
-    ("false", "r#false"),
-    ("fn", "r#fn"),
-    ("for", "r#for"),
-    ("if", "r#if"),
-    ("impl", "r#impl"),
-    ("in", "r#in"),
-    ("let", "r#let"),
-    ("match", "r#match"),
-    ("mod", "r#mod"),
-    ("move", "r#move"),
-    ("mut", "r#mut"),
-    ("pub", "r#pub"),
-    ("ref", "r#ref"),
-    ("return", "r#return"),
-    ("static", "r#static"),
-    ("struct", "r#struct"),
-    ("trait", "r#trait"),
-    ("true", "r#true"),
-    ("type", "r#type"),
-    ("unsafe", "r#unsafe"),
-    ("use", "r#use"),
-    ("where", "r#where"),
-    ("while", "r#while"),
-    ("async", "r#async"),
-    ("await", "r#await"),
-    ("dyn", "r#dyn"),
-    ("abstract", "r#abstract"),
-    ("become", "r#become"),
-    ("box", "r#box"),
-    ("do", "r#do"),
-    ("final", "r#final"),
-    ("macro", "r#macro"),
-    ("override", "r#override"),
-    ("priv", "r#priv"),
-    ("typeof", "r#typeof"),
-    ("unsized", "r#unsized"),
-    ("virtual", "r#virtual"),
-    ("yield", "r#yield"),
-    ("try", "r#try"),
-];
-
 fn normalize_identifier(ident: &str) -> &str {
-    if let Some(word) = USE_RAW.iter().find(|x| x.0 == ident) {
-        word.1
-    } else {
-        ident
+    // This table works for as long as the replacement string is the original string
+    // prepended with "r#". The strings get right-padded to the same length with b'_'.
+    // While the code does not need it, please keep the list sorted when adding new
+    // keywords.
+
+    // FIXME: Replace with `[core:ascii::Char; MAX_REPL_LEN]` once
+    //        <https://github.com/rust-lang/rust/issues/110998> is stable.
+
+    const MAX_KW_LEN: usize = 8;
+    const MAX_REPL_LEN: usize = MAX_KW_LEN + 2;
+
+    const KW0: &[[u8; MAX_REPL_LEN]] = &[];
+    const KW1: &[[u8; MAX_REPL_LEN]] = &[];
+    const KW2: &[[u8; MAX_REPL_LEN]] = &[
+        *b"r#as______",
+        *b"r#do______",
+        *b"r#fn______",
+        *b"r#if______",
+        *b"r#in______",
+    ];
+    const KW3: &[[u8; MAX_REPL_LEN]] = &[
+        *b"r#box_____",
+        *b"r#dyn_____",
+        *b"r#for_____",
+        *b"r#let_____",
+        *b"r#mod_____",
+        *b"r#mut_____",
+        *b"r#pub_____",
+        *b"r#ref_____",
+        *b"r#try_____",
+        *b"r#use_____",
+    ];
+    const KW4: &[[u8; MAX_REPL_LEN]] = &[
+        *b"r#else____",
+        *b"r#enum____",
+        *b"r#impl____",
+        *b"r#move____",
+        *b"r#priv____",
+        *b"r#true____",
+        *b"r#type____",
+    ];
+    const KW5: &[[u8; MAX_REPL_LEN]] = &[
+        *b"r#async___",
+        *b"r#await___",
+        *b"r#break___",
+        *b"r#const___",
+        *b"r#crate___",
+        *b"r#false___",
+        *b"r#final___",
+        *b"r#macro___",
+        *b"r#match___",
+        *b"r#trait___",
+        *b"r#where___",
+        *b"r#while___",
+        *b"r#yield___",
+    ];
+    const KW6: &[[u8; MAX_REPL_LEN]] = &[
+        *b"r#become__",
+        *b"r#extern__",
+        *b"r#return__",
+        *b"r#static__",
+        *b"r#struct__",
+        *b"r#typeof__",
+        *b"r#unsafe__",
+    ];
+    const KW7: &[[u8; MAX_REPL_LEN]] = &[*b"r#unsized_", *b"r#virtual_"];
+    const KW8: &[[u8; MAX_REPL_LEN]] = &[*b"r#abstract", *b"r#continue", *b"r#override"];
+
+    const KWS: &[&[[u8; MAX_REPL_LEN]]] = &[KW0, KW1, KW2, KW3, KW4, KW5, KW6, KW7, KW8];
+
+    // Ensure that all strings are ASCII, because we use `from_utf8_unchecked()` further down.
+    const _: () = {
+        let mut i = 0;
+        while i < KWS.len() {
+            let mut j = 0;
+            while KWS[i].len() < j {
+                let mut k = 0;
+                while KWS[i][j].len() < k {
+                    assert!(KWS[i][j][k].is_ascii());
+                    k += 1;
+                }
+                j += 1;
+            }
+            i += 1;
+        }
+    };
+
+    if ident.len() > MAX_KW_LEN {
+        return ident;
     }
+    let kws = KWS[ident.len()];
+
+    let mut padded_ident = [b'_'; MAX_KW_LEN];
+    padded_ident[..ident.len()].copy_from_slice(ident.as_bytes());
+
+    // Since the individual buckets are quite short, a linear search is faster than a binary search.
+    let replacement = match kws
+        .iter()
+        .find(|probe| padded_ident == <[u8; MAX_KW_LEN]>::try_from(&probe[2..]).unwrap())
+    {
+        Some(replacement) => replacement,
+        None => return ident,
+    };
+
+    // SAFETY: We know that the input byte slice is pure-ASCII.
+    unsafe { std::str::from_utf8_unchecked(&replacement[..ident.len() + 2]) }
 }

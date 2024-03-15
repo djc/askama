@@ -3,6 +3,7 @@ use askama::Template;
 macro_rules! test_size {
     ($source:literal, $expected:expr) => {{
         #[derive(Template)]
+        #[allow(dead_code)]
         #[template(source = $source, ext = "txt")]
         struct T(bool);
 

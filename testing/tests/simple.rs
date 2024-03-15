@@ -461,3 +461,66 @@ fn test_define_string_var() {
     let template = DefineStringVar;
     assert_eq!(template.render().unwrap(), "");
 }
+
+#[derive(askama::Template)]
+#[template(source = "{% let x = 4.5 %}{{ x }}", ext = "html")]
+struct SimpleFloat;
+
+#[test]
+fn test_simple_float() {
+    let template = SimpleFloat;
+    assert_eq!(template.render().unwrap(), "4.5");
+}
+
+#[derive(askama::Template)]
+#[template(path = "num-literals.html")]
+struct NumLiterals;
+
+#[test]
+fn test_num_literals() {
+    let template = NumLiterals;
+    assert_eq!(
+        template.render().unwrap(),
+        "[90, -90, 90, 2, 56, 240, 10.5, 10.5, 100000000000, 105000000000]",
+    );
+}
+
+#[allow(non_snake_case)]
+#[derive(askama::Template)]
+#[template(source = "{{ xY }}", ext = "txt")]
+struct MixedCase {
+    xY: &'static str,
+}
+
+/// Test that we can use mixed case in variable names
+///
+/// We use some heuristics to distinguish paths (`std::str::String`) from
+/// variable names (`foo`). Previously, this test would fail because any
+/// name containing uppercase characters would be considered a path.
+///
+/// https://github.com/djc/askama/issues/924
+#[test]
+fn test_mixed_case() {
+    let template = MixedCase { xY: "foo" };
+    assert_eq!(template.render().unwrap(), "foo");
+}
+
+#[allow(non_snake_case)]
+#[derive(askama::Template)]
+#[template(source = "Hello, {{ user }}!", ext = "txt")]
+struct Referenced {
+    user: &'static str,
+}
+
+#[test]
+#[allow(clippy::needless_borrows_for_generic_args)]
+fn test_referenced() {
+    fn template_to_string(template: impl Template) -> String {
+        template.to_string()
+    }
+
+    let template = Referenced { user: "person" };
+    assert_eq!(template_to_string(&&template), "Hello, person!");
+    assert_eq!(template_to_string(&template), "Hello, person!");
+    assert_eq!(template_to_string(template), "Hello, person!");
+}

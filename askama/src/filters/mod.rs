@@ -345,51 +345,22 @@ pub fn wordcount<T: fmt::Display>(s: T) -> Result<usize> {
 pub fn markdown<E, S>(
     e: E,
     s: S,
-    options: Option<&comrak::ComrakOptions>,
+    options: Option<&comrak::Options>,
 ) -> Result<MarkupDisplay<E, String>>
 where
     E: Escaper,
     S: AsRef<str>,
 {
-    use comrak::{
-        markdown_to_html, ComrakExtensionOptions, ComrakOptions, ComrakParseOptions,
-        ComrakRenderOptions, ListStyleType,
-    };
+    use comrak::{markdown_to_html, Options};
 
-    const DEFAULT_OPTIONS: ComrakOptions = ComrakOptions {
-        extension: ComrakExtensionOptions {
-            strikethrough: true,
-            tagfilter: true,
-            table: true,
-            autolink: true,
-            // default:
-            tasklist: false,
-            superscript: false,
-            header_ids: None,
-            footnotes: false,
-            description_lists: false,
-            front_matter_delimiter: None,
-        },
-        parse: ComrakParseOptions {
-            // default:
-            smart: false,
-            default_info_string: None,
-            relaxed_tasklist_matching: false,
-        },
-        render: ComrakRenderOptions {
-            escape: true,
-            // default:
-            hardbreaks: false,
-            github_pre_lang: false,
-            full_info_string: false,
-            width: 0,
-            unsafe_: false,
-            list_style: ListStyleType::Dash,
-            sourcepos: false,
-        },
-    };
+    let mut defaults = Options::default();
+    defaults.extension.strikethrough = true;
+    defaults.extension.tagfilter = true;
+    defaults.extension.table = true;
+    defaults.extension.autolink = true;
+    defaults.render.escape = true;
 
-    let s = markdown_to_html(s.as_ref(), options.unwrap_or(&DEFAULT_OPTIONS));
+    let s = markdown_to_html(s.as_ref(), options.unwrap_or(&defaults));
     Ok(MarkupDisplay::new_safe(s, e))
 }
 

@@ -195,3 +195,32 @@ fn test_match_with_comment() {
     let s = MatchWithComment { good: false };
     assert_eq!(s.render().unwrap(), "bad");
 }
+
+enum Suit {
+    Clubs,
+    Diamonds,
+    Hearts,
+    Spades,
+}
+
+#[derive(Template)]
+#[template(path = "match-enum-or.html")]
+struct MatchEnumOrTemplate {
+    suit: Suit,
+}
+
+#[test]
+fn test_match_enum_or() {
+    let template = MatchEnumOrTemplate { suit: Suit::Clubs };
+    assert_eq!(template.render().unwrap(), "The card is black\n");
+    let template = MatchEnumOrTemplate { suit: Suit::Spades };
+    assert_eq!(template.render().unwrap(), "The card is black\n");
+
+    let template = MatchEnumOrTemplate { suit: Suit::Hearts };
+    assert_eq!(template.render().unwrap(), "The card is red\n");
+
+    let template = MatchEnumOrTemplate {
+        suit: Suit::Diamonds,
+    };
+    assert_eq!(template.render().unwrap(), "The card is red\n");
+}

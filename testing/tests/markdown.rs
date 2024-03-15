@@ -1,7 +1,7 @@
 #![cfg(feature = "markdown")]
 
 use askama::Template;
-use comrak::{ComrakOptions, ComrakRenderOptions};
+use comrak::Options;
 
 #[derive(Template)]
 #[template(source = "{{before}}{{content|markdown}}{{after}}", ext = "html")]
@@ -42,22 +42,19 @@ struct MarkdownWithOptionsTemplate<'a> {
     before: &'a str,
     after: &'a str,
     content: &'a str,
-    options: &'a ComrakOptions,
+    options: &'a Options,
 }
 
 #[test]
 fn test_markdown_with_options() {
+    let mut options = Options::default();
+    options.render.unsafe_ = true;
+
     let s = MarkdownWithOptionsTemplate {
         before: "before",
         after: "after",
         content: "* 1\n* <script>alert('Lol, hacked!')</script>\n* 3",
-        options: &ComrakOptions {
-            render: ComrakRenderOptions {
-                unsafe_: true,
-                ..Default::default()
-            },
-            ..Default::default()
-        },
+        options: &options,
     };
     assert_eq!(
         s.render().unwrap(),
@@ -72,4 +69,22 @@ before\
 </ul>\n\
 after",
     );
+}
+
+#[derive(Template)]
+#[template(source = "{{content|markdown}}", ext = "html")]
+struct MarkdownStringTemplate {
+    content: String,
+}
+
+// Tests if the markdown filter accepts String
+#[test]
+fn test_markdown_owned_string() {
+    let template = MarkdownStringTemplate {
+        content: "The markdown filter _indeed_ works with __String__".into(),
+    };
+    assert_eq!(
+        template.render().unwrap(),
+        "<p>The markdown filter <em>indeed</em> works with <strong>String</strong></p>\n"
+    )
 }

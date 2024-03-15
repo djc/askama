@@ -5,7 +5,7 @@ use std::{env, fs};
 #[cfg(feature = "serde")]
 use serde::Deserialize;
 
-use crate::CompileError;
+use crate::{CompileError, CRATE};
 use parser::node::Whitespace;
 use parser::Syntax;
 
@@ -21,7 +21,7 @@ pub(crate) struct Config<'a> {
 impl<'a> Config<'a> {
     pub(crate) fn new(
         s: &'a str,
-        template_whitespace: Option<&String>,
+        template_whitespace: Option<&str>,
     ) -> std::result::Result<Config<'a>, CompileError> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let default_dirs = vec![root.join("templates")];
@@ -54,7 +54,7 @@ impl<'a> Config<'a> {
             ),
         };
         if let Some(template_whitespace) = template_whitespace {
-            whitespace = match template_whitespace.as_str() {
+            whitespace = match template_whitespace {
                 "suppress" => WhitespaceHandling::Suppress,
                 "minimize" => WhitespaceHandling::Minimize,
                 "preserve" => WhitespaceHandling::Preserve,
@@ -93,7 +93,7 @@ impl<'a> Config<'a> {
             }
         }
         for (extensions, path) in DEFAULT_ESCAPERS {
-            escapers.push((str_set(extensions), (*path).to_string()));
+            escapers.push((str_set(extensions), format!("{CRATE}{path}")));
         }
 
         Ok(Config {
@@ -299,9 +299,9 @@ pub(crate) fn get_template_source(tpl_path: &Path) -> std::result::Result<String
 static CONFIG_FILE_NAME: &str = "askama.toml";
 static DEFAULT_SYNTAX_NAME: &str = "default";
 static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
-    (&["html", "htm", "xml"], "::askama::Html"),
-    (&["md", "none", "txt", "yml", ""], "::askama::Text"),
-    (&["j2", "jinja", "jinja2"], "::askama::Html"),
+    (&["html", "htm", "svg", "xml"], "::Html"),
+    (&["md", "none", "txt", "yml", ""], "::Text"),
+    (&["j2", "jinja", "jinja2"], "::Html"),
 ];
 
 #[cfg(test)]
@@ -564,7 +564,10 @@ mod tests {
             config.escapers,
             vec![
                 (str_set(&["js"]), "::askama::Js".into()),
-                (str_set(&["html", "htm", "xml"]), "::askama::Html".into()),
+                (
+                    str_set(&["html", "htm", "svg", "xml"]),
+                    "::askama::Html".into()
+                ),
                 (
                     str_set(&["md", "none", "txt", "yml", ""]),
                     "::askama::Text".into()
@@ -633,7 +636,7 @@ mod tests {
 
     #[test]
     fn test_config_whitespace_error() {
-        let config = Config::new(r#""#, Some(&"trim".to_owned()));
+        let config = Config::new(r#""#, Some("trim"));
         if let Err(err) = config {
             assert_eq!(err.msg, "invalid value for `whitespace`: \"trim\"");
         } else {

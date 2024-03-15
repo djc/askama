@@ -90,6 +90,7 @@ impl From<::serde_yaml::Error> for Error {
 mod tests {
     use super::Error;
 
+    #[allow(dead_code)]
     trait AssertSendSyncStatic: Send + Sync + 'static {}
     impl AssertSendSyncStatic for Error {}
 }

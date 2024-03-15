@@ -115,6 +115,29 @@ pub trait Template: fmt::Display {
     const MIME_TYPE: &'static str;
 }
 
+impl<T: Template + ?Sized> Template for &T {
+    #[inline]
+    fn render_into(&self, writer: &mut (impl std::fmt::Write + ?Sized)) -> Result<()> {
+        T::render_into(self, writer)
+    }
+
+    #[inline]
+    fn render(&self) -> Result<String> {
+        T::render(self)
+    }
+
+    #[inline]
+    fn write_into(&self, writer: &mut (impl std::io::Write + ?Sized)) -> std::io::Result<()> {
+        T::write_into(self, writer)
+    }
+
+    const EXTENSION: Option<&'static str> = T::EXTENSION;
+
+    const SIZE_HINT: usize = T::SIZE_HINT;
+
+    const MIME_TYPE: &'static str = T::MIME_TYPE;
+}
+
 /// Object-safe wrapper trait around [`Template`] implementers
 ///
 /// This trades reduced performance (mostly due to writing into `dyn Write`) for object safety.
@@ -170,15 +193,6 @@ impl fmt::Display for dyn DynTemplate {
         self.dyn_render_into(f).map_err(|_| ::std::fmt::Error {})
     }
 }
-
-/// Old build script helper to rebuild crates if contained templates have changed
-///
-/// This function is now deprecated and does nothing.
-#[deprecated(
-    since = "0.8.1",
-    note = "file-level dependency tracking is handled automatically without build script"
-)]
-pub fn rerun_if_templates_changed() {}
 
 #[cfg(test)]
 mod tests {

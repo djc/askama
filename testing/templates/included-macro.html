@@ -1,0 +1,6 @@
+{% macro m2(name) -%}
+    Howdy, {{ name }}!
+{%- endmacro -%}
+
+{% call m(name) %}
+{% call m2(name2) %}

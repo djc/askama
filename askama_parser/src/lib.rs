@@ -7,28 +7,27 @@ use std::{fmt, str};
 
 use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_till};
-use nom::character::complete::char;
-use nom::character::complete::{anychar, digit1};
+use nom::character::complete::{anychar, char, one_of, satisfy};
 use nom::combinator::{cut, eof, map, opt, recognize};
 use nom::error::{Error, ErrorKind, FromExternalError};
-use nom::multi::many1;
+use nom::multi::{many0_count, many1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{error_position, AsChar, InputTakeAtPosition};
 
 pub mod expr;
-pub use expr::Expr;
+pub use expr::{Expr, Filter};
 pub mod node;
 pub use node::Node;
 #[cfg(test)]
 mod tests;
 
 mod _parsed {
-    use std::cmp::PartialEq;
     use std::{fmt, mem};
 
     use super::node::Node;
     use super::{Ast, ParseError, Syntax};
 
+    #[derive(Default)]
     pub struct Parsed {
         // `source` must outlive `ast`, so `ast` must be declared before `source`
         ast: Ast<'static>,
@@ -69,7 +68,7 @@ mod _parsed {
 
 pub use _parsed::Parsed;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Ast<'a> {
     nodes: Vec<Node<'a>>,
 }
@@ -201,16 +200,16 @@ fn skip_till<'a, O>(
 ) -> impl FnMut(&'a str) -> ParseResult<'a, (&'a str, O)> {
     enum Next<O> {
         IsEnd(O),
-        NotEnd(char),
+        NotEnd,
     }
-    let mut next = alt((map(end, Next::IsEnd), map(anychar, Next::NotEnd)));
+    let mut next = alt((map(end, Next::IsEnd), map(anychar, |_| Next::NotEnd)));
     move |start: &'a str| {
         let mut i = start;
         loop {
             let (j, is_end) = next(i)?;
             match is_end {
                 Next::IsEnd(lookahead) => return Ok((i, (j, lookahead))),
-                Next::NotEnd(_) => i = j,
+                Next::NotEnd => i = j,
             }
         }
     }
@@ -250,11 +249,72 @@ fn bool_lit(i: &str) -> ParseResult<'_> {
 }
 
 fn num_lit(i: &str) -> ParseResult<'_> {
+    let integer_suffix = |i| {
+        alt((
+            tag("i8"),
+            tag("i16"),
+            tag("i32"),
+            tag("i64"),
+            tag("i128"),
+            tag("isize"),
+            tag("u8"),
+            tag("u16"),
+            tag("u32"),
+            tag("u64"),
+            tag("u128"),
+            tag("usize"),
+        ))(i)
+    };
+    let float_suffix = |i| alt((tag("f32"), tag("f64")))(i);
+
     recognize(tuple((
         opt(char('-')),
-        digit1,
-        opt(pair(char('.'), digit1)),
+        alt((
+            recognize(tuple((
+                char('0'),
+                alt((
+                    recognize(tuple((char('b'), separated_digits(2, false)))),
+                    recognize(tuple((char('o'), separated_digits(8, false)))),
+                    recognize(tuple((char('x'), separated_digits(16, false)))),
+                )),
+                opt(integer_suffix),
+            ))),
+            recognize(tuple((
+                separated_digits(10, true),
+                opt(alt((
+                    integer_suffix,
+                    float_suffix,
+                    recognize(tuple((
+                        opt(tuple((char('.'), separated_digits(10, true)))),
+                        one_of("eE"),
+                        opt(one_of("+-")),
+                        separated_digits(10, false),
+                        opt(float_suffix),
+                    ))),
+                    recognize(tuple((
+                        char('.'),
+                        separated_digits(10, true),
+                        opt(float_suffix),
+                    ))),
+                ))),
+            ))),
+        )),
     )))(i)
+}
+
+/// Underscore separated digits of the given base, unless `start` is true this may start
+/// with an underscore.
+fn separated_digits(radix: u32, start: bool) -> impl Fn(&str) -> ParseResult<'_> {
+    move |i| {
+        recognize(tuple((
+            |i| match start {
+                true => Ok((i, 0)),
+                false => many0_count(char('_'))(i),
+            },
+            satisfy(|ch| ch.is_digit(radix)),
+            many0_count(satisfy(|ch| ch == '_' || ch.is_digit(radix))),
+        )))(i)
+    }
 }
 
 fn str_lit(i: &str) -> ParseResult<'_> {
@@ -288,9 +348,9 @@ fn path_or_identifier(i: &str) -> ParseResult<'_, PathOrIdentifier<'_>> {
     let rest = rest.as_deref().unwrap_or_default();
 
     // The returned identifier can be assumed to be path if:
-    // - Contains both a lowercase and uppercase character, i.e. a type name like `None`
-    // - Doesn't contain any lowercase characters, i.e. it's a constant
-    // In short, if it contains any uppercase characters it's a path.
+    // - it is an absolute path (starts with `::`), or
+    // - it has multiple components (at least one `::`), or
+    // - the first letter is uppercase
     match (root, start, rest) {
         (Some(_), start, tail) => {
             let mut path = Vec::with_capacity(2 + tail.len());
@@ -299,7 +359,7 @@ fn path_or_identifier(i: &str) -> ParseResult<'_, PathOrIdentifier<'_>> {
             path.extend(rest);
             Ok((i, PathOrIdentifier::Path(path)))
         }
-        (None, name, []) if !name.contains(char::is_uppercase) => {
+        (None, name, []) if name.chars().next().map_or(true, |c| c.is_lowercase()) => {
             Ok((i, PathOrIdentifier::Identifier(name)))
         }
         (None, start, tail) => {
@@ -416,4 +476,14 @@ impl Level {
     }
 
     const MAX_DEPTH: u8 = 128;
+}
+
+#[allow(clippy::type_complexity)]
+fn filter(i: &str, level: Level) -> ParseResult<'_, (&str, Option<Vec<Expr<'_>>>)> {
+    let (i, (_, fname, args)) = tuple((
+        char('|'),
+        ws(identifier),
+        opt(|i| Expr::arguments(i, level, false)),
+    ))(i)?;
+    Ok((i, (fname, args)))
 }

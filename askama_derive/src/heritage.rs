@@ -35,6 +35,7 @@ impl Heritage<'_> {
 
 type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a BlockDef<'a>)>>;
 
+#[derive(Clone)]
 pub(crate) struct Context<'a> {
     pub(crate) nodes: &'a [Node<'a>],
     pub(crate) extends: Option<PathBuf>,

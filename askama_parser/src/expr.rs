@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+use std::collections::HashSet;
 use std::str;
 
 use nom::branch::alt;
@@ -10,9 +12,10 @@ use nom::multi::{fold_many0, many0, separated_list0};
 use nom::sequence::{pair, preceded, terminated, tuple};
 
 use super::{
-    char_lit, identifier, not_ws, num_lit, path_or_identifier, str_lit, ws, Level, PathOrIdentifier,
+    char_lit, filter, identifier, not_ws, num_lit, path_or_identifier, str_lit, ws, Level,
+    PathOrIdentifier,
 };
-use crate::ParseResult;
+use crate::{ErrorContext, ParseResult};
 
 macro_rules! expr_prec_layer {
     ( $name:ident, $inner:ident, $op:expr ) => {
@@ -49,7 +52,7 @@ macro_rules! expr_prec_layer {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Expr<'a> {
     BoolLit(&'a str),
     NumLit(&'a str),
@@ -60,7 +63,8 @@ pub enum Expr<'a> {
     Array(Vec<Expr<'a>>),
     Attr(Box<Expr<'a>>, &'a str),
     Index(Box<Expr<'a>>, Box<Expr<'a>>),
-    Filter(&'a str, Vec<Expr<'a>>),
+    Filter(Filter<'a>),
+    NamedArgument(&'a str, Box<Expr<'a>>),
     Unary(&'a str, Box<Expr<'a>>),
     BinOp(&'a str, Box<Expr<'a>>, Box<Expr<'a>>),
     Range(&'a str, Option<Box<Expr<'a>>>, Option<Box<Expr<'a>>>),
@@ -69,18 +73,86 @@ pub enum Expr<'a> {
     Call(Box<Expr<'a>>, Vec<Expr<'a>>),
     RustMacro(Vec<&'a str>, &'a str),
     Try(Box<Expr<'a>>),
+    /// This variant should never be used directly. It is created when generating filter blocks.
+    Generated(String),
 }
 
 impl<'a> Expr<'a> {
-    pub(super) fn arguments(i: &'a str, level: Level) -> ParseResult<'a, Vec<Self>> {
+    pub(super) fn arguments(
+        i: &'a str,
+        level: Level,
+        is_template_macro: bool,
+    ) -> ParseResult<'a, Vec<Self>> {
         let (_, level) = level.nest(i)?;
+        let mut named_arguments = HashSet::new();
+        let start = i;
+
         preceded(
             ws(char('(')),
             cut(terminated(
-                separated_list0(char(','), ws(move |i| Self::parse(i, level))),
-                char(')'),
+                separated_list0(
+                    char(','),
+                    ws(move |i| {
+                        // Needed to prevent borrowing it twice between this closure and the one
+                        // calling `Self::named_arguments`.
+                        let named_arguments = &mut named_arguments;
+                        let has_named_arguments = !named_arguments.is_empty();
+
+                        let (i, expr) = alt((
+                            move |i| {
+                                Self::named_argument(
+                                    i,
+                                    level,
+                                    named_arguments,
+                                    start,
+                                    is_template_macro,
+                                )
+                            },
+                            move |i| Self::parse(i, level),
+                        ))(i)?;
+                        if has_named_arguments && !matches!(expr, Self::NamedArgument(_, _)) {
+                            Err(nom::Err::Failure(ErrorContext {
+                                input: start,
+                                message: Some(Cow::Borrowed(
+                                    "named arguments must always be passed last",
+                                )),
+                            }))
+                        } else {
+                            Ok((i, expr))
+                        }
+                    }),
+                ),
+                tuple((opt(ws(char(','))), char(')'))),
             )),
         )(i)
+    }
+
+    fn named_argument(
+        i: &'a str,
+        level: Level,
+        named_arguments: &mut HashSet<&'a str>,
+        start: &'a str,
+        is_template_macro: bool,
+    ) -> ParseResult<'a, Self> {
+        if !is_template_macro {
+            // If this is not a template macro, we don't want to parse named arguments so
+            // we instead return an error which will allow to continue the parsing.
+            return Err(nom::Err::Error(error_position!(i, ErrorKind::Alt)));
+        }
+
+        let (_, level) = level.nest(i)?;
+        let (i, (argument, _, value)) =
+            tuple((identifier, ws(char('=')), move |i| Self::parse(i, level)))(i)?;
+        if named_arguments.insert(argument) {
+            Ok((i, Self::NamedArgument(argument, Box::new(value))))
+        } else {
+            Err(nom::Err::Failure(ErrorContext {
+                input: start,
+                message: Some(Cow::Owned(format!(
+                    "named argument `{argument}` was passed more than once"
+                ))),
+            }))
+        }
     }
 
     pub(super) fn parse(i: &'a str, level: Level) -> ParseResult<'a, Self> {
@@ -117,42 +189,41 @@ impl<'a> Expr<'a> {
 
     fn filtered(i: &'a str, level: Level) -> ParseResult<'a, Self> {
         let (_, level) = level.nest(i)?;
-        #[allow(clippy::type_complexity)]
-        fn filter(i: &str, level: Level) -> ParseResult<'_, (&str, Option<Vec<Expr<'_>>>)> {
-            let (i, (_, fname, args)) = tuple((
-                char('|'),
-                ws(identifier),
-                opt(|i| Expr::arguments(i, level)),
-            ))(i)?;
-            Ok((i, (fname, args)))
-        }
-
         let (i, (obj, filters)) =
             tuple((|i| Self::prefix(i, level), many0(|i| filter(i, level))))(i)?;
 
         let mut res = obj;
         for (fname, args) in filters {
-            res = Self::Filter(fname, {
-                let mut args = match args {
-                    Some(inner) => inner,
-                    None => Vec::new(),
-                };
-                args.insert(0, res);
-                args
+            res = Self::Filter(Filter {
+                name: fname,
+                arguments: {
+                    let mut args = match args {
+                        Some(inner) => inner,
+                        None => Vec::new(),
+                    };
+                    args.insert(0, res);
+                    args
+                },
             });
         }
 
         Ok((i, res))
     }
 
-    fn prefix(i: &'a str, level: Level) -> ParseResult<'a, Self> {
-        let (_, level) = level.nest(i)?;
+    fn prefix(i: &'a str, mut level: Level) -> ParseResult<'a, Self> {
+        let (_, nested) = level.nest(i)?;
         let (i, (ops, mut expr)) = pair(many0(ws(alt((tag("!"), tag("-"))))), |i| {
-            Suffix::parse(i, level)
+            Suffix::parse(i, nested)
         })(i)?;
+
         for op in ops.iter().rev() {
+            // This is a rare place where we create recursion in the parsed AST
+            // without recursing the parser call stack. However, this can lead
+            // to stack overflows in drop glue when the AST is very deep.
+            level = level.nest(i)?.1;
             expr = Self::Unary(op, Box::new(expr));
         }
+
         Ok((i, expr))
     }
 
@@ -231,6 +302,12 @@ impl<'a> Expr<'a> {
     fn char(i: &'a str) -> ParseResult<'a, Self> {
         map(char_lit, Self::CharLit)(i)
     }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Filter<'a> {
+    pub name: &'a str,
+    pub arguments: Vec<Expr<'a>>,
 }
 
 enum Suffix<'a> {
@@ -354,7 +431,7 @@ impl<'a> Suffix<'a> {
 
     fn call(i: &'a str, level: Level) -> ParseResult<'a, Self> {
         let (_, level) = level.nest(i)?;
-        map(move |i| Expr::arguments(i, level), Self::Call)(i)
+        map(move |i| Expr::arguments(i, level, false), Self::Call)(i)
     }
 
     fn r#try(i: &'a str) -> ParseResult<'a, Self> {

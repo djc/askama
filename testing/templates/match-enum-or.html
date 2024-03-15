@@ -1,0 +1,8 @@
+The card is
+{%- match suit %}
+   {%- when Suit::Clubs or Suit::Spades -%}
+     {{ " black" }}
+   {%- when Suit::Diamonds or Suit::Hearts -%}
+     {{ " red" }}
+{%- endmatch %}
+
