@@ -45,13 +45,10 @@ pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileEr
 
     let mut contexts = HashMap::new();
     for (path, parsed) in &templates {
-        contexts.insert(
-            path.as_path(),
-            Context::new(input.config, path, parsed.nodes())?,
-        );
+        contexts.insert(path, Context::new(input.config, path, parsed.nodes())?);
     }
 
-    let ctx = &contexts[input.path.as_path()];
+    let ctx = &contexts[&input.path];
     let heritage = if !ctx.blocks.is_empty() || ctx.extends.is_some() {
         Some(Heritage::new(ctx, &contexts))
     } else {
@@ -59,11 +56,11 @@ pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileEr
     };
 
     if input.print == Print::Ast || input.print == Print::All {
-        eprintln!("{:?}", templates[input.path.as_path()].nodes());
+        eprintln!("{:?}", templates[&input.path].nodes());
     }
 
     let code = Generator::new(&input, &contexts, heritage.as_ref(), MapChain::default())
-        .build(&contexts[input.path.as_path()])?;
+        .build(&contexts[&input.path])?;
     if input.print == Print::Code || input.print == Print::All {
         eprintln!("{code}");
     }

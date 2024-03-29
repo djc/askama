@@ -1,5 +1,6 @@
 use std::collections::hash_map::HashMap;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::str::FromStr;
 
 use mime::Mime;
@@ -19,7 +20,7 @@ pub(crate) struct TemplateInput<'a> {
     pub(crate) escaper: &'a str,
     pub(crate) ext: Option<&'a str>,
     pub(crate) mime_type: String,
-    pub(crate) path: PathBuf,
+    pub(crate) path: Rc<Path>,
 }
 
 impl TemplateInput<'_> {
@@ -48,7 +49,9 @@ impl TemplateInput<'_> {
             .expect("template path or source not found in attributes");
         let path = match (&source, &ext) {
             (Source::Path(path), _) => config.find_template(path, None)?,
-            (&Source::Source(_), Some(ext)) => PathBuf::from(format!("{}.{}", ast.ident, ext)),
+            (&Source::Source(_), Some(ext)) => {
+                PathBuf::from(format!("{}.{}", ast.ident, ext)).into()
+            }
             (&Source::Source(_), None) => {
                 return Err("must include 'ext' attribute when using 'source' attribute".into())
             }
@@ -102,7 +105,7 @@ impl TemplateInput<'_> {
 
     pub(crate) fn find_used_templates(
         &self,
-        map: &mut HashMap<PathBuf, Parsed>,
+        map: &mut HashMap<Rc<Path>, Parsed>,
     ) -> Result<(), CompileError> {
         let source = match &self.source {
             Source::Source(s) => s.clone(),
@@ -118,7 +121,7 @@ impl TemplateInput<'_> {
             let mut nested = vec![parsed.nodes()];
             while let Some(nodes) = nested.pop() {
                 for n in nodes {
-                    let mut add_to_check = |path: PathBuf| -> Result<(), CompileError> {
+                    let mut add_to_check = |path: Rc<Path>| -> Result<(), CompileError> {
                         if !map.contains_key(&path) {
                             // Add a dummy entry to `map` in order to prevent adding `path`
                             // multiple times to `check`.

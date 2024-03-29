@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::rc::Rc;
 
 use crate::config::Config;
 use crate::CompileError;
@@ -14,7 +15,7 @@ pub(crate) struct Heritage<'a> {
 impl Heritage<'_> {
     pub(crate) fn new<'n>(
         mut ctx: &'n Context<'n>,
-        contexts: &'n HashMap<&'n Path, Context<'n>>,
+        contexts: &'n HashMap<&'n Rc<Path>, Context<'n>>,
     ) -> Heritage<'n> {
         let mut blocks: BlockAncestry<'n> = ctx
             .blocks
@@ -22,8 +23,8 @@ impl Heritage<'_> {
             .map(|(name, def)| (*name, vec![(ctx, *def)]))
             .collect();
 
-        while let Some(ref path) = ctx.extends {
-            ctx = &contexts[path.as_path()];
+        while let Some(path) = &ctx.extends {
+            ctx = &contexts[path];
             for (name, def) in &ctx.blocks {
                 blocks.entry(name).or_default().push((ctx, def));
             }
@@ -38,10 +39,10 @@ type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a BlockDef<'a>
 #[derive(Clone)]
 pub(crate) struct Context<'a> {
     pub(crate) nodes: &'a [Node<'a>],
-    pub(crate) extends: Option<PathBuf>,
+    pub(crate) extends: Option<Rc<Path>>,
     pub(crate) blocks: HashMap<&'a str, &'a BlockDef<'a>>,
     pub(crate) macros: HashMap<&'a str, &'a Macro<'a>>,
-    pub(crate) imports: HashMap<&'a str, PathBuf>,
+    pub(crate) imports: HashMap<&'a str, Rc<Path>>,
 }
 
 impl Context<'_> {
