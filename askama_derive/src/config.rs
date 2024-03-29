@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::{env, fs};
 
 #[cfg(feature = "serde")]
@@ -109,18 +110,18 @@ impl<'a> Config<'a> {
         &self,
         path: &str,
         start_at: Option<&Path>,
-    ) -> std::result::Result<PathBuf, CompileError> {
+    ) -> std::result::Result<Rc<Path>, CompileError> {
         if let Some(root) = start_at {
             let relative = root.with_file_name(path);
             if relative.exists() {
-                return Ok(relative);
+                return Ok(relative.into());
             }
         }
 
         for dir in &self.dirs {
             let rooted = dir.join(path);
             if rooted.exists() {
-                return Ok(rooted);
+                return Ok(rooted.into());
             }
         }
 

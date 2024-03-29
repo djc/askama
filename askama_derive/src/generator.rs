@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::hash_map::{Entry, HashMap};
 use std::path::Path;
+use std::rc::Rc;
 use std::{cmp, hash, mem, str};
 
 use crate::config::WhitespaceHandling;
@@ -19,7 +20,7 @@ pub(crate) struct Generator<'a> {
     // The template input state: original struct AST and attributes
     input: &'a TemplateInput<'a>,
     // All contexts, keyed by the package-relative template path
-    contexts: &'a HashMap<&'a Path, Context<'a>>,
+    contexts: &'a HashMap<&'a Rc<Path>, Context<'a>>,
     // The heritage contains references to blocks and their ancestry
     heritage: Option<&'a Heritage<'a>>,
     // Variables accessible directly from the current scope (not redirected to context)
@@ -42,7 +43,7 @@ pub(crate) struct Generator<'a> {
 impl<'a> Generator<'a> {
     pub(crate) fn new<'n>(
         input: &'n TemplateInput<'_>,
-        contexts: &'n HashMap<&'n Path, Context<'n>>,
+        contexts: &'n HashMap<&'n Rc<Path>, Context<'n>>,
         heritage: Option<&'n Heritage<'_>>,
         locals: MapChain<'n, Cow<'n, str>, LocalMeta>,
     ) -> Generator<'n> {
@@ -94,7 +95,7 @@ impl<'a> Generator<'a> {
             // Skip the fake path of templates defined in rust source.
             let path_is_valid = match self.input.source {
                 Source::Path(_) => true,
-                Source::Source(_) => path != &self.input.path,
+                Source::Source(_) => **path != self.input.path,
             };
             if path_is_valid {
                 let path = path.to_str().unwrap();
@@ -559,7 +560,7 @@ impl<'a> Generator<'a> {
                 })?;
                 let mctx = self
                     .contexts
-                    .get(path.as_path())
+                    .get(path)
                     .ok_or_else(|| CompileError::from(format!("context for {path:?} not found")))?;
                 let def = mctx.macros.get(name).ok_or_else(|| {
                     CompileError::from(format!("macro {name:?} not found in scope {s:?}"))
@@ -784,7 +785,7 @@ impl<'a> Generator<'a> {
         // We clone the context of the child in order to preserve their macros and imports.
         // But also add all the imports and macros from this template that don't override the
         // child's ones to preserve this template's context.
-        let child_ctx = &mut self.contexts[path.as_path()].clone();
+        let child_ctx = &mut self.contexts[&path].clone();
         for (name, mac) in &ctx.macros {
             child_ctx.macros.entry(name).or_insert(mac);
         }
