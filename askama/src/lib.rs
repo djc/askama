@@ -194,6 +194,13 @@ impl fmt::Display for dyn DynTemplate {
     }
 }
 
+/// Re-Export comrak features when markdown is included.
+/// This is to prevent any version mismatches on injected dependencies.
+#[cfg(feature = "markdown")]
+pub mod comrak {
+    pub use comrak::*;
+}
+
 #[cfg(test)]
 mod tests {
     use std::fmt;
