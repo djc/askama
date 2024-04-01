@@ -342,10 +342,7 @@ pub fn wordcount<T: fmt::Display>(s: T) -> Result<usize> {
 }
 
 #[cfg(feature = "markdown")]
-pub fn markdown<E, S>(
-    e: E,
-    s: S,
-) -> Result<MarkupDisplay<E, String>>
+pub fn markdown<E, S>(e: E, s: S) -> Result<MarkupDisplay<E, String>>
 where
     E: Escaper,
     S: AsRef<str>,

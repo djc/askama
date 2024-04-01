@@ -1201,10 +1201,9 @@ impl<'a> Generator<'a> {
         buf: &mut Buffer,
         args: &[Expr<'_>],
     ) -> Result<DisplayWrap, CompileError> {
-        let (md, options) = match args {
-            [md] => (md, None),
-            [md, options] => (md, Some(options)),
-            _ => return Err("markdown filter expects no more than one option argument".into()),
+        let md = match args {
+            [md] => md,
+            _ => return Err("markdown filter expects one argument".into()),
         };
 
         buf.write(&format!(
@@ -1212,14 +1211,6 @@ impl<'a> Generator<'a> {
             self.input.escaper
         ));
         self.visit_expr(buf, md)?;
-        match options {
-            Some(options) => {
-                buf.write(", ::core::option::Option::Some(");
-                self.visit_expr(buf, options)?;
-                buf.write(")");
-            }
-            None => buf.write(", ::core::option::Option::None"),
-        }
         buf.write(")?");
 
         Ok(DisplayWrap::Wrapped)
