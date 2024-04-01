@@ -345,7 +345,6 @@ pub fn wordcount<T: fmt::Display>(s: T) -> Result<usize> {
 pub fn markdown<E, S>(
     e: E,
     s: S,
-    options: Option<&comrak::Options>,
 ) -> Result<MarkupDisplay<E, String>>
 where
     E: Escaper,
@@ -360,7 +359,7 @@ where
     defaults.extension.autolink = true;
     defaults.render.escape = true;
 
-    let s = markdown_to_html(s.as_ref(), options.unwrap_or(&defaults));
+    let s = markdown_to_html(s.as_ref(), &defaults);
     Ok(MarkupDisplay::new_safe(s, e))
 }
 
