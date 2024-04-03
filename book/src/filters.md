@@ -13,13 +13,13 @@ is passed to the next.
 {{ "HELLO"|lower }}
 ```
 
-Askama has a collection of built-in filters, documented below, but can also include custom filters. 
+Askama has a collection of built-in filters, documented below, but can also include custom filters.
 Additionally, the `json` and `yaml` filters are included in the built-in filters,
 but are disabled by default. Enable them with Cargo features (see below for more information).
 
 **Table of contents**
 
-* **[Built-in filters][#built-in-filters]:**  
+- **[Built-in filters][#built-in-filters]:**
   [`abs`][#abs],
   [`as_ref`][#as_ref],
   [`capitalize`][#capitalize],
@@ -38,17 +38,19 @@ but are disabled by default. Enable them with Cargo features (see below for more
   [`upper|uppercase`][#upper],
   [`wordcount`][#wordcount]
 
-* **[Optional / feature gated filters][#optional-filters]:**  
+- **[Optional / feature gated filters][#optional-filters]:**
   [`json|tojson`][#json],
   [`markdown`][#markdown],
   [`yaml`][#yaml]
 
-* **[Custom filters][#custom-filters]**
+- **[Custom filters][#custom-filters]**
 
 ## Built-In Filters
+
 [#built-in-filters]: #built-in-filters
 
 ### abs
+
 [#abs]: #abs
 
 Returns the absolute value.
@@ -64,6 +66,7 @@ Output:
 ```
 
 ### as_ref
+
 [#as_ref]: #as_ref
 
 Creates a reference to the given argument.
@@ -81,6 +84,7 @@ will become:
 ```
 
 ### capitalize
+
 [#capitalize]: #capitalize
 
 Capitalize a value. The first character will be uppercase, all others lowercase:
@@ -96,6 +100,7 @@ Hello
 ```
 
 ### center
+
 [#center]: #center
 
 Centers the value in a field of a given width:
@@ -105,11 +110,13 @@ Centers the value in a field of a given width:
 ```
 
 Output:
+
 ```
 -  a  -
 ```
 
 ### escape | e
+
 [#escape]: #escape--e
 
 Escapes HTML characters in strings:
@@ -124,9 +131,9 @@ Output:
 Escape &lt;&gt;&amp;
 ```
 
-Optionally, it is possible to specify and override which escaper is used. 
-Consider a template where the escaper is configured as [`escape = "none"`]. 
-However, somewhere escaping using the HTML escaper is desired. 
+Optionally, it is possible to specify and override which escaper is used.
+Consider a template where the escaper is configured as [`escape = "none"`].
+However, somewhere escaping using the HTML escaper is desired.
 Then it is possible to override and use the HTML escaper like this:
 
 ```jinja
@@ -150,6 +157,7 @@ Escape &lt;&gt;&amp;
 [`escape = "none"`]: creating_templates.html#the-template-attribute
 
 ### filesizeformat
+
 [#filesizeformat]: #filesizeformat
 
 Returns adequate string representation (in KB, ..) of number of bytes:
@@ -159,11 +167,13 @@ Returns adequate string representation (in KB, ..) of number of bytes:
 ```
 
 Output:
+
 ```
 1 KB
 ```
 
 ### format
+
 [#format]: #format
 
 Formats arguments according to the specified format.
@@ -177,6 +187,7 @@ All arguments are passed through to the `format!()` macro by the Askama code gen
 ```
 
 ### indent
+
 [#indent]: #indent
 
 Indent newlines with width spaces.
@@ -194,6 +205,7 @@ hello
 ```
 
 ### join
+
 [#join]: #join
 
 Joins iterable into a string separated by provided argument.
@@ -213,6 +225,7 @@ foo, bar, bazz
 ```
 
 ### linebreaks
+
 [#linebreaks]: #linebreaks
 
 Replaces line breaks in plain text with appropriate HTML.
@@ -230,6 +243,7 @@ Output:
 ```
 
 ### linebreaksbr
+
 [#linebreaksbr]: #linebreaksbr
 
 Converts all newlines in a piece of plain text to HTML line breaks.
@@ -245,6 +259,7 @@ hello<br />world<br /><br />from<br />askama
 ```
 
 ### paragraphbreaks
+
 [#paragraphbreaks]: #paragraphbreaks
 
 A new line followed by a blank line becomes `<p>`, but, unlike `linebreaks`, single new lines are ignored and no `<br/>` tags are generated.
@@ -264,6 +279,7 @@ Output:
 ```
 
 ### lower | lowercase
+
 [#lower]: #lower--lowercase
 
 Converts to lowercase.
@@ -279,6 +295,7 @@ hello
 ```
 
 ### safe
+
 [#safe]: #safe
 
 Marks a string (or other Display type) as safe. By default all strings are escaped according to the format.
@@ -294,6 +311,7 @@ Output:
 ```
 
 ### trim
+
 [#trim]: #trim
 
 Strip leading and trailing whitespace.
@@ -309,10 +327,10 @@ hello
 ```
 
 ### truncate
+
 [#truncate]: #truncate
 
 Limit string length, appends '...' if truncated.
-
 
 ```
 {{ "hello"|truncate(2) }}
@@ -325,6 +343,7 @@ he...
 ```
 
 ### upper | uppercase
+
 [#upper]: #upper--uppercase
 
 Converts to uppercase.
@@ -340,6 +359,7 @@ HELLO
 ```
 
 ### wordcount
+
 [#wordcount]: #wordcount
 
 Count the words in that string.
@@ -355,6 +375,7 @@ Output:
 ```
 
 ## Optional / feature gated filters
+
 [#optional-filters]: #optional--feature-gated-filters
 
 The following filters can be enabled by requesting the respective feature in the Cargo.toml
@@ -366,6 +387,7 @@ askama = { version = "0.11.2", features = "serde-json" }
 ```
 
 ### `json` | `tojson`
+
 [#json]: #json--tojson
 
 Enabling the `serde-json` feature will enable the use of the `json` filter.
@@ -393,6 +415,7 @@ Ugly: <script>var data = '{{data|json|safe}}';</script>
 ```
 
 ### `markdown`
+
 [#markdown]: #markdown
 
 Enabling the `markdown` feature will enable the use of the `markdown` filter.
@@ -417,6 +440,7 @@ You can find a usage example in our [unit tests][markdown-tests].
 [markdown-tests]: https://github.com/djc/askama/blob/5748c357d435b24848d1571df010d777859fede9/testing/tests/markdown.rs#L36-L75
 
 ### `yaml`
+
 [#yaml]: #yaml
 
 Enabling the `serde-yaml` feature will enable the use of the `yaml` filter.
@@ -428,20 +452,21 @@ This will output formatted YAML for any value that implements the required
 ```
 
 ## Custom Filters
+
 [#custom-filters]: #custom-filters
 
-To define your own filters, simply have a module named `filters` in scope of the context deriving a `Template` impl 
-and define the filters as functions within this module. 
+To define your own filters, simply have a module named `filters` in scope of the context deriving a `Template` impl
+and define the filters as functions within this module.
 The functions must have at least one argument and the return type must be `::askama::Result<T>`.
-Although there are no restrictions on `T` for a single filter, 
-the final result of a chain of filters must implement `Display`. 
+Although there are no restrictions on `T` for a single filter,
+the final result of a chain of filters must implement `Display`.
 
-The arguments to the filters are passed as follows. 
-The first argument corresponds to the expression they are applied to. 
-Subsequent arguments, if any, must be given directly when calling the filter. 
-The first argument may or may not be a reference, depending on the context in which the filter is called. 
+The arguments to the filters are passed as follows.
+The first argument corresponds to the expression they are applied to.
+Subsequent arguments, if any, must be given directly when calling the filter.
+The first argument may or may not be a reference, depending on the context in which the filter is called.
 To abstract over ownership, consider defining your argument as a trait bound.
-For example, the `trim` built-in filter accepts any value implementing `Display`. 
+For example, the `trim` built-in filter accepts any value implementing `Display`.
 Its signature is similar to `fn trim(s: impl std::fmt::Display) -> ::askama::Result<String>`.
 
 Note that built-in filters have preference over custom filters, so, in case of name collision, the built-in filter is applied.
@@ -449,6 +474,7 @@ Note that built-in filters have preference over custom filters, so, in case of n
 ### Examples
 
 Implementing a filter that replaces all instances of `"oo"` for `"aa"`.
+
 ```rust
 use askama::Template;
 
@@ -474,6 +500,7 @@ fn main() {
 ```
 
 Implementing a filter that replaces all instances of `"oo"` for `n` times `"a"`.
+
 ```rust
 use askama::Template;
 
