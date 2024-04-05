@@ -1,9 +1,11 @@
+#![cfg(not(windows))]
+
+use std::os::unix::fs::symlink;
 use std::path::Path;
 use trybuild::TestCases;
 use version_check as rustc;
 
-#[cfg_attr(not(windows), test)]
-#[cfg(not(windows))]
+#[test]
 fn ui() {
     let t = TestCases::new();
     t.compile_fail("tests/ui/*.rs");
@@ -40,7 +42,7 @@ fn ui() {
         return;
     }
     let original = Path::new(&manifest_dir).join("templates");
-    if std::os::unix::fs::symlink(&original, &target).is_err() {
+    if symlink(&original, &target).is_err() {
         panic!(
             "failed to create to create link on `{}` as `{}`",
             original.display(),
