@@ -1,6 +1,6 @@
-error: problems parsing template source at row 14, column 42 near:
-       "%}{%if 1%}{%if 1%}{%if 1%}{%if 1%}{%if 1"...
- --> tests/ui/excessive_nesting.rs:3:10
+error: problems parsing template source at row 1, column 46 near:
+       ""
+ --> tests/ui/filter-recursion.rs:3:10
   |
 3 | #[derive(Template)]
   |          ^^^^^^^^
