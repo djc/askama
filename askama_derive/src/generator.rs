@@ -1273,13 +1273,8 @@ impl<'a> Generator<'a> {
         if name == "json" {
             return Err("the `json` filter requires the `serde-json` feature to be enabled".into());
         }
-        #[cfg(not(feature = "serde-yaml"))]
-        if name == "yaml" {
-            return Err("the `yaml` filter requires the `serde-yaml` feature to be enabled".into());
-        }
 
-        const FILTERS: [&str; 2] = ["safe", "yaml"];
-        if FILTERS.contains(&name) {
+        if name == "safe" {
             buf.write(&format!(
                 "{CRATE}::filters::{}({}, ",
                 name, self.input.escaper
@@ -1292,9 +1287,10 @@ impl<'a> Generator<'a> {
 
         self._visit_args(buf, args)?;
         buf.write(")?");
-        Ok(match FILTERS.contains(&name) {
-            true => DisplayWrap::Wrapped,
-            false => DisplayWrap::Unwrapped,
+        Ok(if name == "safe" {
+            DisplayWrap::Wrapped
+        } else {
+            DisplayWrap::Unwrapped
         })
     }
 

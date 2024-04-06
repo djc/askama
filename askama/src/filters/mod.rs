@@ -12,11 +12,6 @@ mod json;
 #[cfg(feature = "serde-json")]
 pub use self::json::json;
 
-#[cfg(feature = "serde-yaml")]
-mod yaml;
-#[cfg(feature = "serde-yaml")]
-pub use self::yaml::yaml;
-
 #[allow(unused_imports)]
 use crate::error::Error::Fmt;
 use askama_escape::{Escaper, MarkupDisplay};

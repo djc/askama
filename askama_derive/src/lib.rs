@@ -151,7 +151,6 @@ const BUILT_IN_FILTERS: &[&str] = &[
     // optional features, reserve the names anyway:
     "json",
     "markdown",
-    "yaml",
 ];
 
 const CRATE: &str = if cfg!(feature = "with-actix-web") {

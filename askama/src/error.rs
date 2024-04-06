@@ -34,10 +34,6 @@ pub enum Error {
     /// json conversion error
     #[cfg(feature = "serde_json")]
     Json(::serde_json::Error),
-
-    /// yaml conversion error
-    #[cfg(feature = "serde_yaml")]
-    Yaml(::serde_yaml::Error),
 }
 
 impl std::error::Error for Error {
@@ -47,8 +43,6 @@ impl std::error::Error for Error {
             Error::Custom(ref err) => Some(err.as_ref()),
             #[cfg(feature = "serde_json")]
             Error::Json(ref err) => Some(err),
-            #[cfg(feature = "serde_yaml")]
-            Error::Yaml(ref err) => Some(err),
         }
     }
 }
@@ -60,8 +54,6 @@ impl Display for Error {
             Error::Custom(err) => write!(formatter, "{err}"),
             #[cfg(feature = "serde_json")]
             Error::Json(err) => write!(formatter, "json conversion error: {err}"),
-            #[cfg(feature = "serde_yaml")]
-            Error::Yaml(err) => write!(formatter, "yaml conversion error: {}", err),
         }
     }
 }
@@ -76,13 +68,6 @@ impl From<fmt::Error> for Error {
 impl From<::serde_json::Error> for Error {
     fn from(err: ::serde_json::Error) -> Self {
         Error::Json(err)
-    }
-}
-
-#[cfg(feature = "serde_yaml")]
-impl From<::serde_yaml::Error> for Error {
-    fn from(err: ::serde_yaml::Error) -> Self {
-        Error::Yaml(err)
     }
 }
 
