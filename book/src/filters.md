@@ -14,8 +14,8 @@ is passed to the next.
 ```
 
 Askama has a collection of built-in filters, documented below, but can also include custom filters. 
-Additionally, the `json` and `markdown` filters are included in the built-in filters, but are
-disabled by default. Enable them with Cargo features (see below for more information).
+Additionally, the `json` filter is included in the built-in filters, but is disabled by default.
+Enable it with Cargo features (see below for more information).
 
 **Table of contents**
 
@@ -40,7 +40,6 @@ disabled by default. Enable them with Cargo features (see below for more informa
 
 * **[Optional / feature gated filters][#optional-filters]:**  
   [`json|tojson`][#json],
-  [`markdown`][#markdown],
 
 * **[Custom filters][#custom-filters]**
 
@@ -390,30 +389,6 @@ Bad:  <script>var data = "{{data|json|safe}}";</script>
 Ugly: <script>var data = "{{data|json}}";</script>
 Ugly: <script>var data = '{{data|json|safe}}';</script>
 ```
-
-### `markdown`
-[#markdown]: #markdown
-
-Enabling the `markdown` feature will enable the use of the `markdown` filter.
-This will render a value using a [GitHub flavored CommonMark](https://docs.rs/comrak/0.14.*/comrak/) syntax.
-By default the extensions “autolink”, “strikethrough”, “tagfilter”, and “table” are enabled.
-Any raw HTML gets escaped.
-
-```jinja
-{{ "**<i>Hello</i>, world!**"|markdown }}
-```
-
-Output:
-
-```html
-<p><strong>&lt;i&gt;Hello&lt;/i&gt;, world!</strong></p>
-```
-
-You can change the default settings by supplying [custom options][ComrakRenderOptions], e.g. to enable unsafe raw HTML.
-You can find a usage example in our [unit tests][markdown-tests].
-
-[ComrakRenderOptions]: https://docs.rs/comrak/0.12.*/comrak/struct.ComrakRenderOptions.html
-[markdown-tests]: https://github.com/djc/askama/blob/5748c357d435b24848d1571df010d777859fede9/testing/tests/markdown.rs#L36-L75
 
 ## Custom Filters
 [#custom-filters]: #custom-filters

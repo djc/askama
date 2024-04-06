@@ -150,7 +150,6 @@ const BUILT_IN_FILTERS: &[&str] = &[
     "wordcount",
     // optional features, reserve the names anyway:
     "json",
-    "markdown",
 ];
 
 const CRATE: &str = if cfg!(feature = "with-actix-web") {

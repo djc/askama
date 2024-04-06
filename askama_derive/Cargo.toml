@@ -16,7 +16,6 @@ proc-macro = true
 [features]
 config = ["serde", "basic-toml"]
 humansize = []
-markdown = []
 urlencode = []
 serde-json = []
 num-traits = []
