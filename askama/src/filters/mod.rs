@@ -21,9 +21,9 @@ pub use self::yaml::yaml;
 use crate::error::Error::Fmt;
 use askama_escape::{Escaper, MarkupDisplay};
 #[cfg(feature = "humansize")]
-use dep_humansize::{format_size_i, ToF64, DECIMAL};
+use humansize::{format_size_i, ToF64, DECIMAL};
 #[cfg(feature = "num-traits")]
-use dep_num_traits::{cast::NumCast, Signed};
+use num_traits::{cast::NumCast, Signed};
 #[cfg(feature = "percent-encoding")]
 use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 
