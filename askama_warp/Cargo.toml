@@ -14,7 +14,7 @@ edition = "2021"
 rust-version = "1.65"
 
 [dependencies]
-askama = { version = "0.13", path = "../askama", default-features = false, features = ["with-warp", "mime", "mime_guess"] }
+askama = { version = "0.13", path = "../askama", default-features = false, features = ["with-warp"] }
 warp = { version = "0.3", default-features = false }
 
 [dev-dependencies]
