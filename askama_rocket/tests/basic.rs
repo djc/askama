@@ -1,5 +1,4 @@
-use askama::Template;
-
+use askama_rocket::Template;
 use futures_lite::future::block_on;
 use rocket::http::{ContentType, Status};
 use rocket::local::asynchronous::Client;
