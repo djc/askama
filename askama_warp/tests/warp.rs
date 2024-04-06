@@ -1,4 +1,4 @@
-use askama::Template;
+use askama_warp::Template;
 use warp::Filter;
 
 #[derive(Template)]
