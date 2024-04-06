@@ -30,10 +30,6 @@ with-axum = ["askama_derive/with-axum"]
 with-rocket = ["askama_derive/with-rocket"]
 with-warp = ["askama_derive/with-warp"]
 
-# deprecated
-mime = []
-mime_guess = []
-
 [dependencies]
 askama_derive = { version = "0.13", path = "../askama_derive" }
 askama_escape = { version = "0.10.3", path = "../askama_escape" }
