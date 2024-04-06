@@ -24,7 +24,6 @@ tokio = { version = "1.0", features = ["macros", "rt"] }
 default = ["askama/default"]
 config = ["askama/config"]
 humansize = ["askama/humansize"]
-markdown = ["askama/markdown"]
 num-traits = ["askama/num-traits"]
 serde-json = ["askama/serde-json"]
 urlencode = ["askama/urlencode"]

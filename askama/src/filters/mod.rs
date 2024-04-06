@@ -336,29 +336,6 @@ pub fn wordcount<T: fmt::Display>(s: T) -> Result<usize> {
     Ok(s.split_whitespace().count())
 }
 
-#[cfg(feature = "markdown")]
-pub fn markdown<E, S>(
-    e: E,
-    s: S,
-    options: Option<&comrak::Options>,
-) -> Result<MarkupDisplay<E, String>>
-where
-    E: Escaper,
-    S: AsRef<str>,
-{
-    use comrak::{markdown_to_html, Options};
-
-    let mut defaults = Options::default();
-    defaults.extension.strikethrough = true;
-    defaults.extension.tagfilter = true;
-    defaults.extension.table = true;
-    defaults.extension.autolink = true;
-    defaults.render.escape = true;
-
-    let s = markdown_to_html(s.as_ref(), options.unwrap_or(&defaults));
-    Ok(MarkupDisplay::new_safe(s, e))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

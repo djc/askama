@@ -1187,45 +1187,6 @@ impl<'a> Generator<'a> {
         DisplayWrap::Unwrapped
     }
 
-    #[cfg(not(feature = "markdown"))]
-    fn _visit_markdown_filter(
-        &mut self,
-        _buf: &mut Buffer,
-        _args: &[Expr<'_>],
-    ) -> Result<DisplayWrap, CompileError> {
-        Err("the `markdown` filter requires the `markdown` feature to be enabled".into())
-    }
-
-    #[cfg(feature = "markdown")]
-    fn _visit_markdown_filter(
-        &mut self,
-        buf: &mut Buffer,
-        args: &[Expr<'_>],
-    ) -> Result<DisplayWrap, CompileError> {
-        let (md, options) = match args {
-            [md] => (md, None),
-            [md, options] => (md, Some(options)),
-            _ => return Err("markdown filter expects no more than one option argument".into()),
-        };
-
-        buf.write(&format!(
-            "{CRATE}::filters::markdown({}, &",
-            self.input.escaper
-        ));
-        self.visit_expr(buf, md)?;
-        match options {
-            Some(options) => {
-                buf.write(", ::core::option::Option::Some(");
-                self.visit_expr(buf, options)?;
-                buf.write(")");
-            }
-            None => buf.write(", ::core::option::Option::None"),
-        }
-        buf.write(")?");
-
-        Ok(DisplayWrap::Wrapped)
-    }
-
     fn _visit_as_ref_filter(
         &mut self,
         buf: &mut Buffer,
@@ -1258,8 +1219,6 @@ impl<'a> Generator<'a> {
         } else if name == "join" {
             self._visit_join_filter(buf, args)?;
             return Ok(DisplayWrap::Unwrapped);
-        } else if name == "markdown" {
-            return self._visit_markdown_filter(buf, args);
         } else if name == "as_ref" {
             self._visit_as_ref_filter(buf, args)?;
             return Ok(DisplayWrap::Wrapped);
