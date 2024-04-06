@@ -14,8 +14,8 @@ is passed to the next.
 ```
 
 Askama has a collection of built-in filters, documented below, but can also include custom filters. 
-Additionally, the `json` and `yaml` filters are included in the built-in filters,
-but are disabled by default. Enable them with Cargo features (see below for more information).
+Additionally, the `json` and `markdown` filters are included in the built-in filters, but are
+disabled by default. Enable them with Cargo features (see below for more information).
 
 **Table of contents**
 
@@ -41,7 +41,6 @@ but are disabled by default. Enable them with Cargo features (see below for more
 * **[Optional / feature gated filters][#optional-filters]:**  
   [`json|tojson`][#json],
   [`markdown`][#markdown],
-  [`yaml`][#yaml]
 
 * **[Custom filters][#custom-filters]**
 
@@ -415,17 +414,6 @@ You can find a usage example in our [unit tests][markdown-tests].
 
 [ComrakRenderOptions]: https://docs.rs/comrak/0.12.*/comrak/struct.ComrakRenderOptions.html
 [markdown-tests]: https://github.com/djc/askama/blob/5748c357d435b24848d1571df010d777859fede9/testing/tests/markdown.rs#L36-L75
-
-### `yaml`
-[#yaml]: #yaml
-
-Enabling the `serde-yaml` feature will enable the use of the `yaml` filter.
-This will output formatted YAML for any value that implements the required
-[`Serialize`](https://docs.rs/serde/1.*/serde/trait.Serialize.html) trait.
-
-```jinja
-{{ foo|yaml }}
-```
 
 ## Custom Filters
 [#custom-filters]: #custom-filters
