@@ -1274,24 +1274,23 @@ impl<'a> Generator<'a> {
             return Err("the `json` filter requires the `serde-json` feature to be enabled".into());
         }
 
-        if name == "safe" {
+        let display_wrap = if name == "safe" {
             buf.write(&format!(
                 "{CRATE}::filters::{}({}, ",
                 name, self.input.escaper
             ));
+            DisplayWrap::Wrapped
         } else if crate::BUILT_IN_FILTERS.contains(&name) {
             buf.write(&format!("{CRATE}::filters::{name}("));
+            DisplayWrap::Unwrapped
         } else {
             buf.write(&format!("filters::{name}("));
-        }
+            DisplayWrap::Unwrapped
+        };
 
         self._visit_args(buf, args)?;
         buf.write(")?");
-        Ok(if name == "safe" {
-            DisplayWrap::Wrapped
-        } else {
-            DisplayWrap::Unwrapped
-        })
+        Ok(display_wrap)
     }
 
     fn _visit_escape_filter(
