@@ -16,6 +16,7 @@ pub(crate) struct TemplateInput<'a> {
     pub(crate) config: &'a Config<'a>,
     pub(crate) syntax: &'a Syntax<'a>,
     pub(crate) source: &'a Source,
+    pub(crate) block: Option<&'a str>,
     pub(crate) print: Print,
     pub(crate) escaper: &'a str,
     pub(crate) ext: Option<&'a str>,
@@ -34,6 +35,7 @@ impl TemplateInput<'_> {
     ) -> Result<TemplateInput<'n>, CompileError> {
         let TemplateArgs {
             source,
+            block,
             print,
             escaping,
             ext,
@@ -95,6 +97,7 @@ impl TemplateInput<'_> {
             config,
             syntax,
             source,
+            block: block.as_deref(),
             print: *print,
             escaper,
             ext: ext.as_deref(),
@@ -210,6 +213,7 @@ impl TemplateInput<'_> {
 #[derive(Debug, Default)]
 pub(crate) struct TemplateArgs {
     source: Option<Source>,
+    block: Option<String>,
     print: Print,
     escaping: Option<String>,
     ext: Option<String>,
@@ -287,6 +291,12 @@ impl TemplateArgs {
                     args.source = Some(Source::Source(s.value()));
                 } else {
                     return Err("template source must be string literal".into());
+                }
+            } else if ident == "block" {
+                if let syn::Lit::Str(s) = value.lit {
+                    args.block = Some(s.value());
+                } else {
+                    return Err("block value must be string literal".into());
                 }
             } else if ident == "print" {
                 if let syn::Lit::Str(s) = value.lit {

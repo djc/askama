@@ -1,0 +1,12 @@
+{% extends "fragment-base.html" %}
+
+{{ not_required }}
+
+{% block body %}
+<p>{{ required }}</p>
+{% endblock %}
+
+{% block other_body %}
+{{ not_required_2 }}
+<p>Don't render me.</p>
+{% endblock %}
