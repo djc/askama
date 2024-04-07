@@ -362,6 +362,21 @@ tag doesn't support whitespace control:
 The above code is rejected because we used `-` and `+`. For more information
 about whitespace control, take a look [here](#whitespace-control).
 
+### Block fragments
+
+Additionally, a block can be rendered by itself. This can be useful when
+you need to decompose your template for partial rendering, without
+needing to extract the partial into a separate template or macro. This
+can be done with the `block` parameter.
+
+```rust
+#[derive(Template)]
+#[template(path = "...", block = "my_block")]
+struct BlockFragment {
+    name: String,
+}
+```
+
 ## HTML escaping
 
 Askama by default escapes variables if it thinks it is rendering HTML

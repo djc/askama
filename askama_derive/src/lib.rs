@@ -66,7 +66,15 @@ pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileEr
 
     let ctx = &contexts[&input.path];
     let heritage = if !ctx.blocks.is_empty() || ctx.extends.is_some() {
-        Some(Heritage::new(ctx, &contexts))
+        let heritage = Heritage::new(ctx, &contexts);
+
+        if let Some(block_name) = input.block {
+            if !heritage.blocks.contains_key(&block_name) {
+                return Err(format!("cannot find block {}", block_name).into());
+            }
+        }
+
+        Some(heritage)
     } else {
         None
     };

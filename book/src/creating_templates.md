@@ -75,6 +75,16 @@ recognized:
   #[template(path = "hello.html", print = "all")]
   struct HelloTemplate<'a> { ... }
   ```
+* `block` (as `block = "block_name"`): renders the block by itself.
+  Expressions outside of the block are not required by the struct, and
+  inheritance is also supported. This can be useful when you need to
+  decompose your template for partial rendering, without needing to
+  extract the partial into a separate template or macro.
+  ```rust
+  #[derive(Template)]
+  #[template(path = "hello.html", block = "hello")]
+  struct HelloTemplate<'a> { ... }
+  ```
 * `escape` (as `escape = "none"`): override the template's extension used for
   the purpose of determining the escaper for this template. See the section
   on configuring custom escapers for more information.
