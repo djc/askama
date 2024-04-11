@@ -1,5 +1,6 @@
 error: cyclic dependency in graph [
-           "\"$WORKSPACE/target/tests/trybuild/askama_testing/templates/cycle2.html/" --> \"$WORKSPACE/target/tests/trybuild/askama_testing/templates/cycle2.html/"",
+           "\"$WORKSPACE/target/tests/trybuild/askama_testing/templates/cycle2.html/" --> \"$WORKSPACE/target/tests/trybuild/askama_testing/templates/cycle1.html/"",
+           "\"$WORKSPACE/target/tests/trybuild/askama_testing/templates/cycle1.html/" --> \"$WORKSPACE/target/tests/trybuild/askama_testing/templates/cycle1.html/"",
        ]
  --> tests/ui/cycle.rs:3:10
   |
