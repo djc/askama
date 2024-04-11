@@ -140,15 +140,12 @@ impl TemplateInput<'_> {
                         Extends(extends) if top => {
                             let extends = self.config.find_template(extends.path, Some(&path))?;
                             let dependency_path = (path.clone(), extends.clone());
-                            if dependency_graph.contains(&dependency_path) {
-                                return Err(format!(
-                                    "cyclic dependency in graph {:#?}",
-                                    dependency_graph
-                                        .iter()
-                                        .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
-                                        .collect::<Vec<String>>()
-                                )
-                                .into());
+                            if path == extends {
+                                // We add the path into the graph to have a better looking error.
+                                dependency_graph.push(dependency_path);
+                                return cyclic_graph_error(&dependency_graph);
+                            } else if dependency_graph.contains(&dependency_path) {
+                                return cyclic_graph_error(&dependency_graph);
                             }
                             dependency_graph.push(dependency_path);
                             add_to_check(extends)?;
@@ -419,6 +416,17 @@ const TEXT_TYPES: [(Mime, Mime); 7] = [
     ),
     (mime::IMAGE_SVG, mime::IMAGE_SVG),
 ];
+
+fn cyclic_graph_error(dependency_graph: &[(Rc<Path>, Rc<Path>)]) -> Result<(), CompileError> {
+    Err(format!(
+        "cyclic dependency in graph {:#?}",
+        dependency_graph
+            .iter()
+            .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
+            .collect::<Vec<String>>()
+    )
+    .into())
+}
 
 #[cfg(test)]
 mod tests {
