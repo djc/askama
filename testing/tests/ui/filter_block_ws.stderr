@@ -1,4 +1,4 @@
-error: problems parsing template source at row 1, column 27 near:
+error: failed to parse template source at row 1, column 27 near:
        " %}\nHELLO\n{{v}}\n{%- endfilter %}"
  --> tests/ui/filter_block_ws.rs:3:10
   |
