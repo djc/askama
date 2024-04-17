@@ -5,15 +5,15 @@
 //! For more information, read the [book](https://djc.github.io/askama/filters.html).
 #![allow(clippy::trivially_copy_pass_by_ref)]
 
-use std::fmt::{self, Write};
+use std::cell::Cell;
+use std::convert::Infallible;
+use std::fmt;
 
 #[cfg(feature = "serde-json")]
 mod json;
 #[cfg(feature = "serde-json")]
 pub use self::json::json;
 
-#[allow(unused_imports)]
-use crate::error::Error::Fmt;
 use askama_escape::{Escaper, MarkupDisplay};
 #[cfg(feature = "humansize")]
 use dep_humansize::{format_size_i, ToF64, DECIMAL};
@@ -23,6 +23,8 @@ use dep_num_traits::{cast::NumCast, Signed};
 use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 
 use super::Result;
+#[allow(unused_imports)]
+use crate::error::Error::Fmt;
 
 #[cfg(feature = "percent-encoding")]
 // Urlencode char encoding set. Only the characters in the unreserved set don't
@@ -259,25 +261,49 @@ where
 }
 
 /// Joins iterable into a string separated by provided argument
-pub fn join<T, I, S>(input: I, separator: S) -> Result<String>
+#[inline]
+pub fn join<I, S>(input: I, separator: S) -> Result<JoinFilter<I, S>, Infallible>
 where
-    T: fmt::Display,
-    I: Iterator<Item = T>,
-    S: AsRef<str>,
+    I: IntoIterator,
+    I::Item: fmt::Display,
+    S: fmt::Display,
 {
-    let separator: &str = separator.as_ref();
+    Ok(JoinFilter(Cell::new(Some((input, separator)))))
+}
 
-    let mut rv = String::new();
+/// Result of the filter [`join()`].
+///
+/// ## Note
+///
+/// This struct implements [`fmt::Display`], but only produces a string once.
+/// Any subsequent call to `.to_string()` will result in an empty string, because the iterator is
+/// already consumed.
+//
+// The filter contains a [`Cell`], so we can modify iterator inside a method that takes `self` by
+// reference: [`fmt::Display::fmt()`] normally has the contract that it will produce the same result
+// in multiple invocations for the same object. We break this contract, because have to consume the
+// iterator, unless we want to enforce `I: Clone`, nor do we want to "memorize" the result of the
+// joined data.
+pub struct JoinFilter<I, S>(Cell<Option<(I, S)>>);
 
-    for (num, item) in input.enumerate() {
-        if num > 0 {
-            rv.push_str(separator);
+impl<I, S> fmt::Display for JoinFilter<I, S>
+where
+    I: IntoIterator,
+    I::Item: fmt::Display,
+    S: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Some((iter, separator)) = self.0.take() else {
+            return Ok(());
+        };
+        for (idx, token) in iter.into_iter().enumerate() {
+            match idx {
+                0 => f.write_fmt(format_args!("{token}"))?,
+                _ => f.write_fmt(format_args!("{separator}{token}"))?,
+            }
         }
-
-        write!(rv, "{item}")?;
+        Ok(())
     }
-
-    Ok(rv)
 }
 
 #[cfg(feature = "num-traits")]
@@ -518,26 +544,33 @@ mod tests {
     #[test]
     fn test_join() {
         assert_eq!(
-            join((&["hello", "world"]).iter(), ", ").unwrap(),
+            join((&["hello", "world"]).iter(), ", ")
+                .unwrap()
+                .to_string(),
             "hello, world"
         );
-        assert_eq!(join((&["hello"]).iter(), ", ").unwrap(), "hello");
+        assert_eq!(
+            join((&["hello"]).iter(), ", ").unwrap().to_string(),
+            "hello"
+        );
 
         let empty: &[&str] = &[];
-        assert_eq!(join(empty.iter(), ", ").unwrap(), "");
+        assert_eq!(join(empty.iter(), ", ").unwrap().to_string(), "");
 
         let input: Vec<String> = vec!["foo".into(), "bar".into(), "bazz".into()];
-        assert_eq!(join(input.iter(), ":").unwrap(), "foo:bar:bazz");
+        assert_eq!(join(input.iter(), ":").unwrap().to_string(), "foo:bar:bazz");
 
         let input: &[String] = &["foo".into(), "bar".into()];
-        assert_eq!(join(input.iter(), ":").unwrap(), "foo:bar");
+        assert_eq!(join(input.iter(), ":").unwrap().to_string(), "foo:bar");
 
         let real: String = "blah".into();
         let input: Vec<&str> = vec![&real];
-        assert_eq!(join(input.iter(), ";").unwrap(), "blah");
+        assert_eq!(join(input.iter(), ";").unwrap().to_string(), "blah");
 
         assert_eq!(
-            join((&&&&&["foo", "bar"]).iter(), ", ").unwrap(),
+            join((&&&&&["foo", "bar"]).iter(), ", ")
+                .unwrap()
+                .to_string(),
             "foo, bar"
         );
     }
