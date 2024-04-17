@@ -1,6 +1,6 @@
 [package]
 name = "askama_escape"
-version = "0.10.3"
+version = "0.11.0"
 description = "Optimized HTML escaping code, extracted from Askama"
 documentation = "https://docs.rs/askama_escape"
 keywords = ["html", "escaping"]
@@ -17,9 +17,6 @@ maintenance = { status = "actively-developed" }
 
 [dev-dependencies]
 criterion = "0.5"
-
-[features]
-json = []
 
 [[bench]]
 name = "all"

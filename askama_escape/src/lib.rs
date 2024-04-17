@@ -1,4 +1,4 @@
-#![cfg_attr(not(any(feature = "json", test)), no_std)]
+#![no_std]
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
@@ -165,51 +165,10 @@ pub trait Escaper {
         W: Write;
 }
 
-/// Escape chevrons, ampersand and apostrophes for use in JSON
-#[cfg(feature = "json")]
-#[derive(Debug, Clone, Default)]
-pub struct JsonEscapeBuffer(Vec<u8>);
-
-#[cfg(feature = "json")]
-impl JsonEscapeBuffer {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn finish(self) -> String {
-        unsafe { String::from_utf8_unchecked(self.0) }
-    }
-}
-
-#[cfg(feature = "json")]
-impl std::io::Write for JsonEscapeBuffer {
-    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-        let mut last = 0;
-        for (index, byte) in bytes.iter().enumerate() {
-            let escaped = match byte {
-                b'&' => Some(br"\u0026"),
-                b'\'' => Some(br"\u0027"),
-                b'<' => Some(br"\u003c"),
-                b'>' => Some(br"\u003e"),
-                _ => None,
-            };
-            if let Some(escaped) = escaped {
-                self.0.extend(&bytes[last..index]);
-                self.0.extend(escaped);
-                last = index + 1;
-            }
-        }
-        self.0.extend(&bytes[last..]);
-        Ok(bytes.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use super::*;
     use std::string::ToString;
 
