@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::fmt::{self, Display};
 
 pub type Result<I, E = Error> = ::std::result::Result<I, E>;
@@ -68,6 +69,13 @@ impl From<fmt::Error> for Error {
 impl From<::serde_json::Error> for Error {
     fn from(err: ::serde_json::Error) -> Self {
         Error::Json(err)
+    }
+}
+
+impl From<Infallible> for Error {
+    #[inline]
+    fn from(value: Infallible) -> Self {
+        match value {}
     }
 }
 
