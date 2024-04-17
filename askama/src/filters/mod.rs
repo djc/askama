@@ -48,7 +48,8 @@ const URLENCODE_SET: &AsciiSet = &URLENCODE_STRICT_SET.remove(b'/');
 /// Askama will automatically insert the first (`Escaper`) argument,
 /// so this filter only takes a single argument of any type that implements
 /// `Display`.
-pub fn safe<E, T>(e: E, v: T) -> Result<MarkupDisplay<E, T>>
+#[inline]
+pub fn safe<E, T>(e: E, v: T) -> Result<MarkupDisplay<E, T>, Infallible>
 where
     E: Escaper,
     T: fmt::Display,
@@ -64,7 +65,8 @@ where
 ///
 /// It is possible to optionally specify an escaper other than the default for
 /// the template's extension, like `{{ val|escape("txt") }}`.
-pub fn escape<E, T>(e: E, v: T) -> Result<MarkupDisplay<E, T>>
+#[inline]
+pub fn escape<E, T>(e: E, v: T) -> Result<MarkupDisplay<E, T>, Infallible>
 where
     E: Escaper,
     T: fmt::Display,
