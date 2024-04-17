@@ -16,7 +16,7 @@ pub use self::json::json;
 
 use askama_escape::{Escaper, MarkupDisplay};
 #[cfg(feature = "humansize")]
-use dep_humansize::{format_size_i, ToF64, DECIMAL};
+use dep_humansize::{ISizeFormatter, ToF64, DECIMAL};
 #[cfg(feature = "num-traits")]
 use dep_num_traits::{cast::NumCast, Signed};
 #[cfg(feature = "percent-encoding")]
@@ -74,8 +74,36 @@ where
 
 #[cfg(feature = "humansize")]
 /// Returns adequate string representation (in KB, ..) of number of bytes
-pub fn filesizeformat(b: &(impl ToF64 + Copy)) -> Result<String> {
-    Ok(format_size_i(*b, DECIMAL))
+///
+/// ## Example
+/// ```
+/// # use askama::Template;
+/// #[derive(Template)]
+/// #[template(
+///     source = "Filesize: {{ size_in_bytes|filesizeformat }}.",
+///     ext = "html"
+/// )]
+/// struct Example {
+///     size_in_bytes: u64,
+/// }
+///
+/// let tmpl = Example { size_in_bytes: 1_234_567 };
+/// assert_eq!(tmpl.to_string(),  "Filesize: 1.23 MB.");
+/// ```
+#[inline]
+pub fn filesizeformat(b: &impl ToF64) -> Result<FilesizeFormatFilter, Infallible> {
+    Ok(FilesizeFormatFilter(b.to_f64()))
+}
+
+#[cfg(feature = "humansize")]
+#[derive(Debug, Clone, Copy)]
+pub struct FilesizeFormatFilter(f64);
+
+#[cfg(feature = "humansize")]
+impl fmt::Display for FilesizeFormatFilter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!("{}", ISizeFormatter::new(self.0, &DECIMAL)))
+    }
 }
 
 #[cfg(feature = "percent-encoding")]
@@ -371,11 +399,11 @@ mod tests {
     #[cfg(feature = "humansize")]
     #[test]
     fn test_filesizeformat() {
-        assert_eq!(filesizeformat(&0).unwrap(), "0 B");
-        assert_eq!(filesizeformat(&999u64).unwrap(), "999 B");
-        assert_eq!(filesizeformat(&1000i32).unwrap(), "1 kB");
-        assert_eq!(filesizeformat(&1023).unwrap(), "1.02 kB");
-        assert_eq!(filesizeformat(&1024usize).unwrap(), "1.02 kB");
+        assert_eq!(filesizeformat(&0).unwrap().to_string(), "0 B");
+        assert_eq!(filesizeformat(&999u64).unwrap().to_string(), "999 B");
+        assert_eq!(filesizeformat(&1000i32).unwrap().to_string(), "1 kB");
+        assert_eq!(filesizeformat(&1023).unwrap().to_string(), "1.02 kB");
+        assert_eq!(filesizeformat(&1024usize).unwrap().to_string(), "1.02 kB");
     }
 
     #[cfg(feature = "percent-encoding")]
