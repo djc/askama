@@ -299,20 +299,70 @@ pub fn trim<T: fmt::Display>(s: T) -> Result<String> {
 
 /// Limit string length, appends '...' if truncated
 #[inline]
-pub fn truncate(s: impl ToString, len: usize) -> Result<String, Infallible> {
-    fn truncate(s: String, len: usize) -> Result<String, Infallible> {
-        let mut s = s.to_string();
-        if s.len() > len {
-            let mut real_len = len;
-            while !s.is_char_boundary(real_len) {
-                real_len += 1;
-            }
-            s.truncate(real_len);
-            s.push_str("...");
+pub fn truncate<S: fmt::Display>(
+    source: S,
+    remaining: usize,
+) -> Result<TruncateFilter<S>, Infallible> {
+    Ok(TruncateFilter { source, remaining })
+}
+
+pub struct TruncateFilter<S> {
+    source: S,
+    remaining: usize,
+}
+
+impl<S: fmt::Display> fmt::Display for TruncateFilter<S> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        struct Writer<'a, 'b> {
+            dest: Option<&'a mut fmt::Formatter<'b>>,
+            remaining: usize,
         }
-        Ok(s)
+
+        impl fmt::Write for Writer<'_, '_> {
+            fn write_str(&mut self, s: &str) -> fmt::Result {
+                let Some(dest) = &mut self.dest else {
+                    return Ok(());
+                };
+                let mut rem = self.remaining;
+                if rem >= s.len() {
+                    dest.write_str(s)?;
+                    self.remaining -= s.len();
+                } else {
+                    if rem > 0 {
+                        while !s.is_char_boundary(rem) {
+                            rem += 1;
+                        }
+                        dest.write_str(&s[..rem])?;
+                    }
+                    dest.write_str("...")?;
+                    self.dest = None;
+                }
+                Ok(())
+            }
+
+            #[inline]
+            fn write_char(&mut self, c: char) -> fmt::Result {
+                match self.dest.is_some() {
+                    true => self.write_str(c.encode_utf8(&mut [0; 4])),
+                    false => Ok(()),
+                }
+            }
+
+            #[inline]
+            fn write_fmt(&mut self, args: fmt::Arguments<'_>) -> fmt::Result {
+                match self.dest.is_some() {
+                    true => fmt::write(self, args),
+                    false => Ok(()),
+                }
+            }
+        }
+
+        let mut writer = Writer {
+            dest: Some(f),
+            remaining: self.remaining,
+        };
+        write!(writer, "{}", self.source)
     }
-    truncate(s.to_string(), len)
 }
 
 /// Indent lines with `width` spaces
@@ -583,27 +633,27 @@ mod tests {
 
     #[test]
     fn test_truncate() {
-        assert_eq!(truncate("hello", 2).unwrap(), "he...");
+        assert_eq!(truncate("hello", 2).unwrap().to_string(), "he...");
         let a = String::from("您好");
         assert_eq!(a.len(), 6);
         assert_eq!(String::from("您").len(), 3);
-        assert_eq!(truncate("您好", 1).unwrap(), "您...");
-        assert_eq!(truncate("您好", 2).unwrap(), "您...");
-        assert_eq!(truncate("您好", 3).unwrap(), "您...");
-        assert_eq!(truncate("您好", 4).unwrap(), "您好...");
-        assert_eq!(truncate("您好", 6).unwrap(), "您好");
-        assert_eq!(truncate("您好", 7).unwrap(), "您好");
+        assert_eq!(truncate("您好", 1).unwrap().to_string(), "您...");
+        assert_eq!(truncate("您好", 2).unwrap().to_string(), "您...");
+        assert_eq!(truncate("您好", 3).unwrap().to_string(), "您...");
+        assert_eq!(truncate("您好", 4).unwrap().to_string(), "您好...");
+        assert_eq!(truncate("您好", 6).unwrap().to_string(), "您好");
+        assert_eq!(truncate("您好", 7).unwrap().to_string(), "您好");
         let s = String::from("🤚a🤚");
         assert_eq!(s.len(), 9);
         assert_eq!(String::from("🤚").len(), 4);
-        assert_eq!(truncate("🤚a🤚", 1).unwrap(), "🤚...");
-        assert_eq!(truncate("🤚a🤚", 2).unwrap(), "🤚...");
-        assert_eq!(truncate("🤚a🤚", 3).unwrap(), "🤚...");
-        assert_eq!(truncate("🤚a🤚", 4).unwrap(), "🤚...");
-        assert_eq!(truncate("🤚a🤚", 5).unwrap(), "🤚a...");
-        assert_eq!(truncate("🤚a🤚", 6).unwrap(), "🤚a🤚...");
-        assert_eq!(truncate("🤚a🤚", 9).unwrap(), "🤚a🤚");
-        assert_eq!(truncate("🤚a🤚", 10).unwrap(), "🤚a🤚");
+        assert_eq!(truncate("🤚a🤚", 1).unwrap().to_string(), "🤚...");
+        assert_eq!(truncate("🤚a🤚", 2).unwrap().to_string(), "🤚...");
+        assert_eq!(truncate("🤚a🤚", 3).unwrap().to_string(), "🤚...");
+        assert_eq!(truncate("🤚a🤚", 4).unwrap().to_string(), "🤚...");
+        assert_eq!(truncate("🤚a🤚", 5).unwrap().to_string(), "🤚a...");
+        assert_eq!(truncate("🤚a🤚", 6).unwrap().to_string(), "🤚a🤚...");
+        assert_eq!(truncate("🤚a🤚", 9).unwrap().to_string(), "🤚a🤚");
+        assert_eq!(truncate("🤚a🤚", 10).unwrap().to_string(), "🤚a🤚");
     }
 
     #[test]
