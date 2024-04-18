@@ -26,6 +26,7 @@ Enable it with Cargo features (see below for more information).
   [`center`][#center],
   [`escape|e`][#escape],
   [`filesizeformat`][#filesizeformat],
+  [`fmt`][#fmt],
   [`format`][#format],
   [`indent`][#indent],
   [`join`][#join],
@@ -161,6 +162,28 @@ Output:
 1 KB
 ```
 
+### fmt
+
+[#fmt]: #fmt
+
+Formats arguments according to the specified format
+
+The *second* argument to this filter must be a string literal (as in normal
+Rust). The two arguments are passed through to [`format!()`] by
+the Askama code generator, but the order is swapped to support filter
+composition.
+
+```text
+{{ value|fmt("{:?}") }}
+```
+
+As an example, this allows filters to be composed like the following.
+Which is not possible using the `format` filter.
+
+```text
+{{ value|capitalize|fmt("{:?}") }}
+```
+
 ### format
 [#format]: #format
 
@@ -168,11 +191,13 @@ Formats arguments according to the specified format.
 
 The first argument to this filter must be a string literal (as in normal Rust).
 
-All arguments are passed through to the `format!()` macro by the Askama code generator.
+All arguments are passed through to [`format!()`] by the Askama code generator.
 
 ```
 {{ "{:?}"|format(var) }}
 ```
+
+[`format!()`]: https://doc.rust-lang.org/stable/std/macro.format.html
 
 ### indent
 [#indent]: #indent
