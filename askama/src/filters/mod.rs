@@ -138,9 +138,9 @@ impl fmt::Display for FilesizeFormatFilter {
 /// To encode `/` as well, see [`urlencode_strict`](./fn.urlencode_strict.html).
 ///
 /// [`urlencode_strict`]: ./fn.urlencode_strict.html
-pub fn urlencode<T: fmt::Display>(s: T) -> Result<String> {
-    let s = s.to_string();
-    Ok(utf8_percent_encode(&s, URLENCODE_SET).to_string())
+#[inline]
+pub fn urlencode<T: fmt::Display>(s: T) -> Result<UrlencodeFilter<T>, Infallible> {
+    Ok(UrlencodeFilter(s, URLENCODE_SET))
 }
 
 #[cfg(feature = "percent-encoding")]
@@ -158,9 +158,28 @@ pub fn urlencode<T: fmt::Display>(s: T) -> Result<String> {
 /// ```
 ///
 /// If you want to preserve `/`, see [`urlencode`](./fn.urlencode.html).
-pub fn urlencode_strict<T: fmt::Display>(s: T) -> Result<String> {
-    let s = s.to_string();
-    Ok(utf8_percent_encode(&s, URLENCODE_STRICT_SET).to_string())
+#[inline]
+pub fn urlencode_strict<T: fmt::Display>(s: T) -> Result<UrlencodeFilter<T>, Infallible> {
+    Ok(UrlencodeFilter(s, URLENCODE_STRICT_SET))
+}
+
+#[cfg(feature = "percent-encoding")]
+pub struct UrlencodeFilter<T>(T, &'static AsciiSet);
+
+#[cfg(feature = "percent-encoding")]
+impl<T: fmt::Display> fmt::Display for UrlencodeFilter<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        struct Writer<'a, 'b>(&'a mut fmt::Formatter<'b>, &'static AsciiSet);
+
+        impl fmt::Write for Writer<'_, '_> {
+            #[inline]
+            fn write_str(&mut self, s: &str) -> fmt::Result {
+                write!(self.0, "{}", utf8_percent_encode(s, self.1))
+            }
+        }
+
+        write!(Writer(f, self.1), "{}", self.0)
+    }
 }
 
 /// Formats arguments according to the specified format
@@ -439,42 +458,45 @@ mod tests {
     fn test_urlencoding() {
         // Unreserved (https://tools.ietf.org/html/rfc3986.html#section-2.3)
         // alpha / digit
-        assert_eq!(urlencode("AZaz09").unwrap(), "AZaz09");
-        assert_eq!(urlencode_strict("AZaz09").unwrap(), "AZaz09");
+        assert_eq!(urlencode("AZaz09").unwrap().to_string(), "AZaz09");
+        assert_eq!(urlencode_strict("AZaz09").unwrap().to_string(), "AZaz09");
         // other
-        assert_eq!(urlencode("_.-~").unwrap(), "_.-~");
-        assert_eq!(urlencode_strict("_.-~").unwrap(), "_.-~");
+        assert_eq!(urlencode("_.-~").unwrap().to_string(), "_.-~");
+        assert_eq!(urlencode_strict("_.-~").unwrap().to_string(), "_.-~");
 
         // Reserved (https://tools.ietf.org/html/rfc3986.html#section-2.2)
         // gen-delims
-        assert_eq!(urlencode(":/?#[]@").unwrap(), "%3A/%3F%23%5B%5D%40");
         assert_eq!(
-            urlencode_strict(":/?#[]@").unwrap(),
+            urlencode(":/?#[]@").unwrap().to_string(),
+            "%3A/%3F%23%5B%5D%40"
+        );
+        assert_eq!(
+            urlencode_strict(":/?#[]@").unwrap().to_string(),
             "%3A%2F%3F%23%5B%5D%40"
         );
         // sub-delims
         assert_eq!(
-            urlencode("!$&'()*+,;=").unwrap(),
+            urlencode("!$&'()*+,;=").unwrap().to_string(),
             "%21%24%26%27%28%29%2A%2B%2C%3B%3D"
         );
         assert_eq!(
-            urlencode_strict("!$&'()*+,;=").unwrap(),
+            urlencode_strict("!$&'()*+,;=").unwrap().to_string(),
             "%21%24%26%27%28%29%2A%2B%2C%3B%3D"
         );
 
         // Other
         assert_eq!(
-            urlencode("žŠďŤňĚáÉóŮ").unwrap(),
+            urlencode("žŠďŤňĚáÉóŮ").unwrap().to_string(),
             "%C5%BE%C5%A0%C4%8F%C5%A4%C5%88%C4%9A%C3%A1%C3%89%C3%B3%C5%AE"
         );
         assert_eq!(
-            urlencode_strict("žŠďŤňĚáÉóŮ").unwrap(),
+            urlencode_strict("žŠďŤňĚáÉóŮ").unwrap().to_string(),
             "%C5%BE%C5%A0%C4%8F%C5%A4%C5%88%C4%9A%C3%A1%C3%89%C3%B3%C5%AE"
         );
 
         // Ferris
-        assert_eq!(urlencode("🦀").unwrap(), "%F0%9F%A6%80");
-        assert_eq!(urlencode_strict("🦀").unwrap(), "%F0%9F%A6%80");
+        assert_eq!(urlencode("🦀").unwrap().to_string(), "%F0%9F%A6%80");
+        assert_eq!(urlencode_strict("🦀").unwrap().to_string(), "%F0%9F%A6%80");
     }
 
     #[test]
