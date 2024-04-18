@@ -1087,6 +1087,7 @@ Enable it with Cargo features (see below for more information).</p>
 <a href="filters.html#center"><code>center</code></a>,
 <a href="filters.html#escape--e"><code>escape|e</code></a>,
 <a href="filters.html#filesizeformat"><code>filesizeformat</code></a>,
+<a href="filters.html#fmt"><code>fmt</code></a>,
 <a href="filters.html#format"><code>format</code></a>,
 <a href="filters.html#indent"><code>indent</code></a>,
 <a href="filters.html#join"><code>join</code></a>,
@@ -1169,10 +1170,22 @@ Escape &amp;lt;&amp;gt;&amp;amp;
 <p>Output:</p>
 <pre><code>1 KB
 </code></pre>
+<h3 id="fmt"><a class="header" href="#fmt">fmt</a></h3>
+<p>Formats arguments according to the specified format</p>
+<p>The <em>second</em> argument to this filter must be a string literal (as in normal
+Rust). The two arguments are passed through to <a href="https://doc.rust-lang.org/stable/std/macro.format.html"><code>format!()</code></a> by
+the Askama code generator, but the order is swapped to support filter
+composition.</p>
+<pre><code class="language-text">{{ value|fmt("{:?}") }}
+</code></pre>
+<p>As an example, this allows filters to be composed like the following.
+Which is not possible using the <code>format</code> filter.</p>
+<pre><code class="language-text">{{ value|capitalize|fmt("{:?}") }}
+</code></pre>
 <h3 id="format"><a class="header" href="#format">format</a></h3>
 <p>Formats arguments according to the specified format.</p>
 <p>The first argument to this filter must be a string literal (as in normal Rust).</p>
-<p>All arguments are passed through to the <code>format!()</code> macro by the Askama code generator.</p>
+<p>All arguments are passed through to <a href="https://doc.rust-lang.org/stable/std/macro.format.html"><code>format!()</code></a> by the Askama code generator.</p>
 <pre><code>{{ "{:?}"|format(var) }}
 </code></pre>
 <h3 id="indent"><a class="header" href="#indent">indent</a></h3>
