@@ -215,17 +215,22 @@ pub fn format() {}
 ///
 /// A single newline becomes an HTML line break `<br>` and a new line
 /// followed by a blank line becomes a paragraph break `<p>`.
-pub fn linebreaks<T: fmt::Display>(s: T) -> Result<String> {
-    let s = s.to_string();
-    let linebroken = s.replace("\n\n", "</p><p>").replace('\n', "<br/>");
-
-    Ok(format!("<p>{linebroken}</p>"))
+#[inline]
+pub fn linebreaks(s: impl ToString) -> Result<String, Infallible> {
+    fn linebreaks(s: String) -> Result<String, Infallible> {
+        let linebroken = s.replace("\n\n", "</p><p>").replace('\n', "<br/>");
+        Ok(format!("<p>{linebroken}</p>"))
+    }
+    linebreaks(s.to_string())
 }
 
 /// Converts all newlines in a piece of plain text to HTML line breaks
-pub fn linebreaksbr<T: fmt::Display>(s: T) -> Result<String> {
-    let s = s.to_string();
-    Ok(s.replace('\n', "<br/>"))
+#[inline]
+pub fn linebreaksbr(s: impl ToString) -> Result<String, Infallible> {
+    fn linebreaksbr(s: String) -> Result<String, Infallible> {
+        Ok(s.replace('\n', "<br/>"))
+    }
+    linebreaksbr(s.to_string())
 }
 
 /// Replaces only paragraph breaks in plain text with appropriate HTML
@@ -233,34 +238,42 @@ pub fn linebreaksbr<T: fmt::Display>(s: T) -> Result<String> {
 /// A new line followed by a blank line becomes a paragraph break `<p>`.
 /// Paragraph tags only wrap content; empty paragraphs are removed.
 /// No `<br/>` tags are added.
-pub fn paragraphbreaks<T: fmt::Display>(s: T) -> Result<String> {
-    let s = s.to_string();
-    let linebroken = s.replace("\n\n", "</p><p>").replace("<p></p>", "");
-
-    Ok(format!("<p>{linebroken}</p>"))
+#[inline]
+pub fn paragraphbreaks(s: impl ToString) -> Result<String, Infallible> {
+    fn paragraphbreaks(s: String) -> Result<String, Infallible> {
+        let linebroken = s.replace("\n\n", "</p><p>").replace("<p></p>", "");
+        Ok(format!("<p>{linebroken}</p>"))
+    }
+    paragraphbreaks(s.to_string())
 }
 
 /// Converts to lowercase
-pub fn lower<T: fmt::Display>(s: T) -> Result<String> {
-    let s = s.to_string();
-    Ok(s.to_lowercase())
+#[inline]
+pub fn lower(s: impl ToString) -> Result<String, Infallible> {
+    fn lower(s: String) -> Result<String, Infallible> {
+        Ok(s.to_lowercase())
+    }
+    lower(s.to_string())
 }
 
 /// Alias for the `lower()` filter
 #[inline]
-pub fn lowercase<T: fmt::Display>(s: T) -> Result<String> {
+pub fn lowercase(s: impl ToString) -> Result<String, Infallible> {
     lower(s)
 }
 
 /// Converts to uppercase
-pub fn upper<T: fmt::Display>(s: T) -> Result<String> {
-    let s = s.to_string();
-    Ok(s.to_uppercase())
+#[inline]
+pub fn upper(s: impl ToString) -> Result<String, Infallible> {
+    fn upper(s: String) -> Result<String, Infallible> {
+        Ok(s.to_uppercase())
+    }
+    upper(s.to_string())
 }
 
 /// Alias for the `upper()` filter
 #[inline]
-pub fn uppercase<T: fmt::Display>(s: T) -> Result<String> {
+pub fn uppercase(s: impl ToString) -> Result<String, Infallible> {
     upper(s)
 }
 
@@ -285,36 +298,40 @@ pub fn trim<T: fmt::Display>(s: T) -> Result<String> {
 }
 
 /// Limit string length, appends '...' if truncated
-pub fn truncate<T: fmt::Display>(s: T, len: usize) -> Result<String> {
-    let mut s = s.to_string();
-    if s.len() > len {
-        let mut real_len = len;
-        while !s.is_char_boundary(real_len) {
-            real_len += 1;
+#[inline]
+pub fn truncate(s: impl ToString, len: usize) -> Result<String, Infallible> {
+    fn truncate(s: String, len: usize) -> Result<String, Infallible> {
+        let mut s = s.to_string();
+        if s.len() > len {
+            let mut real_len = len;
+            while !s.is_char_boundary(real_len) {
+                real_len += 1;
+            }
+            s.truncate(real_len);
+            s.push_str("...");
         }
-        s.truncate(real_len);
-        s.push_str("...");
+        Ok(s)
     }
-    Ok(s)
+    truncate(s.to_string(), len)
 }
 
 /// Indent lines with `width` spaces
-pub fn indent<T: fmt::Display>(s: T, width: usize) -> Result<String> {
-    let s = s.to_string();
+#[inline]
+pub fn indent(s: impl ToString, width: usize) -> Result<String, Infallible> {
+    fn indent(s: String, width: usize) -> Result<String, Infallible> {
+        let mut indented = String::new();
+        for (i, c) in s.char_indices() {
+            indented.push(c);
 
-    let mut indented = String::new();
-
-    for (i, c) in s.char_indices() {
-        indented.push(c);
-
-        if c == '\n' && i < s.len() - 1 {
-            for _ in 0..width {
-                indented.push(' ');
+            if c == '\n' && i < s.len() - 1 {
+                for _ in 0..width {
+                    indented.push(' ');
+                }
             }
         }
+        Ok(indented)
     }
-
-    Ok(indented)
+    indent(s.to_string(), width)
 }
 
 #[cfg(feature = "num-traits")]
@@ -391,50 +408,57 @@ where
 }
 
 /// Capitalize a value. The first character will be uppercase, all others lowercase.
-pub fn capitalize<T: fmt::Display>(s: T) -> Result<String> {
-    let s = s.to_string();
-    match s.chars().next() {
-        Some(c) => {
-            let mut replacement: String = c.to_uppercase().collect();
-            replacement.push_str(&s[c.len_utf8()..].to_lowercase());
-            Ok(replacement)
+#[inline]
+pub fn capitalize(s: impl ToString) -> Result<String, Infallible> {
+    fn capitalize(s: String) -> Result<String, Infallible> {
+        match s.chars().next() {
+            Some(c) => {
+                let mut replacement: String = c.to_uppercase().collect();
+                replacement.push_str(&s[c.len_utf8()..].to_lowercase());
+                Ok(replacement)
+            }
+            _ => Ok(s),
         }
-        _ => Ok(s),
     }
+    capitalize(s.to_string())
 }
 
 /// Centers the value in a field of a given width
-pub fn center(src: &dyn fmt::Display, dst_len: usize) -> Result<String> {
-    let src = src.to_string();
-    let len = src.len();
+#[inline]
+pub fn center(src: impl ToString, dst_len: usize) -> Result<String, Infallible> {
+    fn center(src: String, dst_len: usize) -> Result<String, Infallible> {
+        let len = src.len();
+        if dst_len <= len {
+            Ok(src)
+        } else {
+            let diff = dst_len - len;
+            let mid = diff / 2;
+            let r = diff % 2;
+            let mut buf = String::with_capacity(dst_len);
 
-    if dst_len <= len {
-        Ok(src)
-    } else {
-        let diff = dst_len - len;
-        let mid = diff / 2;
-        let r = diff % 2;
-        let mut buf = String::with_capacity(dst_len);
+            for _ in 0..mid {
+                buf.push(' ');
+            }
 
-        for _ in 0..mid {
-            buf.push(' ');
+            buf.push_str(&src);
+
+            for _ in 0..mid + r {
+                buf.push(' ');
+            }
+
+            Ok(buf)
         }
-
-        buf.push_str(&src);
-
-        for _ in 0..mid + r {
-            buf.push(' ');
-        }
-
-        Ok(buf)
     }
+    center(src.to_string(), dst_len)
 }
 
 /// Count the words in that string
-pub fn wordcount<T: fmt::Display>(s: T) -> Result<usize> {
-    let s = s.to_string();
-
-    Ok(s.split_whitespace().count())
+#[inline]
+pub fn wordcount(s: impl ToString) -> Result<usize, Infallible> {
+    fn wordcount(s: String) -> Result<usize, Infallible> {
+        Ok(s.split_whitespace().count())
+    }
+    wordcount(s.to_string())
 }
 
 #[cfg(test)]
@@ -680,10 +704,10 @@ mod tests {
 
     #[test]
     fn test_center() {
-        assert_eq!(center(&"f", 3).unwrap(), " f ".to_string());
-        assert_eq!(center(&"f", 4).unwrap(), " f  ".to_string());
-        assert_eq!(center(&"foo", 1).unwrap(), "foo".to_string());
-        assert_eq!(center(&"foo bar", 8).unwrap(), "foo bar ".to_string());
+        assert_eq!(center("f", 3).unwrap(), " f ".to_string());
+        assert_eq!(center("f", 4).unwrap(), " f  ".to_string());
+        assert_eq!(center("foo", 1).unwrap(), "foo".to_string());
+        assert_eq!(center("foo bar", 8).unwrap(), "foo bar ".to_string());
     }
 
     #[test]
