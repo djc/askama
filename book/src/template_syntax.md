@@ -457,7 +457,7 @@ Additionally, `if let` statements are also supported and similarly
 mirror Rust's [`if let` expressions]:
 
 ```text
-{% if Some(user) = user %}
+{% if let Some(user) = user %}
   {{ user.name }}
 {% else %}
   No user
