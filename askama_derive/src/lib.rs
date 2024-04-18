@@ -23,8 +23,24 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast = syn::parse::<syn::DeriveInput>(input).unwrap();
     match build_template(&ast) {
         Ok(source) => source.parse().unwrap(),
-        Err(e) => e.into_compile_error(),
+        Err(e) => {
+            let mut e = e.into_compile_error();
+            if let Ok(source) = build_skeleton(&ast) {
+                let source: TokenStream = source.parse().unwrap();
+                e.extend(source);
+            }
+            e
+        }
     }
+}
+
+fn build_skeleton(ast: &syn::DeriveInput) -> Result<String, CompileError> {
+    let template_args = TemplateArgs::fallback();
+    let config = Config::new("", None)?;
+    let input = TemplateInput::new(ast, &config, &template_args)?;
+    let mut contexts = HashMap::new();
+    contexts.insert(&input.path, Context::default());
+    Generator::new(&input, &contexts, None, MapChain::default()).build(&contexts[&input.path])
 }
 
 /// Takes a `syn::DeriveInput` and generates source code for it
