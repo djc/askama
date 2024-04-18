@@ -332,6 +332,14 @@ impl TemplateArgs {
         Ok(args)
     }
 
+    pub(crate) fn fallback() -> Self {
+        Self {
+            source: Some(Source::Source("".to_string())),
+            ext: Some("txt".to_string()),
+            ..Self::default()
+        }
+    }
+
     pub(crate) fn config(&self) -> Result<String, CompileError> {
         read_config_file(self.config.as_deref())
     }
