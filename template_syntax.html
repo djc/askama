@@ -519,13 +519,23 @@ fn main() {
 &lt;/ul&gt;
 </code></pre>
 <h3 id="if"><a class="header" href="#if">If</a></h3>
-<p>The <em>if</em> statement is used as you might expect:</p>
+<p>The <code>if</code> statement essentially mirrors Rust's <a href="https://doc.rust-lang.org/reference/expressions/if-expr.html#if-expressions"><code>if</code> expression</a>,
+and is used as you might expect:</p>
 <pre><code class="language-text">{% if users.len() == 0 %}
   No users
 {% else if users.len() == 1 %}
   1 user
 {% else %}
   {{ users.len() }} users
+{% endif %}
+</code></pre>
+<h4 id="if-let"><a class="header" href="#if-let">If Let</a></h4>
+<p>Additionally, <code>if let</code> statements are also supported and similarly
+mirror Rust's <a href="https://doc.rust-lang.org/reference/expressions/if-expr.html#if-let-expressions"><code>if let</code> expressions</a>:</p>
+<pre><code class="language-text">{% if Some(user) = user %}
+  {{ user.name }}
+{% else %}
+  No user
 {% endif %}
 </code></pre>
 <h3 id="match"><a class="header" href="#match">Match</a></h3>
