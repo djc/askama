@@ -7,7 +7,7 @@
 
 use std::cell::Cell;
 use std::convert::Infallible;
-use std::fmt;
+use std::fmt::{self, Write};
 
 #[cfg(feature = "serde-json")]
 mod json;
@@ -247,8 +247,22 @@ pub fn uppercase<T: fmt::Display>(s: T) -> Result<String> {
 
 /// Strip leading and trailing whitespace
 pub fn trim<T: fmt::Display>(s: T) -> Result<String> {
-    let s = s.to_string();
-    Ok(s.trim().to_owned())
+    struct Collector(String);
+
+    impl fmt::Write for Collector {
+        fn write_str(&mut self, s: &str) -> fmt::Result {
+            match self.0.is_empty() {
+                true => self.0.write_str(s.trim_start()),
+                false => self.0.write_str(s),
+            }
+        }
+    }
+
+    let mut collector = Collector(String::new());
+    write!(collector, "{s}")?;
+    let Collector(mut s) = collector;
+    s.truncate(s.trim_end().len());
+    Ok(s)
 }
 
 /// Limit string length, appends '...' if truncated
