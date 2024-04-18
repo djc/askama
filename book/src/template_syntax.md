@@ -157,14 +157,14 @@ Hello
 To be noted, if one of the trimmed characters is a newline, then the only
 character remaining will be a newline.
 
-Whitespace controls can also be defined by a 
-[configuration file](configuration.md) or in the derive macro. 
+Whitespace controls can also be defined by a
+[configuration file](configuration.md) or in the derive macro.
 These definitions follow the global-to-local preference:
 1. Inline (`-`, `+`, `~`)
 2. Derive (`#[template(whitespace = "suppress")]`)
 3. Configuration (in `askama.toml`, `whitespace = "preserve"`)
 
-Two inline whitespace controls may point to the same whitespace span. 
+Two inline whitespace controls may point to the same whitespace span.
 In this case, they are resolved by the following preference.
 1. Suppress (`-`)
 2. Minimize (`~`)
@@ -172,7 +172,7 @@ In this case, they are resolved by the following preference.
 
 ## Functions
 
-There are several ways that functions can be called within templates, 
+There are several ways that functions can be called within templates,
 depending on where the function definition resides. These are:
 
 - Template `struct` fields
@@ -181,9 +181,9 @@ depending on where the function definition resides. These are:
 
 ### Template struct field
 
-When the function is a field of the template struct, we can simply call it 
+When the function is a field of the template struct, we can simply call it
 by invoking the name of the field, followed by parentheses containing any
-required arguments. For example, we can invoke the function `foo` for the 
+required arguments. For example, we can invoke the function `foo` for the
 following `MyTemplate` struct:
 
 ```rust
@@ -200,11 +200,11 @@ some behaviour for our template.
 
 ### Static functions
 
-When a function exists within the same Rust module as the template 
+When a function exists within the same Rust module as the template
 definition, we can invoke it using the `self` path prefix, where `self`
-represents the scope of the module in which the template struct resides. 
+represents the scope of the module in which the template struct resides.
 
-For example, here we call the function `foo` by writing `self::foo(123)` 
+For example, here we call the function `foo` by writing `self::foo(123)`
 within the `MyTemplate` struct source:
 
 ```rust
@@ -218,10 +218,10 @@ struct MyTemplate;
 ```
 
 This has the advantage of being able to share functionality across multiple
-templates, without needing to expose the function publicly outside of its 
+templates, without needing to expose the function publicly outside of its
 module.
 
-However, we are not limited to local functions defined within the same module. 
+However, we are not limited to local functions defined within the same module.
 We can call _any_ public function by specifying the full path to that function
 within the template source. For example, given a utilities module such as:
 
@@ -245,9 +245,9 @@ struct MyTemplate;
 
 ### Struct / trait implementations
 
-Finally, we can invoke functions that are implementation methods of our 
-template struct, by referencing `Self` (note the uppercase `S`) as the path, 
-before calling our function: 
+Finally, we can invoke functions that are implementation methods of our
+template struct, by referencing `Self` (note the uppercase `S`) as the path,
+before calling our function:
 
 ```rust
 #[derive(Template)]
@@ -263,11 +263,11 @@ impl MyTemplate {
 }
 ```
 
-If the implemented method requires a reference to the struct itself, 
-such as is demonstrated in the above example, we can pass `self` 
+If the implemented method requires a reference to the struct itself,
+such as is demonstrated in the above example, we can pass `self`
 (note the lowercase `s`) as the first argument.
 
-Similarly, using the `Self` path, we can also call any method belonging 
+Similarly, using the `Self` path, we can also call any method belonging
 to a trait that has been implemented for our template struct:
 
 ```rust
@@ -436,7 +436,8 @@ Inside for-loop blocks, some useful variables are accessible:
 
 ### If
 
-The *if* statement is used as you might expect:
+The `if` statement essentially mirrors Rust's [`if` expression],
+and is used as you might expect:
 
 ```text
 {% if users.len() == 0 %}
@@ -447,6 +448,23 @@ The *if* statement is used as you might expect:
   {{ users.len() }} users
 {% endif %}
 ```
+
+[`if` expression]: https://doc.rust-lang.org/reference/expressions/if-expr.html#if-expressions
+
+#### If Let
+
+Additionally, `if let` statements are also supported and similarly
+mirror Rust's [`if let` expressions]:
+
+```text
+{% if Some(user) = user %}
+  {{ user.name }}
+{% else %}
+  No user
+{% endif %}
+```
+
+[`if let` expressions]: https://doc.rust-lang.org/reference/expressions/if-expr.html#if-let-expressions
 
 ### Match
 
