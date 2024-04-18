@@ -10,7 +10,7 @@ use crate::{CompileError, CRATE};
 use parser::node::Whitespace;
 use parser::Syntax;
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub(crate) struct Config<'a> {
     pub(crate) dirs: Vec<PathBuf>,
     pub(crate) syntaxes: BTreeMap<String, Syntax<'a>>,
@@ -104,6 +104,15 @@ impl<'a> Config<'a> {
             escapers,
             whitespace,
         })
+    }
+
+    pub(crate) fn fallback() -> Self {
+        Self {
+            syntaxes: BTreeMap::from_iter([(DEFAULT_SYNTAX_NAME.to_string(), Syntax::default())]),
+            default_syntax: DEFAULT_SYNTAX_NAME,
+            escapers: vec![(str_set(&["txt"]), format!("{CRATE}::Text"))],
+            ..Self::default()
+        }
     }
 
     pub(crate) fn find_template(

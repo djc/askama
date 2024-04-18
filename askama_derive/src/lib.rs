@@ -21,26 +21,29 @@ use input::{Print, TemplateArgs, TemplateInput};
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
     let ast = syn::parse::<syn::DeriveInput>(input).unwrap();
-    match build_template(&ast) {
-        Ok(source) => source.parse().unwrap(),
-        Err(e) => {
-            let mut e = e.into_compile_error();
-            if let Ok(source) = build_skeleton(&ast) {
-                let source: TokenStream = source.parse().unwrap();
-                e.extend(source);
-            }
-            e
-        }
-    }
+    let e = match build_template(&ast) {
+        Ok(source) => return source.parse().unwrap(),
+        Err(e) => e,
+    };
+
+    // Still implement `askama::Template` if one or more of the templates could not be parsed.
+    // This way the user only sees the error message about the parsing error, not that `.render()`
+    // is not implemented.
+    let mut e: TokenStream = e.into_compile_error();
+    e.extend(build_fallback(&ast));
+    e
 }
 
-fn build_skeleton(ast: &syn::DeriveInput) -> Result<String, CompileError> {
+// This function generates empty implementations for `askama::Template` and friends for a `struct`.
+fn build_fallback(ast: &syn::DeriveInput) -> TokenStream {
     let template_args = TemplateArgs::fallback();
-    let config = Config::new("", None)?;
-    let input = TemplateInput::new(ast, &config, &template_args)?;
-    let mut contexts = HashMap::new();
-    contexts.insert(&input.path, Context::default());
-    Generator::new(&input, &contexts, None, MapChain::default()).build(&contexts[&input.path])
+    let config = Config::fallback();
+    let input = TemplateInput::fallback(ast, &config, &template_args);
+    Generator::new(&input, &HashMap::default(), None, MapChain::default())
+        .build(&Context::default())
+        .unwrap()
+        .parse()
+        .unwrap()
 }
 
 /// Takes a `syn::DeriveInput` and generates source code for it

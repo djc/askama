@@ -103,6 +103,25 @@ impl TemplateInput<'_> {
         })
     }
 
+    pub(crate) fn fallback<'n>(
+        ast: &'n syn::DeriveInput,
+        config: &'n Config<'n>,
+        args: &'n TemplateArgs,
+    ) -> TemplateInput<'n> {
+        let ext = args.ext.as_deref();
+        TemplateInput {
+            ast,
+            config,
+            syntax: config.syntaxes.iter().next().unwrap().1,
+            source: args.source.as_ref().unwrap(),
+            print: args.print,
+            escaper: config.escapers.first().unwrap().1.as_str(),
+            ext,
+            mime_type: extension_to_mime_type(ext.unwrap()).to_string(),
+            path: PathBuf::from("fallback.txt").into(),
+        }
+    }
+
     pub(crate) fn find_used_templates(
         &self,
         map: &mut HashMap<Rc<Path>, Parsed>,
