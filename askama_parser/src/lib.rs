@@ -549,13 +549,13 @@ fn strip_common(base: &Path, path: &Path) -> String {
     }
 }
 
+#[cfg(not(windows))]
 #[cfg(test)]
 mod test {
     use super::strip_common;
     use std::path::Path;
 
     #[test]
-    #[cfg(not(windows))]
     fn test_strip_common() {
         let cwd = std::env::current_dir().expect("current_dir failed");
 
