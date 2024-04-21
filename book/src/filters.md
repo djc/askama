@@ -24,6 +24,8 @@ Enable it with Cargo features (see below for more information).
   [`as_ref`][#as_ref],
   [`capitalize`][#capitalize],
   [`center`][#center],
+  [`display_some`][#display_some],
+  [`display_some_or`][#display_some_or],
   [`escape|e`][#escape],
   [`filesizeformat`][#filesizeformat],
   [`fmt`][#fmt],
@@ -107,6 +109,46 @@ Output:
 ```
 -  a  -
 ```
+
+### display_some
+
+[#display_some]: #display_some
+
+The `display_some` filter is essentially a shorthand for:
+
+```text
+{% if let Some(value) = value %}{{ value }}{% endif %}
+```
+
+It can be used like this:
+
+```text
+<title>{{ title|display_some }}</title>
+```
+
+Where `title` can be any `Option<T>` as long as `T` implements [`fmt::Display`].
+
+### display_some_or
+
+[#display_some_or]: #display_some_or
+
+The `display_some_or` filter is similar to `display_some`, but allows providing
+a default value to render for `None`. In short, instead of the following:
+
+```text
+{% if let Some(value) = value %}{{ value }}{% else %}My default title{% endif %}
+```
+
+Then `display_some_or` can be used like this:
+
+```text
+<title>{{ title|display_some_or("My default title") }}</title>
+```
+
+Where `title` can be any `Option<T>` as long as `T` implements [`fmt::Display`].
+While the `default` value can be any `U` implementing [`fmt::Display`].
+
+[`fmt::Display`]: https://doc.rust-lang.org/std/fmt/trait.Display.html
 
 ### escape | e
 [#escape]: #escape--e

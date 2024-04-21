@@ -464,6 +464,20 @@ mirror Rust's [`if let` expressions]:
 {% endif %}
 ```
 
+See also the [`display_some`] and [`display_some_or`] filters, which
+can be used to simplify _"render `Some` or nothing/default"_.
+
+```text
+<title>{{ title|display_some }}</title>
+
+<title>{{ title|display_some_or("My default title") }}</title>
+```
+
+_Assuming `title` is `Option<String>`._
+
+[`display_some`]: filters.html#display_some
+[`display_some_or`]: filters.html#display_some_or
+
 [`if let` expressions]: https://doc.rust-lang.org/reference/expressions/if-expr.html#if-let-expressions
 
 ### Match

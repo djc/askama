@@ -350,6 +350,11 @@ where
     }
 }
 
+/// See [`display_some` in the Askama book] for more information.
+///
+/// See also [`display_some_or`].
+///
+/// [`display_some` in the Askama book]: https://djc.github.io/askama/filters.html#display_some
 pub fn display_some<T>(value: &Option<T>) -> Result<DisplaySome<'_, T>>
 where
     T: fmt::Display,
@@ -373,6 +378,11 @@ where
     }
 }
 
+/// See [`display_some_or` in the Askama book] for more information.
+///
+/// See also [`display_some`].
+///
+/// [`display_some_or` in the Askama book]: https://djc.github.io/askama/filters.html#display_some_or
 pub fn display_some_or<'a, T, U>(
     value: &'a Option<T>,
     otherwise: U,
