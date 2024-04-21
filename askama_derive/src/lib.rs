@@ -142,6 +142,8 @@ const BUILT_IN_FILTERS: &[&str] = &[
     "abs",
     "capitalize",
     "center",
+    "display_some",
+    "display_some_or",
     "e",
     "escape",
     "filesizeformat",

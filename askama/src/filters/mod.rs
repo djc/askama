@@ -336,6 +336,54 @@ pub fn wordcount<T: fmt::Display>(s: T) -> Result<usize> {
     Ok(s.split_whitespace().count())
 }
 
+pub struct DisplaySome<'a, T>(Option<&'a T>);
+
+impl<T> fmt::Display for DisplaySome<'_, T>
+where
+    T: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(val) = self.0 {
+            write!(f, "{val}")?;
+        }
+        Ok(())
+    }
+}
+
+pub fn display_some<T>(value: &Option<T>) -> Result<DisplaySome<'_, T>>
+where
+    T: fmt::Display,
+{
+    Ok(DisplaySome(value.as_ref()))
+}
+
+pub struct DisplaySomeOr<'a, T, U>(Option<&'a T>, U);
+
+impl<T, U> fmt::Display for DisplaySomeOr<'_, T, U>
+where
+    T: fmt::Display,
+    U: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(val) = self.0 {
+            write!(f, "{val}")
+        } else {
+            write!(f, "{}", self.1)
+        }
+    }
+}
+
+pub fn display_some_or<'a, T, U>(
+    value: &'a Option<T>,
+    otherwise: U,
+) -> Result<DisplaySomeOr<'a, T, U>>
+where
+    T: fmt::Display,
+    U: fmt::Display + 'a,
+{
+    Ok(DisplaySomeOr(value.as_ref(), otherwise))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
