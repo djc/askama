@@ -630,4 +630,43 @@ mod tests {
         assert_eq!(wordcount("foo").unwrap(), 1);
         assert_eq!(wordcount("foo bar").unwrap(), 2);
     }
+
+    #[test]
+    fn test_display_some() {
+        assert_eq!(display_some(&None::<String>).unwrap().to_string(), "");
+        assert_eq!(display_some(&None::<i32>).unwrap().to_string(), "");
+
+        assert_eq!(
+            display_some(&Some("hello world")).unwrap().to_string(),
+            "hello world"
+        );
+        assert_eq!(display_some(&Some(123)).unwrap().to_string(), "123");
+    }
+
+    #[test]
+    fn test_display_some_or() {
+        assert_eq!(
+            display_some_or(&None::<String>, "default")
+                .unwrap()
+                .to_string(),
+            "default"
+        );
+        assert_eq!(
+            display_some_or(&None::<i32>, "default")
+                .unwrap()
+                .to_string(),
+            "default"
+        );
+
+        assert_eq!(
+            display_some_or(&Some("hello world"), "default")
+                .unwrap()
+                .to_string(),
+            "hello world"
+        );
+        assert_eq!(
+            display_some_or(&Some(123), "default").unwrap().to_string(),
+            "123"
+        );
+    }
 }
