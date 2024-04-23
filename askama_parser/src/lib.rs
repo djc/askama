@@ -552,7 +552,7 @@ fn strip_common(base: &Path, path: &Path) -> String {
 #[cfg(not(windows))]
 #[cfg(test)]
 mod test {
-    use super::strip_common;
+    use super::{num_lit, strip_common};
     use std::path::Path;
 
     #[test]
@@ -583,5 +583,20 @@ mod test {
 
         // In this case it cannot canonicalize `/a/b/c` so it returns the path as is.
         assert_eq!(strip_common(&cwd, Path::new("/a/b/c")), "/a/b/c");
+    }
+
+    #[test]
+    fn test_num_lit() {
+        // Should fail.
+        assert!(num_lit(".").is_err());
+        // Should succeed.
+        assert_eq!(num_lit("1.2E-02").unwrap(), ("", "1.2E-02"));
+        // Not supported (because rust want a number before the `.`).
+        assert!(num_lit(".1").is_err());
+        assert!(num_lit(".1E-02").is_err());
+        // Not supported (voluntarily because of `1..` syntax).
+        assert_eq!(num_lit("1.").unwrap(), (".", "1"));
+        assert_eq!(num_lit("1_.").unwrap(), (".", "1_"));
+        assert_eq!(num_lit("1_2.").unwrap(), (".", "1_2"));
     }
 }

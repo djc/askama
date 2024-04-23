@@ -9,3 +9,9 @@
 {% let exp_float = 1__0__e+__1__0__f32 -%}
 {% let dotexp_float = 1__0__.5__0__e+__1__0__f32 -%}
 [{{ plain_int }}, {{ neg_int }}, {{ suffix_int }}, {{ bin_int }}, {{ oct_int }}, {{ hex_int }}, {{ plain_float }}, {{ suffix_float }}, {{ exp_float }}, {{ dotexp_float }}]
+{% for value in 1..2 -%}
+    {{ value }}
+{%- endfor %}
+{% for value in 1..=2 -%}
+    {{ value }}
+{%- endfor %}
