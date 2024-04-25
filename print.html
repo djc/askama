@@ -337,6 +337,19 @@ struct HelloTemplate&lt;'a&gt; { ... }
 <span class="boring">}</span></code></pre></pre>
 </li>
 <li>
+<p><code>block</code> (as <code>block = "block_name"</code>): renders the block by itself.
+Expressions outside of the block are not required by the struct, and
+inheritance is also supported. This can be useful when you need to
+decompose your template for partial rendering, without needing to
+extract the partial into a separate template or macro.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Template)]
+#[template(path = "hello.html", block = "hello")]
+struct HelloTemplate&lt;'a&gt; { ... }
+<span class="boring">}</span></code></pre></pre>
+</li>
+<li>
 <p><code>escape</code> (as <code>escape = "none"</code>): override the template's extension used for
 the purpose of determining the escaper for this template. See the section
 on configuring custom escapers for more information.</p>
@@ -799,6 +812,19 @@ tag doesn't support whitespace control:</p>
 </code></pre>
 <p>The above code is rejected because we used <code>-</code> and <code>+</code>. For more information
 about whitespace control, take a look <a href="template_syntax.html#whitespace-control">here</a>.</p>
+<h3 id="block-fragments"><a class="header" href="#block-fragments">Block fragments</a></h3>
+<p>Additionally, a block can be rendered by itself. This can be useful when
+you need to decompose your template for partial rendering, without
+needing to extract the partial into a separate template or macro. This
+can be done with the <code>block</code> parameter.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Template)]
+#[template(path = "...", block = "my_block")]
+struct BlockFragment {
+    name: String,
+}
+<span class="boring">}</span></code></pre></pre>
 <h2 id="html-escaping"><a class="header" href="#html-escaping">HTML escaping</a></h2>
 <p>Askama by default escapes variables if it thinks it is rendering HTML
 content. It infers the escaping context from the extension of template

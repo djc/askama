@@ -258,6 +258,19 @@ struct HelloTemplate&lt;'a&gt; { ... }
 <span class="boring">}</span></code></pre></pre>
 </li>
 <li>
+<p><code>block</code> (as <code>block = "block_name"</code>): renders the block by itself.
+Expressions outside of the block are not required by the struct, and
+inheritance is also supported. This can be useful when you need to
+decompose your template for partial rendering, without needing to
+extract the partial into a separate template or macro.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Template)]
+#[template(path = "hello.html", block = "hello")]
+struct HelloTemplate&lt;'a&gt; { ... }
+<span class="boring">}</span></code></pre></pre>
+</li>
+<li>
 <p><code>escape</code> (as <code>escape = "none"</code>): override the template's extension used for
 the purpose of determining the escaper for this template. See the section
 on configuring custom escapers for more information.</p>
