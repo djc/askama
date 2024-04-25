@@ -1,0 +1,86 @@
+error: invalid character
+       failed to parse template source
+         --> testing/templates/char-literals/char-literal-1.txt:1:11
+       "'\\a' %}"
+ --> tests/ui/char_literal.rs:3:10
+  |
+3 | #[derive(Template)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: invalid character
+       failed to parse template source
+         --> testing/templates/char-literals/char-literal-2.txt:1:11
+       "'\\x' %}"
+ --> tests/ui/char_literal.rs:7:10
+  |
+7 | #[derive(Template)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: invalid character
+       failed to parse template source
+         --> testing/templates/char-literals/char-literal-3.txt:1:11
+       "'\\x1' %}"
+  --> tests/ui/char_literal.rs:11:10
+   |
+11 | #[derive(Template)]
+   |          ^^^^^^^^
+   |
+   = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: must be a character in the range [\x00-\x7f]
+       failed to parse template source
+         --> testing/templates/char-literals/char-literal-4.txt:1:11
+       "'\\x80' %}"
+  --> tests/ui/char_literal.rs:15:10
+   |
+15 | #[derive(Template)]
+   |          ^^^^^^^^
+   |
+   = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: invalid character
+       failed to parse template source
+         --> testing/templates/char-literals/char-literal-5.txt:1:11
+       "'\\u' %}"
+  --> tests/ui/char_literal.rs:19:10
+   |
+19 | #[derive(Template)]
+   |          ^^^^^^^^
+   |
+   = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: invalid character
+       failed to parse template source
+         --> testing/templates/char-literals/char-literal-6.txt:1:11
+       "'\\u{}' %}"
+  --> tests/ui/char_literal.rs:23:10
+   |
+23 | #[derive(Template)]
+   |          ^^^^^^^^
+   |
+   = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: unicode escape must be at most 10FFFF
+       failed to parse template source
+         --> testing/templates/char-literals/char-literal-7.txt:1:11
+       "'\\u{110000}' %}"
+  --> tests/ui/char_literal.rs:27:10
+   |
+27 | #[derive(Template)]
+   |          ^^^^^^^^
+   |
+   = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: invalid character
+       failed to parse template source at row 1, column 11 near:
+       "'aaa' %}"
+  --> tests/ui/char_literal.rs:31:10
+   |
+31 | #[derive(Template)]
+   |          ^^^^^^^^
+   |
+   = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)

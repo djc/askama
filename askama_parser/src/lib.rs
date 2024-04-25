@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::{fmt, str};
 
 use nom::branch::alt;
-use nom::bytes::complete::{escaped, is_not, tag, take_till};
+use nom::bytes::complete::{escaped, is_not, tag, take_till, take_while_m_n};
 use nom::character::complete::{anychar, char, one_of, satisfy};
 use nom::combinator::{cut, eof, map, opt, recognize};
 use nom::error::{Error, ErrorKind, FromExternalError};
@@ -152,7 +152,8 @@ impl fmt::Display for ParseError {
     }
 }
 
-pub(crate) type ParseResult<'a, T = &'a str> = Result<(&'a str, T), nom::Err<ErrorContext<'a>>>;
+pub(crate) type ParseErr<'a> = nom::Err<ErrorContext<'a>>;
+pub(crate) type ParseResult<'a, T = &'a str> = Result<(&'a str, T), ParseErr<'a>>;
 
 /// This type is used to handle `nom` errors and in particular to add custom error messages.
 /// It used to generate `ParserError`.
@@ -350,13 +351,110 @@ fn str_lit(i: &str) -> ParseResult<'_> {
     Ok((i, s.unwrap_or_default()))
 }
 
+// Information about allowed character escapes is available at:
+// <https://doc.rust-lang.org/reference/tokens.html#character-literals>.
 fn char_lit(i: &str) -> ParseResult<'_> {
+    let start = i;
     let (i, s) = delimited(
         char('\''),
         opt(escaped(is_not("\\\'"), '\\', anychar)),
         char('\''),
     )(i)?;
-    Ok((i, s.unwrap_or_default()))
+    let Some(s) = s else {
+        return Err(nom::Err::Failure(ErrorContext {
+            input: start,
+            // Same error as rustc.
+            message: Some(Cow::Borrowed("empty character literal")),
+        }));
+    };
+    let Ok(("", c)) = Char::parse(s) else {
+        return Err(nom::Err::Failure(ErrorContext {
+            input: start,
+            message: Some(Cow::Borrowed("invalid character")),
+        }));
+    };
+    let (nb, max_value, err1, err2) = match c {
+        Char::Literal | Char::Escaped => return Ok((i, s)),
+        Char::AsciiEscape(nb) => (
+            nb,
+            // `0x7F` is the maximum value for a `\x` escaped character.
+            0x7F,
+            "invalid character in ascii escape",
+            "must be a character in the range [\\x00-\\x7f]",
+        ),
+        Char::UnicodeEscape(nb) => (
+            nb,
+            // `0x10FFFF` is the maximum value for a `\u` escaped character.
+            0x10FFFF,
+            "invalid character in unicode escape",
+            "unicode escape must be at most 10FFFF",
+        ),
+    };
+
+    let Ok(nb) = u32::from_str_radix(nb, 16) else {
+        return Err(nom::Err::Failure(ErrorContext {
+            input: start,
+            message: Some(Cow::Borrowed(err1)),
+        }));
+    };
+    if nb > max_value {
+        return Err(nom::Err::Failure(ErrorContext {
+            input: start,
+            message: Some(Cow::Borrowed(err2)),
+        }));
+    }
+    Ok((i, s))
+}
+
+/// Represents the different kinds of char declarations:
+enum Char<'a> {
+    /// Any character that is not escaped.
+    Literal,
+    /// An escaped character (like `\n`) which doesn't require any extra check.
+    Escaped,
+    /// Ascii escape (like `\x12`).
+    AsciiEscape(&'a str),
+    /// Unicode escape (like `\u{12}`).
+    UnicodeEscape(&'a str),
+}
+
+impl<'a> Char<'a> {
+    fn parse(i: &'a str) -> ParseResult<'a, Self> {
+        if i.chars().count() == 1 {
+            return Ok(("", Self::Literal));
+        }
+        map(
+            tuple((
+                char('\\'),
+                alt((
+                    map(char('n'), |_| Self::Escaped),
+                    map(char('r'), |_| Self::Escaped),
+                    map(char('t'), |_| Self::Escaped),
+                    map(char('\\'), |_| Self::Escaped),
+                    map(char('0'), |_| Self::Escaped),
+                    map(char('\''), |_| Self::Escaped),
+                    // Not useful but supported by rust.
+                    map(char('"'), |_| Self::Escaped),
+                    map(
+                        tuple((
+                            char('x'),
+                            take_while_m_n(2, 2, |c: char| c.is_ascii_hexdigit()),
+                        )),
+                        |(_, s)| Self::AsciiEscape(s),
+                    ),
+                    map(
+                        tuple((
+                            tag("u{"),
+                            take_while_m_n(1, 6, |c: char| c.is_ascii_hexdigit()),
+                            char('}'),
+                        )),
+                        |(_, s, _)| Self::UnicodeEscape(s),
+                    ),
+                )),
+            )),
+            |(_, ch)| ch,
+        )(i)
+    }
 }
 
 enum PathOrIdentifier<'a> {
@@ -552,7 +650,7 @@ fn strip_common(base: &Path, path: &Path) -> String {
 #[cfg(not(windows))]
 #[cfg(test)]
 mod test {
-    use super::{num_lit, strip_common};
+    use super::{char_lit, num_lit, strip_common};
     use std::path::Path;
 
     #[test]
@@ -598,5 +696,39 @@ mod test {
         assert_eq!(num_lit("1.").unwrap(), (".", "1"));
         assert_eq!(num_lit("1_.").unwrap(), (".", "1_"));
         assert_eq!(num_lit("1_2.").unwrap(), (".", "1_2"));
+    }
+
+    #[test]
+    fn test_char_lit() {
+        assert_eq!(char_lit("'a'").unwrap(), ("", "a"));
+        assert_eq!(char_lit("'字'").unwrap(), ("", "字"));
+
+        // Escaped single characters.
+        assert_eq!(char_lit("'\\\"'").unwrap(), ("", "\\\""));
+        assert_eq!(char_lit("'\\''").unwrap(), ("", "\\'"));
+        assert_eq!(char_lit("'\\t'").unwrap(), ("", "\\t"));
+        assert_eq!(char_lit("'\\n'").unwrap(), ("", "\\n"));
+        assert_eq!(char_lit("'\\r'").unwrap(), ("", "\\r"));
+        assert_eq!(char_lit("'\\0'").unwrap(), ("", "\\0"));
+        // Escaped ascii characters (up to `0x7F`).
+        assert_eq!(char_lit("'\\x12'").unwrap(), ("", "\\x12"));
+        assert_eq!(char_lit("'\\x02'").unwrap(), ("", "\\x02"));
+        assert_eq!(char_lit("'\\x6a'").unwrap(), ("", "\\x6a"));
+        assert_eq!(char_lit("'\\x7F'").unwrap(), ("", "\\x7F"));
+        // Escaped unicode characters (up to `0x10FFFF`).
+        assert_eq!(char_lit("'\\u{A}'").unwrap(), ("", "\\u{A}"));
+        assert_eq!(char_lit("'\\u{10}'").unwrap(), ("", "\\u{10}"));
+        assert_eq!(char_lit("'\\u{aa}'").unwrap(), ("", "\\u{aa}"));
+        assert_eq!(char_lit("'\\u{10FFFF}'").unwrap(), ("", "\\u{10FFFF}"));
+
+        // Should fail.
+        assert!(char_lit("''").is_err());
+        assert!(char_lit("'\\o'").is_err());
+        assert!(char_lit("'\\x'").is_err());
+        assert!(char_lit("'\\x1'").is_err());
+        assert!(char_lit("'\\x80'").is_err());
+        assert!(char_lit("'\\u'").is_err());
+        assert!(char_lit("'\\u{}'").is_err());
+        assert!(char_lit("'\\u{110000}'").is_err());
     }
 }
