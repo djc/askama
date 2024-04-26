@@ -197,10 +197,7 @@ impl<'a> Expr<'a> {
             res = Self::Filter(Filter {
                 name: fname,
                 arguments: {
-                    let mut args = match args {
-                        Some(inner) => inner,
-                        None => Vec::new(),
-                    };
+                    let mut args = args.unwrap_or_default();
                     args.insert(0, res);
                     args
                 },
