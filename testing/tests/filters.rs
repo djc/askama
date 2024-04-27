@@ -311,7 +311,12 @@ fn test_json_script() {
 }
 
 #[derive(askama::Template)]
-#[template(source = "{% let word = s|as_ref %}{{ word }}", ext = "html")]
+#[template(
+    source = r#"{% let word = s|as_ref %}{{ word }}
+{%- let hello = String::from("hello") %}
+{%- if word|deref == hello %}1{% else %}2{% endif %}"#,
+    ext = "html"
+)]
 struct LetBorrow {
     s: String,
 }
@@ -321,5 +326,5 @@ fn test_let_borrow() {
     let template = LetBorrow {
         s: "hello".to_owned(),
     };
-    assert_eq!(template.render().unwrap(), "hello")
+    assert_eq!(template.render().unwrap(), "hello1")
 }

@@ -1230,6 +1230,7 @@ impl<'a> Generator<'a> {
     ) -> Result<DisplayWrap, CompileError> {
         match name {
             "as_ref" => return self._visit_as_ref_filter(buf, args),
+            "deref" => return self._visit_deref_filter(buf, args),
             "escape" | "e" => return self._visit_escape_filter(buf, args),
             "fmt" => return self._visit_fmt_filter(buf, args),
             "format" => return self._visit_format_filter(buf, args),
@@ -1259,6 +1260,20 @@ impl<'a> Generator<'a> {
             _ => return Err("unexpected argument(s) in `as_ref` filter".into()),
         };
         buf.write("&");
+        self.visit_expr(buf, arg)?;
+        Ok(DisplayWrap::Unwrapped)
+    }
+
+    fn _visit_deref_filter(
+        &mut self,
+        buf: &mut Buffer,
+        args: &[Expr<'_>],
+    ) -> Result<DisplayWrap, CompileError> {
+        let arg = match args {
+            [arg] => arg,
+            _ => return Err("unexpected argument(s) in `deref` filter".into()),
+        };
+        buf.write("*");
         self.visit_expr(buf, arg)?;
         Ok(DisplayWrap::Unwrapped)
     }

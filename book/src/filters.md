@@ -24,6 +24,7 @@ Enable it with Cargo features (see below for more information).
   [`as_ref`][#as_ref],
   [`capitalize`][#capitalize],
   [`center`][#center],
+  [`deref`][#deref],
   [`escape|e`][#escape],
   [`filesizeformat`][#filesizeformat],
   [`fmt`][#fmt],
@@ -106,6 +107,24 @@ Centers the value in a field of a given width:
 Output:
 ```
 -  a  -
+```
+
+### deref
+[#deref]: #deref
+
+Dereferences the given argument.
+
+```
+{% let s = String::from("a")|as_ref %}
+{% if s|deref == String::from("b") %}
+{% endif %}
+```
+
+will become:
+
+```
+let s = &String::from("a");
+if *s == String::from("b") {}
 ```
 
 ### escape | e
