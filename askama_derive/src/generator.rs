@@ -907,8 +907,11 @@ impl<'a> Generator<'a> {
         let block_fragment_write = self.input.block == name && self.buf_writable.discard;
 
         // Allow writing to the buffer if we're in the block fragment
+        let mut prev_buf_discard = buf.discard;
         if block_fragment_write {
             self.buf_writable.discard = false;
+        } else if self.buf_writable.discard {
+            prev_buf_discard = mem::replace(&mut buf.discard, true);
         }
 
         // Flush preceding whitespace according to the outer WS spec
@@ -984,6 +987,7 @@ impl<'a> Generator<'a> {
         if block_fragment_write {
             self.buf_writable.discard = true;
         }
+        buf.discard = prev_buf_discard;
 
         Ok(size_hint)
     }
@@ -1825,6 +1829,7 @@ struct Buffer {
     indent: u8,
     // Whether the output buffer is currently at the start of a line
     start: bool,
+    discard: bool,
 }
 
 impl Buffer {
@@ -1833,10 +1838,14 @@ impl Buffer {
             buf: String::new(),
             indent,
             start: true,
+            discard: false,
         }
     }
 
     fn writeln(&mut self, s: &str) -> Result<(), CompileError> {
+        if self.discard {
+            return Ok(());
+        }
         if s == "}" {
             self.dedent()?;
         }
@@ -1852,6 +1861,9 @@ impl Buffer {
     }
 
     fn write(&mut self, s: &str) {
+        if self.discard {
+            return;
+        }
         if self.start {
             for _ in 0..(self.indent * 4) {
                 self.buf.push(' ');
