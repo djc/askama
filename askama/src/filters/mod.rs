@@ -339,8 +339,6 @@ pub fn wordcount<T: fmt::Display>(s: T) -> Result<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(feature = "num-traits")]
-    use std::f64::INFINITY;
 
     #[cfg(feature = "humansize")]
     #[test]
@@ -496,8 +494,8 @@ mod tests {
         assert_eq!(into_f64(1).unwrap(), 1.0_f64);
         assert_eq!(into_f64(1.9).unwrap(), 1.9_f64);
         assert_eq!(into_f64(-1.9).unwrap(), -1.9_f64);
-        assert_eq!(into_f64(INFINITY as f32).unwrap(), INFINITY);
-        assert_eq!(into_f64(-INFINITY as f32).unwrap(), -INFINITY);
+        assert_eq!(into_f64(f32::INFINITY).unwrap(), f64::INFINITY);
+        assert_eq!(into_f64(-f32::INFINITY).unwrap(), -f64::INFINITY);
     }
 
     #[cfg(feature = "num-traits")]
@@ -508,7 +506,7 @@ mod tests {
         assert_eq!(into_isize(-1.9).unwrap(), -1_isize);
         assert_eq!(into_isize(1.5_f64).unwrap(), 1_isize);
         assert_eq!(into_isize(-1.5_f64).unwrap(), -1_isize);
-        match into_isize(INFINITY) {
+        match into_isize(f64::INFINITY) {
             Err(Fmt(fmt::Error)) => {}
             _ => panic!("Should return error of type Err(Fmt(fmt::Error))"),
         };
