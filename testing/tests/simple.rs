@@ -350,6 +350,12 @@ impl FunctionTemplate {
     }
 }
 
+#[test]
+fn test_fn() {
+    let t = FunctionTemplate;
+    assert_eq!(t.render().unwrap(), "Hello, world1234!");
+}
+
 #[derive(Template)]
 #[template(source = "  {# foo -#} ", ext = "txt")]
 struct CommentTemplate {}
