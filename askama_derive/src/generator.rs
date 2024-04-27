@@ -705,7 +705,7 @@ impl<'a> Generator<'a> {
                 break;
             }
         }
-        let current_buf = mem::take(&mut self.buf_writable);
+        let current_buf = mem::take(&mut self.buf_writable.buf);
 
         self.prepare_ws(filter.ws1);
         let mut size_hint = self.handle(ctx, &filter.nodes, buf, AstLevel::Nested)?;
@@ -734,7 +734,7 @@ impl<'a> Generator<'a> {
             }
         };
 
-        mem::drop(mem::replace(&mut self.buf_writable, current_buf));
+        mem::drop(mem::replace(&mut self.buf_writable.buf, current_buf));
 
         let mut filter_buf = Buffer::new(buf.indent);
         let Filter {
@@ -962,8 +962,7 @@ impl<'a> Generator<'a> {
             child.write_buf_writable(buf)?;
         }
         child.flush_ws(def.ws2);
-        let buf_writable = mem::take(&mut child.buf_writable);
-        self.buf_writable = buf_writable;
+        self.buf_writable = child.buf_writable;
 
         // Restore original block context and set whitespace suppression for
         // succeeding whitespace according to the outer WS spec
@@ -1024,7 +1023,7 @@ impl<'a> Generator<'a> {
             .all(|w| matches!(w, Writable::Lit(_)))
         {
             let mut buf_lit = Buffer::new(0);
-            for s in mem::take(&mut self.buf_writable) {
+            for s in mem::take(&mut self.buf_writable.buf) {
                 if let Writable::Lit(s) = s {
                     buf_lit.write(s);
                 };
@@ -1044,7 +1043,7 @@ impl<'a> Generator<'a> {
         let mut buf_format = Buffer::new(0);
         let mut buf_expr = Buffer::new(indent + 1);
 
-        for s in mem::take(&mut self.buf_writable) {
+        for s in mem::take(&mut self.buf_writable.buf) {
             match s {
                 Writable::Lit(s) => {
                     buf_format.write(&s.replace('{', "{{").replace('}', "}}"));
@@ -2116,15 +2115,6 @@ impl<'a> WritableBuffer<'a> {
         if !self.discard {
             self.buf.push(writable);
         }
-    }
-}
-
-impl<'a> IntoIterator for WritableBuffer<'a> {
-    type Item = Writable<'a>;
-    type IntoIter = <Vec<Writable<'a>> as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.buf.into_iter()
     }
 }
 
