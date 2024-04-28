@@ -1,8 +1,0 @@
-error: failed to parse template source at row 1, column 9 near:
-       "break%}, have a parsing error!"
- --> tests/ui/since_1.58/break_outside_of_loop.rs:3:10
-  |
-3 | #[derive(Template)]
-  |          ^^^^^^^^
-  |
-  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
