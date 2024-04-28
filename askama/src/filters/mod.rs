@@ -12,7 +12,7 @@ use std::fmt::{self, Write};
 #[cfg(feature = "serde-json")]
 mod json;
 #[cfg(feature = "serde-json")]
-pub use self::json::json;
+pub use self::json::{json, AsIndent};
 
 use askama_escape::{Escaper, MarkupDisplay};
 #[cfg(feature = "humansize")]

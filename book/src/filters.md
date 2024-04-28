@@ -415,6 +415,18 @@ Ugly: <script>var data = "{{data|json}}";</script>
 Ugly: <script>var data = '{{data|json|safe}}';</script>
 ```
 
+By default, a compact representation of the data is generated, i.e. no whitespaces are generated
+between individual values. To generate a readable representation, you can either pass an integer
+how many spaces to use as indentation, or you can pass a string that gets used as prefix:
+
+```jinja2
+Prefix with four spaces:
+<textarea>{{data|tojson(4)}}</textarea>
+
+Prefix with two &nbsp; characters:
+<p>{{data|tojson("\u{a0}\u{a0}")}}</p>
+```
+
 ## Custom Filters
 [#custom-filters]: #custom-filters
 

@@ -1272,12 +1272,14 @@ impl<'a> Generator<'a> {
             return Err("the `json` filter requires the `serde-json` feature to be enabled".into());
         }
 
-        if args.len() != 1 {
-            return Err("unexpected argument(s) in `json` filter".into());
-        }
         buf.write(CRATE);
         buf.write("::filters::json(");
         self._visit_args(buf, args)?;
+        match args.len() {
+            1 => buf.write(", ()"),
+            2 => {}
+            _ => return Err("unexpected argument(s) in `json` filter".into()),
+        }
         buf.write(")?");
         Ok(DisplayWrap::Unwrapped)
     }
