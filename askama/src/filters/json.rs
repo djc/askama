@@ -19,12 +19,12 @@ use serde_json::to_writer_pretty;
 /// or in apostrophes with the (optional) safe filter `'{{data|json|safe}}'`.
 /// In HTML texts the output of e.g. `<pre>{{data|json|safe}}</pre>` is safe, too.
 #[inline]
-pub fn json<S: Serialize>(s: S) -> Result<ToJson<S>, Infallible> {
+pub fn json<S: Serialize>(s: S) -> Result<impl fmt::Display, Infallible> {
     Ok(ToJson(s))
 }
 
 #[derive(Debug, Clone)]
-pub struct ToJson<S: Serialize>(S);
+struct ToJson<S: Serialize>(S);
 
 impl<S: Serialize> fmt::Display for ToJson<S> {
     #[inline]

@@ -103,13 +103,13 @@ where
 /// assert_eq!(tmpl.to_string(),  "Filesize: 1.23 MB.");
 /// ```
 #[inline]
-pub fn filesizeformat(b: &impl ToF64) -> Result<FilesizeFormatFilter, Infallible> {
+pub fn filesizeformat(b: &impl ToF64) -> Result<impl fmt::Display, Infallible> {
     Ok(FilesizeFormatFilter(b.to_f64()))
 }
 
 #[cfg(feature = "humansize")]
 #[derive(Debug, Clone, Copy)]
-pub struct FilesizeFormatFilter(f64);
+struct FilesizeFormatFilter(f64);
 
 #[cfg(feature = "humansize")]
 impl fmt::Display for FilesizeFormatFilter {
@@ -139,7 +139,7 @@ impl fmt::Display for FilesizeFormatFilter {
 ///
 /// [`urlencode_strict`]: ./fn.urlencode_strict.html
 #[inline]
-pub fn urlencode<T: fmt::Display>(s: T) -> Result<UrlencodeFilter<T>, Infallible> {
+pub fn urlencode<T: fmt::Display>(s: T) -> Result<impl fmt::Display, Infallible> {
     Ok(UrlencodeFilter(s, URLENCODE_SET))
 }
 
@@ -159,12 +159,12 @@ pub fn urlencode<T: fmt::Display>(s: T) -> Result<UrlencodeFilter<T>, Infallible
 ///
 /// If you want to preserve `/`, see [`urlencode`](./fn.urlencode.html).
 #[inline]
-pub fn urlencode_strict<T: fmt::Display>(s: T) -> Result<UrlencodeFilter<T>, Infallible> {
+pub fn urlencode_strict<T: fmt::Display>(s: T) -> Result<impl fmt::Display, Infallible> {
     Ok(UrlencodeFilter(s, URLENCODE_STRICT_SET))
 }
 
 #[cfg(feature = "percent-encoding")]
-pub struct UrlencodeFilter<T>(T, &'static AsciiSet);
+struct UrlencodeFilter<T>(T, &'static AsciiSet);
 
 #[cfg(feature = "percent-encoding")]
 impl<T: fmt::Display> fmt::Display for UrlencodeFilter<T> {
@@ -216,7 +216,7 @@ pub fn format() {}
 /// A single newline becomes an HTML line break `<br>` and a new line
 /// followed by a blank line becomes a paragraph break `<p>`.
 #[inline]
-pub fn linebreaks(s: impl ToString) -> Result<String, Infallible> {
+pub fn linebreaks(s: impl ToString) -> Result<impl fmt::Display, Infallible> {
     fn linebreaks(s: String) -> Result<String, Infallible> {
         let linebroken = s.replace("\n\n", "</p><p>").replace('\n', "<br/>");
         Ok(format!("<p>{linebroken}</p>"))
@@ -226,7 +226,7 @@ pub fn linebreaks(s: impl ToString) -> Result<String, Infallible> {
 
 /// Converts all newlines in a piece of plain text to HTML line breaks
 #[inline]
-pub fn linebreaksbr(s: impl ToString) -> Result<String, Infallible> {
+pub fn linebreaksbr(s: impl ToString) -> Result<impl fmt::Display, Infallible> {
     fn linebreaksbr(s: String) -> Result<String, Infallible> {
         Ok(s.replace('\n', "<br/>"))
     }
@@ -239,7 +239,7 @@ pub fn linebreaksbr(s: impl ToString) -> Result<String, Infallible> {
 /// Paragraph tags only wrap content; empty paragraphs are removed.
 /// No `<br/>` tags are added.
 #[inline]
-pub fn paragraphbreaks(s: impl ToString) -> Result<String, Infallible> {
+pub fn paragraphbreaks(s: impl ToString) -> Result<impl fmt::Display, Infallible> {
     fn paragraphbreaks(s: String) -> Result<String, Infallible> {
         let linebroken = s.replace("\n\n", "</p><p>").replace("<p></p>", "");
         Ok(format!("<p>{linebroken}</p>"))
@@ -249,7 +249,7 @@ pub fn paragraphbreaks(s: impl ToString) -> Result<String, Infallible> {
 
 /// Converts to lowercase
 #[inline]
-pub fn lower(s: impl ToString) -> Result<String, Infallible> {
+pub fn lower(s: impl ToString) -> Result<impl fmt::Display, Infallible> {
     fn lower(s: String) -> Result<String, Infallible> {
         Ok(s.to_lowercase())
     }
@@ -258,13 +258,13 @@ pub fn lower(s: impl ToString) -> Result<String, Infallible> {
 
 /// Alias for the `lower()` filter
 #[inline]
-pub fn lowercase(s: impl ToString) -> Result<String, Infallible> {
+pub fn lowercase(s: impl ToString) -> Result<impl fmt::Display, Infallible> {
     lower(s)
 }
 
 /// Converts to uppercase
 #[inline]
-pub fn upper(s: impl ToString) -> Result<String, Infallible> {
+pub fn upper(s: impl ToString) -> Result<impl fmt::Display, Infallible> {
     fn upper(s: String) -> Result<String, Infallible> {
         Ok(s.to_uppercase())
     }
@@ -273,12 +273,12 @@ pub fn upper(s: impl ToString) -> Result<String, Infallible> {
 
 /// Alias for the `upper()` filter
 #[inline]
-pub fn uppercase(s: impl ToString) -> Result<String, Infallible> {
+pub fn uppercase(s: impl ToString) -> Result<impl fmt::Display, Infallible> {
     upper(s)
 }
 
 /// Strip leading and trailing whitespace
-pub fn trim<T: fmt::Display>(s: T) -> Result<String> {
+pub fn trim<T: fmt::Display>(s: T) -> Result<impl fmt::Display> {
     struct Collector(String);
 
     impl fmt::Write for Collector {
@@ -302,11 +302,11 @@ pub fn trim<T: fmt::Display>(s: T) -> Result<String> {
 pub fn truncate<S: fmt::Display>(
     source: S,
     remaining: usize,
-) -> Result<TruncateFilter<S>, Infallible> {
+) -> Result<impl fmt::Display, Infallible> {
     Ok(TruncateFilter { source, remaining })
 }
 
-pub struct TruncateFilter<S> {
+struct TruncateFilter<S> {
     source: S,
     remaining: usize,
 }
@@ -367,7 +367,7 @@ impl<S: fmt::Display> fmt::Display for TruncateFilter<S> {
 
 /// Indent lines with `width` spaces
 #[inline]
-pub fn indent(s: impl ToString, width: usize) -> Result<String, Infallible> {
+pub fn indent(s: impl ToString, width: usize) -> Result<impl fmt::Display, Infallible> {
     fn indent(s: String, width: usize) -> Result<String, Infallible> {
         let mut indented = String::new();
         for (i, c) in s.char_indices() {
@@ -404,7 +404,7 @@ where
 
 /// Joins iterable into a string separated by provided argument
 #[inline]
-pub fn join<I, S>(input: I, separator: S) -> Result<JoinFilter<I, S>, Infallible>
+pub fn join<I, S>(input: I, separator: S) -> Result<impl fmt::Display, Infallible>
 where
     I: IntoIterator,
     I::Item: fmt::Display,
@@ -426,7 +426,7 @@ where
 // in multiple invocations for the same object. We break this contract, because have to consume the
 // iterator, unless we want to enforce `I: Clone`, nor do we want to "memorize" the result of the
 // joined data.
-pub struct JoinFilter<I, S>(Cell<Option<(I, S)>>);
+struct JoinFilter<I, S>(Cell<Option<(I, S)>>);
 
 impl<I, S> fmt::Display for JoinFilter<I, S>
 where
@@ -459,7 +459,7 @@ where
 
 /// Capitalize a value. The first character will be uppercase, all others lowercase.
 #[inline]
-pub fn capitalize(s: impl ToString) -> Result<String, Infallible> {
+pub fn capitalize(s: impl ToString) -> Result<impl fmt::Display, Infallible> {
     fn capitalize(s: String) -> Result<String, Infallible> {
         match s.chars().next() {
             Some(c) => {
@@ -475,7 +475,7 @@ pub fn capitalize(s: impl ToString) -> Result<String, Infallible> {
 
 /// Centers the value in a field of a given width
 #[inline]
-pub fn center(src: impl ToString, dst_len: usize) -> Result<String, Infallible> {
+pub fn center(src: impl ToString, dst_len: usize) -> Result<impl fmt::Display, Infallible> {
     fn center(src: String, dst_len: usize) -> Result<String, Infallible> {
         let len = src.len();
         if dst_len <= len {
@@ -576,20 +576,20 @@ mod tests {
     #[test]
     fn test_linebreaks() {
         assert_eq!(
-            linebreaks("Foo\nBar Baz").unwrap(),
+            linebreaks("Foo\nBar Baz").unwrap().to_string(),
             "<p>Foo<br/>Bar Baz</p>"
         );
         assert_eq!(
-            linebreaks("Foo\nBar\n\nBaz").unwrap(),
+            linebreaks("Foo\nBar\n\nBaz").unwrap().to_string(),
             "<p>Foo<br/>Bar</p><p>Baz</p>"
         );
     }
 
     #[test]
     fn test_linebreaksbr() {
-        assert_eq!(linebreaksbr("Foo\nBar").unwrap(), "Foo<br/>Bar");
+        assert_eq!(linebreaksbr("Foo\nBar").unwrap().to_string(), "Foo<br/>Bar");
         assert_eq!(
-            linebreaksbr("Foo\nBar\n\nBaz").unwrap(),
+            linebreaksbr("Foo\nBar\n\nBaz").unwrap().to_string(),
             "Foo<br/>Bar<br/><br/>Baz"
         );
     }
@@ -597,38 +597,40 @@ mod tests {
     #[test]
     fn test_paragraphbreaks() {
         assert_eq!(
-            paragraphbreaks("Foo\nBar Baz").unwrap(),
+            paragraphbreaks("Foo\nBar Baz").unwrap().to_string(),
             "<p>Foo\nBar Baz</p>"
         );
         assert_eq!(
-            paragraphbreaks("Foo\nBar\n\nBaz").unwrap(),
+            paragraphbreaks("Foo\nBar\n\nBaz").unwrap().to_string(),
             "<p>Foo\nBar</p><p>Baz</p>"
         );
         assert_eq!(
-            paragraphbreaks("Foo\n\n\n\n\nBar\n\nBaz").unwrap(),
+            paragraphbreaks("Foo\n\n\n\n\nBar\n\nBaz")
+                .unwrap()
+                .to_string(),
             "<p>Foo</p><p>\nBar</p><p>Baz</p>"
         );
     }
 
     #[test]
     fn test_lower() {
-        assert_eq!(lower("Foo").unwrap(), "foo");
-        assert_eq!(lower("FOO").unwrap(), "foo");
-        assert_eq!(lower("FooBar").unwrap(), "foobar");
-        assert_eq!(lower("foo").unwrap(), "foo");
+        assert_eq!(lower("Foo").unwrap().to_string(), "foo");
+        assert_eq!(lower("FOO").unwrap().to_string(), "foo");
+        assert_eq!(lower("FooBar").unwrap().to_string(), "foobar");
+        assert_eq!(lower("foo").unwrap().to_string(), "foo");
     }
 
     #[test]
     fn test_upper() {
-        assert_eq!(upper("Foo").unwrap(), "FOO");
-        assert_eq!(upper("FOO").unwrap(), "FOO");
-        assert_eq!(upper("FooBar").unwrap(), "FOOBAR");
-        assert_eq!(upper("foo").unwrap(), "FOO");
+        assert_eq!(upper("Foo").unwrap().to_string(), "FOO");
+        assert_eq!(upper("FOO").unwrap().to_string(), "FOO");
+        assert_eq!(upper("FooBar").unwrap().to_string(), "FOOBAR");
+        assert_eq!(upper("foo").unwrap().to_string(), "FOO");
     }
 
     #[test]
     fn test_trim() {
-        assert_eq!(trim(" Hello\tworld\t").unwrap(), "Hello\tworld");
+        assert_eq!(trim(" Hello\tworld\t").unwrap().to_string(), "Hello\tworld");
     }
 
     #[test]
@@ -658,11 +660,11 @@ mod tests {
 
     #[test]
     fn test_indent() {
-        assert_eq!(indent("hello", 2).unwrap(), "hello");
-        assert_eq!(indent("hello\n", 2).unwrap(), "hello\n");
-        assert_eq!(indent("hello\nfoo", 2).unwrap(), "hello\n  foo");
+        assert_eq!(indent("hello", 2).unwrap().to_string(), "hello");
+        assert_eq!(indent("hello\n", 2).unwrap().to_string(), "hello\n");
+        assert_eq!(indent("hello\nfoo", 2).unwrap().to_string(), "hello\n  foo");
         assert_eq!(
-            indent("hello\nfoo\n bar", 4).unwrap(),
+            indent("hello\nfoo\n bar", 4).unwrap().to_string(),
             "hello\n    foo\n     bar"
         );
     }
@@ -741,23 +743,32 @@ mod tests {
 
     #[test]
     fn test_capitalize() {
-        assert_eq!(capitalize("foo").unwrap(), "Foo".to_string());
-        assert_eq!(capitalize("f").unwrap(), "F".to_string());
-        assert_eq!(capitalize("fO").unwrap(), "Fo".to_string());
-        assert_eq!(capitalize("").unwrap(), "".to_string());
-        assert_eq!(capitalize("FoO").unwrap(), "Foo".to_string());
-        assert_eq!(capitalize("foO BAR").unwrap(), "Foo bar".to_string());
-        assert_eq!(capitalize("äØÄÅÖ").unwrap(), "Äøäåö".to_string());
-        assert_eq!(capitalize("ß").unwrap(), "SS".to_string());
-        assert_eq!(capitalize("ßß").unwrap(), "SSß".to_string());
+        assert_eq!(capitalize("foo").unwrap().to_string(), "Foo".to_string());
+        assert_eq!(capitalize("f").unwrap().to_string(), "F".to_string());
+        assert_eq!(capitalize("fO").unwrap().to_string(), "Fo".to_string());
+        assert_eq!(capitalize("").unwrap().to_string(), "".to_string());
+        assert_eq!(capitalize("FoO").unwrap().to_string(), "Foo".to_string());
+        assert_eq!(
+            capitalize("foO BAR").unwrap().to_string(),
+            "Foo bar".to_string()
+        );
+        assert_eq!(
+            capitalize("äØÄÅÖ").unwrap().to_string(),
+            "Äøäåö".to_string()
+        );
+        assert_eq!(capitalize("ß").unwrap().to_string(), "SS".to_string());
+        assert_eq!(capitalize("ßß").unwrap().to_string(), "SSß".to_string());
     }
 
     #[test]
     fn test_center() {
-        assert_eq!(center("f", 3).unwrap(), " f ".to_string());
-        assert_eq!(center("f", 4).unwrap(), " f  ".to_string());
-        assert_eq!(center("foo", 1).unwrap(), "foo".to_string());
-        assert_eq!(center("foo bar", 8).unwrap(), "foo bar ".to_string());
+        assert_eq!(center("f", 3).unwrap().to_string(), " f ".to_string());
+        assert_eq!(center("f", 4).unwrap().to_string(), " f  ".to_string());
+        assert_eq!(center("foo", 1).unwrap().to_string(), "foo".to_string());
+        assert_eq!(
+            center("foo bar", 8).unwrap().to_string(),
+            "foo bar ".to_string()
+        );
     }
 
     #[test]
