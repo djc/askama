@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::str;
 
 use nom::branch::alt;
-use nom::bytes::complete::{tag, take_until};
+use nom::bytes::complete::tag;
 use nom::character::complete::char;
 use nom::combinator::{
     complete, consumed, cut, eof, map, map_res, not, opt, peek, recognize, value,
@@ -1019,42 +1019,57 @@ pub struct Comment<'a> {
 
 impl<'a> Comment<'a> {
     fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
-        fn body<'a>(mut i: &'a str, s: &State<'_>) -> ParseResult<'a> {
-            let mut level = 0;
+        #[derive(Debug, Clone, Copy)]
+        enum Tag {
+            Open,
+            Close,
+        }
+
+        fn tag<'a>(i: &'a str, s: &State<'_>) -> ParseResult<'a, Tag> {
+            alt((
+                value(Tag::Open, |i| s.tag_comment_start(i)),
+                value(Tag::Close, |i| s.tag_comment_end(i)),
+            ))(i)
+        }
+
+        fn content<'a>(mut i: &'a str, s: &State<'_>) -> ParseResult<'a, ()> {
+            let mut depth = 0usize;
             loop {
-                let (end, tail) = take_until(s.syntax.comment_end)(i)?;
-                match take_until::<_, _, ErrorContext<'_>>(s.syntax.comment_start)(i) {
-                    Ok((start, _)) if start.as_ptr() < end.as_ptr() => {
-                        level += 1;
-                        i = &start[2..];
-                    }
-                    _ if level > 0 => {
-                        level -= 1;
-                        i = &end[2..];
-                    }
-                    _ => return Ok((end, tail)),
+                let (_, (j, tag)) = skip_till(|i| tag(i, s))(i)?;
+                match tag {
+                    Tag::Open => match depth.checked_add(1) {
+                        Some(new_depth) => depth = new_depth,
+                        None => {
+                            return Err(nom::Err::Failure(ErrorContext {
+                                input: i,
+                                message: Some(Cow::Borrowed("too deeply nested comments")),
+                            }))
+                        }
+                    },
+                    Tag::Close => match depth.checked_sub(1) {
+                        Some(new_depth) => depth = new_depth,
+                        None => return Ok((j, ())),
+                    },
                 }
+                i = j;
             }
         }
 
-        let mut p = tuple((
-            |i| s.tag_comment_start(i),
-            cut(tuple((
-                opt(Whitespace::parse),
-                |i| body(i, s),
-                |i| s.tag_comment_end(i),
-            ))),
-        ));
-        let (i, (content, (pws, tail, _))) = p(i)?;
-        let nws = if tail.ends_with('-') {
-            Some(Whitespace::Suppress)
-        } else if tail.ends_with('+') {
-            Some(Whitespace::Preserve)
-        } else if tail.ends_with('~') {
-            Some(Whitespace::Minimize)
-        } else {
-            None
+        let (i, (pws, content)) = pair(
+            preceded(|i| s.tag_comment_start(i), opt(Whitespace::parse)),
+            recognize(cut(|i| content(i, s))),
+        )(i)?;
+
+        let mut nws = None;
+        if let Some(content) = content.strip_suffix(s.syntax.comment_end) {
+            nws = match content.chars().last() {
+                Some('-') => Some(Whitespace::Suppress),
+                Some('+') => Some(Whitespace::Preserve),
+                Some('~') => Some(Whitespace::Minimize),
+                _ => None,
+            }
         };
+
         Ok((
             i,
             Self {
