@@ -918,3 +918,17 @@ fn fuzzed_unary_recursion() {
     const TEMPLATE: &str = include_str!("../tests/unary-recursion.txt");
     assert!(Ast::from_str(TEMPLATE, None, &Syntax::default()).is_err());
 }
+
+#[test]
+fn fuzzed_comment_depth() {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let test = std::thread::spawn(move || {
+        const TEMPLATE: &str = include_str!("../tests/comment-depth.txt");
+        assert!(Ast::from_str(TEMPLATE, None, &Syntax::default()).is_ok());
+        sender.send(()).unwrap();
+    });
+    receiver
+        .recv_timeout(std::time::Duration::from_secs(3))
+        .expect("timeout");
+    test.join().unwrap();
+}
