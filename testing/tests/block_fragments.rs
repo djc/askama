@@ -11,7 +11,7 @@ struct FragmentSimple<'a> {
 fn test_fragment_simple() {
     let simple = FragmentSimple { name: "world" };
 
-    assert_eq!(simple.render().unwrap(), "\n\n<p>Hello world!</p>\n");
+    assert_eq!(simple.render().unwrap(), "\n<p>Hello world!</p>\n");
 }
 
 #[derive(Template)]
@@ -28,7 +28,7 @@ fn test_fragment_super() {
 
     assert_eq!(
         sup.render().unwrap(),
-        "\n\n<p>Hello world!</p>\n\n<p>Parent body content</p>\n\n"
+        "\n<p>Hello world!</p>\n\n<p>Parent body content</p>\n\n"
     );
 }
 
@@ -43,7 +43,7 @@ fn test_fragment_nested_block() {
 
     assert_eq!(
         nested_block.render().unwrap(),
-        "\n\n<p>I should be here.</p>\n"
+        "\n<p>I should be here.</p>\n"
     );
 }
 
@@ -61,7 +61,7 @@ fn test_fragment_nested_super() {
 
     assert_eq!(
         nested_sup.render().unwrap(),
-        "\n\n<p>Hello world!</p>\n\n[\n<p>Parent body content</p>\n]\n\n"
+        "\n<p>Hello world!</p>\n\n[\n<p>Parent body content</p>\n]\n\n"
     );
 }
 
@@ -79,5 +79,27 @@ fn test_fragment_unused_expression() {
         required: "Required",
     };
 
-    assert_eq!(unused_expr.render().unwrap(), "\n\n<p>Required</p>\n");
+    assert_eq!(unused_expr.render().unwrap(), "\n<p>Required</p>\n");
+}
+
+#[derive(Template)]
+#[template(path = "blocks.txt", block = "index")]
+struct RenderInPlace<'a> {
+    s1: Section<'a>,
+}
+
+#[derive(Template)]
+#[template(path = "blocks.txt", block = "section")]
+struct Section<'a> {
+    values: &'a [&'a str],
+}
+
+#[test]
+fn test_specific_block() {
+    let s1 = Section {
+        values: &["a", "b", "c"],
+    };
+    assert_eq!(s1.render().unwrap(), "[abc]");
+    let t = RenderInPlace { s1 };
+    assert_eq!(t.render().unwrap(), "\nSection: [abc]\n");
 }

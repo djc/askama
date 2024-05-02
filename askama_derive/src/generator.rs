@@ -746,7 +746,7 @@ impl<'a> Generator<'a> {
             }
         };
 
-        mem::drop(mem::replace(&mut self.buf_writable.buf, current_buf));
+        self.buf_writable.buf = current_buf;
 
         let mut filter_buf = Buffer::new(buf.indent);
         let Filter {
@@ -904,16 +904,6 @@ impl<'a> Generator<'a> {
         name: Option<&'a str>,
         outer: Ws,
     ) -> Result<usize, CompileError> {
-        let block_fragment_write = self.input.block == name && self.buf_writable.discard;
-
-        // Allow writing to the buffer if we're in the block fragment
-        let mut prev_buf_discard = buf.discard;
-        if block_fragment_write {
-            self.buf_writable.discard = false;
-        } else if self.buf_writable.discard {
-            prev_buf_discard = mem::replace(&mut buf.discard, true);
-        }
-
         // Flush preceding whitespace according to the outer WS spec
         self.flush_ws(outer);
 
@@ -931,6 +921,15 @@ impl<'a> Generator<'a> {
             // `super()` is called from outside a block
             (None, None) => return Err("cannot call 'super()' outside block".into()),
         };
+
+        self.write_buf_writable(buf)?;
+
+        let block_fragment_write = self.input.block == name && self.buf_writable.discard;
+        // Allow writing to the buffer if we're in the block fragment
+        if block_fragment_write {
+            self.buf_writable.discard = false;
+        }
+        let prev_buf_discard = mem::replace(&mut buf.discard, self.buf_writable.discard);
 
         // Get the block definition from the heritage chain
         let heritage = self
@@ -976,6 +975,7 @@ impl<'a> Generator<'a> {
             // Need to flush the buffer before popping the variable stack
             child.write_buf_writable(buf)?;
         }
+
         child.flush_ws(def.ws2);
         self.buf_writable = child.buf_writable;
 
