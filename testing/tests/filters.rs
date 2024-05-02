@@ -323,3 +323,76 @@ fn test_let_borrow() {
     };
     assert_eq!(template.render().unwrap(), "hello")
 }
+
+#[derive(askama::Template)]
+#[template(
+    source = "|{{ a|display_some }}|{{ b|display_some }}|{{ c|display_some }}|",
+    ext = "html"
+)]
+struct DisplaySome {
+    a: Option<String>,
+    b: Option<i32>,
+    c: Option<bool>,
+}
+
+#[test]
+fn test_display_some() {
+    let template = DisplaySome {
+        a: None,
+        b: None,
+        c: None,
+    };
+    assert_eq!(template.render().unwrap(), "||||");
+
+    let template = DisplaySome {
+        a: Some(String::from("Hello World")),
+        b: Some(12345),
+        c: Some(true),
+    };
+    assert_eq!(template.render().unwrap(), "|Hello World|12345|true|");
+}
+
+#[derive(askama::Template)]
+#[template(
+    source = "|{{ a|display_some_or(\"default\") }}|{{ b|display_some_or(0) }}|{{ c|display_some_or(\"none\") }}|",
+    ext = "html"
+)]
+struct DisplaySomeOr {
+    a: Option<String>,
+    b: Option<i32>,
+    c: Option<bool>,
+}
+
+#[test]
+fn test_display_some_or() {
+    let template = DisplaySomeOr {
+        a: None,
+        b: None,
+        c: None,
+    };
+    assert_eq!(template.render().unwrap(), "|default|0|none|");
+
+    let template = DisplaySomeOr {
+        a: Some(String::from("Hello World")),
+        b: Some(12345),
+        c: Some(true),
+    };
+    assert_eq!(template.render().unwrap(), "|Hello World|12345|true|");
+}
+
+#[derive(askama::Template)]
+#[template(
+    source = "\
+        {% set val = Some(\"Hello World\") %}|{{ val|display_some }}|\
+        {% set val = Some(123) %}{{ val|display_some }}|\
+        {% set val = Some(true) %}{{ val|display_some }}|\
+    ",
+    ext = "html"
+)]
+struct DisplaySomeUsingSet;
+
+#[test]
+fn test_display_some_using_set() {
+    let template = DisplaySomeUsingSet;
+    assert_eq!(template.render().unwrap(), "|Hello World|123|true|");
+}

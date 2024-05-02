@@ -511,6 +511,64 @@ pub fn wordcount(s: impl ToString) -> Result<usize, Infallible> {
     wordcount(s.to_string())
 }
 
+pub struct DisplaySome<'a, T>(Option<&'a T>);
+
+impl<T> fmt::Display for DisplaySome<'_, T>
+where
+    T: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(val) = self.0 {
+            write!(f, "{val}")?;
+        }
+        Ok(())
+    }
+}
+
+/// See [`display_some` in the Askama book] for more information.
+///
+/// See also [`display_some_or`].
+///
+/// [`display_some` in the Askama book]: https://djc.github.io/askama/filters.html#display_some
+pub fn display_some<T>(value: &Option<T>) -> Result<DisplaySome<'_, T>>
+where
+    T: fmt::Display,
+{
+    Ok(DisplaySome(value.as_ref()))
+}
+
+pub struct DisplaySomeOr<'a, T, U>(Option<&'a T>, U);
+
+impl<T, U> fmt::Display for DisplaySomeOr<'_, T, U>
+where
+    T: fmt::Display,
+    U: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(val) = self.0 {
+            write!(f, "{val}")
+        } else {
+            write!(f, "{}", self.1)
+        }
+    }
+}
+
+/// See [`display_some_or` in the Askama book] for more information.
+///
+/// See also [`display_some`].
+///
+/// [`display_some_or` in the Askama book]: https://djc.github.io/askama/filters.html#display_some_or
+pub fn display_some_or<'a, T, U>(
+    value: &'a Option<T>,
+    otherwise: U,
+) -> Result<DisplaySomeOr<'a, T, U>>
+where
+    T: fmt::Display,
+    U: fmt::Display + 'a,
+{
+    Ok(DisplaySomeOr(value.as_ref(), otherwise))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -777,5 +835,44 @@ mod tests {
         assert_eq!(wordcount(" \n\t").unwrap(), 0);
         assert_eq!(wordcount("foo").unwrap(), 1);
         assert_eq!(wordcount("foo bar").unwrap(), 2);
+    }
+
+    #[test]
+    fn test_display_some() {
+        assert_eq!(display_some(&None::<String>).unwrap().to_string(), "");
+        assert_eq!(display_some(&None::<i32>).unwrap().to_string(), "");
+
+        assert_eq!(
+            display_some(&Some("hello world")).unwrap().to_string(),
+            "hello world"
+        );
+        assert_eq!(display_some(&Some(123)).unwrap().to_string(), "123");
+    }
+
+    #[test]
+    fn test_display_some_or() {
+        assert_eq!(
+            display_some_or(&None::<String>, "default")
+                .unwrap()
+                .to_string(),
+            "default"
+        );
+        assert_eq!(
+            display_some_or(&None::<i32>, "default")
+                .unwrap()
+                .to_string(),
+            "default"
+        );
+
+        assert_eq!(
+            display_some_or(&Some("hello world"), "default")
+                .unwrap()
+                .to_string(),
+            "hello world"
+        );
+        assert_eq!(
+            display_some_or(&Some(123), "default").unwrap().to_string(),
+            "123"
+        );
     }
 }
