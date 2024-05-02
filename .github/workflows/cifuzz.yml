@@ -1,5 +1,8 @@
 name: CIFuzz
-on: [pull_request]
+on:
+  pull_request:
+    paths:
+      - 'askama_parser/**'
 jobs:
  Fuzzing:
    runs-on: ubuntu-latest
