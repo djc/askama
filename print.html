@@ -1111,6 +1111,7 @@ Enable it with Cargo features (see below for more information).</p>
 <a href="filters.html#as_ref"><code>as_ref</code></a>,
 <a href="filters.html#capitalize"><code>capitalize</code></a>,
 <a href="filters.html#center"><code>center</code></a>,
+<a href="filters.html#deref"><code>deref</code></a>,
 <a href="filters.html#escape--e"><code>escape|e</code></a>,
 <a href="filters.html#filesizeformat"><code>filesizeformat</code></a>,
 <a href="filters.html#fmt"><code>fmt</code></a>,
@@ -1164,6 +1165,16 @@ Enable it with Cargo features (see below for more information).</p>
 </code></pre>
 <p>Output:</p>
 <pre><code>-  a  -
+</code></pre>
+<h3 id="deref"><a class="header" href="#deref">deref</a></h3>
+<p>Dereferences the given argument.</p>
+<pre><code>{% let s = String::from("a")|as_ref %}
+{% if s|deref == String::from("b") %}
+{% endif %}
+</code></pre>
+<p>will become:</p>
+<pre><code>let s = &amp;String::from("a");
+if *s == String::from("b") {}
 </code></pre>
 <h3 id="escape--e"><a class="header" href="#escape--e">escape | e</a></h3>
 <p>Escapes HTML characters in strings:</p>
