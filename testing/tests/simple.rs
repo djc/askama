@@ -345,6 +345,7 @@ struct FunctionTemplate;
 
 impl FunctionTemplate {
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[allow(dead_code)]
     fn world3(&self, s: &str, v: u8) -> String {
         format!("world{s}{v}")
     }

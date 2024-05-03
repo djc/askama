@@ -1,0 +1,11 @@
+{% block index %}
+Section: {{ s1 }}
+{% endblock %}
+
+{% block section -%}
+  [
+  {%- for value in  values -%}
+    {{ value }}
+  {%- endfor -%}
+  ]
+{%- endblock %}

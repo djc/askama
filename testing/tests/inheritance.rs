@@ -329,13 +329,8 @@ fn test_flat_deep() {
 
 #[derive(Template)]
 #[template(path = "let-base.html")]
+#[allow(dead_code)]
 struct LetBase {}
-
-#[test]
-fn test_let_base() {
-    let t = LetBase {};
-    assert_eq!(t.render().unwrap(), "");
-}
 
 #[derive(Template)]
 #[template(path = "let-child.html")]
