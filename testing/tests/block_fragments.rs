@@ -81,3 +81,22 @@ fn test_fragment_unused_expression() {
 
     assert_eq!(unused_expr.render().unwrap(), "\n\n<p>Required</p>\n");
 }
+
+/// Tests rendering a block fragment that inherits a template.
+/// Only the block, i.e. the partial content, should be rendered.
+#[derive(Template)]
+#[template(path = "child.html", block = "content")]
+struct Partial<'a> {
+    title: &'a str
+}
+
+#[test]
+fn test_partial_render() {
+    let t = Partial {
+        title: "the title"
+    };
+    assert_eq!(
+        t.render().unwrap(),
+        "(the title) Content goes here"
+    );
+}
