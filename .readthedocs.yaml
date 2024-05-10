@@ -1,0 +1,16 @@
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+version: 2
+
+build:
+  os: ubuntu-lts-latest
+  tools:
+    python: "3.12"
+  commands:
+    # Generate "book/theme/index.hbs" as "skeleton" of the generated pages.
+    - book/update-theme.py
+    # Install mdbook.
+    - mkdir -p $HOME/bin
+    - curl --location --silent --show-error --fail https://github.com/cargo-bins/cargo-quickinstall/releases/download/mdbook-0.4.40/mdbook-0.4.40-x86_64-unknown-linux-gnu.tar.gz | tar -xzvvf - -C $HOME/bin
+    # Convert the book to HTML.
+    - $HOME/bin/mdbook build book --dest-dir $READTHEDOCS_OUTPUT/html
