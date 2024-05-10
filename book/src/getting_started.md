@@ -10,7 +10,7 @@ askama = "0.12.1"
 Now create a directory called `templates` in your crate root.
 In it, create a file called `hello.html`, containing the following:
 
-```
+```jinja
 Hello, {{ name }}!
 ```
 

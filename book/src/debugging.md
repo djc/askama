@@ -20,7 +20,7 @@ The resulting output will be printed to `stderr` during the compilation process.
 
 The parse tree looks like this for the example template:
 
-```
+```rust
 [Lit("", "Hello,", " "), Expr(WS(false, false), Var("name")),
 Lit("", "!", "\n")]
 ```

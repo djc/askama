@@ -7,7 +7,7 @@ you can compile Askama's derive macros with a higher optimization level.
 This can speed up recompilation times dramatically.
 
 Add the following to `Cargo.toml` or `.cargo/config.toml`:
-```rust
+```toml
 [profile.dev.package.askama_derive]
 opt-level = 3
 ```
