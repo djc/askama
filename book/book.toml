@@ -4,3 +4,10 @@ language = "en"
 multilingual = false
 src = "src"
 title = "Askama"
+
+[rust]
+edition = "2021"
+
+[output.html]
+git-repository-url = "https://github.com/djc/askama/tree/main/book"
+edit-url-template = "https://github.com/djc/askama/tree/main/book/{path}"
