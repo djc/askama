@@ -364,12 +364,24 @@ impl<'a> Generator<'a> {
 
                 if let Some(target) = target {
                     let mut expr_buf = Buffer::new(0);
-                    self.visit_expr(&mut expr_buf, expr)?;
                     buf.write("let ");
-                    self.visit_target(buf, true, true, target);
-                    buf.write(" = &(");
+                    // If this is a chain condition, then we need to declare the variable after the
+                    // left expression has been handled but before the right expression is handled
+                    // but this one should have access to the let-bound variable.
+                    match expr {
+                        Expr::BinOp(op, ref left, ref right) if *op == "||" || *op == "&&" => {
+                            self.visit_expr(&mut expr_buf, left)?;
+                            self.visit_target(buf, true, true, target);
+                            expr_buf.write(&format!(" {op} "));
+                            self.visit_expr(&mut expr_buf, right)?;
+                        }
+                        _ => {
+                            self.visit_expr(&mut expr_buf, expr)?;
+                            self.visit_target(buf, true, true, target);
+                        }
+                    }
+                    buf.write(" = &");
                     buf.write(&expr_buf.buf);
-                    buf.write(")");
                 } else {
                     // The following syntax `*(&(...) as &bool)` is used to
                     // trigger Rust's automatic dereferencing, to coerce
