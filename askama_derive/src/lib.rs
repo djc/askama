@@ -165,6 +165,7 @@ const BUILT_IN_FILTERS: &[&str] = &[
     "lower",
     "lowercase",
     "safe",
+    "title",
     "trim",
     "truncate",
     "upper",
