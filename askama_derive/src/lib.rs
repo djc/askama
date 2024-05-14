@@ -17,6 +17,8 @@ mod heritage;
 use heritage::{Context, Heritage};
 mod input;
 use input::{Print, TemplateArgs, TemplateInput};
+#[cfg(test)]
+mod tests;
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive_template(input: TokenStream) -> TokenStream {
