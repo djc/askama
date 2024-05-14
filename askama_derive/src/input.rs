@@ -9,7 +9,7 @@ use syn::punctuated::Punctuated;
 
 use crate::config::{get_template_source, read_config_file, Config};
 use crate::CompileError;
-use parser::{Node, Parsed, Syntax};
+use parser::{Ast, Node, RcStr, Syntax};
 
 pub(crate) struct TemplateInput<'a> {
     pub(crate) ast: &'a syn::DeriveInput,
@@ -108,10 +108,10 @@ impl TemplateInput<'_> {
 
     pub(crate) fn find_used_templates(
         &self,
-        map: &mut HashMap<Rc<Path>, Parsed>,
+        map: &mut HashMap<Rc<Path>, Ast>,
     ) -> Result<(), CompileError> {
         let (source, source_path) = match &self.source {
-            Source::Source(s) => (s.into(), None),
+            Source::Source(s) => (s.clone(), None),
             Source::Path(_) => (
                 get_template_source(&self.path)?,
                 Some(Rc::clone(&self.path)),
@@ -121,7 +121,7 @@ impl TemplateInput<'_> {
         let mut dependency_graph = Vec::new();
         let mut check = vec![(Rc::clone(&self.path), source, source_path)];
         while let Some((path, source, source_path)) = check.pop() {
-            let parsed = Parsed::new(source, source_path, self.syntax)?;
+            let parsed = Ast::new(source, source_path, self.syntax)?;
 
             let mut top = true;
             let mut nested = vec![parsed.nodes()];
@@ -131,7 +131,7 @@ impl TemplateInput<'_> {
                         if !map.contains_key(&path) {
                             // Add a dummy entry to `map` in order to prevent adding `path`
                             // multiple times to `check`.
-                            map.insert(Rc::clone(&path), Parsed::default());
+                            map.insert(Rc::clone(&path), Ast::default());
                             let source = get_template_source(&path)?;
                             check.push((path.clone(), source, Some(path)));
                         }
@@ -141,7 +141,9 @@ impl TemplateInput<'_> {
                     use Node::*;
                     match n {
                         Extends(extends) if top => {
-                            let extends = self.config.find_template(extends.path, Some(&path))?;
+                            let extends = self
+                                .config
+                                .find_template(extends.path.as_str(), Some(&path))?;
                             let dependency_path = (path.clone(), extends.clone());
                             if path == extends {
                                 // We add the path into the graph to have a better looking error.
@@ -157,14 +159,18 @@ impl TemplateInput<'_> {
                             nested.push(&m.nodes);
                         }
                         Import(import) if top => {
-                            let import = self.config.find_template(import.path, Some(&path))?;
+                            let import = self
+                                .config
+                                .find_template(import.path.as_str(), Some(&path))?;
                             add_to_check(import)?;
                         }
                         FilterBlock(f) => {
                             nested.push(&f.nodes);
                         }
                         Include(include) => {
-                            let include = self.config.find_template(include.path, Some(&path))?;
+                            let include = self
+                                .config
+                                .find_template(include.path.as_str(), Some(&path))?;
                             add_to_check(include)?;
                         }
                         BlockDef(b) => {
@@ -279,7 +285,7 @@ impl TemplateArgs {
                     if args.source.is_some() {
                         return Err("must specify 'source' or 'path', not both".into());
                     }
-                    args.source = Some(Source::Path(s.value()));
+                    args.source = Some(Source::Path(s.value().into()));
                 } else {
                     return Err("template path must be string literal".into());
                 }
@@ -288,7 +294,7 @@ impl TemplateArgs {
                     if args.source.is_some() {
                         return Err("must specify 'source' or 'path', not both".into());
                     }
-                    args.source = Some(Source::Source(s.value()));
+                    args.source = Some(Source::Source(s.value().into()));
                 } else {
                     return Err("template source must be string literal".into());
                 }
@@ -344,7 +350,7 @@ impl TemplateArgs {
 
     pub(crate) fn fallback() -> Self {
         Self {
-            source: Some(Source::Source("".to_string())),
+            source: Some(Source::Source(RcStr::default())),
             ext: Some("txt".to_string()),
             ..Self::default()
         }
@@ -376,8 +382,8 @@ fn extension(path: &Path) -> Option<&str> {
 
 #[derive(Debug)]
 pub(crate) enum Source {
-    Path(String),
-    Source(String),
+    Path(RcStr),
+    Source(RcStr),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

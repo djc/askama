@@ -8,7 +8,7 @@ use serde::Deserialize;
 
 use crate::{CompileError, CRATE};
 use parser::node::Whitespace;
-use parser::Syntax;
+use parser::{RcStr, Syntax};
 
 #[derive(Debug)]
 pub(crate) struct Config<'a> {
@@ -281,7 +281,7 @@ where
 }
 
 #[allow(clippy::match_wild_err_arm)]
-pub(crate) fn get_template_source(tpl_path: &Path) -> std::result::Result<String, CompileError> {
+pub(crate) fn get_template_source(tpl_path: &Path) -> std::result::Result<RcStr, CompileError> {
     match fs::read_to_string(tpl_path) {
         Err(_) => Err(format!(
             "unable to open template file '{}'",
@@ -292,7 +292,7 @@ pub(crate) fn get_template_source(tpl_path: &Path) -> std::result::Result<String
             if source.ends_with('\n') {
                 let _ = source.pop();
             }
-            Ok(source)
+            Ok(source.into())
         }
     }
 }

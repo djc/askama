@@ -34,14 +34,14 @@ impl Heritage<'_> {
     }
 }
 
-type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a BlockDef<'a>)>>;
+type BlockAncestry<'a> = HashMap<&'a str, Vec<(&'a Context<'a>, &'a BlockDef)>>;
 
 #[derive(Default, Clone)]
 pub(crate) struct Context<'a> {
-    pub(crate) nodes: &'a [Node<'a>],
+    pub(crate) nodes: &'a [Node],
     pub(crate) extends: Option<Rc<Path>>,
-    pub(crate) blocks: HashMap<&'a str, &'a BlockDef<'a>>,
-    pub(crate) macros: HashMap<&'a str, &'a Macro<'a>>,
+    pub(crate) blocks: HashMap<&'a str, &'a BlockDef>,
+    pub(crate) macros: HashMap<&'a str, &'a Macro>,
     pub(crate) imports: HashMap<&'a str, Rc<Path>>,
 }
 
@@ -49,7 +49,7 @@ impl Context<'_> {
     pub(crate) fn new<'n>(
         config: &Config<'_>,
         path: &Path,
-        nodes: &'n [Node<'n>],
+        nodes: &'n [Node],
     ) -> Result<Context<'n>, CompileError> {
         let mut extends = None;
         let mut blocks = HashMap::new();
@@ -64,15 +64,15 @@ impl Context<'_> {
                     Node::Extends(e) if top => match extends {
                         Some(_) => return Err("multiple extend blocks found".into()),
                         None => {
-                            extends = Some(config.find_template(e.path, Some(path))?);
+                            extends = Some(config.find_template(e.path.as_str(), Some(path))?);
                         }
                     },
                     Node::Macro(m) if top => {
-                        macros.insert(m.name, m);
+                        macros.insert(m.name.as_str(), m);
                     }
                     Node::Import(import) if top => {
-                        let path = config.find_template(import.path, Some(path))?;
-                        imports.insert(import.scope, path);
+                        let path = config.find_template(import.path.as_str(), Some(path))?;
+                        imports.insert(import.scope.as_str(), path);
                     }
                     Node::Extends(_) | Node::Macro(_) | Node::Import(_) if !top => {
                         return Err(
@@ -80,7 +80,7 @@ impl Context<'_> {
                         );
                     }
                     Node::BlockDef(b) => {
-                        blocks.insert(b.name, b);
+                        blocks.insert(b.name.as_str(), b);
                         nested.push(&b.nodes);
                     }
                     Node::If(i) => {

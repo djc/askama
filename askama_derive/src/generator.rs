@@ -14,7 +14,7 @@ use parser::node::{
     Call, Comment, CondTest, FilterBlock, If, Include, Let, Lit, Loop, Match, Target, Whitespace,
     Ws,
 };
-use parser::{Expr, Filter, Node};
+use parser::{Expr, Filter, Node, RcStr};
 use quote::quote;
 
 pub(crate) struct Generator<'a> {
@@ -247,7 +247,7 @@ impl<'a> Generator<'a> {
     fn handle(
         &mut self,
         ctx: &Context<'a>,
-        nodes: &'a [Node<'_>],
+        nodes: &'a [Node],
         buf: &mut Buffer,
         level: AstLevel,
     ) -> Result<usize, CompileError> {
@@ -276,7 +276,8 @@ impl<'a> Generator<'a> {
                     size_hint += self.write_loop(ctx, buf, loop_block)?;
                 }
                 Node::BlockDef(ref b) => {
-                    size_hint += self.write_block(ctx, buf, Some(b.name), Ws(b.ws1.0, b.ws2.1))?;
+                    size_hint +=
+                        self.write_block(ctx, buf, Some(b.name.as_str()), Ws(b.ws1.0, b.ws2.1))?;
                 }
                 Node::Include(ref i) => {
                     size_hint += self.handle_include(ctx, buf, i)?;
@@ -340,7 +341,7 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &Context<'a>,
         buf: &mut Buffer,
-        i: &'a If<'_>,
+        i: &'a If,
     ) -> Result<usize, CompileError> {
         let mut flushed = 0;
         let mut arm_sizes = Vec::new();
@@ -421,7 +422,7 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &Context<'a>,
         buf: &mut Buffer,
-        m: &'a Match<'a>,
+        m: &'a Match,
     ) -> Result<usize, CompileError> {
         let Match {
             ws1,
@@ -470,7 +471,7 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &Context<'a>,
         buf: &mut Buffer,
-        loop_block: &'a Loop<'_>,
+        loop_block: &'a Loop,
     ) -> Result<usize, CompileError> {
         self.handle_ws(loop_block.ws1);
         self.locals.push();
@@ -553,28 +554,28 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &Context<'a>,
         buf: &mut Buffer,
-        call: &'a Call<'_>,
+        call: &'a Call,
     ) -> Result<usize, CompileError> {
         let Call {
             ws,
             scope,
             name,
             ref args,
-        } = *call;
+        } = call;
         if name == "super" {
-            return self.write_block(ctx, buf, None, ws);
+            return self.write_block(ctx, buf, None, *ws);
         }
 
         let (def, own_ctx) = match scope {
             Some(s) => {
-                let path = ctx.imports.get(s).ok_or_else(|| {
+                let path = ctx.imports.get(s.as_str()).ok_or_else(|| {
                     CompileError::from(format!("no import found for scope {s:?}"))
                 })?;
                 let mctx = self
                     .contexts
                     .get(path)
                     .ok_or_else(|| CompileError::from(format!("context for {path:?} not found")))?;
-                let def = mctx.macros.get(name).ok_or_else(|| {
+                let def = mctx.macros.get(name.as_str()).ok_or_else(|| {
                     CompileError::from(format!("macro {name:?} not found in scope {s:?}"))
                 })?;
                 (def, mctx)
@@ -582,13 +583,13 @@ impl<'a> Generator<'a> {
             None => {
                 let def = ctx
                     .macros
-                    .get(name)
+                    .get(name.as_str())
                     .ok_or_else(|| CompileError::from(format!("macro {name:?} not found")))?;
                 (def, ctx)
             }
         };
 
-        self.flush_ws(ws); // Cannot handle_ws() here: whitespace from macro definition comes first
+        self.flush_ws(*ws); // Cannot handle_ws() here: whitespace from macro definition comes first
         self.locals.push();
         self.write_buf_writable(buf)?;
         buf.writeln("{")?;
@@ -653,8 +654,8 @@ impl<'a> Generator<'a> {
                 // If `expr` is already a form of variable then
                 // don't reintroduce a new variable. This is
                 // to avoid moving non-copyable values.
-                &Expr::Var(name) if name != "self" => {
-                    let var = self.locals.resolve_or_self(name);
+                Expr::Var(name) if name != "self" => {
+                    let var = self.locals.resolve_or_self(name.as_str());
                     self.locals
                         .insert(Cow::Borrowed(arg), LocalMeta::with_ref(var));
                 }
@@ -698,7 +699,7 @@ impl<'a> Generator<'a> {
         size_hint += self.write_buf_writable(buf)?;
         buf.writeln("}")?;
         self.locals.pop();
-        self.prepare_ws(ws);
+        self.prepare_ws(*ws);
         Ok(size_hint)
     }
 
@@ -706,7 +707,7 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &Context<'a>,
         buf: &mut Buffer,
-        filter: &'a FilterBlock<'_>,
+        filter: &'a FilterBlock,
     ) -> Result<usize, CompileError> {
         self.flush_ws(filter.ws1);
         let mut var_name = String::new();
@@ -774,14 +775,14 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &Context<'a>,
         buf: &mut Buffer,
-        i: &'a Include<'_>,
+        i: &'a Include,
     ) -> Result<usize, CompileError> {
         self.flush_ws(i.ws);
         self.write_buf_writable(buf)?;
         let path = self
             .input
             .config
-            .find_template(i.path, Some(&self.input.path))?;
+            .find_template(i.path.as_str(), Some(&self.input.path))?;
 
         // Make sure the compiler understands that the generated code depends on the template file.
         {
@@ -829,7 +830,7 @@ impl<'a> Generator<'a> {
         Ok(size_hint)
     }
 
-    fn is_shadowing_variable(&self, var: &Target<'a>) -> Result<bool, CompileError> {
+    fn is_shadowing_variable(&self, var: &Target) -> Result<bool, CompileError> {
         match var {
             Target::Name(name) => {
                 let name = normalize_identifier(name);
@@ -864,7 +865,7 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn write_let(&mut self, buf: &mut Buffer, l: &'a Let<'_>) -> Result<(), CompileError> {
+    fn write_let(&mut self, buf: &mut Buffer, l: &'a Let) -> Result<(), CompileError> {
         self.handle_ws(l.ws);
 
         let Some(val) = &l.val else {
@@ -989,7 +990,7 @@ impl<'a> Generator<'a> {
         Ok(size_hint)
     }
 
-    fn write_expr(&mut self, ws: Ws, s: &'a Expr<'a>) {
+    fn write_expr(&mut self, ws: Ws, s: &'a Expr) {
         self.handle_ws(ws);
         self.buf_writable.push(Writable::Expr(s));
     }
@@ -1135,17 +1136,17 @@ impl<'a> Generator<'a> {
         Ok(3)
     }
 
-    fn visit_lit(&mut self, lit: &'a Lit<'_>) {
+    fn visit_lit(&mut self, lit: &'a Lit) {
         assert!(self.next_ws.is_none());
-        let Lit { lws, val, rws } = *lit;
+        let Lit { lws, val, rws } = lit;
         if !lws.is_empty() {
             match self.skip_ws {
                 WhitespaceHandling::Suppress => {}
                 _ if val.is_empty() => {
                     assert!(rws.is_empty());
-                    self.next_ws = Some(lws);
+                    self.next_ws = Some(lws.as_str());
                 }
-                WhitespaceHandling::Preserve => self.buf_writable.push(Writable::Lit(lws)),
+                WhitespaceHandling::Preserve => self.buf_writable.push(Writable::Lit(lws.as_str())),
                 WhitespaceHandling::Minimize => {
                     self.buf_writable
                         .push(Writable::Lit(match lws.contains('\n') {
@@ -1158,53 +1159,51 @@ impl<'a> Generator<'a> {
 
         if !val.is_empty() {
             self.skip_ws = WhitespaceHandling::Preserve;
-            self.buf_writable.push(Writable::Lit(val));
+            self.buf_writable.push(Writable::Lit(val.as_str()));
         }
 
         if !rws.is_empty() {
-            self.next_ws = Some(rws);
+            self.next_ws = Some(rws.as_str());
         }
     }
 
-    fn write_comment(&mut self, comment: &'a Comment<'_>) {
+    fn write_comment(&mut self, comment: &'a Comment) {
         self.handle_ws(comment.ws);
     }
 
     /* Visitor methods for expression types */
 
-    fn visit_expr_root(&mut self, expr: &Expr<'_>) -> Result<String, CompileError> {
+    fn visit_expr_root(&mut self, expr: &Expr) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
         self.visit_expr(&mut buf, expr)?;
         Ok(buf.buf)
     }
 
-    fn visit_expr(
-        &mut self,
-        buf: &mut Buffer,
-        expr: &Expr<'_>,
-    ) -> Result<DisplayWrap, CompileError> {
-        Ok(match *expr {
-            Expr::BoolLit(s) => self.visit_bool_lit(buf, s),
-            Expr::NumLit(s) => self.visit_num_lit(buf, s),
-            Expr::StrLit(s) => self.visit_str_lit(buf, s),
-            Expr::CharLit(s) => self.visit_char_lit(buf, s),
-            Expr::Var(s) => self.visit_var(buf, s),
+    fn visit_expr(&mut self, buf: &mut Buffer, expr: &Expr) -> Result<DisplayWrap, CompileError> {
+        Ok(match expr {
+            Expr::BoolLit(s) => self.visit_bool_lit(buf, s.as_str()),
+            Expr::NumLit(s) => self.visit_num_lit(buf, s.as_str()),
+            Expr::StrLit(s) => self.visit_str_lit(buf, s.as_str()),
+            Expr::CharLit(s) => self.visit_char_lit(buf, s.as_str()),
+            Expr::Var(s) => self.visit_var(buf, s.as_str()),
             Expr::Path(ref path) => self.visit_path(buf, path),
             Expr::Array(ref elements) => self.visit_array(buf, elements)?,
-            Expr::Attr(ref obj, name) => self.visit_attr(buf, obj, name)?,
+            Expr::Attr(ref obj, name) => self.visit_attr(buf, obj, name.as_str())?,
             Expr::Index(ref obj, ref key) => self.visit_index(buf, obj, key)?,
             Expr::Filter(Filter {
                 name,
                 ref arguments,
-            }) => self.visit_filter(buf, name, arguments)?,
-            Expr::Unary(op, ref inner) => self.visit_unary(buf, op, inner)?,
-            Expr::BinOp(op, ref left, ref right) => self.visit_binop(buf, op, left, right)?,
+            }) => self.visit_filter(buf, name.as_str(), arguments)?,
+            Expr::Unary(op, ref inner) => self.visit_unary(buf, op.as_str(), inner)?,
+            Expr::BinOp(op, ref left, ref right) => {
+                self.visit_binop(buf, op.as_str(), left, right)?
+            }
             Expr::Range(op, ref left, ref right) => {
-                self.visit_range(buf, op, left.as_deref(), right.as_deref())?
+                self.visit_range(buf, op.as_str(), left.as_deref(), right.as_deref())?
             }
             Expr::Group(ref inner) => self.visit_group(buf, inner)?,
             Expr::Call(ref obj, ref args) => self.visit_call(buf, obj, args)?,
-            Expr::RustMacro(ref path, args) => self.visit_rust_macro(buf, path, args),
+            Expr::RustMacro(ref path, args) => self.visit_rust_macro(buf, path, args.as_str()),
             Expr::Try(ref expr) => self.visit_try(buf, expr)?,
             Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
             Expr::NamedArgument(_, ref expr) => self.visit_named_argument(buf, expr)?,
@@ -1212,11 +1211,7 @@ impl<'a> Generator<'a> {
         })
     }
 
-    fn visit_try(
-        &mut self,
-        buf: &mut Buffer,
-        expr: &Expr<'_>,
-    ) -> Result<DisplayWrap, CompileError> {
+    fn visit_try(&mut self, buf: &mut Buffer, expr: &Expr) -> Result<DisplayWrap, CompileError> {
         buf.write("::core::result::Result::map_err(");
         self.visit_expr(buf, expr)?;
         buf.write(", |err| ");
@@ -1225,7 +1220,7 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Unwrapped)
     }
 
-    fn visit_rust_macro(&mut self, buf: &mut Buffer, path: &[&str], args: &str) -> DisplayWrap {
+    fn visit_rust_macro(&mut self, buf: &mut Buffer, path: &[RcStr], args: &str) -> DisplayWrap {
         self.visit_path(buf, path);
         buf.write("!(");
         buf.write(args);
@@ -1238,7 +1233,7 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         name: &str,
-        args: &[Expr<'_>],
+        args: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
         match name {
             "as_ref" => return self._visit_as_ref_filter(buf, args),
@@ -1265,7 +1260,7 @@ impl<'a> Generator<'a> {
     fn _visit_as_ref_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
         let arg = match args {
             [arg] => arg,
@@ -1279,7 +1274,7 @@ impl<'a> Generator<'a> {
     fn _visit_deref_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
         let arg = match args {
             [arg] => arg,
@@ -1293,7 +1288,7 @@ impl<'a> Generator<'a> {
     fn _visit_json_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
         if cfg!(not(feature = "serde-json")) {
             return Err("the `json` filter requires the `serde-json` feature to be enabled".into());
@@ -1312,7 +1307,7 @@ impl<'a> Generator<'a> {
     fn _visit_safe_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
         if args.len() != 1 {
             return Err("unexpected argument(s) in `safe` filter".into());
@@ -1329,13 +1324,13 @@ impl<'a> Generator<'a> {
     fn _visit_escape_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
         if args.len() > 2 {
             return Err("only two arguments allowed to escape filter".into());
         }
         let opt_escaper = match args.get(1) {
-            Some(Expr::StrLit(name)) => Some(*name),
+            Some(Expr::StrLit(name)) => Some(name),
             Some(_) => return Err("invalid escaper type for escape filter".into()),
             None => None,
         };
@@ -1345,7 +1340,7 @@ impl<'a> Generator<'a> {
                 .config
                 .escapers
                 .iter()
-                .find_map(|(escapers, escaper)| escapers.contains(name).then_some(escaper))
+                .find_map(|(escapers, escaper)| escapers.contains(name.as_str()).then_some(escaper))
                 .ok_or_else(|| CompileError::from("invalid escaper for escape filter"))?,
             None => self.input.escaper,
         };
@@ -1361,7 +1356,7 @@ impl<'a> Generator<'a> {
     fn _visit_format_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
         let fmt = match args {
             [Expr::StrLit(fmt), ..] => fmt,
@@ -1380,7 +1375,7 @@ impl<'a> Generator<'a> {
     fn _visit_fmt_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
         let fmt = match args {
             [_, Expr::StrLit(fmt)] => fmt,
@@ -1398,7 +1393,7 @@ impl<'a> Generator<'a> {
     fn _visit_join_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
         buf.write(CRATE);
         buf.write("::filters::join((&");
@@ -1415,7 +1410,7 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Unwrapped)
     }
 
-    fn _visit_args(&mut self, buf: &mut Buffer, args: &[Expr<'_>]) -> Result<(), CompileError> {
+    fn _visit_args(&mut self, buf: &mut Buffer, args: &[Expr]) -> Result<(), CompileError> {
         if args.is_empty() {
             return Ok(());
         }
@@ -1451,10 +1446,10 @@ impl<'a> Generator<'a> {
     fn visit_attr(
         &mut self,
         buf: &mut Buffer,
-        obj: &Expr<'_>,
+        obj: &Expr,
         attr: &str,
     ) -> Result<DisplayWrap, CompileError> {
-        if let Expr::Var(name) = *obj {
+        if let Expr::Var(name) = obj {
             if name == "loop" {
                 if attr == "index" {
                     buf.write("(_loop_item.index + 1)");
@@ -1481,8 +1476,8 @@ impl<'a> Generator<'a> {
     fn visit_index(
         &mut self,
         buf: &mut Buffer,
-        obj: &Expr<'_>,
-        key: &Expr<'_>,
+        obj: &Expr,
+        key: &Expr,
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("&");
         self.visit_expr(buf, obj)?;
@@ -1495,33 +1490,35 @@ impl<'a> Generator<'a> {
     fn visit_call(
         &mut self,
         buf: &mut Buffer,
-        left: &Expr<'_>,
-        args: &[Expr<'_>],
+        left: &Expr,
+        args: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
         match left {
-            Expr::Attr(left, method) if **left == Expr::Var("loop") => match *method {
-                "cycle" => match args {
-                    [arg] => {
-                        if matches!(arg, Expr::Array(arr) if arr.is_empty()) {
-                            return Err("loop.cycle(…) cannot use an empty array".into());
+            Expr::Attr(left, method) if matches!(left.as_ref(), Expr::Var(v) if v == "loop") => {
+                match method.as_str() {
+                    "cycle" => match args {
+                        [arg] => {
+                            if matches!(arg, Expr::Array(arr) if arr.is_empty()) {
+                                return Err("loop.cycle(…) cannot use an empty array".into());
+                            }
+                            buf.write("({");
+                            buf.write("let _cycle = &(");
+                            self.visit_expr(buf, arg)?;
+                            buf.writeln(");")?;
+                            buf.writeln("let _len = _cycle.len();")?;
+                            buf.writeln("if _len == 0 {")?;
+                            buf.write("return ::core::result::Result::Err(");
+                            buf.write(CRATE);
+                            buf.writeln("::Error::Fmt(::core::fmt::Error));")?;
+                            buf.writeln("}")?;
+                            buf.writeln("_cycle[_loop_item.index % _len]")?;
+                            buf.writeln("})")?;
                         }
-                        buf.write("({");
-                        buf.write("let _cycle = &(");
-                        self.visit_expr(buf, arg)?;
-                        buf.writeln(");")?;
-                        buf.writeln("let _len = _cycle.len();")?;
-                        buf.writeln("if _len == 0 {")?;
-                        buf.write("return ::core::result::Result::Err(");
-                        buf.write(CRATE);
-                        buf.writeln("::Error::Fmt(::core::fmt::Error));")?;
-                        buf.writeln("}")?;
-                        buf.writeln("_cycle[_loop_item.index % _len]")?;
-                        buf.writeln("})")?;
-                    }
-                    _ => return Err("loop.cycle(…) expects exactly one argument".into()),
-                },
-                s => return Err(format!("unknown loop method: {s:?}").into()),
-            },
+                        _ => return Err("loop.cycle(…) expects exactly one argument".into()),
+                    },
+                    s => return Err(format!("unknown loop method: {s:?}").into()),
+                }
+            }
             left => {
                 match left {
                     Expr::Var(name) => match self.locals.resolve(name) {
@@ -1545,7 +1542,7 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         op: &str,
-        inner: &Expr<'_>,
+        inner: &Expr,
     ) -> Result<DisplayWrap, CompileError> {
         buf.write(op);
         self.visit_expr(buf, inner)?;
@@ -1556,8 +1553,8 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         op: &str,
-        left: Option<&Expr<'_>>,
-        right: Option<&Expr<'_>>,
+        left: Option<&Expr>,
+        right: Option<&Expr>,
     ) -> Result<DisplayWrap, CompileError> {
         if let Some(left) = left {
             self.visit_expr(buf, left)?;
@@ -1573,8 +1570,8 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         op: &str,
-        left: &Expr<'_>,
-        right: &Expr<'_>,
+        left: &Expr,
+        right: &Expr,
     ) -> Result<DisplayWrap, CompileError> {
         self.visit_expr(buf, left)?;
         buf.write(&format!(" {op} "));
@@ -1582,11 +1579,7 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Unwrapped)
     }
 
-    fn visit_group(
-        &mut self,
-        buf: &mut Buffer,
-        inner: &Expr<'_>,
-    ) -> Result<DisplayWrap, CompileError> {
+    fn visit_group(&mut self, buf: &mut Buffer, inner: &Expr) -> Result<DisplayWrap, CompileError> {
         buf.write("(");
         self.visit_expr(buf, inner)?;
         buf.write(")");
@@ -1596,7 +1589,7 @@ impl<'a> Generator<'a> {
     fn visit_tuple(
         &mut self,
         buf: &mut Buffer,
-        exprs: &[Expr<'_>],
+        exprs: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("(");
         for (index, expr) in exprs.iter().enumerate() {
@@ -1613,7 +1606,7 @@ impl<'a> Generator<'a> {
     fn visit_named_argument(
         &mut self,
         buf: &mut Buffer,
-        expr: &Expr<'_>,
+        expr: &Expr,
     ) -> Result<DisplayWrap, CompileError> {
         self.visit_expr(buf, expr)?;
         Ok(DisplayWrap::Unwrapped)
@@ -1622,7 +1615,7 @@ impl<'a> Generator<'a> {
     fn visit_array(
         &mut self,
         buf: &mut Buffer,
-        elements: &[Expr<'_>],
+        elements: &[Expr],
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("[");
         for (i, el) in elements.iter().enumerate() {
@@ -1635,7 +1628,7 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Unwrapped)
     }
 
-    fn visit_path(&mut self, buf: &mut Buffer, path: &[&str]) -> DisplayWrap {
+    fn visit_path(&mut self, buf: &mut Buffer, path: &[RcStr]) -> DisplayWrap {
         for (i, part) in path.iter().enumerate() {
             if i > 0 {
                 buf.write("::");
@@ -1685,10 +1678,10 @@ impl<'a> Generator<'a> {
         buf: &mut Buffer,
         initialized: bool,
         first_level: bool,
-        target: &Target<'a>,
+        target: &'a Target,
     ) {
         match target {
-            Target::Name("_") => {
+            Target::Placeholder => {
                 buf.write("_");
             }
             Target::Name(name) => {
@@ -1712,7 +1705,12 @@ impl<'a> Generator<'a> {
                 }
             },
             Target::Tuple(path, targets) => {
-                buf.write(&path.join("::"));
+                for (i, s) in path.iter().enumerate() {
+                    if i > 0 {
+                        buf.write("::");
+                    }
+                    buf.write(s);
+                }
                 buf.write("(");
                 for target in targets {
                     self.visit_target(buf, initialized, false, target);
@@ -1721,7 +1719,12 @@ impl<'a> Generator<'a> {
                 buf.write(")");
             }
             Target::Struct(path, targets) => {
-                buf.write(&path.join("::"));
+                for (i, s) in path.iter().enumerate() {
+                    if i > 0 {
+                        buf.write("::");
+                    }
+                    buf.write(s);
+                }
                 buf.write(" { ");
                 for (name, target) in targets {
                     buf.write(normalize_identifier(name));
@@ -1986,11 +1989,11 @@ impl<'a, K: Eq + hash::Hash, V> Default for MapChain<'a, K, V> {
 
 /// Returns `true` if enough assumptions can be made,
 /// to determine that `self` is copyable.
-fn is_copyable(expr: &Expr<'_>) -> bool {
+fn is_copyable(expr: &Expr) -> bool {
     is_copyable_within_op(expr, false)
 }
 
-fn is_copyable_within_op(expr: &Expr<'_>, within_op: bool) -> bool {
+fn is_copyable_within_op(expr: &Expr, within_op: bool) -> bool {
     use Expr::*;
     match expr {
         BoolLit(_) | NumLit(_) | StrLit(_) | CharLit(_) => true,
@@ -2012,9 +2015,9 @@ fn is_copyable_within_op(expr: &Expr<'_>, within_op: bool) -> bool {
 }
 
 /// Returns `true` if this is an `Attr` where the `obj` is `"self"`.
-pub(crate) fn is_attr_self(expr: &Expr<'_>) -> bool {
+pub(crate) fn is_attr_self(expr: &Expr) -> bool {
     match expr {
-        Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Var("self")) => true,
+        Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Var(v) if v == "self") => true,
         Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Attr(..)) => is_attr_self(obj),
         _ => false,
     }
@@ -2023,7 +2026,7 @@ pub(crate) fn is_attr_self(expr: &Expr<'_>) -> bool {
 /// Returns `true` if the outcome of this expression may be used multiple times in the same
 /// `write!()` call, without evaluating the expression again, i.e. the expression should be
 /// side-effect free.
-pub(crate) fn is_cacheable(expr: &Expr<'_>) -> bool {
+pub(crate) fn is_cacheable(expr: &Expr) -> bool {
     match expr {
         // Literals are the definition of pure:
         Expr::BoolLit(_) => true,
@@ -2096,7 +2099,7 @@ fn median(sizes: &mut [usize]) -> usize {
 /// So in here, we want to insert the variable containing the content of the filter block inside
 /// the call to `"a"`. To do so, we recursively go through all `Filter` and finally insert our
 /// variable as the first argument to the `"a"` call.
-fn insert_first_filter_argument(args: &mut Vec<Expr<'_>>, var_name: String) {
+fn insert_first_filter_argument(args: &mut Vec<Expr>, var_name: String) {
     if let Some(Expr::Filter(Filter { arguments, .. })) = args.first_mut() {
         insert_first_filter_argument(arguments, var_name);
     } else {
@@ -2151,7 +2154,7 @@ impl<'a> Deref for WritableBuffer<'a> {
 #[derive(Debug)]
 enum Writable<'a> {
     Lit(&'a str),
-    Expr(&'a Expr<'a>),
+    Expr(&'a Expr),
     Generated(String, DisplayWrap),
 }
 

@@ -12,7 +12,7 @@ use nom::error_position;
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 
-use crate::{ErrorContext, ParseResult};
+use crate::{ErrorContext, ParseResult, RcStr};
 
 use super::{
     bool_lit, char_lit, filter, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
@@ -20,28 +20,28 @@ use super::{
 };
 
 #[derive(Debug, PartialEq)]
-pub enum Node<'a> {
-    Lit(Lit<'a>),
-    Comment(Comment<'a>),
-    Expr(Ws, Expr<'a>),
-    Call(Call<'a>),
-    Let(Let<'a>),
-    If(If<'a>),
-    Match(Match<'a>),
-    Loop(Box<Loop<'a>>),
-    Extends(Extends<'a>),
-    BlockDef(BlockDef<'a>),
-    Include(Include<'a>),
-    Import(Import<'a>),
-    Macro(Macro<'a>),
-    Raw(Raw<'a>),
+pub enum Node {
+    Lit(Lit),
+    Comment(Comment),
+    Expr(Ws, Expr),
+    Call(Call),
+    Let(Let),
+    If(If),
+    Match(Match),
+    Loop(Box<Loop>),
+    Extends(Extends),
+    BlockDef(BlockDef),
+    Include(Include),
+    Import(Import),
+    Macro(Macro),
+    Raw(Raw),
     Break(Ws),
     Continue(Ws),
-    FilterBlock(FilterBlock<'a>),
+    FilterBlock(FilterBlock),
 }
 
-impl<'a> Node<'a> {
-    pub(super) fn many(i: &'a str, s: &State<'_>) -> ParseResult<'a, Vec<Self>> {
+impl Node {
+    pub(super) fn many(i: RcStr, s: &State<'_>) -> ParseResult<Vec<Self>> {
         complete(many0(alt((
             map(|i| Lit::parse(i, s), Self::Lit),
             map(|i| Comment::parse(i, s), Self::Comment),
@@ -50,7 +50,7 @@ impl<'a> Node<'a> {
         ))))(i)
     }
 
-    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+    fn parse(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let mut p = delimited(
             |i| s.tag_block_start(i),
             alt((
@@ -72,40 +72,40 @@ impl<'a> Node<'a> {
             cut(|i| s.tag_block_end(i)),
         );
 
-        s.nest(i)?;
+        let (i, _) = s.nest(i)?;
         let result = p(i);
         s.leave();
 
         result
     }
 
-    fn r#break(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+    fn r#break(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("break")),
             opt(Whitespace::parse),
         ));
-        let (j, (pws, _, nws)) = p(i)?;
+        let (j, (pws, _, nws)) = p(i.clone())?;
         if !s.is_in_loop() {
             return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
         }
         Ok((j, Self::Break(Ws(pws, nws))))
     }
 
-    fn r#continue(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+    fn r#continue(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("continue")),
             opt(Whitespace::parse),
         ));
-        let (j, (pws, _, nws)) = p(i)?;
+        let (j, (pws, _, nws)) = p(i.clone())?;
         if !s.is_in_loop() {
             return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
         }
         Ok((j, Self::Continue(Ws(pws, nws))))
     }
 
-    fn expr(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+    fn expr(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let mut p = tuple((
             |i| s.tag_expr_start(i),
             cut(tuple((
@@ -121,24 +121,25 @@ impl<'a> Node<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Target<'a> {
-    Name(&'a str),
-    Tuple(Vec<&'a str>, Vec<Target<'a>>),
-    Struct(Vec<&'a str>, Vec<(&'a str, Target<'a>)>),
-    NumLit(&'a str),
-    StrLit(&'a str),
-    CharLit(&'a str),
-    BoolLit(&'a str),
-    Path(Vec<&'a str>),
-    OrChain(Vec<Target<'a>>),
+pub enum Target {
+    Placeholder,
+    Name(RcStr),
+    Tuple(Vec<RcStr>, Vec<Target>),
+    Struct(Vec<RcStr>, Vec<(RcStr, Target)>),
+    NumLit(RcStr),
+    StrLit(RcStr),
+    CharLit(RcStr),
+    BoolLit(RcStr),
+    Path(Vec<RcStr>),
+    OrChain(Vec<Target>),
 }
 
-impl<'a> Target<'a> {
+impl Target {
     /// Parses multiple targets with `or` separating them
-    pub(super) fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+    pub(super) fn parse(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         map(
             separated_list1(ws(tag("or")), |i| {
-                s.nest(i)?;
+                let (i, _) = s.nest(i)?;
                 let ret = Self::parse_one(i, s)?;
                 s.leave();
                 Ok(ret)
@@ -151,7 +152,7 @@ impl<'a> Target<'a> {
     }
 
     /// Parses a single target without an `or`, unless it is wrapped in parentheses.
-    fn parse_one(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+    fn parse_one(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let mut opt_opening_paren = map(opt(ws(char('('))), |o| o.is_some());
         let mut opt_closing_paren = map(opt(ws(char(')'))), |o| o.is_some());
         let mut opt_opening_brace = map(opt(ws(char('{'))), |o| o.is_some());
@@ -200,7 +201,7 @@ impl<'a> Target<'a> {
         // match structs
         let (i, path) = opt(path)(i)?;
         if let Some(path) = path {
-            let i_before_matching_with = i;
+            let i_before_matching_with = i.clone();
             let (i, _) = opt(ws(keyword("with")))(i)?;
 
             let (i, is_unnamed_struct) = opt_opening_paren(i)?;
@@ -231,11 +232,11 @@ impl<'a> Target<'a> {
         }
 
         // neither literal nor struct nor path
-        let (new_i, name) = identifier(i)?;
+        let (new_i, name) = identifier(i.clone())?;
         Ok((new_i, Self::verify_name(i, name)?))
     }
 
-    fn lit(i: &'a str) -> ParseResult<'a, Self> {
+    fn lit(i: RcStr) -> ParseResult<Self> {
         alt((
             map(str_lit, Self::StrLit),
             map(char_lit, Self::CharLit),
@@ -244,22 +245,22 @@ impl<'a> Target<'a> {
         ))(i)
     }
 
-    fn named(init_i: &'a str, s: &State<'_>) -> ParseResult<'a, (&'a str, Self)> {
+    fn named(init_i: RcStr, s: &State<'_>) -> ParseResult<(RcStr, Self)> {
         let (i, (src, target)) = pair(
             identifier,
             opt(preceded(ws(char(':')), |i| Self::parse(i, s))),
-        )(init_i)?;
+        )(init_i.clone())?;
 
         let target = match target {
             Some(target) => target,
-            None => Self::verify_name(init_i, src)?,
+            None => Self::verify_name(init_i, src.clone())?,
         };
 
         Ok((i, (src, target)))
     }
 
-    fn verify_name(input: &'a str, name: &'a str) -> Result<Self, nom::Err<ErrorContext<'a>>> {
-        match name {
+    fn verify_name(input: RcStr, name: RcStr) -> Result<Self, nom::Err<ErrorContext>> {
+        match name.as_str() {
             "self" | "writer" => Err(nom::Err::Failure(ErrorContext {
                 input,
                 message: Some(Cow::Owned(format!("Cannot use `{name}` as a name"))),
@@ -270,14 +271,14 @@ impl<'a> Target<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct When<'a> {
+pub struct When {
     pub ws: Ws,
-    pub target: Target<'a>,
-    pub nodes: Vec<Node<'a>>,
+    pub target: Target,
+    pub nodes: Vec<Node>,
 }
 
-impl<'a> When<'a> {
-    fn r#match(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+impl When {
+    fn r#match(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let mut p = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
@@ -293,14 +294,14 @@ impl<'a> When<'a> {
             i,
             Self {
                 ws: Ws(pws, nws),
-                target: Target::Name("_"),
+                target: Target::Placeholder,
                 nodes,
             },
         ))
     }
 
     #[allow(clippy::self_named_constructors)]
-    fn when(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+    fn when(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let mut p = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
@@ -325,19 +326,19 @@ impl<'a> When<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Cond<'a> {
+pub struct Cond {
     pub ws: Ws,
-    pub cond: Option<CondTest<'a>>,
-    pub nodes: Vec<Node<'a>>,
+    pub cond: Option<CondTest>,
+    pub nodes: Vec<Node>,
 }
 
-impl<'a> Cond<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+impl Cond {
+    fn parse(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let mut p = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
-            ws(alt((keyword("else"), |i| {
-                let _ = keyword("elif")(i)?;
+            ws(alt((keyword("else"), |i: RcStr| {
+                keyword("elif")(i.clone())?;
                 Err(nom::Err::Failure(ErrorContext {
                     input: i,
                     message: Some(Cow::Borrowed(
@@ -365,13 +366,13 @@ impl<'a> Cond<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct CondTest<'a> {
-    pub target: Option<Target<'a>>,
-    pub expr: Expr<'a>,
+pub struct CondTest {
+    pub target: Option<Target>,
+    pub expr: Expr,
 }
 
-impl<'a> CondTest<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+impl CondTest {
+    fn parse(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let mut p = preceded(
             ws(keyword("if")),
             cut(tuple((
@@ -396,7 +397,7 @@ pub enum Whitespace {
 }
 
 impl Whitespace {
-    fn parse(i: &str) -> ParseResult<'_, Self> {
+    fn parse(i: RcStr) -> ParseResult<Self> {
         alt((
             value(Self::Preserve, char('+')),
             value(Self::Suppress, char('-')),
@@ -406,20 +407,20 @@ impl Whitespace {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Loop<'a> {
+pub struct Loop {
     pub ws1: Ws,
-    pub var: Target<'a>,
-    pub iter: Expr<'a>,
-    pub cond: Option<Expr<'a>>,
-    pub body: Vec<Node<'a>>,
+    pub var: Target,
+    pub iter: Expr,
+    pub cond: Option<Expr>,
+    pub body: Vec<Node>,
     pub ws2: Ws,
-    pub else_nodes: Vec<Node<'a>>,
+    pub else_nodes: Vec<Node>,
     pub ws3: Ws,
 }
 
-impl<'a> Loop<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
-        fn content<'a>(i: &'a str, s: &State<'_>) -> ParseResult<'a, Vec<Node<'a>>> {
+impl Loop {
+    fn parse(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
+        fn content(i: RcStr, s: &State<'_>) -> ParseResult<Vec<Node>> {
             s.enter_loop();
             let result = Node::many(i, s);
             s.leave_loop();
@@ -492,17 +493,17 @@ impl<'a> Loop<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Macro<'a> {
+pub struct Macro {
     pub ws1: Ws,
-    pub name: &'a str,
-    pub args: Vec<&'a str>,
-    pub nodes: Vec<Node<'a>>,
+    pub name: RcStr,
+    pub args: Vec<RcStr>,
+    pub nodes: Vec<Node>,
     pub ws2: Ws,
 }
 
-impl<'a> Macro<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
-        fn parameters(i: &str) -> ParseResult<'_, Vec<&str>> {
+impl Macro {
+    fn parse(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
+        fn parameters(i: RcStr) -> ParseResult<Vec<RcStr>> {
             delimited(
                 ws(char('(')),
                 separated_list0(char(','), ws(identifier)),
@@ -529,9 +530,9 @@ impl<'a> Macro<'a> {
                 opt(Whitespace::parse),
                 ws(keyword("endmacro")),
                 cut(preceded(
-                    opt(|before| {
-                        let (after, end_name) = ws(identifier)(before)?;
-                        check_end_name(before, after, name, end_name, "macro")
+                    opt(|before: RcStr| {
+                        let (after, end_name) = ws(identifier)(before.clone())?;
+                        check_end_name(before, after, name.clone(), end_name, "macro")
                     }),
                     opt(Whitespace::parse),
                 )),
@@ -551,7 +552,7 @@ impl<'a> Macro<'a> {
             i,
             Self {
                 ws1: Ws(pws1, nws1),
-                name,
+                name: name.clone(),
                 args: params.unwrap_or_default(),
                 nodes: contents,
                 ws2: Ws(pws2, nws2),
@@ -561,15 +562,15 @@ impl<'a> Macro<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct FilterBlock<'a> {
+pub struct FilterBlock {
     pub ws1: Ws,
-    pub filters: Filter<'a>,
-    pub nodes: Vec<Node<'a>>,
+    pub filters: Filter,
+    pub nodes: Vec<Node>,
     pub ws2: Ws,
 }
 
-impl<'a> FilterBlock<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+impl FilterBlock {
+    fn parse(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let mut start = tuple((
             opt(Whitespace::parse),
             ws(keyword("filter")),
@@ -623,14 +624,14 @@ impl<'a> FilterBlock<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Import<'a> {
+pub struct Import {
     pub ws: Ws,
-    pub path: &'a str,
-    pub scope: &'a str,
+    pub path: RcStr,
+    pub scope: RcStr,
 }
 
-impl<'a> Import<'a> {
-    fn parse(i: &'a str) -> ParseResult<'a, Self> {
+impl Import {
+    fn parse(i: RcStr) -> ParseResult<Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("import")),
@@ -653,15 +654,15 @@ impl<'a> Import<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Call<'a> {
+pub struct Call {
     pub ws: Ws,
-    pub scope: Option<&'a str>,
-    pub name: &'a str,
-    pub args: Vec<Expr<'a>>,
+    pub scope: Option<RcStr>,
+    pub name: RcStr,
+    pub args: Vec<Expr>,
 }
 
-impl<'a> Call<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+impl Call {
+    fn parse(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("call")),
@@ -688,15 +689,15 @@ impl<'a> Call<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Match<'a> {
+pub struct Match {
     pub ws1: Ws,
-    pub expr: Expr<'a>,
-    pub arms: Vec<When<'a>>,
+    pub expr: Expr,
+    pub arms: Vec<When>,
     pub ws2: Ws,
 }
 
-impl<'a> Match<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+impl Match {
+    fn parse(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("match")),
@@ -739,15 +740,15 @@ impl<'a> Match<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct BlockDef<'a> {
+pub struct BlockDef {
     pub ws1: Ws,
-    pub name: &'a str,
-    pub nodes: Vec<Node<'a>>,
+    pub name: RcStr,
+    pub nodes: Vec<Node>,
     pub ws2: Ws,
 }
 
-impl<'a> BlockDef<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+impl BlockDef {
+    fn parse(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let mut start = tuple((
             opt(Whitespace::parse),
             ws(keyword("block")),
@@ -764,9 +765,9 @@ impl<'a> BlockDef<'a> {
                 opt(Whitespace::parse),
                 ws(keyword("endblock")),
                 cut(tuple((
-                    opt(|before| {
-                        let (after, end_name) = ws(identifier)(before)?;
-                        check_end_name(before, after, name, end_name, "block")
+                    opt(|before: RcStr| {
+                        let (after, end_name) = ws(identifier)(before.clone())?;
+                        check_end_name(before, after, name.clone(), end_name, "block")
                     }),
                     opt(Whitespace::parse),
                 ))),
@@ -778,7 +779,7 @@ impl<'a> BlockDef<'a> {
             i,
             BlockDef {
                 ws1: Ws(pws1, nws1),
-                name,
+                name: name.clone(),
                 nodes,
                 ws2: Ws(pws2, nws2),
             },
@@ -786,13 +787,13 @@ impl<'a> BlockDef<'a> {
     }
 }
 
-fn check_end_name<'a>(
-    before: &'a str,
-    after: &'a str,
-    name: &'a str,
-    end_name: &'a str,
+fn check_end_name(
+    before: RcStr,
+    after: RcStr,
+    name: RcStr,
+    end_name: RcStr,
     kind: &str,
-) -> ParseResult<'a> {
+) -> ParseResult {
     if name == end_name {
         return Ok((after, end_name));
     }
@@ -808,14 +809,14 @@ fn check_end_name<'a>(
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Lit<'a> {
-    pub lws: &'a str,
-    pub val: &'a str,
-    pub rws: &'a str,
+pub struct Lit {
+    pub lws: RcStr,
+    pub val: RcStr,
+    pub rws: RcStr,
 }
 
-impl<'a> Lit<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+impl Lit {
+    fn parse(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let p_start = alt((
             tag(s.syntax.block_start),
             tag(s.syntax.comment_start),
@@ -825,37 +826,37 @@ impl<'a> Lit<'a> {
         let (i, _) = not(eof)(i)?;
         let (i, content) = opt(recognize(skip_till(p_start)))(i)?;
         let (i, content) = match content {
-            Some("") => {
+            Some(rest) if rest.is_empty() => {
                 // {block,comment,expr}_start follows immediately.
                 return Err(nom::Err::Error(error_position!(i, ErrorKind::TakeUntil)));
             }
             Some(content) => (i, content),
-            None => ("", i), // there is no {block,comment,expr}_start: take everything
+            None => (RcStr::default(), i), // there is no {block,comment,expr}_start: take everything
         };
         Ok((i, Self::split_ws_parts(content)))
     }
 
-    pub(crate) fn split_ws_parts(s: &'a str) -> Self {
+    pub(crate) fn split_ws_parts(s: RcStr) -> Self {
         let trimmed_start = s.trim_start_matches(is_ws);
         let len_start = s.len() - trimmed_start.len();
         let trimmed = trimmed_start.trim_end_matches(is_ws);
         Self {
-            lws: &s[..len_start],
+            lws: s.substr(..len_start),
+            rws: trimmed_start.substr(trimmed.len()..),
             val: trimmed,
-            rws: &trimmed_start[trimmed.len()..],
         }
     }
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Raw<'a> {
+pub struct Raw {
     pub ws1: Ws,
-    pub lit: Lit<'a>,
+    pub lit: Lit,
     pub ws2: Ws,
 }
 
-impl<'a> Raw<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+impl Raw {
+    fn parse(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let endraw = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
@@ -883,14 +884,14 @@ impl<'a> Raw<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Let<'a> {
+pub struct Let {
     pub ws: Ws,
-    pub var: Target<'a>,
-    pub val: Option<Expr<'a>>,
+    pub var: Target,
+    pub val: Option<Expr>,
 }
 
-impl<'a> Let<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+impl Let {
+    fn parse(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(alt((keyword("let"), keyword("set")))),
@@ -917,13 +918,13 @@ impl<'a> Let<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct If<'a> {
+pub struct If {
     pub ws: Ws,
-    pub branches: Vec<Cond<'a>>,
+    pub branches: Vec<Cond>,
 }
 
-impl<'a> If<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+impl If {
+    fn parse(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             |i| CondTest::parse(i, s),
@@ -962,13 +963,13 @@ impl<'a> If<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Include<'a> {
+pub struct Include {
     pub ws: Ws,
-    pub path: &'a str,
+    pub path: RcStr,
 }
 
-impl<'a> Include<'a> {
-    fn parse(i: &'a str) -> ParseResult<'a, Self> {
+impl Include {
+    fn parse(i: RcStr) -> ParseResult<Self> {
         let mut p = tuple((
             opt(Whitespace::parse),
             ws(keyword("include")),
@@ -986,13 +987,13 @@ impl<'a> Include<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Extends<'a> {
-    pub path: &'a str,
+pub struct Extends {
+    pub path: RcStr,
 }
 
-impl<'a> Extends<'a> {
-    fn parse(i: &'a str) -> ParseResult<'a, Self> {
-        let start = i;
+impl Extends {
+    fn parse(i: RcStr) -> ParseResult<Self> {
+        let start = i.clone();
 
         let (i, (pws, _, (path, nws))) = tuple((
             opt(Whitespace::parse),
@@ -1012,30 +1013,30 @@ impl<'a> Extends<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Comment<'a> {
+pub struct Comment {
     pub ws: Ws,
-    pub content: &'a str,
+    pub content: RcStr,
 }
 
-impl<'a> Comment<'a> {
-    fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+impl Comment {
+    fn parse(i: RcStr, s: &State<'_>) -> ParseResult<Self> {
         #[derive(Debug, Clone, Copy)]
         enum Tag {
             Open,
             Close,
         }
 
-        fn tag<'a>(i: &'a str, s: &State<'_>) -> ParseResult<'a, Tag> {
+        fn tag(i: RcStr, s: &State<'_>) -> ParseResult<Tag> {
             alt((
                 value(Tag::Open, |i| s.tag_comment_start(i)),
                 value(Tag::Close, |i| s.tag_comment_end(i)),
             ))(i)
         }
 
-        fn content<'a>(mut i: &'a str, s: &State<'_>) -> ParseResult<'a, ()> {
+        fn content(mut i: RcStr, s: &State<'_>) -> ParseResult<()> {
             let mut depth = 0usize;
             loop {
-                let (_, (j, tag)) = skip_till(|i| tag(i, s))(i)?;
+                let (_, (j, tag)) = skip_till(|i| tag(i, s))(i.clone())?;
                 match tag {
                     Tag::Open => match depth.checked_add(1) {
                         Some(new_depth) => depth = new_depth,
@@ -1061,7 +1062,7 @@ impl<'a> Comment<'a> {
         )(i)?;
 
         let mut nws = None;
-        if let Some(content) = content.strip_suffix(s.syntax.comment_end) {
+        if let Some(content) = content.as_str().strip_suffix(s.syntax.comment_end) {
             nws = match content.chars().last() {
                 Some('-') => Some(Whitespace::Suppress),
                 Some('+') => Some(Whitespace::Preserve),
