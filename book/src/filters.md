@@ -35,6 +35,7 @@ Enable it with Cargo features (see below for more information).
   [`linebreaksbr`][#linebreaksbr],
   [`lower|lowercase`][#lower],
   [`safe`][#safe],
+  [`title`][#title],
   [`trim`][#trim],
   [`truncate`][#truncate],
   [`upper|uppercase`][#upper],
@@ -333,6 +334,22 @@ Output:
 
 ```
 <p>I'm Safe</p>
+```
+
+### title
+[#title]: #title
+
+Return a title cased version of the value. Words will start with uppercase letters, all
+remaining characters are lowercase.
+
+```
+{{ "hello WORLD"|title }}
+```
+
+Output:
+
+```
+Hello World
 ```
 
 ### trim

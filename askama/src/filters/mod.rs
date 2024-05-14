@@ -502,13 +502,49 @@ pub fn center(src: impl ToString, dst_len: usize) -> Result<impl fmt::Display, I
     center(src.to_string(), dst_len)
 }
 
-/// Count the words in that string
+/// Count the words in that string.
 #[inline]
 pub fn wordcount(s: impl ToString) -> Result<usize, Infallible> {
     fn wordcount(s: String) -> Result<usize, Infallible> {
         Ok(s.split_whitespace().count())
     }
     wordcount(s.to_string())
+}
+
+/// Converts a type to a `String`.
+#[inline]
+pub fn string(s: impl ToString) -> Result<String, Infallible> {
+    Ok(s.to_string())
+}
+
+/// Return a title cased version of the value. Words will start with uppercase letters, all
+/// remaining characters are lowercase.
+#[inline]
+pub fn title(s: impl ToString) -> Result<String, Infallible> {
+    let s = s.to_string();
+    let mut need_capitalization = true;
+
+    // Sadly enough, we can't mutate a string when iterating over its chars, likely because it could
+    // change the size of a char, "breaking" the char indices.
+    let mut output = String::with_capacity(s.len());
+    for c in s.chars() {
+        if c.is_whitespace() {
+            output.push(c);
+            need_capitalization = true;
+        } else if need_capitalization {
+            match c.is_uppercase() {
+                true => output.push(c),
+                false => output.extend(c.to_uppercase()),
+            }
+            need_capitalization = false;
+        } else {
+            match c.is_lowercase() {
+                true => output.push(c),
+                false => output.extend(c.to_lowercase()),
+            }
+        }
+    }
+    Ok(output)
 }
 
 #[cfg(test)]
@@ -775,5 +811,18 @@ mod tests {
         assert_eq!(wordcount(" \n\t").unwrap(), 0);
         assert_eq!(wordcount("foo").unwrap(), 1);
         assert_eq!(wordcount("foo bar").unwrap(), 2);
+        assert_eq!(wordcount("foo  bar").unwrap(), 2);
+    }
+
+    #[test]
+    fn test_title() {
+        assert_eq!(&title("").unwrap(), "");
+        assert_eq!(&title(" \n\t").unwrap(), " \n\t");
+        assert_eq!(&title("foo").unwrap(), "Foo");
+        assert_eq!(&title(" foo").unwrap(), " Foo");
+        assert_eq!(&title("foo bar").unwrap(), "Foo Bar");
+        assert_eq!(&title("foo  bar ").unwrap(), "Foo  Bar ");
+        assert_eq!(&title("fOO").unwrap(), "Foo");
+        assert_eq!(&title("fOo BaR").unwrap(), "Foo Bar");
     }
 }
