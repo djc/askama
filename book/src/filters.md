@@ -20,26 +20,27 @@ Enable it with Cargo features (see below for more information).
 **Table of contents**
 
 * **[Built-in filters][#built-in-filters]:**  
-  [`abs`][#abs],
-  [`as_ref`][#as_ref],
-  [`capitalize`][#capitalize],
-  [`center`][#center],
-  [`deref`][#deref],
-  [`escape|e`][#escape],
-  [`filesizeformat`][#filesizeformat],
-  [`fmt`][#fmt],
-  [`format`][#format],
-  [`indent`][#indent],
-  [`join`][#join],
-  [`linebreaks`][#linebreaks],
-  [`linebreaksbr`][#linebreaksbr],
-  [`lower|lowercase`][#lower],
-  [`safe`][#safe],
-  [`title`][#title],
-  [`trim`][#trim],
-  [`truncate`][#truncate],
-  [`upper|uppercase`][#upper],
-  [`wordcount`][#wordcount]
+
+  * [`abs`][#abs]
+  * [`as_ref`][#as_ref]
+  * [`capitalize`][#capitalize]
+  * [`center`][#center]
+  * [`deref`][#deref]
+  * [`escape|e`][#escape]
+  * [`filesizeformat`][#filesizeformat]
+  * [`fmt`][#fmt]
+  * [`format`][#format]
+  * [`indent`][#indent]
+  * [`join`][#join]
+  * [`linebreaks`][#linebreaks]
+  * [`linebreaksbr`][#linebreaksbr]
+  * [`lower|lowercase`][#lower]
+  * [`safe`][#safe]
+  * [`title`][#title]
+  * [`trim`][#trim]
+  * [`truncate`][#truncate]
+  * [`upper|uppercase`][#upper]
+  * [`wordcount`][#wordcount]
 
 * **[Optional / feature gated filters][#optional-filters]:**  
   [`json|tojson`][#json],
