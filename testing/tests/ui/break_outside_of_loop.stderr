@@ -1,4 +1,5 @@
-error: failed to parse template source at row 1, column 9 near:
+error: you can only `break` inside a `for` loop
+       failed to parse template source at row 1, column 9 near:
        "break%}, have a parsing error!"
  --> tests/ui/break_outside_of_loop.rs:3:10
   |
