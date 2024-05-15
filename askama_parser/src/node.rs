@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::str;
 
 use nom::branch::alt;
-use nom::bytes::complete::tag;
+use nom::bytes::complete::{tag, take_till};
 use nom::character::complete::char;
 use nom::combinator::{
     complete, consumed, cut, eof, map, map_res, not, opt, peek, recognize, value,
@@ -12,7 +12,7 @@ use nom::error_position;
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 
-use crate::{ErrorContext, ParseResult};
+use crate::{not_ws, ErrorContext, ParseResult};
 
 use super::{
     bool_lit, char_lit, filter, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
@@ -51,32 +51,52 @@ impl<'a> Node<'a> {
     }
 
     fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
-        let mut p = delimited(
-            |i| s.tag_block_start(i),
-            alt((
-                map(|i| Call::parse(i, s), Self::Call),
-                map(|i| Let::parse(i, s), Self::Let),
-                map(|i| If::parse(i, s), Self::If),
-                map(|i| Loop::parse(i, s), |l| Self::Loop(Box::new(l))),
-                map(|i| Match::parse(i, s), Self::Match),
-                map(Extends::parse, Self::Extends),
-                map(Include::parse, Self::Include),
-                map(Import::parse, Self::Import),
-                map(|i| BlockDef::parse(i, s), Self::BlockDef),
-                map(|i| Macro::parse(i, s), Self::Macro),
-                map(|i| Raw::parse(i, s), Self::Raw),
-                |i| Self::r#break(i, s),
-                |i| Self::r#continue(i, s),
-                map(|i| FilterBlock::parse(i, s), Self::FilterBlock),
-            )),
-            cut(|i| s.tag_block_end(i)),
-        );
+        #[inline]
+        fn wrap<'a, T>(
+            func: impl FnOnce(T) -> Node<'a>,
+            result: ParseResult<'a, T>,
+        ) -> ParseResult<'a, Node<'a>> {
+            result.map(|(i, n)| (i, func(n)))
+        }
 
-        s.nest(i)?;
-        let result = p(i);
+        let (j, tag) = preceded(
+            |i| s.tag_block_start(i),
+            peek(preceded(
+                pair(opt(Whitespace::parse), take_till(not_ws)),
+                identifier,
+            )),
+        )(i)?;
+
+        let func = match tag {
+            "call" => |i, s| wrap(Self::Call, Call::parse(i, s)),
+            "let" => |i, s| wrap(Self::Let, Let::parse(i, s)),
+            "if" => |i, s| wrap(Self::If, If::parse(i, s)),
+            "for" => |i, s| wrap(|n| Self::Loop(Box::new(n)), Loop::parse(i, s)),
+            "match" => |i, s| wrap(Self::Match, Match::parse(i, s)),
+            "extends" => |i, _s| wrap(Self::Extends, Extends::parse(i)),
+            "include" => |i, _s| wrap(Self::Include, Include::parse(i)),
+            "import" => |i, _s| wrap(Self::Import, Import::parse(i)),
+            "block" => |i, s| wrap(Self::BlockDef, BlockDef::parse(i, s)),
+            "macro" => |i, s| wrap(Self::Macro, Macro::parse(i, s)),
+            "raw" => |i, s| wrap(Self::Raw, Raw::parse(i, s)),
+            "break" => |i, s| Self::r#break(i, s),
+            "continue" => |i, s| Self::r#continue(i, s),
+            "filter" => |i, s| wrap(Self::FilterBlock, FilterBlock::parse(i, s)),
+            _ => {
+                return Err(ErrorContext::from_err(nom::Err::Error(error_position!(
+                    i,
+                    ErrorKind::Tag
+                ))));
+            }
+        };
+
+        let (i, _) = s.nest(j)?;
+        let result = func(i, s);
         s.leave();
 
-        result
+        let (i, node) = result?;
+        let (i, _) = cut(|i| s.tag_block_end(i))(i)?;
+        Ok((i, node))
     }
 
     fn r#break(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
