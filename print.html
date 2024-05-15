@@ -1106,26 +1106,29 @@ Enable it with Cargo features (see below for more information).</p>
 <p><strong>Table of contents</strong></p>
 <ul>
 <li>
-<p><strong><a href="filters.html#built-in-filters">Built-in filters</a>:</strong><br />
-<a href="filters.html#abs"><code>abs</code></a>,
-<a href="filters.html#as_ref"><code>as_ref</code></a>,
-<a href="filters.html#capitalize"><code>capitalize</code></a>,
-<a href="filters.html#center"><code>center</code></a>,
-<a href="filters.html#deref"><code>deref</code></a>,
-<a href="filters.html#escape--e"><code>escape|e</code></a>,
-<a href="filters.html#filesizeformat"><code>filesizeformat</code></a>,
-<a href="filters.html#fmt"><code>fmt</code></a>,
-<a href="filters.html#format"><code>format</code></a>,
-<a href="filters.html#indent"><code>indent</code></a>,
-<a href="filters.html#join"><code>join</code></a>,
-<a href="filters.html#linebreaks"><code>linebreaks</code></a>,
-<a href="filters.html#linebreaksbr"><code>linebreaksbr</code></a>,
-<a href="filters.html#lower--lowercase"><code>lower|lowercase</code></a>,
-<a href="filters.html#safe"><code>safe</code></a>,
-<a href="filters.html#trim"><code>trim</code></a>,
-<a href="filters.html#truncate"><code>truncate</code></a>,
-<a href="filters.html#upper--uppercase"><code>upper|uppercase</code></a>,
-<a href="filters.html#wordcount"><code>wordcount</code></a></p>
+<p><strong><a href="filters.html#built-in-filters">Built-in filters</a>:</strong></p>
+<ul>
+<li><a href="filters.html#abs"><code>abs</code></a></li>
+<li><a href="filters.html#as_ref"><code>as_ref</code></a></li>
+<li><a href="filters.html#capitalize"><code>capitalize</code></a></li>
+<li><a href="filters.html#center"><code>center</code></a></li>
+<li><a href="filters.html#deref"><code>deref</code></a></li>
+<li><a href="filters.html#escape--e"><code>escape|e</code></a></li>
+<li><a href="filters.html#filesizeformat"><code>filesizeformat</code></a></li>
+<li><a href="filters.html#fmt"><code>fmt</code></a></li>
+<li><a href="filters.html#format"><code>format</code></a></li>
+<li><a href="filters.html#indent"><code>indent</code></a></li>
+<li><a href="filters.html#join"><code>join</code></a></li>
+<li><a href="filters.html#linebreaks"><code>linebreaks</code></a></li>
+<li><a href="filters.html#linebreaksbr"><code>linebreaksbr</code></a></li>
+<li><a href="filters.html#lower--lowercase"><code>lower|lowercase</code></a></li>
+<li><a href="filters.html#safe"><code>safe</code></a></li>
+<li><a href="filters.html#title"><code>title</code></a></li>
+<li><a href="filters.html#trim"><code>trim</code></a></li>
+<li><a href="filters.html#truncate"><code>truncate</code></a></li>
+<li><a href="filters.html#upper--uppercase"><code>upper|uppercase</code></a></li>
+<li><a href="filters.html#wordcount"><code>wordcount</code></a></li>
+</ul>
 </li>
 <li>
 <p><strong><a href="filters.html#optional--feature-gated-filters">Optional / feature gated filters</a>:</strong><br />
@@ -1280,6 +1283,14 @@ Which is not possible using the <code>format</code> filter.</p>
 </code></pre>
 <p>Output:</p>
 <pre><code>&lt;p&gt;I'm Safe&lt;/p&gt;
+</code></pre>
+<h3 id="title"><a class="header" href="#title">title</a></h3>
+<p>Return a title cased version of the value. Words will start with uppercase letters, all
+remaining characters are lowercase.</p>
+<pre><code>{{ "hello WORLD"|title }}
+</code></pre>
+<p>Output:</p>
+<pre><code>Hello World
 </code></pre>
 <h3 id="trim"><a class="header" href="#trim">trim</a></h3>
 <p>Strip leading and trailing whitespace.</p>
