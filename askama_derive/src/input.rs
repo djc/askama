@@ -138,9 +138,8 @@ impl TemplateInput<'_> {
                         Ok(())
                     };
 
-                    use Node::*;
                     match n {
-                        Extends(extends) if top => {
+                        Node::Extends(extends) if top => {
                             let extends = self.config.find_template(extends.path, Some(&path))?;
                             let dependency_path = (path.clone(), extends.clone());
                             if path == extends {
@@ -153,48 +152,48 @@ impl TemplateInput<'_> {
                             dependency_graph.push(dependency_path);
                             add_to_check(extends)?;
                         }
-                        Macro(m) if top => {
+                        Node::Macro(m) if top => {
                             nested.push(&m.nodes);
                         }
-                        Import(import) if top => {
+                        Node::Import(import) if top => {
                             let import = self.config.find_template(import.path, Some(&path))?;
                             add_to_check(import)?;
                         }
-                        FilterBlock(f) => {
+                        Node::FilterBlock(f) => {
                             nested.push(&f.nodes);
                         }
-                        Include(include) => {
+                        Node::Include(include) => {
                             let include = self.config.find_template(include.path, Some(&path))?;
                             add_to_check(include)?;
                         }
-                        BlockDef(b) => {
+                        Node::BlockDef(b) => {
                             nested.push(&b.nodes);
                         }
-                        If(i) => {
+                        Node::If(i) => {
                             for cond in &i.branches {
                                 nested.push(&cond.nodes);
                             }
                         }
-                        Loop(l) => {
+                        Node::Loop(l) => {
                             nested.push(&l.body);
                             nested.push(&l.else_nodes);
                         }
-                        Match(m) => {
+                        Node::Match(m) => {
                             for arm in &m.arms {
                                 nested.push(&arm.nodes);
                             }
                         }
-                        Lit(_)
-                        | Comment(_)
-                        | Expr(_, _)
-                        | Call(_)
-                        | Extends(_)
-                        | Let(_)
-                        | Import(_)
-                        | Macro(_)
-                        | Raw(_)
-                        | Continue(_)
-                        | Break(_) => {}
+                        Node::Lit(_)
+                        | Node::Comment(_)
+                        | Node::Expr(_, _)
+                        | Node::Call(_)
+                        | Node::Extends(_)
+                        | Node::Let(_)
+                        | Node::Import(_)
+                        | Node::Macro(_)
+                        | Node::Raw(_)
+                        | Node::Continue(_)
+                        | Node::Break(_) => {}
                     }
                 }
                 top = false;
@@ -392,12 +391,11 @@ impl FromStr for Print {
     type Err = CompileError;
 
     fn from_str(s: &str) -> Result<Print, Self::Err> {
-        use self::Print::*;
         Ok(match s {
-            "all" => All,
-            "ast" => Ast,
-            "code" => Code,
-            "none" => None,
+            "all" => Print::All,
+            "ast" => Print::Ast,
+            "code" => Print::Code,
+            "none" => Print::None,
             v => return Err(format!("invalid value for print option: {v}",).into()),
         })
     }
