@@ -7,7 +7,7 @@ use nom::character::complete::char;
 use nom::combinator::{
     complete, consumed, cut, eof, map, map_res, not, opt, peek, recognize, value,
 };
-use nom::error::{Error, ErrorKind};
+use nom::error::ErrorKind;
 use nom::error_position;
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
@@ -520,7 +520,13 @@ impl<'a> Macro<'a> {
                 |i| s.tag_block_end(i),
             ))),
         ));
-        let (i, (pws1, _, (name, params, nws1, _))) = start(i)?;
+        let (j, (pws1, _, (name, params, nws1, _))) = start(i)?;
+        if name == "super" {
+            return Err(nom::Err::Failure(ErrorContext {
+                input: i,
+                message: Some(Cow::Borrowed("'super' is not a valid name for a macro")),
+            }));
+        }
 
         let mut end = cut(tuple((
             |i| Node::many(i, s),
@@ -537,15 +543,7 @@ impl<'a> Macro<'a> {
                 )),
             ))),
         )));
-        let (i, (contents, (_, pws2, _, nws2))) = end(i)?;
-
-        if name == "super" {
-            // TODO: yield a a better error message here
-            return Err(ErrorContext::from_err(nom::Err::Failure(Error::new(
-                i,
-                ErrorKind::Fail,
-            ))));
-        }
+        let (i, (contents, (_, pws2, _, nws2))) = end(j)?;
 
         Ok((
             i,
