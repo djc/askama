@@ -87,7 +87,10 @@ impl<'a> Node<'a> {
         ));
         let (j, (pws, _, nws)) = p(i)?;
         if !s.is_in_loop() {
-            return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
+            return Err(nom::Err::Failure(ErrorContext {
+                input: i,
+                message: Some(Cow::Borrowed("you can only `break` inside a `for` loop")),
+            }));
         }
         Ok((j, Self::Break(Ws(pws, nws))))
     }
@@ -100,7 +103,10 @@ impl<'a> Node<'a> {
         ));
         let (j, (pws, _, nws)) = p(i)?;
         if !s.is_in_loop() {
-            return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
+            return Err(nom::Err::Failure(ErrorContext {
+                input: i,
+                message: Some(Cow::Borrowed("you can only `continue` inside a `for` loop")),
+            }));
         }
         Ok((j, Self::Continue(Ws(pws, nws))))
     }
