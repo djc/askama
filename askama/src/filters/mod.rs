@@ -511,12 +511,6 @@ pub fn wordcount(s: impl ToString) -> Result<usize, Infallible> {
     wordcount(s.to_string())
 }
 
-/// Converts a type to a `String`.
-#[inline]
-pub fn string(s: impl ToString) -> Result<String, Infallible> {
-    Ok(s.to_string())
-}
-
 /// Return a title cased version of the value. Words will start with uppercase letters, all
 /// remaining characters are lowercase.
 #[inline]
