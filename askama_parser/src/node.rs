@@ -12,7 +12,7 @@ use nom::error_position;
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 
-use crate::{not_ws, ErrorContext, ParseResult};
+use crate::{not_ws, ErrorContext, ParseErr, ParseResult};
 
 use super::{
     bool_lit, char_lit, filter, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
@@ -93,10 +93,16 @@ impl<'a> Node<'a> {
         let (i, _) = s.nest(j)?;
         let result = func(i, s);
         s.leave();
-
         let (i, node) = result?;
-        let (i, _) = cut(|i| s.tag_block_end(i))(i)?;
-        Ok((i, node))
+
+        let (i, closed) = cut(alt((
+            value(true, |i| s.tag_block_end(i)),
+            value(false, ws(eof)),
+        )))(i)?;
+        match closed {
+            true => Ok((i, node)),
+            false => Err(fail_unclosed("block", s.syntax.block_end, i)),
+        }
     }
 
     fn r#break(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
@@ -132,17 +138,22 @@ impl<'a> Node<'a> {
     }
 
     fn expr(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
-        let mut p = tuple((
+        let (i, (pws, expr)) = preceded(
             |i| s.tag_expr_start(i),
-            cut(tuple((
+            cut(pair(
                 opt(Whitespace::parse),
                 ws(|i| Expr::parse(i, s.level.get())),
-                opt(Whitespace::parse),
-                |i| s.tag_expr_end(i),
-            ))),
-        ));
-        let (i, (_, (pws, expr, nws, _))) = p(i)?;
-        Ok((i, Self::Expr(Ws(pws, nws), expr)))
+            )),
+        )(i)?;
+
+        let (i, (nws, closed)) = cut(pair(
+            opt(Whitespace::parse),
+            alt((value(true, |i| s.tag_expr_end(i)), value(false, ws(eof)))),
+        ))(i)?;
+        match closed {
+            true => Ok((i, Self::Expr(Ws(pws, nws), expr))),
+            false => Err(fail_unclosed("expression", s.syntax.expr_end, i)),
+        }
     }
 }
 
@@ -1059,7 +1070,10 @@ impl<'a> Comment<'a> {
         fn content<'a>(mut i: &'a str, s: &State<'_>) -> ParseResult<'a, ()> {
             let mut depth = 0usize;
             loop {
-                let (_, (j, tag)) = skip_till(|i| tag(i, s))(i)?;
+                let (_, tag) = opt(skip_till(|i| tag(i, s)))(i)?;
+                let Some((j, tag)) = tag else {
+                    return Err(fail_unclosed("comment", s.syntax.comment_end, i));
+                };
                 match tag {
                     Tag::Open => match depth.checked_add(1) {
                         Some(new_depth) => depth = new_depth,
@@ -1109,3 +1123,10 @@ impl<'a> Comment<'a> {
 /// Second field is "minus/plus sign was used on the right part of the item".
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Ws(pub Option<Whitespace>, pub Option<Whitespace>);
+
+fn fail_unclosed<'a>(kind: &str, tag: &str, i: &'a str) -> ParseErr<'a> {
+    nom::Err::Failure(ErrorContext {
+        input: i,
+        message: Some(Cow::Owned(format!("unclosed {kind}, missing {tag:?}"))),
+    })
+}
