@@ -932,3 +932,15 @@ fn fuzzed_comment_depth() {
         .expect("timeout");
     test.join().unwrap();
 }
+
+#[test]
+fn let_set() {
+    assert_eq!(
+        Ast::from_str("{% let a %}", None, &Syntax::default())
+            .unwrap()
+            .nodes(),
+        Ast::from_str("{% set a %}", None, &Syntax::default())
+            .unwrap()
+            .nodes(),
+    );
+}

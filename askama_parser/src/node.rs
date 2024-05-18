@@ -69,7 +69,7 @@ impl<'a> Node<'a> {
 
         let func = match tag {
             "call" => |i, s| wrap(Self::Call, Call::parse(i, s)),
-            "let" => |i, s| wrap(Self::Let, Let::parse(i, s)),
+            "let" | "set" => |i, s| wrap(Self::Let, Let::parse(i, s)),
             "if" => |i, s| wrap(Self::If, If::parse(i, s)),
             "for" => |i, s| wrap(|n| Self::Loop(Box::new(n)), Loop::parse(i, s)),
             "match" => |i, s| wrap(Self::Match, Match::parse(i, s)),
