@@ -167,6 +167,13 @@ pub(crate) struct ErrorContext<'a> {
 }
 
 impl<'a> ErrorContext<'a> {
+    fn unclosed(kind: &str, tag: &str, i: &'a str) -> Self {
+        Self {
+            input: i,
+            message: Some(Cow::Owned(format!("unclosed {kind}, missing {tag:?}"))),
+        }
+    }
+
     pub(crate) fn from_err(error: nom::Err<Error<&'a str>>) -> nom::Err<Self> {
         match error {
             nom::Err::Incomplete(i) => nom::Err::Incomplete(i),
@@ -201,6 +208,12 @@ impl<'a, E: std::fmt::Display> FromExternalError<&'a str, E> for ErrorContext<'a
             input,
             message: Some(Cow::Owned(e.to_string())),
         }
+    }
+}
+
+impl<'a> From<ErrorContext<'a>> for nom::Err<ErrorContext<'a>> {
+    fn from(cx: ErrorContext<'a>) -> Self {
+        Self::Failure(cx)
     }
 }
 
