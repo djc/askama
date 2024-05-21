@@ -12,7 +12,7 @@ use nom::error_position;
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 
-use crate::{not_ws, ErrorContext, ParseErr, ParseResult};
+use crate::{not_ws, ErrorContext, ParseResult};
 
 use super::{
     bool_lit, char_lit, filter, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
@@ -101,7 +101,7 @@ impl<'a> Node<'a> {
         )))(i)?;
         match closed {
             true => Ok((i, node)),
-            false => Err(fail_unclosed("block", s.syntax.block_end, i)),
+            false => Err(ErrorContext::unclosed("block", s.syntax.block_end, i).into()),
         }
     }
 
@@ -152,7 +152,7 @@ impl<'a> Node<'a> {
         ))(i)?;
         match closed {
             true => Ok((i, Self::Expr(Ws(pws, nws), expr))),
-            false => Err(fail_unclosed("expression", s.syntax.expr_end, i)),
+            false => Err(ErrorContext::unclosed("expression", s.syntax.expr_end, i).into()),
         }
     }
 }
@@ -1072,7 +1072,7 @@ impl<'a> Comment<'a> {
             loop {
                 let (_, tag) = opt(skip_till(|i| tag(i, s)))(i)?;
                 let Some((j, tag)) = tag else {
-                    return Err(fail_unclosed("comment", s.syntax.comment_end, i));
+                    return Err(ErrorContext::unclosed("comment", s.syntax.comment_end, i).into());
                 };
                 match tag {
                     Tag::Open => match depth.checked_add(1) {
@@ -1123,10 +1123,3 @@ impl<'a> Comment<'a> {
 /// Second field is "minus/plus sign was used on the right part of the item".
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Ws(pub Option<Whitespace>, pub Option<Whitespace>);
-
-fn fail_unclosed<'a>(kind: &str, tag: &str, i: &'a str) -> ParseErr<'a> {
-    nom::Err::Failure(ErrorContext {
-        input: i,
-        message: Some(Cow::Owned(format!("unclosed {kind}, missing {tag:?}"))),
-    })
-}
