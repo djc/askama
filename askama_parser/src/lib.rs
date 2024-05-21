@@ -166,6 +166,22 @@ pub(crate) struct ErrorContext<'a> {
     pub(crate) message: Option<Cow<'static, str>>,
 }
 
+impl<'a> ErrorContext<'a> {
+    pub(crate) fn from_err(error: nom::Err<Error<&'a str>>) -> nom::Err<Self> {
+        match error {
+            nom::Err::Incomplete(i) => nom::Err::Incomplete(i),
+            nom::Err::Failure(Error { input, .. }) => nom::Err::Failure(Self {
+                input,
+                message: None,
+            }),
+            nom::Err::Error(Error { input, .. }) => nom::Err::Error(Self {
+                input,
+                message: None,
+            }),
+        }
+    }
+}
+
 impl<'a> nom::error::ParseError<&'a str> for ErrorContext<'a> {
     fn from_error_kind(input: &'a str, _code: ErrorKind) -> Self {
         Self {
@@ -184,22 +200,6 @@ impl<'a, E: std::fmt::Display> FromExternalError<&'a str, E> for ErrorContext<'a
         Self {
             input,
             message: Some(Cow::Owned(e.to_string())),
-        }
-    }
-}
-
-impl<'a> ErrorContext<'a> {
-    pub(crate) fn from_err(error: nom::Err<Error<&'a str>>) -> nom::Err<Self> {
-        match error {
-            nom::Err::Incomplete(i) => nom::Err::Incomplete(i),
-            nom::Err::Failure(Error { input, .. }) => nom::Err::Failure(Self {
-                input,
-                message: None,
-            }),
-            nom::Err::Error(Error { input, .. }) => nom::Err::Error(Self {
-                input,
-                message: None,
-            }),
         }
     }
 }
