@@ -90,6 +90,7 @@ impl<'a> Generator<'a> {
         buf.write(CRATE);
         buf.writeln("::Result<()> {")?;
 
+        buf.discard = self.buf_writable.discard;
         // Make sure the compiler understands that the generated code depends on the template files.
         for path in self.contexts.keys() {
             // Skip the fake path of templates defined in rust source.
@@ -113,6 +114,7 @@ impl<'a> Generator<'a> {
         } else {
             self.handle(ctx, ctx.nodes, buf, AstLevel::Top)
         }?;
+        buf.discard = false;
 
         self.flush_ws(Ws(None, None));
         buf.write(CRATE);
@@ -986,6 +988,9 @@ impl<'a> Generator<'a> {
         // Restore the original buffer discarding state
         if block_fragment_write {
             self.buf_writable.discard = true;
+        }
+        if buf.discard != prev_buf_discard {
+            self.write_buf_writable(buf)?;
         }
         buf.discard = prev_buf_discard;
 

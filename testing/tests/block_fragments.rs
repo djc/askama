@@ -103,3 +103,21 @@ fn test_specific_block() {
     let t = RenderInPlace { s1 };
     assert_eq!(t.render().unwrap(), "\nSection: [abc]\n");
 }
+
+#[derive(Template)]
+#[template(
+    source = r#"{% block empty %}
+{% endblock %}
+
+{% if let Some(var) = var %}
+{{ var }}
+{% endif %}"#,
+    block = "empty",
+    ext = "txt"
+)]
+struct Empty {}
+
+#[test]
+fn test_render_only_block() {
+    assert_eq!(Empty {}.render().unwrap(), "\n");
+}
