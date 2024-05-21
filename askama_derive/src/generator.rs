@@ -365,7 +365,7 @@ impl<'a> Generator<'a> {
                 }
 
                 if let Some(target) = target {
-                    let mut expr_buf = Buffer::new(0);
+                    let mut expr_buf = Buffer::from_buf_parameters(buf, 0);
                     buf.write("let ");
                     // If this is a chain condition, then we need to declare the variable after the
                     // left expression has been handled but before the right expression is handled
@@ -596,8 +596,8 @@ impl<'a> Generator<'a> {
         buf.writeln("{")?;
         self.prepare_ws(def.ws1);
 
-        let mut names = Buffer::new(0);
-        let mut values = Buffer::new(0);
+        let mut names = Buffer::from_buf_parameters(buf, 0);
+        let mut values = Buffer::from_buf_parameters(buf, 0);
         let mut is_first_variable = true;
         if args.len() != def.args.len() {
             return Err(CompileError::from(format!(
@@ -661,7 +661,7 @@ impl<'a> Generator<'a> {
                         .insert(Cow::Borrowed(arg), LocalMeta::with_ref(var));
                 }
                 Expr::Attr(obj, attr) => {
-                    let mut attr_buf = Buffer::new(0);
+                    let mut attr_buf = Buffer::from_buf_parameters(buf, 0);
                     self.visit_attr(&mut attr_buf, obj, attr)?;
 
                     let var = self.locals.resolve(&attr_buf.buf).unwrap_or(attr_buf.buf);
@@ -750,7 +750,7 @@ impl<'a> Generator<'a> {
 
         self.buf_writable.buf = current_buf;
 
-        let mut filter_buf = Buffer::new(buf.indent);
+        let mut filter_buf = Buffer::from_buf_parameters(buf, buf.indent);
         let Filter {
             name: filter_name,
             arguments,
@@ -876,7 +876,7 @@ impl<'a> Generator<'a> {
             return buf.writeln(";");
         };
 
-        let mut expr_buf = Buffer::new(0);
+        let mut expr_buf = Buffer::from_buf_parameters(buf, 0);
         self.visit_expr(&mut expr_buf, val)?;
 
         let shadowed = self.is_shadowing_variable(&l.var)?;
@@ -1844,6 +1844,15 @@ impl Buffer {
             indent,
             start: true,
             discard: false,
+        }
+    }
+
+    fn from_buf_parameters(other: &Buffer, indent: u8) -> Self {
+        Self {
+            buf: String::new(),
+            indent,
+            start: true,
+            discard: other.discard,
         }
     }
 
