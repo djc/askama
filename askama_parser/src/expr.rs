@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::collections::HashSet;
 use std::str;
 
@@ -111,12 +110,10 @@ impl<'a> Expr<'a> {
                             move |i| Self::parse(i, level),
                         ))(i)?;
                         if has_named_arguments && !matches!(expr, Self::NamedArgument(_, _)) {
-                            Err(nom::Err::Failure(ErrorContext {
-                                input: start,
-                                message: Some(Cow::Borrowed(
-                                    "named arguments must always be passed last",
-                                )),
-                            }))
+                            Err(nom::Err::Failure(ErrorContext::new(
+                                "named arguments must always be passed last",
+                                start,
+                            )))
                         } else {
                             Ok((i, expr))
                         }
@@ -146,12 +143,10 @@ impl<'a> Expr<'a> {
         if named_arguments.insert(argument) {
             Ok((i, Self::NamedArgument(argument, Box::new(value))))
         } else {
-            Err(nom::Err::Failure(ErrorContext {
-                input: start,
-                message: Some(Cow::Owned(format!(
-                    "named argument `{argument}` was passed more than once"
-                ))),
-            }))
+            Err(nom::Err::Failure(ErrorContext::new(
+                format!("named argument `{argument}` was passed more than once"),
+                start,
+            )))
         }
     }
 

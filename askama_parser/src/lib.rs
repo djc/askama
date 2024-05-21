@@ -168,9 +168,13 @@ pub(crate) struct ErrorContext<'a> {
 
 impl<'a> ErrorContext<'a> {
     fn unclosed(kind: &str, tag: &str, i: &'a str) -> Self {
+        Self::new(format!("unclosed {kind}, missing {tag:?}"), i)
+    }
+
+    fn new(message: impl Into<Cow<'static, str>>, input: &'a str) -> Self {
         Self {
-            input: i,
-            message: Some(Cow::Owned(format!("unclosed {kind}, missing {tag:?}"))),
+            input,
+            message: Some(message.into()),
         }
     }
 
@@ -373,19 +377,20 @@ fn char_lit(i: &str) -> ParseResult<'_> {
         opt(escaped(is_not("\\\'"), '\\', anychar)),
         char('\''),
     )(i)?;
+
     let Some(s) = s else {
-        return Err(nom::Err::Failure(ErrorContext {
-            input: start,
-            // Same error as rustc.
-            message: Some(Cow::Borrowed("empty character literal")),
-        }));
+        return Err(nom::Err::Failure(ErrorContext::new(
+            "empty character literal",
+            start,
+        )));
     };
     let Ok(("", c)) = Char::parse(s) else {
-        return Err(nom::Err::Failure(ErrorContext {
-            input: start,
-            message: Some(Cow::Borrowed("invalid character")),
-        }));
+        return Err(nom::Err::Failure(ErrorContext::new(
+            "invalid character",
+            start,
+        )));
     };
+
     let (nb, max_value, err1, err2) = match c {
         Char::Literal | Char::Escaped => return Ok((i, s)),
         Char::AsciiEscape(nb) => (
@@ -405,17 +410,12 @@ fn char_lit(i: &str) -> ParseResult<'_> {
     };
 
     let Ok(nb) = u32::from_str_radix(nb, 16) else {
-        return Err(nom::Err::Failure(ErrorContext {
-            input: start,
-            message: Some(Cow::Borrowed(err1)),
-        }));
+        return Err(nom::Err::Failure(ErrorContext::new(err1, start)));
     };
     if nb > max_value {
-        return Err(nom::Err::Failure(ErrorContext {
-            input: start,
-            message: Some(Cow::Borrowed(err2)),
-        }));
+        return Err(nom::Err::Failure(ErrorContext::new(err2, start)));
     }
+
     Ok((i, s))
 }
 

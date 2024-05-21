@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::str;
 
 use nom::branch::alt;
@@ -113,10 +112,10 @@ impl<'a> Node<'a> {
         ));
         let (j, (pws, _, nws)) = p(i)?;
         if !s.is_in_loop() {
-            return Err(nom::Err::Failure(ErrorContext {
-                input: i,
-                message: Some(Cow::Borrowed("you can only `break` inside a `for` loop")),
-            }));
+            return Err(nom::Err::Failure(ErrorContext::new(
+                "you can only `break` inside a `for` loop",
+                i,
+            )));
         }
         Ok((j, Self::Break(Ws(pws, nws))))
     }
@@ -129,10 +128,10 @@ impl<'a> Node<'a> {
         ));
         let (j, (pws, _, nws)) = p(i)?;
         if !s.is_in_loop() {
-            return Err(nom::Err::Failure(ErrorContext {
-                input: i,
-                message: Some(Cow::Borrowed("you can only `continue` inside a `for` loop")),
-            }));
+            return Err(nom::Err::Failure(ErrorContext::new(
+                "you can only `continue` inside a `for` loop",
+                i,
+            )));
         }
         Ok((j, Self::Continue(Ws(pws, nws))))
     }
@@ -297,10 +296,10 @@ impl<'a> Target<'a> {
 
     fn verify_name(input: &'a str, name: &'a str) -> Result<Self, nom::Err<ErrorContext<'a>>> {
         match name {
-            "self" | "writer" => Err(nom::Err::Failure(ErrorContext {
+            "self" | "writer" => Err(nom::Err::Failure(ErrorContext::new(
+                format!("cannot use `{name}` as a name"),
                 input,
-                message: Some(Cow::Owned(format!("Cannot use `{name}` as a name"))),
-            })),
+            ))),
             _ => Ok(Self::Name(name)),
         }
     }
@@ -375,12 +374,10 @@ impl<'a> Cond<'a> {
             opt(Whitespace::parse),
             ws(alt((keyword("else"), |i| {
                 let _ = keyword("elif")(i)?;
-                Err(nom::Err::Failure(ErrorContext {
-                    input: i,
-                    message: Some(Cow::Borrowed(
-                        "unknown `elif` keyword; did you mean `else if`?",
-                    )),
-                }))
+                Err(nom::Err::Failure(ErrorContext::new(
+                    "unknown `elif` keyword; did you mean `else if`?",
+                    i,
+                )))
             }))),
             cut(tuple((
                 opt(|i| CondTest::parse(i, s)),
@@ -559,10 +556,10 @@ impl<'a> Macro<'a> {
         ));
         let (j, (pws1, _, (name, params, nws1, _))) = start(i)?;
         if name == "super" {
-            return Err(nom::Err::Failure(ErrorContext {
-                input: i,
-                message: Some(Cow::Borrowed("'super' is not a valid name for a macro")),
-            }));
+            return Err(nom::Err::Failure(ErrorContext::new(
+                "'super' is not a valid name for a macro",
+                i,
+            )));
         }
 
         let mut end = cut(tuple((
@@ -831,15 +828,14 @@ fn check_end_name<'a>(
     if name == end_name {
         return Ok((after, end_name));
     }
-    let message = if name.is_empty() && !end_name.is_empty() {
-        format!("unexpected name `{end_name}` in `end{kind}` tag for unnamed `{kind}`")
-    } else {
-        format!("expected name `{name}` in `end{kind}` tag, found `{end_name}`")
-    };
-    Err(nom::Err::Failure(ErrorContext {
-        input: before,
-        message: Some(Cow::Owned(message)),
-    }))
+
+    Err(nom::Err::Failure(ErrorContext::new(
+        match name.is_empty() && !end_name.is_empty() {
+            true => format!("unexpected name `{end_name}` in `end{kind}` tag for unnamed `{kind}`"),
+            false => format!("expected name `{name}` in `end{kind}` tag, found `{end_name}`"),
+        },
+        before,
+    )))
 }
 
 #[derive(Debug, PartialEq)]
@@ -1036,12 +1032,10 @@ impl<'a> Extends<'a> {
         ))(i)?;
         match (pws, nws) {
             (None, None) => Ok((i, Self { path })),
-            (_, _) => Err(nom::Err::Failure(ErrorContext {
-                input: start,
-                message: Some(Cow::Borrowed(
-                    "whitespace control is not allowed on `extends`",
-                )),
-            })),
+            (_, _) => Err(nom::Err::Failure(ErrorContext::new(
+                "whitespace control is not allowed on `extends`",
+                start,
+            ))),
         }
     }
 }
@@ -1078,10 +1072,10 @@ impl<'a> Comment<'a> {
                     Tag::Open => match depth.checked_add(1) {
                         Some(new_depth) => depth = new_depth,
                         None => {
-                            return Err(nom::Err::Failure(ErrorContext {
-                                input: i,
-                                message: Some(Cow::Borrowed("too deeply nested comments")),
-                            }))
+                            return Err(nom::Err::Failure(ErrorContext::new(
+                                "too deeply nested comments",
+                                i,
+                            )));
                         }
                     },
                     Tag::Close => match depth.checked_sub(1) {
