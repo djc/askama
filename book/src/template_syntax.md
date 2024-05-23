@@ -459,6 +459,8 @@ and is used as you might expect:
   No users
 {% else if users.len() == 1 %}
   1 user
+{% elif users.len() == 2 %}
+  2 users
 {% else %}
   {{ users.len() }} users
 {% endif %}
