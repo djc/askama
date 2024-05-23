@@ -989,6 +989,10 @@ impl<'a> Generator<'a> {
         if block_fragment_write {
             self.buf_writable.discard = true;
         }
+        // If we are rendering a specific block and the discard changed, it means that we're done
+        // with the block we want to render and that from this point, everything will be discarded.
+        //
+        // To get this block content rendered as well, we need to write to the buffer before then.
         if buf.discard != prev_buf_discard {
             self.write_buf_writable(buf)?;
         }
