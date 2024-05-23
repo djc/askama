@@ -107,3 +107,24 @@ fn test_if_let_else() {
     };
     assert_eq!(s.render().unwrap(), "fail");
 }
+
+#[derive(Template)]
+#[template(
+    source = r#"{%- if s.is_none() -%}
+empty
+{%- elif let Some(a) = s -%}
+{{a}}
+{%- else -%}
+else
+{%- endif -%}"#,
+    ext = "txt"
+)]
+struct Elif<'a> {
+    s: Option<&'a str>,
+}
+
+#[test]
+fn test_elif() {
+    assert_eq!(Elif { s: None }.render().unwrap(), "empty");
+    assert_eq!(Elif { s: Some("tada") }.render().unwrap(), "tada");
+}

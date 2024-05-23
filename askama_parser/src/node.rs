@@ -372,21 +372,28 @@ impl<'a> Cond<'a> {
         let mut p = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
-            ws(alt((keyword("else"), |i| {
-                let _ = keyword("elif")(i)?;
-                Err(nom::Err::Failure(ErrorContext::new(
-                    "unknown `elif` keyword; did you mean `else if`?",
-                    i,
-                )))
-            }))),
-            cut(tuple((
-                opt(|i| CondTest::parse(i, s)),
-                opt(Whitespace::parse),
-                |i| s.tag_block_end(i),
-                cut(|i| Node::many(i, s)),
-            ))),
+            alt((
+                tuple((
+                    ws(keyword("else")),
+                    cut(tuple((
+                        opt(|i| CondTest::parse(i, s)),
+                        opt(Whitespace::parse),
+                        |i| s.tag_block_end(i),
+                        cut(|i| Node::many(i, s)),
+                    ))),
+                )),
+                tuple((
+                    ws(keyword("elif")),
+                    cut(tuple((
+                        opt(|i| CondTest::parse_cond(i, s)),
+                        opt(Whitespace::parse),
+                        |i| s.tag_block_end(i),
+                        cut(|i| Node::many(i, s)),
+                    ))),
+                )),
+            )),
         ));
-        let (i, (_, pws, _, (cond, nws, _, nodes))) = p(i)?;
+        let (i, (_, pws, (_, (cond, nws, _, nodes)))) = p(i)?;
         Ok((
             i,
             Self {
@@ -406,18 +413,18 @@ pub struct CondTest<'a> {
 
 impl<'a> CondTest<'a> {
     fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
-        let mut p = preceded(
-            ws(keyword("if")),
-            cut(tuple((
-                opt(delimited(
-                    ws(alt((keyword("let"), keyword("set")))),
-                    ws(|i| Target::parse(i, s)),
-                    ws(char('=')),
-                )),
-                ws(|i| Expr::parse(i, s.level.get())),
-            ))),
-        );
-        let (i, (target, expr)) = p(i)?;
+        preceded(ws(keyword("if")), |i| Self::parse_cond(i, s))(i)
+    }
+
+    fn parse_cond(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+        let (i, (target, expr)) = cut(tuple((
+            opt(delimited(
+                ws(alt((keyword("let"), keyword("set")))),
+                ws(|i| Target::parse(i, s)),
+                ws(char('=')),
+            )),
+            ws(|i| Expr::parse(i, s.level.get())),
+        )))(i)?;
         Ok((i, Self { target, expr }))
     }
 }

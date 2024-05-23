@@ -1,9 +1,0 @@
-error: unknown `elif` keyword; did you mean `else if`?
-       failed to parse template source at row 1, column 16 near:
-       "elif false %}{% endif %}"
- --> tests/ui/elif.rs:3:10
-  |
-3 | #[derive(Template)]
-  |          ^^^^^^^^
-  |
-  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
