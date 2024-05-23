@@ -369,31 +369,20 @@ pub struct Cond<'a> {
 
 impl<'a> Cond<'a> {
     fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
-        let mut p = tuple((
+        let (i, (_, pws, cond, nws, _, nodes)) = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
             alt((
-                tuple((
-                    ws(keyword("else")),
-                    cut(tuple((
-                        opt(|i| CondTest::parse(i, s)),
-                        opt(Whitespace::parse),
-                        |i| s.tag_block_end(i),
-                        cut(|i| Node::many(i, s)),
-                    ))),
-                )),
-                tuple((
+                preceded(ws(keyword("else")), opt(|i| CondTest::parse(i, s))),
+                preceded(
                     ws(keyword("elif")),
-                    cut(tuple((
-                        opt(|i| CondTest::parse_cond(i, s)),
-                        opt(Whitespace::parse),
-                        |i| s.tag_block_end(i),
-                        cut(|i| Node::many(i, s)),
-                    ))),
-                )),
+                    cut(map(|i| CondTest::parse_cond(i, s), Some)),
+                ),
             )),
-        ));
-        let (i, (_, pws, (_, (cond, nws, _, nodes)))) = p(i)?;
+            opt(Whitespace::parse),
+            cut(|i| s.tag_block_end(i)),
+            cut(|i| Node::many(i, s)),
+        ))(i)?;
         Ok((
             i,
             Self {
@@ -413,18 +402,18 @@ pub struct CondTest<'a> {
 
 impl<'a> CondTest<'a> {
     fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
-        preceded(ws(keyword("if")), |i| Self::parse_cond(i, s))(i)
+        preceded(ws(keyword("if")), cut(|i| Self::parse_cond(i, s)))(i)
     }
 
     fn parse_cond(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
-        let (i, (target, expr)) = cut(tuple((
+        let (i, (target, expr)) = pair(
             opt(delimited(
                 ws(alt((keyword("let"), keyword("set")))),
                 ws(|i| Target::parse(i, s)),
                 ws(char('=')),
             )),
             ws(|i| Expr::parse(i, s.level.get())),
-        )))(i)?;
+        )(i)?;
         Ok((i, Self { target, expr }))
     }
 }
