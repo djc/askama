@@ -154,6 +154,28 @@ impl<'a> Node<'a> {
             false => Err(ErrorContext::unclosed("expression", s.syntax.expr_end, i).into()),
         }
     }
+
+    pub fn span(&self) -> &str {
+        match self {
+            Self::Lit(span) => span.span,
+            Self::Comment(span) => span.span,
+            Self::Expr(_, span) => span.span,
+            Self::Call(span) => span.span,
+            Self::Let(span) => span.span,
+            Self::If(span) => span.span,
+            Self::Match(span) => span.span,
+            Self::Loop(span) => span.span,
+            Self::Extends(span) => span.span,
+            Self::BlockDef(span) => span.span,
+            Self::Include(span) => span.span,
+            Self::Import(span) => span.span,
+            Self::Macro(span) => span.span,
+            Self::Raw(span) => span.span,
+            Self::Break(span) => span.span,
+            Self::Continue(span) => span.span,
+            Self::FilterBlock(span) => span.span,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
