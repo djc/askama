@@ -728,7 +728,7 @@ fn filter(i: &str, level: Level) -> ParseResult<'_, (&str, Option<Vec<WithSpan<'
 /// ```
 ///
 /// `strip_common` will return `d/e.txt`.
-fn strip_common(base: &Path, path: &Path) -> String {
+pub fn strip_common(base: &Path, path: &Path) -> String {
     let path = match path.canonicalize() {
         Ok(path) => path,
         Err(_) => return path.display().to_string(),

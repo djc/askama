@@ -1,13 +1,15 @@
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt;
-use std::{borrow::Cow, collections::HashMap};
+use std::path::Path;
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 
-use parser::ParseError;
+use parser::{generate_error_info, strip_common, ErrorInfo, ParseError};
 
 mod config;
 use config::Config;
@@ -141,6 +143,51 @@ impl From<String> for CompileError {
     #[inline]
     fn from(s: String) -> Self {
         Self::new(s, Span::call_site())
+    }
+}
+
+struct FileInfo<'a, 'b, 'c> {
+    path: &'a Path,
+    source: Option<&'b str>,
+    node_source: Option<&'c str>,
+}
+
+impl<'a, 'b, 'c> FileInfo<'a, 'b, 'c> {
+    fn new(path: &'a Path, source: Option<&'b str>, node_source: Option<&'c str>) -> Self {
+        Self {
+            path,
+            source,
+            node_source,
+        }
+    }
+}
+
+impl<'a, 'b, 'c> fmt::Display for FileInfo<'a, 'b, 'c> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match (self.source, self.node_source) {
+            (Some(source), Some(node_source)) => {
+                let (
+                    ErrorInfo {
+                        row,
+                        column,
+                        source_after,
+                    },
+                    file_path,
+                ) = generate_error_info(source, node_source, self.path);
+                write!(
+                    f,
+                    "\n  --> {file_path}:{row}:{column}\n{source_after}",
+                    row = row + 1
+                )
+            }
+            _ => {
+                let file_path = match std::env::current_dir() {
+                    Ok(cwd) => strip_common(&cwd, self.path),
+                    Err(_) => self.path.display().to_string(),
+                };
+                write!(f, "\n --> {file_path}")
+            }
+        }
     }
 }
 
