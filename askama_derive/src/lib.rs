@@ -1,7 +1,6 @@
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 use std::path::Path;
@@ -12,7 +11,7 @@ use proc_macro2::Span;
 use parser::{generate_error_info, strip_common, ErrorInfo, ParseError};
 
 mod config;
-use config::Config;
+use config::{read_config_file, Config};
 mod generator;
 use generator::{Generator, MapChain};
 mod heritage;
@@ -40,10 +39,11 @@ pub fn derive_template(input: TokenStream) -> TokenStream {
 
 fn build_skeleton(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     let template_args = TemplateArgs::fallback();
-    let config = Config::new("", None)?;
+    let config = Config::new("", None, None)?;
     let input = TemplateInput::new(ast, &config, &template_args)?;
     let mut contexts = HashMap::new();
-    contexts.insert(&input.path, Context::default());
+    let parsed = parser::Parsed::default();
+    contexts.insert(&input.path, Context::empty(&parsed));
     Generator::new(&input, &contexts, None, MapChain::default()).build(&contexts[&input.path])
 }
 
@@ -56,8 +56,9 @@ fn build_skeleton(ast: &syn::DeriveInput) -> Result<String, CompileError> {
 /// value as passed to the `template()` attribute.
 pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileError> {
     let template_args = TemplateArgs::new(ast)?;
-    let toml = template_args.config()?;
-    let config = Config::new(&toml, template_args.whitespace.as_deref())?;
+    let config_path = template_args.config_path();
+    let s = read_config_file(config_path)?;
+    let config = Config::new(&s, config_path, template_args.whitespace.as_deref())?;
     let input = TemplateInput::new(ast, &config, &template_args)?;
 
     let mut templates = HashMap::new();
@@ -65,7 +66,7 @@ pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileEr
 
     let mut contexts = HashMap::new();
     for (path, parsed) in &templates {
-        contexts.insert(path, Context::new(input.config, path, parsed.nodes())?);
+        contexts.insert(path, Context::new(input.config, path, parsed)?);
     }
 
     let ctx = &contexts[&input.path];
@@ -97,15 +98,19 @@ pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileEr
 
 #[derive(Debug, Clone)]
 struct CompileError {
-    msg: Cow<'static, str>,
+    msg: String,
     span: Span,
 }
 
 impl CompileError {
-    fn new<S: Into<Cow<'static, str>>>(s: S, span: Span) -> Self {
+    fn new<S: fmt::Display>(msg: S, file_info: Option<FileInfo<'_, '_, '_>>) -> Self {
+        let msg = match file_info {
+            Some(file_info) => format!("{msg}{file_info}"),
+            None => msg.to_string(),
+        };
         Self {
-            msg: s.into(),
-            span,
+            msg,
+            span: Span::call_site(),
         }
     }
 
@@ -128,21 +133,30 @@ impl fmt::Display for CompileError {
 impl From<ParseError> for CompileError {
     #[inline]
     fn from(e: ParseError) -> Self {
-        Self::new(e.to_string(), Span::call_site())
+        Self {
+            msg: e.to_string(),
+            span: Span::call_site(),
+        }
     }
 }
 
 impl From<&'static str> for CompileError {
     #[inline]
     fn from(s: &'static str) -> Self {
-        Self::new(s, Span::call_site())
+        Self {
+            msg: s.into(),
+            span: Span::call_site(),
+        }
     }
 }
 
 impl From<String> for CompileError {
     #[inline]
     fn from(s: String) -> Self {
-        Self::new(s, Span::call_site())
+        Self {
+            msg: s,
+            span: Span::call_site(),
+        }
     }
 }
 

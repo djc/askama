@@ -60,6 +60,10 @@ mod _parsed {
         pub fn nodes(&self) -> &[Node<'_>] {
             &self.ast.nodes
         }
+
+        pub fn source(&self) -> &str {
+            &self.source
+        }
     }
 
     impl fmt::Debug for Parsed {

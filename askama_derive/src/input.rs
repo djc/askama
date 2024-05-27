@@ -7,7 +7,7 @@ use mime::Mime;
 use quote::ToTokens;
 use syn::punctuated::Punctuated;
 
-use crate::config::{get_template_source, read_config_file, Config};
+use crate::config::{get_template_source, Config};
 use crate::CompileError;
 use parser::{Node, Parsed, Syntax};
 
@@ -113,7 +113,7 @@ impl TemplateInput<'_> {
         let (source, source_path) = match &self.source {
             Source::Source(s) => (s.into(), None),
             Source::Path(_) => (
-                get_template_source(&self.path)?,
+                get_template_source(&self.path, None)?,
                 Some(Rc::clone(&self.path)),
             ),
         };
@@ -127,13 +127,16 @@ impl TemplateInput<'_> {
             let mut nested = vec![parsed.nodes()];
             while let Some(nodes) = nested.pop() {
                 for n in nodes {
-                    let mut add_to_check = |path: Rc<Path>| -> Result<(), CompileError> {
-                        if !map.contains_key(&path) {
+                    let mut add_to_check = |new_path: Rc<Path>| -> Result<(), CompileError> {
+                        if !map.contains_key(&new_path) {
                             // Add a dummy entry to `map` in order to prevent adding `path`
                             // multiple times to `check`.
-                            map.insert(Rc::clone(&path), Parsed::default());
-                            let source = get_template_source(&path)?;
-                            check.push((path.clone(), source, Some(path)));
+                            map.insert(Rc::clone(&new_path), Parsed::default());
+                            let source = get_template_source(
+                                &new_path,
+                                Some((&path, parsed.source(), n.span())),
+                            )?;
+                            check.push((new_path.clone(), source, Some(new_path)));
                         }
                         Ok(())
                     };
@@ -349,8 +352,8 @@ impl TemplateArgs {
         }
     }
 
-    pub(crate) fn config(&self) -> Result<String, CompileError> {
-        read_config_file(self.config.as_deref())
+    pub(crate) fn config_path(&self) -> Option<&str> {
+        self.config.as_deref()
     }
 }
 

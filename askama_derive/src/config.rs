@@ -6,7 +6,7 @@ use std::{env, fs};
 #[cfg(feature = "serde")]
 use serde::Deserialize;
 
-use crate::{CompileError, CRATE};
+use crate::{CompileError, FileInfo, CRATE};
 use parser::node::Whitespace;
 use parser::Syntax;
 
@@ -22,6 +22,7 @@ pub(crate) struct Config<'a> {
 impl<'a> Config<'a> {
     pub(crate) fn new(
         s: &'a str,
+        config_path: Option<&str>,
         template_whitespace: Option<&str>,
     ) -> std::result::Result<Config<'a>, CompileError> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
@@ -54,12 +55,18 @@ impl<'a> Config<'a> {
                 WhitespaceHandling::default(),
             ),
         };
+        let file_info = config_path.map(|path| FileInfo::new(Path::new(path), None, None));
         if let Some(template_whitespace) = template_whitespace {
             whitespace = match template_whitespace {
                 "suppress" => WhitespaceHandling::Suppress,
                 "minimize" => WhitespaceHandling::Minimize,
                 "preserve" => WhitespaceHandling::Preserve,
-                s => return Err(format!("invalid value for `whitespace`: \"{s}\"").into()),
+                s => {
+                    return Err(CompileError::new(
+                        format!("invalid value for `whitespace`: \"{s}\""),
+                        file_info,
+                    ))
+                }
             };
         }
 
@@ -71,13 +78,19 @@ impl<'a> Config<'a> {
                     .insert(name.to_string(), raw_s.try_into()?)
                     .is_some()
                 {
-                    return Err(format!("syntax \"{name}\" is already defined").into());
+                    return Err(CompileError::new(
+                        format!("syntax \"{name}\" is already defined",),
+                        file_info,
+                    ));
                 }
             }
         }
 
         if !syntaxes.contains_key(default_syntax) {
-            return Err(format!("default syntax \"{default_syntax}\" not found").into());
+            return Err(CompileError::new(
+                format!("default syntax \"{default_syntax}\" not found"),
+                file_info,
+            ));
         }
 
         let mut escapers = Vec::new();
@@ -281,13 +294,32 @@ where
 }
 
 #[allow(clippy::match_wild_err_arm)]
-pub(crate) fn get_template_source(tpl_path: &Path) -> std::result::Result<String, CompileError> {
+pub(crate) fn get_template_source(
+    tpl_path: &Path,
+    import_from: Option<(&Rc<Path>, &str, &str)>,
+) -> std::result::Result<String, CompileError> {
     match fs::read_to_string(tpl_path) {
-        Err(_) => Err(format!(
-            "unable to open template file '{}'",
-            tpl_path.to_str().unwrap()
-        )
-        .into()),
+        Err(_) => {
+            if let Some((node_file, file_source, node_source)) = import_from {
+                Err(CompileError::new(
+                    format!(
+                        "unable to open template file '{}'",
+                        tpl_path.to_str().unwrap(),
+                    ),
+                    Some(FileInfo::new(
+                        node_file,
+                        Some(file_source),
+                        Some(node_source),
+                    )),
+                ))
+            } else {
+                Err(format!(
+                    "unable to open template file '{}'",
+                    tpl_path.to_str().unwrap()
+                )
+                .into())
+            }
+        }
         Ok(mut source) => {
             if source.ends_with('\n') {
                 let _ = source.pop();
@@ -314,17 +346,17 @@ mod tests {
 
     #[test]
     fn get_source() {
-        let path = Config::new("", None)
+        let path = Config::new("", None, None)
             .and_then(|config| config.find_template("b.html", None))
             .unwrap();
-        assert_eq!(get_template_source(&path).unwrap(), "bar");
+        assert_eq!(get_template_source(&path, None).unwrap(), "bar");
     }
 
     #[test]
     fn test_default_config() {
         let mut root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         root.push("templates");
-        let config = Config::new("", None).unwrap();
+        let config = Config::new("", None, None).unwrap();
         assert_eq!(config.dirs, vec![root]);
     }
 
@@ -333,7 +365,7 @@ mod tests {
     fn test_config_dirs() {
         let mut root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         root.push("tpl");
-        let config = Config::new("[general]\ndirs = [\"tpl\"]", None).unwrap();
+        let config = Config::new("[general]\ndirs = [\"tpl\"]", None, None).unwrap();
         assert_eq!(config.dirs, vec![root]);
     }
 
@@ -347,7 +379,7 @@ mod tests {
 
     #[test]
     fn find_absolute() {
-        let config = Config::new("", None).unwrap();
+        let config = Config::new("", None, None).unwrap();
         let root = config.find_template("a.html", None).unwrap();
         let path = config.find_template("sub/b.html", Some(&root)).unwrap();
         assert_eq_rooted(&path, "sub/b.html");
@@ -356,14 +388,14 @@ mod tests {
     #[test]
     #[should_panic]
     fn find_relative_nonexistent() {
-        let config = Config::new("", None).unwrap();
+        let config = Config::new("", None, None).unwrap();
         let root = config.find_template("a.html", None).unwrap();
         config.find_template("c.html", Some(&root)).unwrap();
     }
 
     #[test]
     fn find_relative() {
-        let config = Config::new("", None).unwrap();
+        let config = Config::new("", None, None).unwrap();
         let root = config.find_template("sub/b.html", None).unwrap();
         let path = config.find_template("c.html", Some(&root)).unwrap();
         assert_eq_rooted(&path, "sub/c.html");
@@ -371,7 +403,7 @@ mod tests {
 
     #[test]
     fn find_relative_sub() {
-        let config = Config::new("", None).unwrap();
+        let config = Config::new("", None, None).unwrap();
         let root = config.find_template("sub/b.html", None).unwrap();
         let path = config.find_template("sub1/d.html", Some(&root)).unwrap();
         assert_eq_rooted(&path, "sub/sub1/d.html");
@@ -394,7 +426,7 @@ mod tests {
         "#;
 
         let default_syntax = Syntax::default();
-        let config = Config::new(raw_config, None).unwrap();
+        let config = Config::new(raw_config, None, None).unwrap();
         assert_eq!(config.default_syntax, "foo");
 
         let foo = config.syntaxes.get("foo").unwrap();
@@ -426,7 +458,7 @@ mod tests {
         "#;
 
         let default_syntax = Syntax::default();
-        let config = Config::new(raw_config, None).unwrap();
+        let config = Config::new(raw_config, None, None).unwrap();
         assert_eq!(config.default_syntax, "foo");
 
         let foo = config.syntaxes.get("foo").unwrap();
@@ -463,7 +495,7 @@ mod tests {
         default_syntax = "emoji"
         "#;
 
-        let config = Config::new(raw_config, None).unwrap();
+        let config = Config::new(raw_config, None, None).unwrap();
         assert_eq!(config.default_syntax, "emoji");
 
         let foo = config.syntaxes.get("emoji").unwrap();
@@ -483,7 +515,7 @@ mod tests {
         name = "too_short"
         block_start = "<"
         "#;
-        let config = Config::new(raw_config, None);
+        let config = Config::new(raw_config, None, None);
         assert_eq!(
             config.unwrap_err().msg,
             r#"delimiters must be at least two characters long: "<""#,
@@ -494,7 +526,7 @@ mod tests {
         name = "contains_ws"
         block_start = " {{ "
         "#;
-        let config = Config::new(raw_config, None);
+        let config = Config::new(raw_config, None, None);
         assert_eq!(
             config.unwrap_err().msg,
             r#"delimiters may not contain white spaces: " {{ ""#,
@@ -507,7 +539,7 @@ mod tests {
         expr_start = "{{$"
         comment_start = "{{#"
         "#;
-        let config = Config::new(raw_config, None);
+        let config = Config::new(raw_config, None, None);
         assert_eq!(
             config.unwrap_err().msg,
             r#"a delimiter may not be the prefix of another delimiter: "{{" vs "{{$""#,
@@ -522,7 +554,7 @@ mod tests {
         syntax = [{ name = "default" }]
         "#;
 
-        let _config = Config::new(raw_config, None).unwrap();
+        let _config = Config::new(raw_config, None, None).unwrap();
     }
 
     #[cfg(feature = "toml")]
@@ -534,7 +566,7 @@ mod tests {
                   { name = "foo", block_start = "%%" } ]
         "#;
 
-        let _config = Config::new(raw_config, None).unwrap();
+        let _config = Config::new(raw_config, None, None).unwrap();
     }
 
     #[cfg(feature = "toml")]
@@ -546,7 +578,7 @@ mod tests {
         default_syntax = "foo"
         "#;
 
-        let _config = Config::new(raw_config, None).unwrap();
+        let _config = Config::new(raw_config, None, None).unwrap();
     }
 
     #[cfg(feature = "config")]
@@ -558,6 +590,7 @@ mod tests {
             path = "::askama::Js"
             extensions = ["js"]
         "#,
+            None,
             None,
         )
         .unwrap();
@@ -587,11 +620,12 @@ mod tests {
             whitespace = "suppress"
             "#,
             None,
+            None,
         )
         .unwrap();
         assert_eq!(config.whitespace, WhitespaceHandling::Suppress);
 
-        let config = Config::new(r#""#, None).unwrap();
+        let config = Config::new(r#""#, None, None).unwrap();
         assert_eq!(config.whitespace, WhitespaceHandling::Preserve);
 
         let config = Config::new(
@@ -599,6 +633,7 @@ mod tests {
             [general]
             whitespace = "preserve"
             "#,
+            None,
             None,
         )
         .unwrap();
@@ -609,6 +644,7 @@ mod tests {
             [general]
             whitespace = "minimize"
             "#,
+            None,
             None,
         )
         .unwrap();
@@ -627,17 +663,18 @@ mod tests {
             whitespace = "suppress"
             "#,
             Some(&"minimize".to_owned()),
+            None,
         )
         .unwrap();
         assert_eq!(config.whitespace, WhitespaceHandling::Minimize);
 
-        let config = Config::new(r#""#, Some(&"minimize".to_owned())).unwrap();
+        let config = Config::new(r#""#, Some(&"minimize".to_owned()), None).unwrap();
         assert_eq!(config.whitespace, WhitespaceHandling::Minimize);
     }
 
     #[test]
     fn test_config_whitespace_error() {
-        let config = Config::new(r#""#, Some("trim"));
+        let config = Config::new(r#""#, None, Some("trim"));
         if let Err(err) = config {
             assert_eq!(err.msg, "invalid value for `whitespace`: \"trim\"");
         } else {
