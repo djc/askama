@@ -138,11 +138,10 @@ impl<'a> Config<'a> {
             }
         }
 
-        Err(format!(
+        Err(CompileError::no_file_info(format!(
             "template {:?} not found in directories {:?}",
             path, self.dirs
-        )
-        .into())
+        )))
     }
 }
 
@@ -169,11 +168,13 @@ impl<'a> TryInto<Syntax<'a>> for RawSyntax<'a> {
             syntax.comment_end,
         ] {
             if s.len() < 2 {
-                return Err(
-                    format!("delimiters must be at least two characters long: {s:?}").into(),
-                );
+                return Err(CompileError::no_file_info(format!(
+                    "delimiters must be at least two characters long: {s:?}"
+                )));
             } else if s.chars().any(|c| c.is_whitespace()) {
-                return Err(format!("delimiters may not contain white spaces: {s:?}").into());
+                return Err(CompileError::no_file_info(format!(
+                    "delimiters may not contain white spaces: {s:?}"
+                )));
             }
         }
 
@@ -183,10 +184,9 @@ impl<'a> TryInto<Syntax<'a>> for RawSyntax<'a> {
             (syntax.expr_start, syntax.comment_start),
         ] {
             if s1.starts_with(s2) || s2.starts_with(s1) {
-                return Err(format!(
+                return Err(CompileError::no_file_info(format!(
                     "a delimiter may not be the prefix of another delimiter: {s1:?} vs {s2:?}",
-                )
-                .into());
+                )));
             }
         }
 
@@ -206,13 +206,14 @@ struct RawConfig<'a> {
 impl RawConfig<'_> {
     #[cfg(feature = "config")]
     fn from_toml_str(s: &str) -> std::result::Result<RawConfig<'_>, CompileError> {
-        basic_toml::from_str(s)
-            .map_err(|e| format!("invalid TOML in {CONFIG_FILE_NAME}: {e}").into())
+        basic_toml::from_str(s).map_err(|e| {
+            CompileError::no_file_info(format!("invalid TOML in {CONFIG_FILE_NAME}: {e}"))
+        })
     }
 
     #[cfg(not(feature = "config"))]
     fn from_toml_str(_: &str) -> std::result::Result<RawConfig<'_>, CompileError> {
-        Err("TOML support not available".into())
+        Err(CompileError::no_file_info("TOML support not available"))
     }
 }
 
@@ -277,10 +278,14 @@ pub(crate) fn read_config_file(
     };
 
     if filename.exists() {
-        fs::read_to_string(&filename)
-            .map_err(|_| format!("unable to read {:?}", filename.to_str().unwrap()).into())
+        fs::read_to_string(&filename).map_err(|_| {
+            CompileError::no_file_info(format!("unable to read {:?}", filename.to_str().unwrap()))
+        })
     } else if config_path.is_some() {
-        Err(format!("`{}` does not exist", root.display()).into())
+        Err(CompileError::no_file_info(format!(
+            "`{}` does not exist",
+            root.display()
+        )))
     } else {
         Ok("".to_string())
     }
@@ -313,11 +318,10 @@ pub(crate) fn get_template_source(
                     )),
                 ))
             } else {
-                Err(format!(
+                Err(CompileError::no_file_info(format!(
                     "unable to open template file '{}'",
                     tpl_path.to_str().unwrap()
-                )
-                .into())
+                )))
             }
         }
         Ok(mut source) => {

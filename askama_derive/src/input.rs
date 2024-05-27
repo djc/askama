@@ -55,7 +55,9 @@ impl TemplateInput<'_> {
                 PathBuf::from(format!("{}.{}", ast.ident, ext)).into()
             }
             (&Source::Source(_), None) => {
-                return Err("must include 'ext' attribute when using 'source' attribute".into())
+                return Err(CompileError::no_file_info(
+                    "must include 'ext' attribute when using 'source' attribute",
+                ))
             }
         };
 
@@ -63,10 +65,9 @@ impl TemplateInput<'_> {
         let syntax = syntax.as_deref().map_or_else(
             || Ok(config.syntaxes.get(config.default_syntax).unwrap()),
             |s| {
-                config
-                    .syntaxes
-                    .get(s)
-                    .ok_or_else(|| CompileError::from(format!("attribute syntax {s} not exist")))
+                config.syntaxes.get(s).ok_or_else(|| {
+                    CompileError::no_file_info(format!("attribute syntax {s} not exist"))
+                })
             },
         )?;
 
@@ -85,7 +86,7 @@ impl TemplateInput<'_> {
         }
 
         let escaper = escaper.ok_or_else(|| {
-            CompileError::from(format!("no escaper defined for extension '{escaping}'"))
+            CompileError::no_file_info(format!("no escaper defined for extension '{escaping}'"))
         })?;
 
         let mime_type =
@@ -236,13 +237,21 @@ impl TemplateArgs {
 
             match attr.parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated) {
                 Ok(args) if template_args.is_none() => template_args = Some(args),
-                Ok(_) => return Err("duplicated 'template' attribute".into()),
-                Err(e) => return Err(format!("unable to parse template arguments: {e}").into()),
+                Ok(_) => {
+                    return Err(CompileError::no_file_info(
+                        "duplicated 'template' attribute",
+                    ))
+                }
+                Err(e) => {
+                    return Err(CompileError::no_file_info(format!(
+                        "unable to parse template arguments: {e}"
+                    )))
+                }
             };
         }
 
-        let template_args =
-            template_args.ok_or_else(|| CompileError::from("no attribute 'template' found"))?;
+        let template_args = template_args
+            .ok_or_else(|| CompileError::no_file_info("no attribute 'template' found"))?;
 
         let mut args = Self::default();
         // Loop over the meta attributes and find everything that we
@@ -252,11 +261,10 @@ impl TemplateArgs {
             let pair = match item {
                 syn::Meta::NameValue(pair) => pair,
                 _ => {
-                    return Err(format!(
+                    return Err(CompileError::no_file_info(format!(
                         "unsupported attribute argument {:?}",
                         item.to_token_stream()
-                    )
-                    .into())
+                    )))
                 }
             };
 
@@ -270,74 +278,104 @@ impl TemplateArgs {
                 syn::Expr::Group(group) => match *group.expr {
                     syn::Expr::Lit(lit) => lit,
                     _ => {
-                        return Err(format!("unsupported argument value type for {ident:?}").into())
+                        return Err(CompileError::no_file_info(format!(
+                            "unsupported argument value type for {ident:?}"
+                        )))
                     }
                 },
-                _ => return Err(format!("unsupported argument value type for {ident:?}").into()),
+                _ => {
+                    return Err(CompileError::no_file_info(format!(
+                        "unsupported argument value type for {ident:?}"
+                    )))
+                }
             };
 
             if ident == "path" {
                 if let syn::Lit::Str(s) = value.lit {
                     if args.source.is_some() {
-                        return Err("must specify 'source' or 'path', not both".into());
+                        return Err(CompileError::no_file_info(
+                            "must specify 'source' or 'path', not both",
+                        ));
                     }
                     args.source = Some(Source::Path(s.value()));
                 } else {
-                    return Err("template path must be string literal".into());
+                    return Err(CompileError::no_file_info(
+                        "template path must be string literal",
+                    ));
                 }
             } else if ident == "source" {
                 if let syn::Lit::Str(s) = value.lit {
                     if args.source.is_some() {
-                        return Err("must specify 'source' or 'path', not both".into());
+                        return Err(CompileError::no_file_info(
+                            "must specify 'source' or 'path', not both",
+                        ));
                     }
                     args.source = Some(Source::Source(s.value()));
                 } else {
-                    return Err("template source must be string literal".into());
+                    return Err(CompileError::no_file_info(
+                        "template source must be string literal",
+                    ));
                 }
             } else if ident == "block" {
                 if let syn::Lit::Str(s) = value.lit {
                     args.block = Some(s.value());
                 } else {
-                    return Err("block value must be string literal".into());
+                    return Err(CompileError::no_file_info(
+                        "block value must be string literal",
+                    ));
                 }
             } else if ident == "print" {
                 if let syn::Lit::Str(s) = value.lit {
                     args.print = s.value().parse()?;
                 } else {
-                    return Err("print value must be string literal".into());
+                    return Err(CompileError::no_file_info(
+                        "print value must be string literal",
+                    ));
                 }
             } else if ident == "escape" {
                 if let syn::Lit::Str(s) = value.lit {
                     args.escaping = Some(s.value());
                 } else {
-                    return Err("escape value must be string literal".into());
+                    return Err(CompileError::no_file_info(
+                        "escape value must be string literal",
+                    ));
                 }
             } else if ident == "ext" {
                 if let syn::Lit::Str(s) = value.lit {
                     args.ext = Some(s.value());
                 } else {
-                    return Err("ext value must be string literal".into());
+                    return Err(CompileError::no_file_info(
+                        "ext value must be string literal",
+                    ));
                 }
             } else if ident == "syntax" {
                 if let syn::Lit::Str(s) = value.lit {
                     args.syntax = Some(s.value())
                 } else {
-                    return Err("syntax value must be string literal".into());
+                    return Err(CompileError::no_file_info(
+                        "syntax value must be string literal",
+                    ));
                 }
             } else if ident == "config" {
                 if let syn::Lit::Str(s) = value.lit {
                     args.config = Some(s.value());
                 } else {
-                    return Err("config value must be string literal".into());
+                    return Err(CompileError::no_file_info(
+                        "config value must be string literal",
+                    ));
                 }
             } else if ident == "whitespace" {
                 if let syn::Lit::Str(s) = value.lit {
                     args.whitespace = Some(s.value())
                 } else {
-                    return Err("whitespace value must be string literal".into());
+                    return Err(CompileError::no_file_info(
+                        "whitespace value must be string literal",
+                    ));
                 }
             } else {
-                return Err(format!("unsupported attribute key {ident:?} found").into());
+                return Err(CompileError::no_file_info(format!(
+                    "unsupported attribute key {ident:?} found"
+                )));
             }
         }
 
@@ -399,7 +437,11 @@ impl FromStr for Print {
             "ast" => Print::Ast,
             "code" => Print::Code,
             "none" => Print::None,
-            v => return Err(format!("invalid value for print option: {v}",).into()),
+            v => {
+                return Err(CompileError::no_file_info(format!(
+                    "invalid value for print option: {v}"
+                )))
+            }
         })
     }
 }
@@ -437,14 +479,13 @@ const TEXT_TYPES: [(Mime, Mime); 7] = [
 ];
 
 fn cyclic_graph_error(dependency_graph: &[(Rc<Path>, Rc<Path>)]) -> Result<(), CompileError> {
-    Err(format!(
+    Err(CompileError::no_file_info(format!(
         "cyclic dependency in graph {:#?}",
         dependency_graph
             .iter()
             .map(|e| format!("{:#?} --> {:#?}", e.0, e.1))
             .collect::<Vec<String>>()
-    )
-    .into())
+    )))
 }
 
 #[cfg(test)]

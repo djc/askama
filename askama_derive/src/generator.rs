@@ -1972,7 +1972,9 @@ impl Buffer {
 
     fn dedent(&mut self) -> Result<(), CompileError> {
         if self.indent == 0 {
-            return Err("dedent() called while indentation == 0".into());
+            return Err(CompileError::no_file_info(
+                "dedent() called while indentation == 0",
+            ));
         }
         self.indent -= 1;
         Ok(())

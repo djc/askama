@@ -75,7 +75,10 @@ pub(crate) fn build_template(ast: &syn::DeriveInput) -> Result<String, CompileEr
 
         if let Some(block_name) = input.block {
             if !heritage.blocks.contains_key(&block_name) {
-                return Err(format!("cannot find block {}", block_name).into());
+                return Err(CompileError::no_file_info(format!(
+                    "cannot find block {}",
+                    block_name
+                )));
             }
         }
 
@@ -114,6 +117,13 @@ impl CompileError {
         }
     }
 
+    fn no_file_info<S: fmt::Display>(msg: S) -> Self {
+        Self {
+            msg: msg.to_string(),
+            span: Span::call_site(),
+        }
+    }
+
     fn into_compile_error(self) -> TokenStream {
         syn::Error::new(self.span, self.msg)
             .to_compile_error()
@@ -133,30 +143,8 @@ impl fmt::Display for CompileError {
 impl From<ParseError> for CompileError {
     #[inline]
     fn from(e: ParseError) -> Self {
-        Self {
-            msg: e.to_string(),
-            span: Span::call_site(),
-        }
-    }
-}
-
-impl From<&'static str> for CompileError {
-    #[inline]
-    fn from(s: &'static str) -> Self {
-        Self {
-            msg: s.into(),
-            span: Span::call_site(),
-        }
-    }
-}
-
-impl From<String> for CompileError {
-    #[inline]
-    fn from(s: String) -> Self {
-        Self {
-            msg: s,
-            span: Span::call_site(),
-        }
+        // It already has the correct message so no need to do anything.
+        Self::no_file_info(e)
     }
 }
 

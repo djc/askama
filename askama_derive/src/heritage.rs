@@ -76,7 +76,9 @@ impl Context<'_> {
             for n in nodes {
                 match n {
                     Node::Extends(e) if top => match extends {
-                        Some(_) => return Err("multiple extend blocks found".into()),
+                        Some(_) => {
+                            return Err(CompileError::no_file_info("multiple extend blocks found"))
+                        }
                         None => {
                             extends = Some(config.find_template(e.path, Some(path))?);
                         }
@@ -89,9 +91,9 @@ impl Context<'_> {
                         imports.insert(import.scope, path);
                     }
                     Node::Extends(_) | Node::Macro(_) | Node::Import(_) if !top => {
-                        return Err(
-                            "extends, macro or import blocks not allowed below top level".into(),
-                        );
+                        return Err(CompileError::no_file_info(
+                            "extends, macro or import blocks not allowed below top level",
+                        ));
                     }
                     Node::BlockDef(b) => {
                         blocks.insert(b.name, &**b);
