@@ -672,7 +672,7 @@ impl<'a> Generator<'a> {
                 }
                 Expr::Attr(obj, attr) => {
                     let mut attr_buf = Buffer::new(0);
-                    self.visit_attr(ctx, &mut attr_buf, &obj, attr)?;
+                    self.visit_attr(ctx, &mut attr_buf, obj, attr)?;
 
                     let var = self.locals.resolve(&attr_buf.buf).unwrap_or(attr_buf.buf);
                     self.locals
@@ -2141,18 +2141,18 @@ pub(crate) fn is_cacheable(expr: &WithSpan<'_, Expr<'_>>) -> bool {
         Expr::Path(_) => true,
         // Check recursively:
         Expr::Array(args) => args.iter().all(is_cacheable),
-        Expr::Attr(lhs, _) => is_cacheable(&lhs),
-        Expr::Index(lhs, rhs) => is_cacheable(&lhs) && is_cacheable(&rhs),
+        Expr::Attr(lhs, _) => is_cacheable(lhs),
+        Expr::Index(lhs, rhs) => is_cacheable(lhs) && is_cacheable(rhs),
         Expr::Filter(Filter { arguments, .. }) => arguments.iter().all(is_cacheable),
-        Expr::Unary(_, arg) => is_cacheable(&*arg),
-        Expr::BinOp(_, lhs, rhs) => is_cacheable(&lhs) && is_cacheable(&rhs),
+        Expr::Unary(_, arg) => is_cacheable(arg),
+        Expr::BinOp(_, lhs, rhs) => is_cacheable(lhs) && is_cacheable(rhs),
         Expr::Range(_, lhs, rhs) => {
             lhs.as_ref().map_or(true, |v| is_cacheable(v))
                 && rhs.as_ref().map_or(true, |v| is_cacheable(v))
         }
-        Expr::Group(arg) => is_cacheable(&arg),
+        Expr::Group(arg) => is_cacheable(arg),
         Expr::Tuple(args) => args.iter().all(is_cacheable),
-        Expr::NamedArgument(_, expr) => is_cacheable(&expr),
+        Expr::NamedArgument(_, expr) => is_cacheable(expr),
         // We have too little information to tell if the expression is pure:
         Expr::Call(_, _) => false,
         Expr::RustMacro(_, _) => false,
