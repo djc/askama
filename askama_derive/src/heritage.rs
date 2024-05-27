@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use crate::config::Config;
 use crate::CompileError;
-use parser::node::{BlockDef, Macro, Match};
+use parser::node::{BlockDef, Macro};
 use parser::Node;
 
 pub(crate) struct Heritage<'a> {
@@ -68,7 +68,7 @@ impl Context<'_> {
                         }
                     },
                     Node::Macro(m) if top => {
-                        macros.insert(m.name, m);
+                        macros.insert(m.name, &**m);
                     }
                     Node::Import(import) if top => {
                         let path = config.find_template(import.path, Some(path))?;
@@ -80,7 +80,7 @@ impl Context<'_> {
                         );
                     }
                     Node::BlockDef(b) => {
-                        blocks.insert(b.name, b);
+                        blocks.insert(b.name, &**b);
                         nested.push(&b.nodes);
                     }
                     Node::If(i) => {
@@ -92,8 +92,8 @@ impl Context<'_> {
                         nested.push(&l.body);
                         nested.push(&l.else_nodes);
                     }
-                    Node::Match(Match { arms, .. }) => {
-                        for arm in arms {
+                    Node::Match(m) => {
+                        for arm in &m.arms {
                             nested.push(&arm.nodes);
                         }
                     }

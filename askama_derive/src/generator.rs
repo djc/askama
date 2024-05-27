@@ -14,7 +14,7 @@ use parser::node::{
     Call, Comment, CondTest, FilterBlock, If, Include, Let, Lit, Loop, Match, Target, Whitespace,
     Ws,
 };
-use parser::{Expr, Filter, Node};
+use parser::{Expr, Filter, Node, WithSpan};
 use quote::quote;
 
 pub(crate) struct Generator<'a> {
@@ -312,13 +312,13 @@ impl<'a> Generator<'a> {
                     // No whitespace handling: child template top-level is not used,
                     // except for the blocks defined in it.
                 }
-                Node::Break(ws) => {
-                    self.handle_ws(ws);
+                Node::Break(ref ws) => {
+                    self.handle_ws(**ws);
                     self.write_buf_writable(buf)?;
                     buf.writeln("break;")?;
                 }
-                Node::Continue(ws) => {
-                    self.handle_ws(ws);
+                Node::Continue(ref ws) => {
+                    self.handle_ws(**ws);
                     self.write_buf_writable(buf)?;
                     buf.writeln("continue;")?;
                 }
@@ -368,7 +368,7 @@ impl<'a> Generator<'a> {
                     // If this is a chain condition, then we need to declare the variable after the
                     // left expression has been handled but before the right expression is handled
                     // but this one should have access to the let-bound variable.
-                    match expr {
+                    match &**expr {
                         Expr::BinOp(op, ref left, ref right) if *op == "||" || *op == "&&" => {
                             self.visit_expr(&mut expr_buf, left)?;
                             self.visit_target(buf, true, true, target);
@@ -470,7 +470,7 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &Context<'a>,
         buf: &mut Buffer,
-        loop_block: &'a Loop<'_>,
+        loop_block: &'a WithSpan<'_, Loop<'_>>,
     ) -> Result<usize, CompileError> {
         self.handle_ws(loop_block.ws1);
         self.locals.push();
@@ -484,7 +484,7 @@ impl<'a> Generator<'a> {
         if has_else_nodes {
             buf.writeln("let mut _did_loop = false;")?;
         }
-        match loop_block.iter {
+        match &*loop_block.iter {
             Expr::Range(_, _, _) => buf.writeln(&format!("let _iter = {expr_code};")),
             Expr::Array(..) => buf.writeln(&format!("let _iter = {expr_code}.iter();")),
             // If `iter` is a call then we assume it's something that returns
@@ -608,10 +608,10 @@ impl<'a> Generator<'a> {
         let mut named_arguments = HashMap::new();
         // Since named arguments can only be passed last, we only need to check if the last argument
         // is a named one.
-        if let Some(Expr::NamedArgument(_, _)) = args.last() {
+        if let Some(Expr::NamedArgument(_, _)) = args.last().map(|expr| &**expr) {
             // First we check that all named arguments actually exist in the called item.
             for arg in args.iter().rev() {
-                let Expr::NamedArgument(arg_name, _) = arg else {
+                let Expr::NamedArgument(arg_name, _) = &**arg else {
                     break;
                 };
                 if !def.args.iter().any(|arg| arg == arg_name) {
@@ -649,7 +649,7 @@ impl<'a> Generator<'a> {
                     &args[index]
                 }
             };
-            match expr {
+            match &**expr {
                 // If `expr` is already a form of variable then
                 // don't reintroduce a new variable. This is
                 // to avoid moving non-copyable values.
@@ -992,7 +992,7 @@ impl<'a> Generator<'a> {
         Ok(size_hint)
     }
 
-    fn write_expr(&mut self, ws: Ws, s: &'a Expr<'a>) {
+    fn write_expr(&mut self, ws: Ws, s: &'a WithSpan<'a, Expr<'a>>) {
         self.handle_ws(ws);
         self.buf_writable.push(Writable::Expr(s));
     }
@@ -1169,13 +1169,13 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn write_comment(&mut self, comment: &'a Comment<'_>) {
+    fn write_comment(&mut self, comment: &'a WithSpan<'_, Comment<'_>>) {
         self.handle_ws(comment.ws);
     }
 
     /* Visitor methods for expression types */
 
-    fn visit_expr_root(&mut self, expr: &Expr<'_>) -> Result<String, CompileError> {
+    fn visit_expr_root(&mut self, expr: &WithSpan<'_, Expr<'_>>) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
         self.visit_expr(&mut buf, expr)?;
         Ok(buf.buf)
@@ -1184,9 +1184,9 @@ impl<'a> Generator<'a> {
     fn visit_expr(
         &mut self,
         buf: &mut Buffer,
-        expr: &Expr<'_>,
+        expr: &WithSpan<'_, Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
-        Ok(match *expr {
+        Ok(match **expr {
             Expr::BoolLit(s) => self.visit_bool_lit(buf, s),
             Expr::NumLit(s) => self.visit_num_lit(buf, s),
             Expr::StrLit(s) => self.visit_str_lit(buf, s),
@@ -1218,7 +1218,7 @@ impl<'a> Generator<'a> {
     fn visit_try(
         &mut self,
         buf: &mut Buffer,
-        expr: &Expr<'_>,
+        expr: &WithSpan<'_, Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("::core::result::Result::map_err(");
         self.visit_expr(buf, expr)?;
@@ -1241,7 +1241,7 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         name: &str,
-        args: &[Expr<'_>],
+        args: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
         match name {
             "as_ref" => return self._visit_as_ref_filter(buf, args),
@@ -1268,7 +1268,7 @@ impl<'a> Generator<'a> {
     fn _visit_as_ref_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
         let arg = match args {
             [arg] => arg,
@@ -1282,7 +1282,7 @@ impl<'a> Generator<'a> {
     fn _visit_deref_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
         let arg = match args {
             [arg] => arg,
@@ -1296,7 +1296,7 @@ impl<'a> Generator<'a> {
     fn _visit_json_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
         if cfg!(not(feature = "serde-json")) {
             return Err("the `json` filter requires the `serde-json` feature to be enabled".into());
@@ -1315,7 +1315,7 @@ impl<'a> Generator<'a> {
     fn _visit_safe_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
         if args.len() != 1 {
             return Err("unexpected argument(s) in `safe` filter".into());
@@ -1332,12 +1332,12 @@ impl<'a> Generator<'a> {
     fn _visit_escape_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
         if args.len() > 2 {
             return Err("only two arguments allowed to escape filter".into());
         }
-        let opt_escaper = match args.get(1) {
+        let opt_escaper = match args.get(1).map(|expr| &**expr) {
             Some(Expr::StrLit(name)) => Some(*name),
             Some(_) => return Err("invalid escaper type for escape filter".into()),
             None => None,
@@ -1364,44 +1364,46 @@ impl<'a> Generator<'a> {
     fn _visit_format_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
-        let fmt = match args {
-            [Expr::StrLit(fmt), ..] => fmt,
-            _ => return Err(r#"use filter format like `"a={} b={}"|format(a, b)`"#.into()),
-        };
-        buf.write("::std::format!(");
-        self.visit_str_lit(buf, fmt);
-        if args.len() > 1 {
-            buf.write(", ");
-            self._visit_args(buf, &args[1..])?;
+        if !args.is_empty() {
+            if let Expr::StrLit(fmt) = *args[0] {
+                buf.write("::std::format!(");
+                self.visit_str_lit(buf, fmt);
+                if args.len() > 1 {
+                    buf.write(", ");
+                    self._visit_args(buf, &args[1..])?;
+                }
+                buf.write(")");
+                return Ok(DisplayWrap::Unwrapped);
+            }
         }
-        buf.write(")");
-        Ok(DisplayWrap::Unwrapped)
+        Err(r#"use filter format like `"a={} b={}"|format(a, b)`"#.into())
     }
 
     fn _visit_fmt_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
-        let fmt = match args {
-            [_, Expr::StrLit(fmt)] => fmt,
-            _ => return Err(r#"use filter fmt like `value|fmt("{:?}")`"#.into()),
-        };
-        buf.write("::std::format!(");
-        self.visit_str_lit(buf, fmt);
-        buf.write(", ");
-        self._visit_args(buf, &args[..1])?;
-        buf.write(")");
-        Ok(DisplayWrap::Unwrapped)
+        if let [_, arg2] = args {
+            if let Expr::StrLit(fmt) = **arg2 {
+                buf.write("::std::format!(");
+                self.visit_str_lit(buf, fmt);
+                buf.write(", ");
+                self._visit_args(buf, &args[..1])?;
+                buf.write(")");
+                return Ok(DisplayWrap::Unwrapped);
+            }
+        }
+        return Err(r#"use filter fmt like `value|fmt("{:?}")`"#.into());
     }
 
     // Force type coercion on first argument to `join` filter (see #39).
     fn _visit_join_filter(
         &mut self,
         buf: &mut Buffer,
-        args: &[Expr<'_>],
+        args: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
         buf.write(CRATE);
         buf.write("::filters::join((&");
@@ -1418,7 +1420,11 @@ impl<'a> Generator<'a> {
         Ok(DisplayWrap::Unwrapped)
     }
 
-    fn _visit_args(&mut self, buf: &mut Buffer, args: &[Expr<'_>]) -> Result<(), CompileError> {
+    fn _visit_args(
+        &mut self,
+        buf: &mut Buffer,
+        args: &[WithSpan<'_, Expr<'_>>],
+    ) -> Result<(), CompileError> {
         if args.is_empty() {
             return Ok(());
         }
@@ -1433,8 +1439,8 @@ impl<'a> Generator<'a> {
                 buf.write("&(");
             }
 
-            match arg {
-                Expr::Call(left, _) if !matches!(left.as_ref(), Expr::Path(_)) => {
+            match **arg {
+                Expr::Call(ref left, _) if !matches!(***left, Expr::Path(_)) => {
                     buf.writeln("{")?;
                     self.visit_expr(buf, arg)?;
                     buf.writeln("}")?;
@@ -1454,10 +1460,10 @@ impl<'a> Generator<'a> {
     fn visit_attr(
         &mut self,
         buf: &mut Buffer,
-        obj: &Expr<'_>,
+        obj: &WithSpan<'_, Expr<'_>>,
         attr: &str,
     ) -> Result<DisplayWrap, CompileError> {
-        if let Expr::Var(name) = *obj {
+        if let Expr::Var(name) = **obj {
             if name == "loop" {
                 if attr == "index" {
                     buf.write("(_loop_item.index + 1)");
@@ -1484,8 +1490,8 @@ impl<'a> Generator<'a> {
     fn visit_index(
         &mut self,
         buf: &mut Buffer,
-        obj: &Expr<'_>,
-        key: &Expr<'_>,
+        obj: &WithSpan<'_, Expr<'_>>,
+        key: &WithSpan<'_, Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("&");
         self.visit_expr(buf, obj)?;
@@ -1498,14 +1504,14 @@ impl<'a> Generator<'a> {
     fn visit_call(
         &mut self,
         buf: &mut Buffer,
-        left: &Expr<'_>,
-        args: &[Expr<'_>],
+        left: &WithSpan<'_, Expr<'_>>,
+        args: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
-        match left {
-            Expr::Attr(left, method) if **left == Expr::Var("loop") => match *method {
+        match &**left {
+            Expr::Attr(left, method) if ***left == Expr::Var("loop") => match *method {
                 "cycle" => match args {
                     [arg] => {
-                        if matches!(arg, Expr::Array(arr) if arr.is_empty()) {
+                        if matches!(**arg, Expr::Array(ref arr) if arr.is_empty()) {
                             return Err("loop.cycle(…) cannot use an empty array".into());
                         }
                         buf.write("({");
@@ -1525,17 +1531,16 @@ impl<'a> Generator<'a> {
                 },
                 s => return Err(format!("unknown loop method: {s:?}").into()),
             },
-            left => {
-                match left {
+            sub_left => {
+                match sub_left {
                     Expr::Var(name) => match self.locals.resolve(name) {
                         Some(resolved) => buf.write(&resolved),
                         None => buf.write(&format!("(&self.{})", normalize_identifier(name))),
                     },
-                    left => {
+                    _ => {
                         self.visit_expr(buf, left)?;
                     }
                 }
-
                 buf.write("(");
                 self._visit_args(buf, args)?;
                 buf.write(")");
@@ -1548,7 +1553,7 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         op: &str,
-        inner: &Expr<'_>,
+        inner: &WithSpan<'_, Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
         buf.write(op);
         self.visit_expr(buf, inner)?;
@@ -1559,8 +1564,8 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         op: &str,
-        left: Option<&Expr<'_>>,
-        right: Option<&Expr<'_>>,
+        left: Option<&WithSpan<'_, Expr<'_>>>,
+        right: Option<&WithSpan<'_, Expr<'_>>>,
     ) -> Result<DisplayWrap, CompileError> {
         if let Some(left) = left {
             self.visit_expr(buf, left)?;
@@ -1576,8 +1581,8 @@ impl<'a> Generator<'a> {
         &mut self,
         buf: &mut Buffer,
         op: &str,
-        left: &Expr<'_>,
-        right: &Expr<'_>,
+        left: &WithSpan<'_, Expr<'_>>,
+        right: &WithSpan<'_, Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
         self.visit_expr(buf, left)?;
         buf.write(&format!(" {op} "));
@@ -1588,7 +1593,7 @@ impl<'a> Generator<'a> {
     fn visit_group(
         &mut self,
         buf: &mut Buffer,
-        inner: &Expr<'_>,
+        inner: &WithSpan<'_, Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("(");
         self.visit_expr(buf, inner)?;
@@ -1599,7 +1604,7 @@ impl<'a> Generator<'a> {
     fn visit_tuple(
         &mut self,
         buf: &mut Buffer,
-        exprs: &[Expr<'_>],
+        exprs: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("(");
         for (index, expr) in exprs.iter().enumerate() {
@@ -1616,7 +1621,7 @@ impl<'a> Generator<'a> {
     fn visit_named_argument(
         &mut self,
         buf: &mut Buffer,
-        expr: &Expr<'_>,
+        expr: &WithSpan<'_, Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
         self.visit_expr(buf, expr)?;
         Ok(DisplayWrap::Unwrapped)
@@ -1625,7 +1630,7 @@ impl<'a> Generator<'a> {
     fn visit_array(
         &mut self,
         buf: &mut Buffer,
-        elements: &[Expr<'_>],
+        elements: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("[");
         for (i, el) in elements.iter().enumerate() {
@@ -2026,8 +2031,8 @@ fn is_copyable_within_op(expr: &Expr<'_>, within_op: bool) -> bool {
 /// Returns `true` if this is an `Attr` where the `obj` is `"self"`.
 pub(crate) fn is_attr_self(expr: &Expr<'_>) -> bool {
     match expr {
-        Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Var("self")) => true,
-        Expr::Attr(obj, _) if matches!(obj.as_ref(), Expr::Attr(..)) => is_attr_self(obj),
+        Expr::Attr(obj, _) if matches!(***obj, Expr::Var("self")) => true,
+        Expr::Attr(obj, _) if matches!(***obj, Expr::Attr(..)) => is_attr_self(obj),
         _ => false,
     }
 }
@@ -2035,8 +2040,8 @@ pub(crate) fn is_attr_self(expr: &Expr<'_>) -> bool {
 /// Returns `true` if the outcome of this expression may be used multiple times in the same
 /// `write!()` call, without evaluating the expression again, i.e. the expression should be
 /// side-effect free.
-pub(crate) fn is_cacheable(expr: &Expr<'_>) -> bool {
-    match expr {
+pub(crate) fn is_cacheable(expr: &WithSpan<'_, Expr<'_>>) -> bool {
+    match &**expr {
         // Literals are the definition of pure:
         Expr::BoolLit(_) => true,
         Expr::NumLit(_) => true,
@@ -2047,18 +2052,18 @@ pub(crate) fn is_cacheable(expr: &Expr<'_>) -> bool {
         Expr::Path(_) => true,
         // Check recursively:
         Expr::Array(args) => args.iter().all(is_cacheable),
-        Expr::Attr(lhs, _) => is_cacheable(lhs),
-        Expr::Index(lhs, rhs) => is_cacheable(lhs) && is_cacheable(rhs),
+        Expr::Attr(lhs, _) => is_cacheable(&lhs),
+        Expr::Index(lhs, rhs) => is_cacheable(&lhs) && is_cacheable(&rhs),
         Expr::Filter(Filter { arguments, .. }) => arguments.iter().all(is_cacheable),
-        Expr::Unary(_, arg) => is_cacheable(arg),
-        Expr::BinOp(_, lhs, rhs) => is_cacheable(lhs) && is_cacheable(rhs),
+        Expr::Unary(_, arg) => is_cacheable(&*arg),
+        Expr::BinOp(_, lhs, rhs) => is_cacheable(&lhs) && is_cacheable(&rhs),
         Expr::Range(_, lhs, rhs) => {
             lhs.as_ref().map_or(true, |v| is_cacheable(v))
                 && rhs.as_ref().map_or(true, |v| is_cacheable(v))
         }
-        Expr::Group(arg) => is_cacheable(arg),
+        Expr::Group(arg) => is_cacheable(&arg),
         Expr::Tuple(args) => args.iter().all(is_cacheable),
-        Expr::NamedArgument(_, expr) => is_cacheable(expr),
+        Expr::NamedArgument(_, expr) => is_cacheable(&expr),
         // We have too little information to tell if the expression is pure:
         Expr::Call(_, _) => false,
         Expr::RustMacro(_, _) => false,
@@ -2108,12 +2113,17 @@ fn median(sizes: &mut [usize]) -> usize {
 /// So in here, we want to insert the variable containing the content of the filter block inside
 /// the call to `"a"`. To do so, we recursively go through all `Filter` and finally insert our
 /// variable as the first argument to the `"a"` call.
-fn insert_first_filter_argument(args: &mut Vec<Expr<'_>>, var_name: String) {
-    if let Some(Expr::Filter(Filter { arguments, .. })) = args.first_mut() {
-        insert_first_filter_argument(arguments, var_name);
-    } else {
-        args.insert(0, Expr::Generated(var_name));
+fn insert_first_filter_argument(args: &mut Vec<WithSpan<'_, Expr<'_>>>, var_name: String) {
+    if let Some(expr) = args.first_mut() {
+        if let Expr::Filter(Filter {
+            ref mut arguments, ..
+        }) = **expr
+        {
+            insert_first_filter_argument(arguments, var_name);
+            return;
+        }
     }
+    args.insert(0, WithSpan::new(Expr::Generated(var_name), ""));
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -2154,7 +2164,7 @@ impl<'a> Deref for WritableBuffer<'a> {
 #[derive(Debug)]
 enum Writable<'a> {
     Lit(&'a str),
-    Expr(&'a Expr<'a>),
+    Expr(&'a WithSpan<'a, Expr<'a>>),
     Generated(String, DisplayWrap),
 }
 
