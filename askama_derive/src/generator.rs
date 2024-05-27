@@ -264,7 +264,7 @@ impl<'a> Generator<'a> {
                     self.write_expr(ws, val);
                 }
                 Node::Let(ref l) => {
-                    self.write_let(buf, l)?;
+                    self.write_let(ctx, buf, l)?;
                 }
                 Node::If(ref i) => {
                     size_hint += self.write_if(ctx, buf, i)?;
@@ -276,7 +276,8 @@ impl<'a> Generator<'a> {
                     size_hint += self.write_loop(ctx, buf, loop_block)?;
                 }
                 Node::BlockDef(ref b) => {
-                    size_hint += self.write_block(ctx, buf, Some(b.name), Ws(b.ws1.0, b.ws2.1))?;
+                    size_hint +=
+                        self.write_block(ctx, buf, Some(b.name), Ws(b.ws1.0, b.ws2.1), b)?;
                 }
                 Node::Include(ref i) => {
                     size_hint += self.handle_include(ctx, buf, i)?;
@@ -289,7 +290,9 @@ impl<'a> Generator<'a> {
                 }
                 Node::Macro(ref m) => {
                     if level != AstLevel::Top {
-                        return Err("macro blocks only allowed at the top level".into());
+                        return Err(
+                            ctx.generate_error("macro blocks only allowed at the top level", m)
+                        );
                     }
                     self.flush_ws(m.ws1);
                     self.prepare_ws(m.ws2);
@@ -301,25 +304,29 @@ impl<'a> Generator<'a> {
                 }
                 Node::Import(ref i) => {
                     if level != AstLevel::Top {
-                        return Err("import blocks only allowed at the top level".into());
+                        return Err(
+                            ctx.generate_error("import blocks only allowed at the top level", i)
+                        );
                     }
                     self.handle_ws(i.ws);
                 }
-                Node::Extends(_) => {
+                Node::Extends(ref e) => {
                     if level != AstLevel::Top {
-                        return Err("extend blocks only allowed at the top level".into());
+                        return Err(
+                            ctx.generate_error("extend blocks only allowed at the top level", e)
+                        );
                     }
                     // No whitespace handling: child template top-level is not used,
                     // except for the blocks defined in it.
                 }
                 Node::Break(ref ws) => {
                     self.handle_ws(**ws);
-                    self.write_buf_writable(buf)?;
+                    self.write_buf_writable(ctx, buf)?;
                     buf.writeln("break;")?;
                 }
                 Node::Continue(ref ws) => {
                     self.handle_ws(**ws);
-                    self.write_buf_writable(buf)?;
+                    self.write_buf_writable(ctx, buf)?;
                     buf.writeln("continue;")?;
                 }
             }
@@ -331,7 +338,7 @@ impl<'a> Generator<'a> {
                 self.flush_ws(Ws(Some(self.skip_ws.into()), None));
             }
 
-            size_hint += self.write_buf_writable(buf)?;
+            size_hint += self.write_buf_writable(ctx, buf)?;
         }
         Ok(size_hint)
     }
@@ -347,7 +354,7 @@ impl<'a> Generator<'a> {
         let mut has_else = false;
         for (i, cond) in i.branches.iter().enumerate() {
             self.handle_ws(cond.ws);
-            flushed += self.write_buf_writable(buf)?;
+            flushed += self.write_buf_writable(ctx, buf)?;
             if i > 0 {
                 self.locals.pop();
             }
@@ -370,13 +377,13 @@ impl<'a> Generator<'a> {
                     // but this one should have access to the let-bound variable.
                     match &**expr {
                         Expr::BinOp(op, ref left, ref right) if *op == "||" || *op == "&&" => {
-                            self.visit_expr(&mut expr_buf, left)?;
+                            self.visit_expr(ctx, &mut expr_buf, left)?;
                             self.visit_target(buf, true, true, target);
                             expr_buf.write(&format!(" {op} "));
-                            self.visit_expr(&mut expr_buf, right)?;
+                            self.visit_expr(ctx, &mut expr_buf, right)?;
                         }
                         _ => {
-                            self.visit_expr(&mut expr_buf, expr)?;
+                            self.visit_expr(ctx, &mut expr_buf, expr)?;
                             self.visit_target(buf, true, true, target);
                         }
                     }
@@ -389,7 +396,7 @@ impl<'a> Generator<'a> {
                     // coerces e.g. `&&&bool` to `&bool`. Then `*(&bool)`
                     // finally dereferences it to `bool`.
                     buf.write("*(&(");
-                    let expr_code = self.visit_expr_root(expr)?;
+                    let expr_code = self.visit_expr_root(ctx, expr)?;
                     buf.write(&expr_code);
                     buf.write(") as &bool)");
                 }
@@ -405,7 +412,7 @@ impl<'a> Generator<'a> {
             arm_sizes.push(arm_size);
         }
         self.handle_ws(i.ws);
-        flushed += self.write_buf_writable(buf)?;
+        flushed += self.write_buf_writable(ctx, buf)?;
         buf.writeln("}")?;
 
         self.locals.pop();
@@ -431,10 +438,10 @@ impl<'a> Generator<'a> {
         } = *m;
 
         self.flush_ws(ws1);
-        let flushed = self.write_buf_writable(buf)?;
+        let flushed = self.write_buf_writable(ctx, buf)?;
         let mut arm_sizes = Vec::new();
 
-        let expr_code = self.visit_expr_root(expr)?;
+        let expr_code = self.visit_expr_root(ctx, expr)?;
         buf.writeln(&format!("match &{expr_code} {{"))?;
 
         let mut arm_size = 0;
@@ -442,7 +449,7 @@ impl<'a> Generator<'a> {
             self.handle_ws(arm.ws);
 
             if i > 0 {
-                arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
+                arm_sizes.push(arm_size + self.write_buf_writable(ctx, buf)?);
 
                 buf.writeln("}")?;
                 self.locals.pop();
@@ -456,7 +463,7 @@ impl<'a> Generator<'a> {
         }
 
         self.handle_ws(ws2);
-        arm_sizes.push(arm_size + self.write_buf_writable(buf)?);
+        arm_sizes.push(arm_size + self.write_buf_writable(ctx, buf)?);
         buf.writeln("}")?;
         self.locals.pop();
 
@@ -475,11 +482,11 @@ impl<'a> Generator<'a> {
         self.handle_ws(loop_block.ws1);
         self.locals.push();
 
-        let expr_code = self.visit_expr_root(&loop_block.iter)?;
+        let expr_code = self.visit_expr_root(ctx, &loop_block.iter)?;
 
         let has_else_nodes = !loop_block.else_nodes.is_empty();
 
-        let flushed = self.write_buf_writable(buf)?;
+        let flushed = self.write_buf_writable(ctx, buf)?;
         buf.writeln("{")?;
         if has_else_nodes {
             buf.writeln("let mut _did_loop = false;")?;
@@ -509,7 +516,7 @@ impl<'a> Generator<'a> {
             buf.write("let _iter = _iter.filter(|");
             self.visit_target(buf, true, true, &loop_block.var);
             buf.write("| -> bool {");
-            self.visit_expr(buf, cond)?;
+            self.visit_expr(ctx, buf, cond)?;
             buf.writeln("});")?;
             self.locals.pop();
         }
@@ -526,7 +533,7 @@ impl<'a> Generator<'a> {
         }
         let mut size_hint1 = self.handle(ctx, &loop_block.body, buf, AstLevel::Nested)?;
         self.handle_ws(loop_block.ws2);
-        size_hint1 += self.write_buf_writable(buf)?;
+        size_hint1 += self.write_buf_writable(ctx, buf)?;
         self.locals.pop();
         buf.writeln("}")?;
 
@@ -536,12 +543,12 @@ impl<'a> Generator<'a> {
             self.locals.push();
             size_hint2 = self.handle(ctx, &loop_block.else_nodes, buf, AstLevel::Nested)?;
             self.handle_ws(loop_block.ws3);
-            size_hint2 += self.write_buf_writable(buf)?;
+            size_hint2 += self.write_buf_writable(ctx, buf)?;
             self.locals.pop();
             buf.writeln("}")?;
         } else {
             self.handle_ws(loop_block.ws3);
-            size_hint2 = self.write_buf_writable(buf)?;
+            size_hint2 = self.write_buf_writable(ctx, buf)?;
         }
 
         buf.writeln("}")?;
@@ -553,44 +560,42 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &Context<'a>,
         buf: &mut Buffer,
-        call: &'a Call<'_>,
+        call: &'a WithSpan<'_, Call<'_>>,
     ) -> Result<usize, CompileError> {
         let Call {
             ws,
             scope,
             name,
             ref args,
-        } = *call;
+        } = **call;
         if name == "super" {
-            return self.write_block(ctx, buf, None, ws);
+            return self.write_block(ctx, buf, None, ws, call);
         }
 
         let (def, own_ctx) = match scope {
             Some(s) => {
                 let path = ctx.imports.get(s).ok_or_else(|| {
-                    CompileError::from(format!("no import found for scope {s:?}"))
+                    ctx.generate_error(&format!("no import found for scope {s:?}"), call)
                 })?;
-                let mctx = self
-                    .contexts
-                    .get(path)
-                    .ok_or_else(|| CompileError::from(format!("context for {path:?} not found")))?;
+                let mctx = self.contexts.get(path).ok_or_else(|| {
+                    ctx.generate_error(&format!("context for {path:?} not found"), call)
+                })?;
                 let def = mctx.macros.get(name).ok_or_else(|| {
-                    CompileError::from(format!("macro {name:?} not found in scope {s:?}"))
+                    ctx.generate_error(&format!("macro {name:?} not found in scope {s:?}"), call)
                 })?;
                 (def, mctx)
             }
             None => {
-                let def = ctx
-                    .macros
-                    .get(name)
-                    .ok_or_else(|| CompileError::from(format!("macro {name:?} not found")))?;
+                let def = ctx.macros.get(name).ok_or_else(|| {
+                    ctx.generate_error(&format!("macro {name:?} not found"), call)
+                })?;
                 (def, ctx)
             }
         };
 
         self.flush_ws(ws); // Cannot handle_ws() here: whitespace from macro definition comes first
         self.locals.push();
-        self.write_buf_writable(buf)?;
+        self.write_buf_writable(ctx, buf)?;
         buf.writeln("{")?;
         self.prepare_ws(def.ws1);
 
@@ -598,12 +603,15 @@ impl<'a> Generator<'a> {
         let mut values = Buffer::new(0);
         let mut is_first_variable = true;
         if args.len() != def.args.len() {
-            return Err(CompileError::from(format!(
-                "macro {name:?} expected {} argument{}, found {}",
-                def.args.len(),
-                if def.args.len() != 1 { "s" } else { "" },
-                args.len()
-            )));
+            return Err(ctx.generate_error(
+                &format!(
+                    "macro {name:?} expected {} argument{}, found {}",
+                    def.args.len(),
+                    if def.args.len() != 1 { "s" } else { "" },
+                    args.len()
+                ),
+                call,
+            ));
         }
         let mut named_arguments = HashMap::new();
         // Since named arguments can only be passed last, we only need to check if the last argument
@@ -615,9 +623,10 @@ impl<'a> Generator<'a> {
                     break;
                 };
                 if !def.args.iter().any(|arg| arg == arg_name) {
-                    return Err(CompileError::from(format!(
-                        "no argument named `{arg_name}` in macro {name:?}"
-                    )));
+                    return Err(ctx.generate_error(
+                        &format!("no argument named `{arg_name}` in macro {name:?}"),
+                        call,
+                    ));
                 }
                 named_arguments.insert(Cow::Borrowed(arg_name), arg);
             }
@@ -641,10 +650,13 @@ impl<'a> Generator<'a> {
                     if !allow_positional {
                         // If there is already at least one named argument, then it's not allowed
                         // to use unnamed ones at this point anymore.
-                        return Err(CompileError::from(format!(
+                        return Err(ctx.generate_error(
+                            &format!(
                             "cannot have unnamed argument (`{arg}`) after named argument in macro \
                              {name:?}"
-                        )));
+                        ),
+                            call,
+                        ));
                     }
                     &args[index]
                 }
@@ -653,14 +665,14 @@ impl<'a> Generator<'a> {
                 // If `expr` is already a form of variable then
                 // don't reintroduce a new variable. This is
                 // to avoid moving non-copyable values.
-                &Expr::Var(name) if name != "self" => {
+                Expr::Var(name) if *name != "self" => {
                     let var = self.locals.resolve_or_self(name);
                     self.locals
                         .insert(Cow::Borrowed(arg), LocalMeta::with_ref(var));
                 }
                 Expr::Attr(obj, attr) => {
                     let mut attr_buf = Buffer::new(0);
-                    self.visit_attr(&mut attr_buf, obj, attr)?;
+                    self.visit_attr(ctx, &mut attr_buf, &obj, attr)?;
 
                     let var = self.locals.resolve(&attr_buf.buf).unwrap_or(attr_buf.buf);
                     self.locals
@@ -680,7 +692,7 @@ impl<'a> Generator<'a> {
                     names.write(arg);
 
                     values.write("(");
-                    values.write(&self.visit_expr_root(expr)?);
+                    values.write(&self.visit_expr_root(ctx, expr)?);
                     values.write(")");
                     self.locals.insert_with_default(Cow::Borrowed(arg));
                 }
@@ -695,7 +707,7 @@ impl<'a> Generator<'a> {
         let mut size_hint = self.handle(own_ctx, &def.nodes, buf, AstLevel::Nested)?;
 
         self.flush_ws(def.ws2);
-        size_hint += self.write_buf_writable(buf)?;
+        size_hint += self.write_buf_writable(ctx, buf)?;
         buf.writeln("}")?;
         self.locals.pop();
         self.prepare_ws(ws);
@@ -706,7 +718,7 @@ impl<'a> Generator<'a> {
         &mut self,
         ctx: &Context<'a>,
         buf: &mut Buffer,
-        filter: &'a FilterBlock<'_>,
+        filter: &'a WithSpan<'_, FilterBlock<'_>>,
     ) -> Result<usize, CompileError> {
         self.flush_ws(filter.ws1);
         let mut var_name = String::new();
@@ -726,7 +738,7 @@ impl<'a> Generator<'a> {
         let WriteParts {
             size_hint: write_size_hint,
             buffers,
-        } = self.prepare_format(buf.indent + 1)?;
+        } = self.prepare_format(ctx, buf.indent + 1)?;
         size_hint += match buffers {
             None => return Ok(0),
             Some(WritePartsBuffers { format, expr: None }) => {
@@ -757,7 +769,7 @@ impl<'a> Generator<'a> {
 
         insert_first_filter_argument(&mut arguments, var_name.clone());
 
-        let wrap = self.visit_filter(&mut filter_buf, filter_name, &arguments)?;
+        let wrap = self.visit_filter(ctx, &mut filter_buf, filter_name, &arguments, filter)?;
 
         self.buf_writable
             .push(Writable::Generated(filter_buf.buf, wrap));
@@ -777,7 +789,7 @@ impl<'a> Generator<'a> {
         i: &'a Include<'_>,
     ) -> Result<usize, CompileError> {
         self.flush_ws(i.ws);
-        self.write_buf_writable(buf)?;
+        self.write_buf_writable(ctx, buf)?;
         let path = self
             .input
             .config
@@ -823,13 +835,18 @@ impl<'a> Generator<'a> {
         let locals = MapChain::with_parent(&self.locals);
         let mut child = Self::new(self.input, self.contexts, heritage.as_ref(), locals);
         let mut size_hint = child.handle(handle_ctx, handle_ctx.nodes, buf, AstLevel::Top)?;
-        size_hint += child.write_buf_writable(buf)?;
+        size_hint += child.write_buf_writable(handle_ctx, buf)?;
         self.prepare_ws(i.ws);
 
         Ok(size_hint)
     }
 
-    fn is_shadowing_variable(&self, var: &Target<'a>) -> Result<bool, CompileError> {
+    fn is_shadowing_variable<T>(
+        &self,
+        ctx: &Context<'_>,
+        var: &Target<'a>,
+        l: &WithSpan<'_, T>,
+    ) -> Result<bool, CompileError> {
         match var {
             Target::Name(name) => {
                 let name = normalize_identifier(name);
@@ -844,7 +861,7 @@ impl<'a> Generator<'a> {
             }
             Target::Tuple(_, targets) => {
                 for target in targets {
-                    match self.is_shadowing_variable(target) {
+                    match self.is_shadowing_variable(ctx, target, l) {
                         Ok(false) => continue,
                         outcome => return outcome,
                     }
@@ -853,35 +870,43 @@ impl<'a> Generator<'a> {
             }
             Target::Struct(_, named_targets) => {
                 for (_, target) in named_targets {
-                    match self.is_shadowing_variable(target) {
+                    match self.is_shadowing_variable(ctx, target, l) {
                         Ok(false) => continue,
                         outcome => return outcome,
                     }
                 }
                 Ok(false)
             }
-            _ => Err("literals are not allowed on the left-hand side of an assignment".into()),
+            _ => Err(ctx.generate_error(
+                "literals are not allowed on the left-hand side of an assignment",
+                l,
+            )),
         }
     }
 
-    fn write_let(&mut self, buf: &mut Buffer, l: &'a Let<'_>) -> Result<(), CompileError> {
+    fn write_let(
+        &mut self,
+        ctx: &Context<'_>,
+        buf: &mut Buffer,
+        l: &'a WithSpan<'_, Let<'_>>,
+    ) -> Result<(), CompileError> {
         self.handle_ws(l.ws);
 
         let Some(val) = &l.val else {
-            self.write_buf_writable(buf)?;
+            self.write_buf_writable(ctx, buf)?;
             buf.write("let ");
             self.visit_target(buf, false, true, &l.var);
             return buf.writeln(";");
         };
 
         let mut expr_buf = Buffer::new(0);
-        self.visit_expr(&mut expr_buf, val)?;
+        self.visit_expr(ctx, &mut expr_buf, val)?;
 
-        let shadowed = self.is_shadowing_variable(&l.var)?;
+        let shadowed = self.is_shadowing_variable(ctx, &l.var, l)?;
         if shadowed {
             // Need to flush the buffer if the variable is being shadowed,
             // to ensure the old variable is used.
-            self.write_buf_writable(buf)?;
+            self.write_buf_writable(ctx, buf)?;
         }
         if shadowed
             || !matches!(l.var, Target::Name(_))
@@ -897,12 +922,13 @@ impl<'a> Generator<'a> {
     // If `name` is `Some`, this is a call to a block definition, and we have to find
     // the first block for that name from the ancestry chain. If name is `None`, this
     // is from a `super()` call, and we can get the name from `self.super_block`.
-    fn write_block(
+    fn write_block<T>(
         &mut self,
         ctx: &Context<'a>,
         buf: &mut Buffer,
         name: Option<&'a str>,
         outer: Ws,
+        node: &WithSpan<'_, T>,
     ) -> Result<usize, CompileError> {
         // Flush preceding whitespace according to the outer WS spec
         self.flush_ws(outer);
@@ -912,17 +938,22 @@ impl<'a> Generator<'a> {
             (Some(cur_name), None) => (cur_name, 0),
             // A block definition contains a block definition of the same name
             (Some(cur_name), Some((prev_name, _))) if cur_name == prev_name => {
-                return Err(format!("cannot define recursive blocks ({cur_name})").into());
+                return Err(ctx.generate_error(
+                    &format!("cannot define recursive blocks ({cur_name})"),
+                    node,
+                ));
             }
             // A block definition contains a definition of another block
             (Some(cur_name), Some((_, _))) => (cur_name, 0),
             // `super()` was called inside a block
             (None, Some((prev_name, gen))) => (prev_name, gen + 1),
             // `super()` is called from outside a block
-            (None, None) => return Err("cannot call 'super()' outside block".into()),
+            (None, None) => {
+                return Err(ctx.generate_error("cannot call 'super()' outside block", node))
+            }
         };
 
-        self.write_buf_writable(buf)?;
+        self.write_buf_writable(ctx, buf)?;
 
         let block_fragment_write = self.input.block == name && self.buf_writable.discard;
         // Allow writing to the buffer if we're in the block fragment
@@ -934,12 +965,15 @@ impl<'a> Generator<'a> {
         // Get the block definition from the heritage chain
         let heritage = self
             .heritage
-            .ok_or_else(|| CompileError::from("no block ancestors available"))?;
+            .ok_or_else(|| ctx.generate_error("no block ancestors available", node))?;
         let (child_ctx, def) = *heritage.blocks[cur.0].get(cur.1).ok_or_else(|| {
-            CompileError::from(match name {
-                None => format!("no super() block found for block '{}'", cur.0),
-                Some(name) => format!("no block found for name '{name}'"),
-            })
+            ctx.generate_error(
+                &match name {
+                    None => format!("no super() block found for block '{}'", cur.0),
+                    Some(name) => format!("no block found for name '{name}'"),
+                },
+                node,
+            )
         })?;
 
         // We clone the context of the child in order to preserve their macros and imports.
@@ -973,7 +1007,7 @@ impl<'a> Generator<'a> {
 
         if !child.locals.is_current_empty() {
             // Need to flush the buffer before popping the variable stack
-            child.write_buf_writable(buf)?;
+            child.write_buf_writable(ctx, buf)?;
         }
 
         child.flush_ws(def.ws2);
@@ -998,8 +1032,12 @@ impl<'a> Generator<'a> {
     }
 
     // Write expression buffer and empty
-    fn write_buf_writable(&mut self, buf: &mut Buffer) -> Result<usize, CompileError> {
-        let WriteParts { size_hint, buffers } = self.prepare_format(buf.indent)?;
+    fn write_buf_writable(
+        &mut self,
+        ctx: &Context<'_>,
+        buf: &mut Buffer,
+    ) -> Result<usize, CompileError> {
+        let WriteParts { size_hint, buffers } = self.prepare_format(ctx, buf.indent)?;
         match buffers {
             None => Ok(size_hint),
             Some(WritePartsBuffers { format, expr: None }) => {
@@ -1025,7 +1063,11 @@ impl<'a> Generator<'a> {
     /// This is the common code to generate an expression. It is used for filter blocks and for
     /// expressions more generally. It stores the size it represents and the buffers. Take a look
     /// at `WriteParts` for more details.
-    fn prepare_format(&mut self, indent: u8) -> Result<WriteParts, CompileError> {
+    fn prepare_format(
+        &mut self,
+        ctx: &Context<'_>,
+        indent: u8,
+    ) -> Result<WriteParts, CompileError> {
         if self.buf_writable.is_empty() {
             return Ok(WriteParts {
                 size_hint: 0,
@@ -1067,7 +1109,7 @@ impl<'a> Generator<'a> {
                 }
                 Writable::Expr(s) => {
                     let mut expr_buf = Buffer::new(0);
-                    let wrapped = self.visit_expr(&mut expr_buf, s)?;
+                    let wrapped = self.visit_expr(ctx, &mut expr_buf, s)?;
                     let cacheable = is_cacheable(s);
                     size_hint += self.named_expression(
                         &mut buf_expr,
@@ -1175,14 +1217,19 @@ impl<'a> Generator<'a> {
 
     /* Visitor methods for expression types */
 
-    fn visit_expr_root(&mut self, expr: &WithSpan<'_, Expr<'_>>) -> Result<String, CompileError> {
+    fn visit_expr_root(
+        &mut self,
+        ctx: &Context<'_>,
+        expr: &WithSpan<'_, Expr<'_>>,
+    ) -> Result<String, CompileError> {
         let mut buf = Buffer::new(0);
-        self.visit_expr(&mut buf, expr)?;
+        self.visit_expr(ctx, &mut buf, expr)?;
         Ok(buf.buf)
     }
 
     fn visit_expr(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         expr: &WithSpan<'_, Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
@@ -1193,35 +1240,36 @@ impl<'a> Generator<'a> {
             Expr::CharLit(s) => self.visit_char_lit(buf, s),
             Expr::Var(s) => self.visit_var(buf, s),
             Expr::Path(ref path) => self.visit_path(buf, path),
-            Expr::Array(ref elements) => self.visit_array(buf, elements)?,
-            Expr::Attr(ref obj, name) => self.visit_attr(buf, obj, name)?,
-            Expr::Index(ref obj, ref key) => self.visit_index(buf, obj, key)?,
+            Expr::Array(ref elements) => self.visit_array(ctx, buf, elements)?,
+            Expr::Attr(ref obj, name) => self.visit_attr(ctx, buf, obj, name)?,
+            Expr::Index(ref obj, ref key) => self.visit_index(ctx, buf, obj, key)?,
             Expr::Filter(Filter {
                 name,
                 ref arguments,
-            }) => self.visit_filter(buf, name, arguments)?,
-            Expr::Unary(op, ref inner) => self.visit_unary(buf, op, inner)?,
-            Expr::BinOp(op, ref left, ref right) => self.visit_binop(buf, op, left, right)?,
+            }) => self.visit_filter(ctx, buf, name, arguments, expr)?,
+            Expr::Unary(op, ref inner) => self.visit_unary(ctx, buf, op, inner)?,
+            Expr::BinOp(op, ref left, ref right) => self.visit_binop(ctx, buf, op, left, right)?,
             Expr::Range(op, ref left, ref right) => {
-                self.visit_range(buf, op, left.as_deref(), right.as_deref())?
+                self.visit_range(ctx, buf, op, left.as_deref(), right.as_deref())?
             }
-            Expr::Group(ref inner) => self.visit_group(buf, inner)?,
-            Expr::Call(ref obj, ref args) => self.visit_call(buf, obj, args)?,
+            Expr::Group(ref inner) => self.visit_group(ctx, buf, inner)?,
+            Expr::Call(ref obj, ref args) => self.visit_call(ctx, buf, obj, args)?,
             Expr::RustMacro(ref path, args) => self.visit_rust_macro(buf, path, args),
-            Expr::Try(ref expr) => self.visit_try(buf, expr)?,
-            Expr::Tuple(ref exprs) => self.visit_tuple(buf, exprs)?,
-            Expr::NamedArgument(_, ref expr) => self.visit_named_argument(buf, expr)?,
+            Expr::Try(ref expr) => self.visit_try(ctx, buf, expr)?,
+            Expr::Tuple(ref exprs) => self.visit_tuple(ctx, buf, exprs)?,
+            Expr::NamedArgument(_, ref expr) => self.visit_named_argument(ctx, buf, expr)?,
             Expr::Generated(ref s) => self.visit_generated(buf, s),
         })
     }
 
     fn visit_try(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         expr: &WithSpan<'_, Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("::core::result::Result::map_err(");
-        self.visit_expr(buf, expr)?;
+        self.visit_expr(ctx, buf, expr)?;
         buf.write(", |err| ");
         buf.write(CRATE);
         buf.write("::shared::Error::Custom(::core::convert::Into::into(err)))?");
@@ -1237,21 +1285,23 @@ impl<'a> Generator<'a> {
         DisplayWrap::Unwrapped
     }
 
-    fn visit_filter(
+    fn visit_filter<T>(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         name: &str,
         args: &[WithSpan<'_, Expr<'_>>],
+        filter: &WithSpan<'_, T>,
     ) -> Result<DisplayWrap, CompileError> {
         match name {
-            "as_ref" => return self._visit_as_ref_filter(buf, args),
-            "deref" => return self._visit_deref_filter(buf, args),
-            "escape" | "e" => return self._visit_escape_filter(buf, args),
-            "fmt" => return self._visit_fmt_filter(buf, args),
-            "format" => return self._visit_format_filter(buf, args),
-            "join" => return self._visit_join_filter(buf, args),
-            "json" | "tojson" => return self._visit_json_filter(buf, args),
-            "safe" => return self._visit_safe_filter(buf, args),
+            "as_ref" => return self._visit_as_ref_filter(ctx, buf, args, filter),
+            "deref" => return self._visit_deref_filter(ctx, buf, args, filter),
+            "escape" | "e" => return self._visit_escape_filter(ctx, buf, args, filter),
+            "fmt" => return self._visit_fmt_filter(ctx, buf, args, filter),
+            "format" => return self._visit_format_filter(ctx, buf, args, filter),
+            "join" => return self._visit_join_filter(ctx, buf, args),
+            "json" | "tojson" => return self._visit_json_filter(ctx, buf, args, filter),
+            "safe" => return self._visit_safe_filter(ctx, buf, args, filter),
             _ => {}
         }
 
@@ -1260,86 +1310,101 @@ impl<'a> Generator<'a> {
         } else {
             buf.write(&format!("filters::{name}("));
         }
-        self._visit_args(buf, args)?;
+        self._visit_args(ctx, buf, args)?;
         buf.write(")?");
         Ok(DisplayWrap::Unwrapped)
     }
 
-    fn _visit_as_ref_filter(
+    fn _visit_as_ref_filter<T>(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         args: &[WithSpan<'_, Expr<'_>>],
+        node: &WithSpan<'_, T>,
     ) -> Result<DisplayWrap, CompileError> {
         let arg = match args {
             [arg] => arg,
-            _ => return Err("unexpected argument(s) in `as_ref` filter".into()),
+            _ => return Err(ctx.generate_error("unexpected argument(s) in `as_ref` filter", node)),
         };
         buf.write("&");
-        self.visit_expr(buf, arg)?;
+        self.visit_expr(ctx, buf, arg)?;
         Ok(DisplayWrap::Unwrapped)
     }
 
-    fn _visit_deref_filter(
+    fn _visit_deref_filter<T>(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         args: &[WithSpan<'_, Expr<'_>>],
+        node: &WithSpan<'_, T>,
     ) -> Result<DisplayWrap, CompileError> {
         let arg = match args {
             [arg] => arg,
-            _ => return Err("unexpected argument(s) in `deref` filter".into()),
+            _ => return Err(ctx.generate_error("unexpected argument(s) in `deref` filter", node)),
         };
         buf.write("*");
-        self.visit_expr(buf, arg)?;
+        self.visit_expr(ctx, buf, arg)?;
         Ok(DisplayWrap::Unwrapped)
     }
 
-    fn _visit_json_filter(
+    fn _visit_json_filter<T>(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         args: &[WithSpan<'_, Expr<'_>>],
+        node: &WithSpan<'_, T>,
     ) -> Result<DisplayWrap, CompileError> {
         if cfg!(not(feature = "serde-json")) {
-            return Err("the `json` filter requires the `serde-json` feature to be enabled".into());
+            return Err(ctx.generate_error(
+                "the `json` filter requires the `serde-json` feature to be enabled",
+                node,
+            ));
         }
 
         if args.len() != 1 {
-            return Err("unexpected argument(s) in `json` filter".into());
+            return Err(ctx.generate_error("unexpected argument(s) in `json` filter", node));
         }
         buf.write(CRATE);
         buf.write("::filters::json(");
-        self._visit_args(buf, args)?;
+        self._visit_args(ctx, buf, args)?;
         buf.write(")?");
         Ok(DisplayWrap::Unwrapped)
     }
 
-    fn _visit_safe_filter(
+    fn _visit_safe_filter<T>(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         args: &[WithSpan<'_, Expr<'_>>],
+        node: &WithSpan<'_, T>,
     ) -> Result<DisplayWrap, CompileError> {
         if args.len() != 1 {
-            return Err("unexpected argument(s) in `safe` filter".into());
+            return Err(ctx.generate_error("unexpected argument(s) in `safe` filter", node));
         }
         buf.write(CRATE);
         buf.write("::filters::safe(");
         buf.write(self.input.escaper);
         buf.write(", ");
-        self._visit_args(buf, args)?;
+        self._visit_args(ctx, buf, args)?;
         buf.write(")?");
         Ok(DisplayWrap::Wrapped)
     }
 
-    fn _visit_escape_filter(
+    fn _visit_escape_filter<T>(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         args: &[WithSpan<'_, Expr<'_>>],
+        node: &WithSpan<'_, T>,
     ) -> Result<DisplayWrap, CompileError> {
         if args.len() > 2 {
-            return Err("only two arguments allowed to escape filter".into());
+            return Err(ctx.generate_error("only two arguments allowed to escape filter", node));
         }
         let opt_escaper = match args.get(1).map(|expr| &**expr) {
             Some(Expr::StrLit(name)) => Some(*name),
-            Some(_) => return Err("invalid escaper type for escape filter".into()),
+            Some(_) => {
+                return Err(ctx.generate_error("invalid escaper type for escape filter", node))
+            }
             None => None,
         };
         let escaper = match opt_escaper {
@@ -1349,22 +1414,24 @@ impl<'a> Generator<'a> {
                 .escapers
                 .iter()
                 .find_map(|(escapers, escaper)| escapers.contains(name).then_some(escaper))
-                .ok_or_else(|| CompileError::from("invalid escaper for escape filter"))?,
+                .ok_or_else(|| ctx.generate_error("invalid escaper for escape filter", node))?,
             None => self.input.escaper,
         };
         buf.write(CRATE);
         buf.write("::filters::escape(");
         buf.write(escaper);
         buf.write(", ");
-        self._visit_args(buf, &args[..1])?;
+        self._visit_args(ctx, buf, &args[..1])?;
         buf.write(")?");
         Ok(DisplayWrap::Wrapped)
     }
 
-    fn _visit_format_filter(
+    fn _visit_format_filter<T>(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         args: &[WithSpan<'_, Expr<'_>>],
+        node: &WithSpan<'_, T>,
     ) -> Result<DisplayWrap, CompileError> {
         if !args.is_empty() {
             if let Expr::StrLit(fmt) = *args[0] {
@@ -1372,36 +1439,39 @@ impl<'a> Generator<'a> {
                 self.visit_str_lit(buf, fmt);
                 if args.len() > 1 {
                     buf.write(", ");
-                    self._visit_args(buf, &args[1..])?;
+                    self._visit_args(ctx, buf, &args[1..])?;
                 }
                 buf.write(")");
                 return Ok(DisplayWrap::Unwrapped);
             }
         }
-        Err(r#"use filter format like `"a={} b={}"|format(a, b)`"#.into())
+        Err(ctx.generate_error(r#"use filter format like `"a={} b={}"|format(a, b)`"#, node))
     }
 
-    fn _visit_fmt_filter(
+    fn _visit_fmt_filter<T>(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         args: &[WithSpan<'_, Expr<'_>>],
+        node: &WithSpan<'_, T>,
     ) -> Result<DisplayWrap, CompileError> {
         if let [_, arg2] = args {
             if let Expr::StrLit(fmt) = **arg2 {
                 buf.write("::std::format!(");
                 self.visit_str_lit(buf, fmt);
                 buf.write(", ");
-                self._visit_args(buf, &args[..1])?;
+                self._visit_args(ctx, buf, &args[..1])?;
                 buf.write(")");
                 return Ok(DisplayWrap::Unwrapped);
             }
         }
-        return Err(r#"use filter fmt like `value|fmt("{:?}")`"#.into());
+        Err(ctx.generate_error(r#"use filter fmt like `value|fmt("{:?}")`"#, node))
     }
 
     // Force type coercion on first argument to `join` filter (see #39).
     fn _visit_join_filter(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         args: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
@@ -1411,7 +1481,7 @@ impl<'a> Generator<'a> {
             if i > 0 {
                 buf.write(", &");
             }
-            self.visit_expr(buf, arg)?;
+            self.visit_expr(ctx, buf, arg)?;
             if i == 0 {
                 buf.write(").into_iter()");
             }
@@ -1422,6 +1492,7 @@ impl<'a> Generator<'a> {
 
     fn _visit_args(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         args: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<(), CompileError> {
@@ -1442,11 +1513,11 @@ impl<'a> Generator<'a> {
             match **arg {
                 Expr::Call(ref left, _) if !matches!(***left, Expr::Path(_)) => {
                     buf.writeln("{")?;
-                    self.visit_expr(buf, arg)?;
+                    self.visit_expr(ctx, buf, arg)?;
                     buf.writeln("}")?;
                 }
                 _ => {
-                    self.visit_expr(buf, arg)?;
+                    self.visit_expr(ctx, buf, arg)?;
                 }
             }
 
@@ -1459,6 +1530,7 @@ impl<'a> Generator<'a> {
 
     fn visit_attr(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         obj: &WithSpan<'_, Expr<'_>>,
         attr: &str,
@@ -1478,45 +1550,49 @@ impl<'a> Generator<'a> {
                     buf.write("_loop_item.last");
                     return Ok(DisplayWrap::Unwrapped);
                 } else {
-                    return Err("unknown loop variable".into());
+                    return Err(ctx.generate_error("unknown loop variable", obj));
                 }
             }
         }
-        self.visit_expr(buf, obj)?;
+        self.visit_expr(ctx, buf, obj)?;
         buf.write(&format!(".{}", normalize_identifier(attr)));
         Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_index(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         obj: &WithSpan<'_, Expr<'_>>,
         key: &WithSpan<'_, Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("&");
-        self.visit_expr(buf, obj)?;
+        self.visit_expr(ctx, buf, obj)?;
         buf.write("[");
-        self.visit_expr(buf, key)?;
+        self.visit_expr(ctx, buf, key)?;
         buf.write("]");
         Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_call(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         left: &WithSpan<'_, Expr<'_>>,
         args: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
         match &**left {
-            Expr::Attr(left, method) if ***left == Expr::Var("loop") => match *method {
+            Expr::Attr(sub_left, method) if ***sub_left == Expr::Var("loop") => match *method {
                 "cycle" => match args {
                     [arg] => {
                         if matches!(**arg, Expr::Array(ref arr) if arr.is_empty()) {
-                            return Err("loop.cycle(…) cannot use an empty array".into());
+                            return Err(
+                                ctx.generate_error("loop.cycle(…) cannot use an empty array", arg)
+                            );
                         }
                         buf.write("({");
                         buf.write("let _cycle = &(");
-                        self.visit_expr(buf, arg)?;
+                        self.visit_expr(ctx, buf, arg)?;
                         buf.writeln(");")?;
                         buf.writeln("let _len = _cycle.len();")?;
                         buf.writeln("if _len == 0 {")?;
@@ -1527,9 +1603,13 @@ impl<'a> Generator<'a> {
                         buf.writeln("_cycle[_loop_item.index % _len]")?;
                         buf.writeln("})")?;
                     }
-                    _ => return Err("loop.cycle(…) expects exactly one argument".into()),
+                    _ => {
+                        return Err(
+                            ctx.generate_error("loop.cycle(…) cannot use an empty array", left)
+                        )
+                    }
                 },
-                s => return Err(format!("unknown loop method: {s:?}").into()),
+                s => return Err(ctx.generate_error(&format!("unknown loop method: {s:?}"), left)),
             },
             sub_left => {
                 match sub_left {
@@ -1538,11 +1618,11 @@ impl<'a> Generator<'a> {
                         None => buf.write(&format!("(&self.{})", normalize_identifier(name))),
                     },
                     _ => {
-                        self.visit_expr(buf, left)?;
+                        self.visit_expr(ctx, buf, left)?;
                     }
                 }
                 buf.write("(");
-                self._visit_args(buf, args)?;
+                self._visit_args(ctx, buf, args)?;
                 buf.write(")");
             }
         }
@@ -1551,58 +1631,63 @@ impl<'a> Generator<'a> {
 
     fn visit_unary(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         op: &str,
         inner: &WithSpan<'_, Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
         buf.write(op);
-        self.visit_expr(buf, inner)?;
+        self.visit_expr(ctx, buf, inner)?;
         Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_range(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         op: &str,
         left: Option<&WithSpan<'_, Expr<'_>>>,
         right: Option<&WithSpan<'_, Expr<'_>>>,
     ) -> Result<DisplayWrap, CompileError> {
         if let Some(left) = left {
-            self.visit_expr(buf, left)?;
+            self.visit_expr(ctx, buf, left)?;
         }
         buf.write(op);
         if let Some(right) = right {
-            self.visit_expr(buf, right)?;
+            self.visit_expr(ctx, buf, right)?;
         }
         Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_binop(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         op: &str,
         left: &WithSpan<'_, Expr<'_>>,
         right: &WithSpan<'_, Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
-        self.visit_expr(buf, left)?;
+        self.visit_expr(ctx, buf, left)?;
         buf.write(&format!(" {op} "));
-        self.visit_expr(buf, right)?;
+        self.visit_expr(ctx, buf, right)?;
         Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_group(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         inner: &WithSpan<'_, Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
         buf.write("(");
-        self.visit_expr(buf, inner)?;
+        self.visit_expr(ctx, buf, inner)?;
         buf.write(")");
         Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_tuple(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         exprs: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
@@ -1611,7 +1696,7 @@ impl<'a> Generator<'a> {
             if index > 0 {
                 buf.write(" ");
             }
-            self.visit_expr(buf, expr)?;
+            self.visit_expr(ctx, buf, expr)?;
             buf.write(",");
         }
         buf.write(")");
@@ -1620,15 +1705,17 @@ impl<'a> Generator<'a> {
 
     fn visit_named_argument(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         expr: &WithSpan<'_, Expr<'_>>,
     ) -> Result<DisplayWrap, CompileError> {
-        self.visit_expr(buf, expr)?;
+        self.visit_expr(ctx, buf, expr)?;
         Ok(DisplayWrap::Unwrapped)
     }
 
     fn visit_array(
         &mut self,
+        ctx: &Context<'_>,
         buf: &mut Buffer,
         elements: &[WithSpan<'_, Expr<'_>>],
     ) -> Result<DisplayWrap, CompileError> {
@@ -1637,7 +1724,7 @@ impl<'a> Generator<'a> {
             if i > 0 {
                 buf.write(", ");
             }
-            self.visit_expr(buf, el)?;
+            self.visit_expr(ctx, buf, el)?;
         }
         buf.write("]");
         Ok(DisplayWrap::Unwrapped)
