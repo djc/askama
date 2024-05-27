@@ -3,9 +3,9 @@ use std::path::Path;
 use std::rc::Rc;
 
 use crate::config::Config;
-use crate::CompileError;
+use crate::{CompileError, FileInfo};
 use parser::node::{BlockDef, Macro};
-use parser::{Node, Parsed};
+use parser::{Node, Parsed, WithSpan};
 
 pub(crate) struct Heritage<'a> {
     pub(crate) root: &'a Context<'a>,
@@ -126,5 +126,19 @@ impl Context<'_> {
             parsed,
             path: Some(path),
         })
+    }
+
+    pub(crate) fn generate_error<T>(&self, msg: &str, node: &WithSpan<'_, T>) -> CompileError {
+        match self.path {
+            Some(path) => CompileError::new(
+                msg,
+                Some(FileInfo::new(
+                    path,
+                    Some(self.parsed.source()),
+                    Some(node.span()),
+                )),
+            ),
+            None => CompileError::new(msg, None),
+        }
     }
 }
