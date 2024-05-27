@@ -3,6 +3,7 @@
 
 use std::borrow::Cow;
 use std::cell::Cell;
+use std::ops::{Deref, DerefMut};
 use std::path::Path;
 use std::rc::Rc;
 use std::{fmt, str};
@@ -112,6 +113,59 @@ impl<'a> Ast<'a> {
 
     pub fn nodes(&self) -> &[Node<'a>] {
         &self.nodes
+    }
+}
+
+/// Struct used to wrap types with their associated "span" which is used when generating errors
+/// in the code generation.
+pub struct WithSpan<'a, T> {
+    inner: T,
+    span: &'a str,
+}
+
+impl<'a, T> WithSpan<'a, T> {
+    pub fn new(inner: T, span: &'a str) -> Self {
+        Self { inner, span }
+    }
+
+    pub fn span(&self) -> &str {
+        self.span
+    }
+}
+
+impl<'a, T> Deref for WithSpan<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<'a, T> DerefMut for WithSpan<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+impl<'a, T: fmt::Debug> fmt::Debug for WithSpan<'a, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.inner)
+    }
+}
+
+impl<'a, T: Clone> Clone for WithSpan<'a, T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            span: self.span,
+        }
+    }
+}
+
+impl<'a, T: PartialEq> PartialEq for WithSpan<'a, T> {
+    fn eq(&self, other: &Self) -> bool {
+        // We never want to compare the span information.
+        self.inner == other.inner
     }
 }
 
