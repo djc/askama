@@ -102,36 +102,10 @@ impl<'a> Ast<'a> {
             Err(nom::Err::Incomplete(_)) => return Err(ParseError("parsing incomplete".into())),
         };
 
-        let offset = src.len() - input.len();
-        let (source_before, source_after) = src.split_at(offset);
-
-        let source_after = match source_after.char_indices().enumerate().take(41).last() {
-            Some((40, (i, _))) => format!("{:?}...", &source_after[..i]),
-            _ => format!("{source_after:?}"),
-        };
-
-        let (row, last_line) = source_before.lines().enumerate().last().unwrap_or_default();
-        let column = last_line.chars().count();
-
-        let file_info = file_path.and_then(|file_path| {
-            let cwd = std::env::current_dir().ok()?;
-            Some((cwd, file_path))
-        });
         let message = message
             .map(|message| format!("{message}\n"))
             .unwrap_or_default();
-        let error_msg = if let Some((cwd, file_path)) = file_info {
-            format!(
-                "{message}failed to parse template source\n  --> {path}:{row}:{column}\n{source_after}",
-                path = strip_common(&cwd, &file_path),
-                row = row + 1,
-            )
-        } else {
-            format!(
-                "{message}failed to parse template source at row {}, column {column} near:\n{source_after}",
-                row + 1,
-            )
-        };
+        let error_msg = generate_error_message(&message, src, input, &file_path);
 
         Err(ParseError(error_msg))
     }
@@ -154,6 +128,72 @@ impl fmt::Display for ParseError {
 
 pub(crate) type ParseErr<'a> = nom::Err<ErrorContext<'a>>;
 pub(crate) type ParseResult<'a, T = &'a str> = Result<(&'a str, T), ParseErr<'a>>;
+
+pub struct ErrorInfo {
+    pub row: usize,
+    pub column: usize,
+    pub source_after: String,
+}
+
+pub fn generate_row_and_column(src: &str, input: &str) -> ErrorInfo {
+    let offset = src.len() - input.len();
+    let (source_before, source_after) = src.split_at(offset);
+
+    let source_after = match source_after.char_indices().enumerate().take(41).last() {
+        Some((40, (i, _))) => format!("{:?}...", &source_after[..i]),
+        _ => format!("{source_after:?}"),
+    };
+
+    let (row, last_line) = source_before.lines().enumerate().last().unwrap_or_default();
+    let column = last_line.chars().count();
+    ErrorInfo {
+        row,
+        column,
+        source_after,
+    }
+}
+
+/// Return the error related information and its display file path.
+pub fn generate_error_info(src: &str, input: &str, file_path: &Path) -> (ErrorInfo, String) {
+    let file_path = match std::env::current_dir() {
+        Ok(cwd) => strip_common(&cwd, file_path),
+        Err(_) => file_path.display().to_string(),
+    };
+    let error_info = generate_row_and_column(src, input);
+    (error_info, file_path)
+}
+
+fn generate_error_message(
+    message: &str,
+    src: &str,
+    input: &str,
+    file_path: &Option<Rc<Path>>,
+) -> String {
+    if let Some(file_path) = file_path {
+        let (
+            ErrorInfo {
+                row,
+                column,
+                source_after,
+            },
+            file_path,
+        ) = generate_error_info(src, input, file_path);
+        format!(
+            "{message}failed to parse template source\n  --> {file_path}:{row}:{column}\n{source_after}",
+            row = row + 1,
+        )
+    } else {
+        let ErrorInfo {
+            row,
+            column,
+            source_after,
+        } = generate_row_and_column(src, input);
+        format!(
+            "{message}failed to parse template source at row {}, column {column} near:\n{source_after}",
+            row + 1,
+        )
+    }
+}
 
 /// This type is used to handle `nom` errors and in particular to add custom error messages.
 /// It used to generate `ParserError`.
