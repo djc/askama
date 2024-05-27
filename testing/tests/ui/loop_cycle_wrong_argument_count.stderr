@@ -1,5 +1,7 @@
-error: loop.cycle(…) expects exactly one argument
- --> $DIR/loop_cycle_wrong_argument_count.rs:3:10
+error: loop.cycle(…) cannot use an empty array
+ --> ForCycle.txt:1:28
+       ".cycle(\"r\", \"g\", \"b\") }}{{ v }},{% endfo"...
+ --> tests/ui/loop_cycle_wrong_argument_count.rs:3:10
   |
 3 | #[derive(Template)]
   |          ^^^^^^^^

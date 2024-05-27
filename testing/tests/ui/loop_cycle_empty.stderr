@@ -1,4 +1,6 @@
 error: loop.cycle(…) cannot use an empty array
+ --> ForCycleEmpty.txt:1:35
+       "[]) }}{{ v }},{% endfor %}"
  --> tests/ui/loop_cycle_empty.rs:3:10
   |
 3 | #[derive(Template)]

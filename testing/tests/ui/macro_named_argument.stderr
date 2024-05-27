@@ -1,4 +1,6 @@
 error: no argument named `param3` in macro "thrice"
+ --> InvalidNamedArg.html:5:2
+       "- call thrice(param1=2, param3=3) -%}"
  --> tests/ui/macro_named_argument.rs:3:10
   |
 3 | #[derive(Template)]
@@ -36,6 +38,8 @@ error: named arguments must always be passed last
    = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: cannot have unnamed argument (`param2`) after named argument in macro "thrice"
+ --> InvalidNamedArg5.html:4:2
+       "- call thrice(3, param1=2) -%}"
   --> tests/ui/macro_named_argument.rs:37:10
    |
 37 | #[derive(Template)]

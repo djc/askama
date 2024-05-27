@@ -1,4 +1,6 @@
 error: macro "thrice" expected 1 argument, found 2
+ --> InvalidNumberOfArgs.html:5:2
+       "- call thrice(2, 3) -%}"
  --> tests/ui/macro.rs:3:10
   |
 3 | #[derive(Template)]
@@ -7,6 +9,8 @@ error: macro "thrice" expected 1 argument, found 2
   = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: macro "thrice" expected 2 arguments, found 0
+ --> InvalidNumberOfArgs2.html:5:2
+       "- call thrice() -%}"
   --> tests/ui/macro.rs:11:10
    |
 11 | #[derive(Template)]
@@ -15,6 +19,8 @@ error: macro "thrice" expected 2 arguments, found 0
    = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: macro "thrice" expected 0 arguments, found 2
+ --> InvalidNumberOfArgs3.html:4:2
+       "- call thrice(1, 2) -%}"
   --> tests/ui/macro.rs:19:10
    |
 19 | #[derive(Template)]
