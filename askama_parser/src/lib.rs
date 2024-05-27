@@ -708,7 +708,7 @@ impl Level {
 }
 
 #[allow(clippy::type_complexity)]
-fn filter(i: &str, level: Level) -> ParseResult<'_, (&str, Option<Vec<Expr<'_>>>)> {
+fn filter(i: &str, level: Level) -> ParseResult<'_, (&str, Option<Vec<WithSpan<'_, Expr<'_>>>>)> {
     let (i, (_, fname, args)) = tuple((
         char('|'),
         ws(identifier),

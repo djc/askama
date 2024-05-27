@@ -11,7 +11,7 @@ use nom::error_position;
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 
-use crate::{not_ws, ErrorContext, ParseResult};
+use crate::{not_ws, ErrorContext, ParseResult, WithSpan};
 
 use super::{
     bool_lit, char_lit, filter, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
@@ -22,7 +22,7 @@ use super::{
 pub enum Node<'a> {
     Lit(Lit<'a>),
     Comment(Comment<'a>),
-    Expr(Ws, Expr<'a>),
+    Expr(Ws, WithSpan<'a, Expr<'a>>),
     Call(Call<'a>),
     Let(Let<'a>),
     If(If<'a>),
@@ -397,7 +397,7 @@ impl<'a> Cond<'a> {
 #[derive(Debug, PartialEq)]
 pub struct CondTest<'a> {
     pub target: Option<Target<'a>>,
-    pub expr: Expr<'a>,
+    pub expr: WithSpan<'a, Expr<'a>>,
 }
 
 impl<'a> CondTest<'a> {
@@ -439,8 +439,8 @@ impl Whitespace {
 pub struct Loop<'a> {
     pub ws1: Ws,
     pub var: Target<'a>,
-    pub iter: Expr<'a>,
-    pub cond: Option<Expr<'a>>,
+    pub iter: WithSpan<'a, Expr<'a>>,
+    pub cond: Option<WithSpan<'a, Expr<'a>>>,
     pub body: Vec<Node<'a>>,
     pub ws2: Ws,
     pub else_nodes: Vec<Node<'a>>,
@@ -604,7 +604,9 @@ impl<'a> FilterBlock<'a> {
             cut(tuple((
                 ws(identifier),
                 opt(|i| Expr::arguments(i, s.level.get(), false)),
-                many0(|i| filter(i, s.level.get())),
+                many0(|i| {
+                    filter(i, s.level.get()).map(|(j, (name, params))| (j, (name, params, i)))
+                }),
                 ws(|i| Ok((i, ()))),
                 opt(Whitespace::parse),
                 |i| s.tag_block_end(i),
@@ -616,12 +618,12 @@ impl<'a> FilterBlock<'a> {
             name: filter_name,
             arguments: params.unwrap_or_default(),
         };
-        for (filter_name, args) in extra_filters {
+        for (filter_name, args, span) in extra_filters {
             filters = Filter {
                 name: filter_name,
                 arguments: {
                     let mut args = args.unwrap_or_default();
-                    args.insert(0, Expr::Filter(filters));
+                    args.insert(0, WithSpan::new(Expr::Filter(filters), span));
                     args
                 },
             };
@@ -685,7 +687,7 @@ pub struct Call<'a> {
     pub ws: Ws,
     pub scope: Option<&'a str>,
     pub name: &'a str,
-    pub args: Vec<Expr<'a>>,
+    pub args: Vec<WithSpan<'a, Expr<'a>>>,
 }
 
 impl<'a> Call<'a> {
@@ -718,7 +720,7 @@ impl<'a> Call<'a> {
 #[derive(Debug, PartialEq)]
 pub struct Match<'a> {
     pub ws1: Ws,
-    pub expr: Expr<'a>,
+    pub expr: WithSpan<'a, Expr<'a>>,
     pub arms: Vec<When<'a>>,
     pub ws2: Ws,
 }
@@ -913,7 +915,7 @@ impl<'a> Raw<'a> {
 pub struct Let<'a> {
     pub ws: Ws,
     pub var: Target<'a>,
-    pub val: Option<Expr<'a>>,
+    pub val: Option<WithSpan<'a, Expr<'a>>>,
 }
 
 impl<'a> Let<'a> {
