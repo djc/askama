@@ -3,6 +3,7 @@
 
 use std::borrow::Cow;
 use std::cell::Cell;
+use std::env::current_dir;
 use std::path::Path;
 use std::rc::Rc;
 use std::{fmt, str};
@@ -99,7 +100,7 @@ impl<'a> Ast<'a> {
                 nom::Err::Error(ErrorContext { input, message, .. })
                 | nom::Err::Failure(ErrorContext { input, message, .. }),
             ) => (input, message),
-            Err(nom::Err::Incomplete(_)) => return Err(ParseError("parsing incomplete".into())),
+            Err(nom::Err::Incomplete(_)) => return Err(ParseError::Incomplete),
         };
 
         let offset = src.len() - input.len();
@@ -112,28 +113,13 @@ impl<'a> Ast<'a> {
 
         let (row, last_line) = source_before.lines().enumerate().last().unwrap_or_default();
         let column = last_line.chars().count();
-
-        let file_info = file_path.and_then(|file_path| {
-            let cwd = std::env::current_dir().ok()?;
-            Some((cwd, file_path))
-        });
-        let message = message
-            .map(|message| format!("{message}\n"))
-            .unwrap_or_default();
-        let error_msg = if let Some((cwd, file_path)) = file_info {
-            format!(
-                "{message}failed to parse template source\n  --> {path}:{row}:{column}\n{source_after}",
-                path = strip_common(&cwd, &file_path),
-                row = row + 1,
-            )
-        } else {
-            format!(
-                "{message}failed to parse template source at row {}, column {column} near:\n{source_after}",
-                row + 1,
-            )
-        };
-
-        Err(ParseError(error_msg))
+        Err(ParseError::Details {
+            message,
+            row,
+            column,
+            source_after,
+            file_path,
+        })
     }
 
     pub fn nodes(&self) -> &[Node<'a>] {
@@ -142,13 +128,49 @@ impl<'a> Ast<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ParseError(String);
+pub enum ParseError {
+    Incomplete,
+    Details {
+        message: Option<Cow<'static, str>>,
+        row: usize,
+        column: usize,
+        source_after: String,
+        file_path: Option<Rc<Path>>,
+    },
+}
 
 impl std::error::Error for ParseError {}
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        let (message, mut row, column, source, path) = match self {
+            ParseError::Incomplete => return write!(f, "parsing incomplete"),
+            ParseError::Details {
+                message,
+                row,
+                column,
+                source_after,
+                file_path,
+            } => (message, *row, column, source_after, file_path),
+        };
+
+        if let Some(message) = message {
+            writeln!(f, "{}", message)?;
+        }
+
+        let path = path
+            .as_ref()
+            .and_then(|path| Some(strip_common(&current_dir().ok()?, path)));
+
+        row += 1;
+        match path {
+            Some(path) => f.write_fmt(format_args!(
+                "failed to parse template source\n  --> {path}:{row}:{column}\n{source}",
+            )),
+            None => f.write_fmt(format_args!(
+                "failed to parse template source at row {row}, column {column} near:\n{source}",
+            )),
+        }
     }
 }
 

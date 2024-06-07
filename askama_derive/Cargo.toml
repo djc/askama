@@ -25,7 +25,7 @@ with-rocket = []
 with-warp = []
 
 [dependencies]
-parser = { package = "askama_parser", version = "0.2", path = "../askama_parser" }
+parser = { package = "askama_parser", version = "0.3", path = "../askama_parser" }
 mime = "0.3"
 mime_guess = "2"
 proc-macro2 = "1"
