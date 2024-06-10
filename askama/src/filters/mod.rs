@@ -332,6 +332,11 @@ impl<S: fmt::Display> fmt::Display for TruncateFilter<S> {
                         while !s.is_char_boundary(rem) {
                             rem += 1;
                         }
+                        if rem == s.len() {
+                            // Don't write "..." if the char bound extends to the end of string.
+                            self.remaining = 0;
+                            return dest.write_str(s);
+                        }
                         dest.write_str(&s[..rem])?;
                     }
                     dest.write_str("...")?;
@@ -670,7 +675,8 @@ mod tests {
         assert_eq!(truncate("您好", 1).unwrap().to_string(), "您...");
         assert_eq!(truncate("您好", 2).unwrap().to_string(), "您...");
         assert_eq!(truncate("您好", 3).unwrap().to_string(), "您...");
-        assert_eq!(truncate("您好", 4).unwrap().to_string(), "您好...");
+        assert_eq!(truncate("您好", 4).unwrap().to_string(), "您好");
+        assert_eq!(truncate("您好", 5).unwrap().to_string(), "您好");
         assert_eq!(truncate("您好", 6).unwrap().to_string(), "您好");
         assert_eq!(truncate("您好", 7).unwrap().to_string(), "您好");
         let s = String::from("🤚a🤚");
@@ -681,7 +687,10 @@ mod tests {
         assert_eq!(truncate("🤚a🤚", 3).unwrap().to_string(), "🤚...");
         assert_eq!(truncate("🤚a🤚", 4).unwrap().to_string(), "🤚...");
         assert_eq!(truncate("🤚a🤚", 5).unwrap().to_string(), "🤚a...");
-        assert_eq!(truncate("🤚a🤚", 6).unwrap().to_string(), "🤚a🤚...");
+        assert_eq!(truncate("🤚a🤚", 6).unwrap().to_string(), "🤚a🤚");
+        assert_eq!(truncate("🤚a🤚", 6).unwrap().to_string(), "🤚a🤚");
+        assert_eq!(truncate("🤚a🤚", 7).unwrap().to_string(), "🤚a🤚");
+        assert_eq!(truncate("🤚a🤚", 8).unwrap().to_string(), "🤚a🤚");
         assert_eq!(truncate("🤚a🤚", 9).unwrap().to_string(), "🤚a🤚");
         assert_eq!(truncate("🤚a🤚", 10).unwrap().to_string(), "🤚a🤚");
     }
