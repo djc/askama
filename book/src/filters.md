@@ -40,6 +40,7 @@ Enable it with Cargo features (see below for more information).
   * [`trim`][#trim]
   * [`truncate`][#truncate]
   * [`upper|uppercase`][#upper]
+  * [`urlencode`][#urlencode]
   * [`wordcount`][#wordcount]
 
 * **[Optional / feature gated filters][#optional-filters]:**  
@@ -397,6 +398,21 @@ Output:
 
 ```
 HELLO
+```
+
+### urlencode
+[#urlencode]: #urlencode
+
+Percent encodes the string. Replaces reserved characters with the % escape character followed by a byte value as two hexadecimal digits.
+
+```
+hello?world
+```
+
+Output:
+
+```
+hello%3Fworld
 ```
 
 ### wordcount
