@@ -1129,6 +1129,7 @@ Enable it with Cargo features (see below for more information).</p>
 <li><a href="filters.html#trim"><code>trim</code></a></li>
 <li><a href="filters.html#truncate"><code>truncate</code></a></li>
 <li><a href="filters.html#upper--uppercase"><code>upper|uppercase</code></a></li>
+<li><a href="filters.html#urlencode"><code>urlencode</code></a></li>
 <li><a href="filters.html#wordcount"><code>wordcount</code></a></li>
 </ul>
 </li>
@@ -1314,6 +1315,13 @@ remaining characters are lowercase.</p>
 </code></pre>
 <p>Output:</p>
 <pre><code>HELLO
+</code></pre>
+<h3 id="urlencode"><a class="header" href="#urlencode">urlencode</a></h3>
+<p>Percent encodes the string. Replaces reserved characters with the % escape character followed by a byte value as two hexadecimal digits.</p>
+<pre><code>hello?world
+</code></pre>
+<p>Output:</p>
+<pre><code>hello%3Fworld
 </code></pre>
 <h3 id="wordcount"><a class="header" href="#wordcount">wordcount</a></h3>
 <p>Count the words in that string.</p>
