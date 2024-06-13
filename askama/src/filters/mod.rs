@@ -40,6 +40,9 @@ const URLENCODE_STRICT_SET: &AsciiSet = &NON_ALPHANUMERIC
 // Same as URLENCODE_STRICT_SET, but preserves forward slashes for encoding paths
 const URLENCODE_SET: &AsciiSet = &URLENCODE_STRICT_SET.remove(b'/');
 
+// MAX_LEN is maximum allowed length for filters.
+const MAX_LEN: usize = 10_000;
+
 /// Marks a string (or other `Display` type) as safe
 ///
 /// Use this is you want to allow markup in an expression, or if you know
@@ -374,6 +377,9 @@ impl<S: fmt::Display> fmt::Display for TruncateFilter<S> {
 #[inline]
 pub fn indent(s: impl ToString, width: usize) -> Result<impl fmt::Display, Infallible> {
     fn indent(s: String, width: usize) -> Result<String, Infallible> {
+        if width >= MAX_LEN {
+            return Ok(s);
+        }
         let mut indented = String::new();
         for (i, c) in s.char_indices() {
             indented.push(c);
@@ -483,7 +489,7 @@ pub fn capitalize(s: impl ToString) -> Result<impl fmt::Display, Infallible> {
 pub fn center(src: impl ToString, dst_len: usize) -> Result<impl fmt::Display, Infallible> {
     fn center(src: String, dst_len: usize) -> Result<String, Infallible> {
         let len = src.len();
-        if dst_len <= len {
+        if dst_len <= len || dst_len >= MAX_LEN {
             Ok(src)
         } else {
             let diff = dst_len - len;
@@ -704,6 +710,10 @@ mod tests {
             indent("hello\nfoo\n bar", 4).unwrap().to_string(),
             "hello\n    foo\n     bar"
         );
+        assert_eq!(
+            indent("hello", 267_332_238_858).unwrap().to_string(),
+            "hello"
+        );
     }
 
     #[cfg(feature = "num-traits")]
@@ -805,6 +815,10 @@ mod tests {
         assert_eq!(
             center("foo bar", 8).unwrap().to_string(),
             "foo bar ".to_string()
+        );
+        assert_eq!(
+            center("foo", 111_669_149_696).unwrap().to_string(),
+            "foo".to_string()
         );
     }
 
