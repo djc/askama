@@ -486,31 +486,23 @@ pub fn capitalize(s: impl ToString) -> Result<impl fmt::Display, Infallible> {
 
 /// Centers the value in a field of a given width
 #[inline]
-pub fn center(src: impl ToString, dst_len: usize) -> Result<impl fmt::Display, Infallible> {
-    fn center(src: String, dst_len: usize) -> Result<String, Infallible> {
-        let len = src.len();
-        if dst_len <= len || dst_len >= MAX_LEN {
-            Ok(src)
+pub fn center(src: impl fmt::Display, width: usize) -> Result<impl fmt::Display, Infallible> {
+    Ok(Center { src, width })
+}
+
+struct Center<T> {
+    src: T,
+    width: usize,
+}
+
+impl<T: fmt::Display> fmt::Display for Center<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.width < MAX_LEN {
+            write!(f, "{: ^1$}", self.src, self.width)
         } else {
-            let diff = dst_len - len;
-            let mid = diff / 2;
-            let r = diff % 2;
-            let mut buf = String::with_capacity(dst_len);
-
-            for _ in 0..mid {
-                buf.push(' ');
-            }
-
-            buf.push_str(&src);
-
-            for _ in 0..mid + r {
-                buf.push(' ');
-            }
-
-            Ok(buf)
+            write!(f, "{}", self.src)
         }
     }
-    center(src.to_string(), dst_len)
 }
 
 /// Count the words in that string.
