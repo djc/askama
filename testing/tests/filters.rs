@@ -164,7 +164,13 @@ fn test_vec_join() {
 
 #[cfg(feature = "serde-json")]
 #[derive(Template)]
-#[template(path = "json.html")]
+#[template(
+    source = r#"{
+  "foo": "{{ foo }}",
+  "bar": {{ bar|json|safe }}
+}"#,
+    ext = "txt"
+)]
 struct JsonTemplate<'a> {
     foo: &'a str,
     bar: &'a Value,
@@ -175,6 +181,37 @@ struct JsonTemplate<'a> {
 fn test_json() {
     let val = json!({"arr": [ "one", 2, true, null ]});
     let t = JsonTemplate {
+        foo: "a",
+        bar: &val,
+    };
+    assert_eq!(
+        t.render().unwrap(),
+        r#"{
+  "foo": "a",
+  "bar": {"arr":["one",2,true,null]}
+}"#
+    );
+}
+
+#[cfg(feature = "serde-json")]
+#[derive(Template)]
+#[template(
+    source = r#"{
+  "foo": "{{ foo }}",
+  "bar": {{ bar|json(2)|safe }}
+}"#,
+    ext = "txt"
+)]
+struct PrettyJsonTemplate<'a> {
+    foo: &'a str,
+    bar: &'a Value,
+}
+
+#[cfg(feature = "serde-json")]
+#[test]
+fn test_pretty_json() {
+    let val = json!({"arr": [ "one", 2, true, null ]});
+    let t = PrettyJsonTemplate {
         foo: "a",
         bar: &val,
     };
@@ -193,6 +230,39 @@ fn test_json() {
 }
 }"#
     );
+}
+
+#[cfg(feature = "serde-json")]
+#[derive(Template)]
+#[template(source = r#"{{ bar|json(indent)|safe }}"#, ext = "txt")]
+struct DynamicJsonTemplate<'a> {
+    bar: &'a Value,
+    indent: Option<&'a str>,
+}
+
+#[cfg(feature = "serde-json")]
+#[test]
+fn test_dynamic_json() {
+    let val = json!({"arr": ["one", 2]});
+    let t = DynamicJsonTemplate {
+        bar: &val,
+        indent: Some("?"),
+    };
+    assert_eq!(
+        t.render().unwrap(),
+        r#"{
+?"arr": [
+??"one",
+??2
+?]
+}"#
+    );
+
+    let t = DynamicJsonTemplate {
+        bar: &val,
+        indent: None,
+    };
+    assert_eq!(t.render().unwrap(), r#"{"arr":["one",2]}"#);
 }
 
 #[derive(Template)]

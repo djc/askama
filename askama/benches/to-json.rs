@@ -13,7 +13,7 @@ fn functions(c: &mut Criterion) {
 fn escape_json(b: &mut criterion::Bencher<'_>) {
     b.iter(|| {
         for &s in STRINGS {
-            format!("{}", json(s).unwrap());
+            format!("{}", json(s, ()).unwrap());
         }
     });
 }
@@ -21,7 +21,7 @@ fn escape_json(b: &mut criterion::Bencher<'_>) {
 fn escape_json_for_html(b: &mut criterion::Bencher<'_>) {
     b.iter(|| {
         for &s in STRINGS {
-            format!("{}", MarkupDisplay::new_unsafe(json(s).unwrap(), Html));
+            format!("{}", MarkupDisplay::new_unsafe(json(s, ()).unwrap(), Html));
         }
     });
 }
