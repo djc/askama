@@ -1,5 +1,5 @@
 [package]
-name = "askama_parser-fuzz"
+name = "askama-fuzz"
 version = "0.0.0"
 publish = false
 edition = "2021"
@@ -9,19 +9,13 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-
-[dependencies.askama_parser]
-path = ".."
-
-# Prevent this from interfering with workspaces
-[workspace]
-members = ["."]
+askama_parser = { path = "../askama_parser" }
 
 [profile.release]
 debug = 1
 
 [[bin]]
-name = "fuzz_parser"
+name = "askama_parser-fuzz_parser"
 path = "fuzz_targets/fuzz_parser.rs"
 test = false
 doc = false
