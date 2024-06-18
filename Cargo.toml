@@ -10,6 +10,9 @@ members = [
     "askama_warp",
     "testing",
 ]
+
+exclude = ["fuzz"]
+
 resolver = "2"
 
 default-members = [
