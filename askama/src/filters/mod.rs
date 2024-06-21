@@ -377,7 +377,7 @@ impl<S: fmt::Display> fmt::Display for TruncateFilter<S> {
 #[inline]
 pub fn indent(s: impl ToString, width: usize) -> Result<impl fmt::Display, Infallible> {
     fn indent(s: String, width: usize) -> Result<String, Infallible> {
-        if width >= MAX_LEN {
+        if width >= MAX_LEN || s.len() >= MAX_LEN {
             return Ok(s);
         }
         let mut indented = String::new();
@@ -833,5 +833,11 @@ mod tests {
         assert_eq!(&title("foo  bar ").unwrap(), "Foo  Bar ");
         assert_eq!(&title("fOO").unwrap(), "Foo");
         assert_eq!(&title("fOo BaR").unwrap(), "Foo Bar");
+    }
+
+    #[test]
+    fn fuzzed_indent_filter() {
+        let s = "hello\nfoo\nbar".to_string().repeat(1024);
+        assert_eq!(indent(s.clone(), 4).unwrap().to_string(), s);
     }
 }
