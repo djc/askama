@@ -48,6 +48,27 @@ fn test_fragment_nested_block() {
 }
 
 #[derive(Template)]
+#[template(
+    path = "fragment-nested-block-bug-if-else-endif.html",
+    block = "nested"
+)]
+struct FragmentNestedBlockBugIfElseEndif;
+
+/// Reproduce bug https://github.com/djc/askama/issues/1075
+/// When if-else-endif appears outside the rendered block, Buffer::dedent() would error with
+/// "dedent() called while indentation == 0".
+/// The same happens with endif and if, if they are on the same row.
+#[test]
+fn test_fragment_nested_block_bug_if_else_endif() {
+    let nested_block = FragmentNestedBlockBugIfElseEndif {};
+
+    assert_eq!(
+        nested_block.render().unwrap(),
+        "\n<p>I should be here.</p>\n"
+    );
+}
+
+#[derive(Template)]
 #[template(path = "fragment-nested-super.html", block = "body")]
 struct FragmentNestedSuper<'a> {
     name: &'a str,

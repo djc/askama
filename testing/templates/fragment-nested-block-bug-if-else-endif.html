@@ -1,0 +1,12 @@
+{% extends "fragment-base.html" %}
+
+{% block body %}
+{% if true %}
+true
+{% else %}
+false
+{% endif %}
+{% block nested %}
+<p>I should be here.</p>
+{% endblock %}
+{% endblock %}
