@@ -626,12 +626,12 @@ mod tests {
             [general]
             whitespace = "suppress"
             "#,
-            Some(&"minimize".to_owned()),
+            Some("minimize"),
         )
         .unwrap();
         assert_eq!(config.whitespace, WhitespaceHandling::Minimize);
 
-        let config = Config::new(r#""#, Some(&"minimize".to_owned())).unwrap();
+        let config = Config::new(r#""#, Some("minimize")).unwrap();
         assert_eq!(config.whitespace, WhitespaceHandling::Minimize);
     }
 
