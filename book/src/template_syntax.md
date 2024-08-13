@@ -733,6 +733,6 @@ that `entity` was a field of the current type unlike usual. You can go
 around this limitation by binding your field's value into a variable:
 
 ```jinja
-{% let entity = entity; %}
+{% let entity = entity %}
 {{ test_macro!(entity) }}
 ```
