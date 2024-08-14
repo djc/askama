@@ -3,6 +3,7 @@
 
 use std::borrow::Cow;
 use std::cell::Cell;
+use std::env::current_dir;
 use std::path::Path;
 use std::rc::Rc;
 use std::{fmt, str};
@@ -99,7 +100,7 @@ impl<'a> Ast<'a> {
                 nom::Err::Error(ErrorContext { input, message, .. })
                 | nom::Err::Failure(ErrorContext { input, message, .. }),
             ) => (input, message),
-            Err(nom::Err::Incomplete(_)) => return Err(ParseError("parsing incomplete".into())),
+            Err(nom::Err::Incomplete(_)) => return Err(ParseError::Incomplete),
         };
 
         let offset = src.len() - input.len();
@@ -112,28 +113,13 @@ impl<'a> Ast<'a> {
 
         let (row, last_line) = source_before.lines().enumerate().last().unwrap_or_default();
         let column = last_line.chars().count();
-
-        let file_info = file_path.and_then(|file_path| {
-            let cwd = std::env::current_dir().ok()?;
-            Some((cwd, file_path))
-        });
-        let message = message
-            .map(|message| format!("{message}\n"))
-            .unwrap_or_default();
-        let error_msg = if let Some((cwd, file_path)) = file_info {
-            format!(
-                "{message}failed to parse template source\n  --> {path}:{row}:{column}\n{source_after}",
-                path = strip_common(&cwd, &file_path),
-                row = row + 1,
-            )
-        } else {
-            format!(
-                "{message}failed to parse template source at row {}, column {column} near:\n{source_after}",
-                row + 1,
-            )
-        };
-
-        Err(ParseError(error_msg))
+        Err(ParseError::Details {
+            message,
+            row,
+            column,
+            source_after,
+            file_path,
+        })
     }
 
     pub fn nodes(&self) -> &[Node<'a>] {
@@ -142,13 +128,49 @@ impl<'a> Ast<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ParseError(String);
+pub enum ParseError {
+    Incomplete,
+    Details {
+        message: Option<Cow<'static, str>>,
+        row: usize,
+        column: usize,
+        source_after: String,
+        file_path: Option<Rc<Path>>,
+    },
+}
 
 impl std::error::Error for ParseError {}
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        let (message, mut row, column, source, path) = match self {
+            ParseError::Incomplete => return write!(f, "parsing incomplete"),
+            ParseError::Details {
+                message,
+                row,
+                column,
+                source_after,
+                file_path,
+            } => (message, *row, column, source_after, file_path),
+        };
+
+        if let Some(message) = message {
+            writeln!(f, "{}", message)?;
+        }
+
+        let path = path
+            .as_ref()
+            .and_then(|path| Some(strip_common(&current_dir().ok()?, path)));
+
+        row += 1;
+        match path {
+            Some(path) => f.write_fmt(format_args!(
+                "failed to parse template source\n  --> {path}:{row}:{column}\n{source}",
+            )),
+            None => f.write_fmt(format_args!(
+                "failed to parse template source at row {row}, column {column} near:\n{source}",
+            )),
+        }
     }
 }
 
@@ -164,6 +186,33 @@ pub(crate) type ParseResult<'a, T = &'a str> = Result<(&'a str, T), ParseErr<'a>
 pub(crate) struct ErrorContext<'a> {
     pub(crate) input: &'a str,
     pub(crate) message: Option<Cow<'static, str>>,
+}
+
+impl<'a> ErrorContext<'a> {
+    fn unclosed(kind: &str, tag: &str, i: &'a str) -> Self {
+        Self::new(format!("unclosed {kind}, missing {tag:?}"), i)
+    }
+
+    fn new(message: impl Into<Cow<'static, str>>, input: &'a str) -> Self {
+        Self {
+            input,
+            message: Some(message.into()),
+        }
+    }
+
+    pub(crate) fn from_err(error: nom::Err<Error<&'a str>>) -> nom::Err<Self> {
+        match error {
+            nom::Err::Incomplete(i) => nom::Err::Incomplete(i),
+            nom::Err::Failure(Error { input, .. }) => nom::Err::Failure(Self {
+                input,
+                message: None,
+            }),
+            nom::Err::Error(Error { input, .. }) => nom::Err::Error(Self {
+                input,
+                message: None,
+            }),
+        }
+    }
 }
 
 impl<'a> nom::error::ParseError<&'a str> for ErrorContext<'a> {
@@ -188,19 +237,9 @@ impl<'a, E: std::fmt::Display> FromExternalError<&'a str, E> for ErrorContext<'a
     }
 }
 
-impl<'a> ErrorContext<'a> {
-    pub(crate) fn from_err(error: nom::Err<Error<&'a str>>) -> nom::Err<Self> {
-        match error {
-            nom::Err::Incomplete(i) => nom::Err::Incomplete(i),
-            nom::Err::Failure(Error { input, .. }) => nom::Err::Failure(Self {
-                input,
-                message: None,
-            }),
-            nom::Err::Error(Error { input, .. }) => nom::Err::Error(Self {
-                input,
-                message: None,
-            }),
-        }
+impl<'a> From<ErrorContext<'a>> for nom::Err<ErrorContext<'a>> {
+    fn from(cx: ErrorContext<'a>) -> Self {
+        Self::Failure(cx)
     }
 }
 
@@ -360,19 +399,20 @@ fn char_lit(i: &str) -> ParseResult<'_> {
         opt(escaped(is_not("\\\'"), '\\', anychar)),
         char('\''),
     )(i)?;
+
     let Some(s) = s else {
-        return Err(nom::Err::Failure(ErrorContext {
-            input: start,
-            // Same error as rustc.
-            message: Some(Cow::Borrowed("empty character literal")),
-        }));
+        return Err(nom::Err::Failure(ErrorContext::new(
+            "empty character literal",
+            start,
+        )));
     };
     let Ok(("", c)) = Char::parse(s) else {
-        return Err(nom::Err::Failure(ErrorContext {
-            input: start,
-            message: Some(Cow::Borrowed("invalid character")),
-        }));
+        return Err(nom::Err::Failure(ErrorContext::new(
+            "invalid character",
+            start,
+        )));
     };
+
     let (nb, max_value, err1, err2) = match c {
         Char::Literal | Char::Escaped => return Ok((i, s)),
         Char::AsciiEscape(nb) => (
@@ -392,17 +432,12 @@ fn char_lit(i: &str) -> ParseResult<'_> {
     };
 
     let Ok(nb) = u32::from_str_radix(nb, 16) else {
-        return Err(nom::Err::Failure(ErrorContext {
-            input: start,
-            message: Some(Cow::Borrowed(err1)),
-        }));
+        return Err(nom::Err::Failure(ErrorContext::new(err1, start)));
     };
     if nb > max_value {
-        return Err(nom::Err::Failure(ErrorContext {
-            input: start,
-            message: Some(Cow::Borrowed(err2)),
-        }));
+        return Err(nom::Err::Failure(ErrorContext::new(err2, start)));
     }
+
     Ok((i, s))
 }
 

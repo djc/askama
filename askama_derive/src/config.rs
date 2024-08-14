@@ -514,7 +514,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "toml")]
+    #[cfg(feature = "config")]
     #[should_panic]
     #[test]
     fn use_default_at_syntax_name() {
@@ -525,7 +525,7 @@ mod tests {
         let _config = Config::new(raw_config, None).unwrap();
     }
 
-    #[cfg(feature = "toml")]
+    #[cfg(feature = "config")]
     #[should_panic]
     #[test]
     fn duplicated_syntax_name_on_list() {
@@ -537,7 +537,7 @@ mod tests {
         let _config = Config::new(raw_config, None).unwrap();
     }
 
-    #[cfg(feature = "toml")]
+    #[cfg(feature = "config")]
     #[should_panic]
     #[test]
     fn is_not_exist_default_syntax() {
@@ -615,7 +615,7 @@ mod tests {
         assert_eq!(config.whitespace, WhitespaceHandling::Minimize);
     }
 
-    #[cfg(feature = "toml")]
+    #[cfg(feature = "config")]
     #[test]
     fn test_whitespace_in_template() {
         // Checking that template arguments have precedence over general configuration.
@@ -626,12 +626,12 @@ mod tests {
             [general]
             whitespace = "suppress"
             "#,
-            Some(&"minimize".to_owned()),
+            Some("minimize"),
         )
         .unwrap();
         assert_eq!(config.whitespace, WhitespaceHandling::Minimize);
 
-        let config = Config::new(r#""#, Some(&"minimize".to_owned())).unwrap();
+        let config = Config::new(r#""#, Some("minimize")).unwrap();
         assert_eq!(config.whitespace, WhitespaceHandling::Minimize);
     }
 

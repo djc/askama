@@ -1,18 +1,17 @@
-use std::borrow::Cow;
 use std::str;
 
 use nom::branch::alt;
-use nom::bytes::complete::tag;
+use nom::bytes::complete::{tag, take_till};
 use nom::character::complete::char;
 use nom::combinator::{
     complete, consumed, cut, eof, map, map_res, not, opt, peek, recognize, value,
 };
-use nom::error::{Error, ErrorKind};
+use nom::error::ErrorKind;
 use nom::error_position;
 use nom::multi::{fold_many0, many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 
-use crate::{ErrorContext, ParseResult};
+use crate::{not_ws, ErrorContext, ParseResult};
 
 use super::{
     bool_lit, char_lit, filter, identifier, is_ws, keyword, num_lit, path_or_identifier, skip_till,
@@ -51,32 +50,58 @@ impl<'a> Node<'a> {
     }
 
     fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
-        let mut p = delimited(
+        #[inline]
+        fn wrap<'a, T>(
+            func: impl FnOnce(T) -> Node<'a>,
+            result: ParseResult<'a, T>,
+        ) -> ParseResult<'a, Node<'a>> {
+            result.map(|(i, n)| (i, func(n)))
+        }
+
+        let (j, tag) = preceded(
             |i| s.tag_block_start(i),
-            alt((
-                map(|i| Call::parse(i, s), Self::Call),
-                map(|i| Let::parse(i, s), Self::Let),
-                map(|i| If::parse(i, s), Self::If),
-                map(|i| Loop::parse(i, s), |l| Self::Loop(Box::new(l))),
-                map(|i| Match::parse(i, s), Self::Match),
-                map(Extends::parse, Self::Extends),
-                map(Include::parse, Self::Include),
-                map(Import::parse, Self::Import),
-                map(|i| BlockDef::parse(i, s), Self::BlockDef),
-                map(|i| Macro::parse(i, s), Self::Macro),
-                map(|i| Raw::parse(i, s), Self::Raw),
-                |i| Self::r#break(i, s),
-                |i| Self::r#continue(i, s),
-                map(|i| FilterBlock::parse(i, s), Self::FilterBlock),
+            peek(preceded(
+                pair(opt(Whitespace::parse), take_till(not_ws)),
+                identifier,
             )),
-            cut(|i| s.tag_block_end(i)),
-        );
+        )(i)?;
 
-        s.nest(i)?;
-        let result = p(i);
+        let func = match tag {
+            "call" => |i, s| wrap(Self::Call, Call::parse(i, s)),
+            "let" | "set" => |i, s| wrap(Self::Let, Let::parse(i, s)),
+            "if" => |i, s| wrap(Self::If, If::parse(i, s)),
+            "for" => |i, s| wrap(|n| Self::Loop(Box::new(n)), Loop::parse(i, s)),
+            "match" => |i, s| wrap(Self::Match, Match::parse(i, s)),
+            "extends" => |i, _s| wrap(Self::Extends, Extends::parse(i)),
+            "include" => |i, _s| wrap(Self::Include, Include::parse(i)),
+            "import" => |i, _s| wrap(Self::Import, Import::parse(i)),
+            "block" => |i, s| wrap(Self::BlockDef, BlockDef::parse(i, s)),
+            "macro" => |i, s| wrap(Self::Macro, Macro::parse(i, s)),
+            "raw" => |i, s| wrap(Self::Raw, Raw::parse(i, s)),
+            "break" => |i, s| Self::r#break(i, s),
+            "continue" => |i, s| Self::r#continue(i, s),
+            "filter" => |i, s| wrap(Self::FilterBlock, FilterBlock::parse(i, s)),
+            _ => {
+                return Err(ErrorContext::from_err(nom::Err::Error(error_position!(
+                    i,
+                    ErrorKind::Tag
+                ))));
+            }
+        };
+
+        let (i, _) = s.nest(j)?;
+        let result = func(i, s);
         s.leave();
+        let (i, node) = result?;
 
-        result
+        let (i, closed) = cut(alt((
+            value(true, |i| s.tag_block_end(i)),
+            value(false, ws(eof)),
+        )))(i)?;
+        match closed {
+            true => Ok((i, node)),
+            false => Err(ErrorContext::unclosed("block", s.syntax.block_end, i).into()),
+        }
     }
 
     fn r#break(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
@@ -87,7 +112,10 @@ impl<'a> Node<'a> {
         ));
         let (j, (pws, _, nws)) = p(i)?;
         if !s.is_in_loop() {
-            return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
+            return Err(nom::Err::Failure(ErrorContext::new(
+                "you can only `break` inside a `for` loop",
+                i,
+            )));
         }
         Ok((j, Self::Break(Ws(pws, nws))))
     }
@@ -100,23 +128,31 @@ impl<'a> Node<'a> {
         ));
         let (j, (pws, _, nws)) = p(i)?;
         if !s.is_in_loop() {
-            return Err(nom::Err::Failure(error_position!(i, ErrorKind::Tag)));
+            return Err(nom::Err::Failure(ErrorContext::new(
+                "you can only `continue` inside a `for` loop",
+                i,
+            )));
         }
         Ok((j, Self::Continue(Ws(pws, nws))))
     }
 
     fn expr(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
-        let mut p = tuple((
+        let (i, (pws, expr)) = preceded(
             |i| s.tag_expr_start(i),
-            cut(tuple((
+            cut(pair(
                 opt(Whitespace::parse),
                 ws(|i| Expr::parse(i, s.level.get())),
-                opt(Whitespace::parse),
-                |i| s.tag_expr_end(i),
-            ))),
-        ));
-        let (i, (_, (pws, expr, nws, _))) = p(i)?;
-        Ok((i, Self::Expr(Ws(pws, nws), expr)))
+            )),
+        )(i)?;
+
+        let (i, (nws, closed)) = cut(pair(
+            opt(Whitespace::parse),
+            alt((value(true, |i| s.tag_expr_end(i)), value(false, ws(eof)))),
+        ))(i)?;
+        match closed {
+            true => Ok((i, Self::Expr(Ws(pws, nws), expr))),
+            false => Err(ErrorContext::unclosed("expression", s.syntax.expr_end, i).into()),
+        }
     }
 }
 
@@ -260,10 +296,10 @@ impl<'a> Target<'a> {
 
     fn verify_name(input: &'a str, name: &'a str) -> Result<Self, nom::Err<ErrorContext<'a>>> {
         match name {
-            "self" | "writer" => Err(nom::Err::Failure(ErrorContext {
+            "self" | "writer" => Err(nom::Err::Failure(ErrorContext::new(
+                format!("cannot use `{name}` as a name"),
                 input,
-                message: Some(Cow::Owned(format!("Cannot use `{name}` as a name"))),
-            })),
+            ))),
             _ => Ok(Self::Name(name)),
         }
     }
@@ -333,26 +369,20 @@ pub struct Cond<'a> {
 
 impl<'a> Cond<'a> {
     fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
-        let mut p = tuple((
+        let (i, (_, pws, cond, nws, _, nodes)) = tuple((
             |i| s.tag_block_start(i),
             opt(Whitespace::parse),
-            ws(alt((keyword("else"), |i| {
-                let _ = keyword("elif")(i)?;
-                Err(nom::Err::Failure(ErrorContext {
-                    input: i,
-                    message: Some(Cow::Borrowed(
-                        "unknown `elif` keyword; did you mean `else if`?",
-                    )),
-                }))
-            }))),
-            cut(tuple((
-                opt(|i| CondTest::parse(i, s)),
-                opt(Whitespace::parse),
-                |i| s.tag_block_end(i),
-                cut(|i| Node::many(i, s)),
-            ))),
-        ));
-        let (i, (_, pws, _, (cond, nws, _, nodes))) = p(i)?;
+            alt((
+                preceded(ws(keyword("else")), opt(|i| CondTest::parse(i, s))),
+                preceded(
+                    ws(keyword("elif")),
+                    cut(map(|i| CondTest::parse_cond(i, s), Some)),
+                ),
+            )),
+            opt(Whitespace::parse),
+            cut(|i| s.tag_block_end(i)),
+            cut(|i| Node::many(i, s)),
+        ))(i)?;
         Ok((
             i,
             Self {
@@ -372,18 +402,18 @@ pub struct CondTest<'a> {
 
 impl<'a> CondTest<'a> {
     fn parse(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
-        let mut p = preceded(
-            ws(keyword("if")),
-            cut(tuple((
-                opt(delimited(
-                    ws(alt((keyword("let"), keyword("set")))),
-                    ws(|i| Target::parse(i, s)),
-                    ws(char('=')),
-                )),
-                ws(|i| Expr::parse(i, s.level.get())),
-            ))),
-        );
-        let (i, (target, expr)) = p(i)?;
+        preceded(ws(keyword("if")), cut(|i| Self::parse_cond(i, s)))(i)
+    }
+
+    fn parse_cond(i: &'a str, s: &State<'_>) -> ParseResult<'a, Self> {
+        let (i, (target, expr)) = pair(
+            opt(delimited(
+                ws(alt((keyword("let"), keyword("set")))),
+                ws(|i| Target::parse(i, s)),
+                ws(char('=')),
+            )),
+            ws(|i| Expr::parse(i, s.level.get())),
+        )(i)?;
         Ok((i, Self { target, expr }))
     }
 }
@@ -520,7 +550,13 @@ impl<'a> Macro<'a> {
                 |i| s.tag_block_end(i),
             ))),
         ));
-        let (i, (pws1, _, (name, params, nws1, _))) = start(i)?;
+        let (j, (pws1, _, (name, params, nws1, _))) = start(i)?;
+        if name == "super" {
+            return Err(nom::Err::Failure(ErrorContext::new(
+                "'super' is not a valid name for a macro",
+                i,
+            )));
+        }
 
         let mut end = cut(tuple((
             |i| Node::many(i, s),
@@ -537,15 +573,7 @@ impl<'a> Macro<'a> {
                 )),
             ))),
         )));
-        let (i, (contents, (_, pws2, _, nws2))) = end(i)?;
-
-        if name == "super" {
-            // TODO: yield a a better error message here
-            return Err(ErrorContext::from_err(nom::Err::Failure(Error::new(
-                i,
-                ErrorKind::Fail,
-            ))));
-        }
+        let (i, (contents, (_, pws2, _, nws2))) = end(j)?;
 
         Ok((
             i,
@@ -796,15 +824,14 @@ fn check_end_name<'a>(
     if name == end_name {
         return Ok((after, end_name));
     }
-    let message = if name.is_empty() && !end_name.is_empty() {
-        format!("unexpected name `{end_name}` in `end{kind}` tag for unnamed `{kind}`")
-    } else {
-        format!("expected name `{name}` in `end{kind}` tag, found `{end_name}`")
-    };
-    Err(nom::Err::Failure(ErrorContext {
-        input: before,
-        message: Some(Cow::Owned(message)),
-    }))
+
+    Err(nom::Err::Failure(ErrorContext::new(
+        match name.is_empty() && !end_name.is_empty() {
+            true => format!("unexpected name `{end_name}` in `end{kind}` tag for unnamed `{kind}`"),
+            false => format!("expected name `{name}` in `end{kind}` tag, found `{end_name}`"),
+        },
+        before,
+    )))
 }
 
 #[derive(Debug, PartialEq)]
@@ -1001,12 +1028,10 @@ impl<'a> Extends<'a> {
         ))(i)?;
         match (pws, nws) {
             (None, None) => Ok((i, Self { path })),
-            (_, _) => Err(nom::Err::Failure(ErrorContext {
-                input: start,
-                message: Some(Cow::Borrowed(
-                    "whitespace control is not allowed on `extends`",
-                )),
-            })),
+            (_, _) => Err(nom::Err::Failure(ErrorContext::new(
+                "whitespace control is not allowed on `extends`",
+                start,
+            ))),
         }
     }
 }
@@ -1035,15 +1060,18 @@ impl<'a> Comment<'a> {
         fn content<'a>(mut i: &'a str, s: &State<'_>) -> ParseResult<'a, ()> {
             let mut depth = 0usize;
             loop {
-                let (_, (j, tag)) = skip_till(|i| tag(i, s))(i)?;
+                let (_, tag) = opt(skip_till(|i| tag(i, s)))(i)?;
+                let Some((j, tag)) = tag else {
+                    return Err(ErrorContext::unclosed("comment", s.syntax.comment_end, i).into());
+                };
                 match tag {
                     Tag::Open => match depth.checked_add(1) {
                         Some(new_depth) => depth = new_depth,
                         None => {
-                            return Err(nom::Err::Failure(ErrorContext {
-                                input: i,
-                                message: Some(Cow::Borrowed("too deeply nested comments")),
-                            }))
+                            return Err(nom::Err::Failure(ErrorContext::new(
+                                "too deeply nested comments",
+                                i,
+                            )));
                         }
                     },
                     Tag::Close => match depth.checked_sub(1) {

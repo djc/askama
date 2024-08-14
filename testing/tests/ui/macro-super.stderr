@@ -1,0 +1,9 @@
+error: 'super' is not a valid name for a macro
+       failed to parse template source at row 1, column 2 near:
+       "- macro super() -%}{%- endmacro -%}"
+ --> tests/ui/macro-super.rs:3:10
+  |
+3 | #[derive(Template)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)

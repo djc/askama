@@ -1,17 +1,11 @@
 use askama_rocket::Template;
 use rocket::http::{ContentType, Status};
 use rocket::local::asynchronous::Client;
-use rocket::Responder;
 
 #[derive(Template)]
 #[template(path = "hello.html")]
 struct HelloTemplate<'a> {
     name: &'a str,
-}
-
-#[derive(Responder)]
-struct HelloResponder<'a> {
-    template: HelloTemplate<'a>,
 }
 
 #[rocket::get("/")]

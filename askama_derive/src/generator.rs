@@ -364,12 +364,24 @@ impl<'a> Generator<'a> {
 
                 if let Some(target) = target {
                     let mut expr_buf = Buffer::new(0);
-                    self.visit_expr(&mut expr_buf, expr)?;
                     buf.write("let ");
-                    self.visit_target(buf, true, true, target);
-                    buf.write(" = &(");
+                    // If this is a chain condition, then we need to declare the variable after the
+                    // left expression has been handled but before the right expression is handled
+                    // but this one should have access to the let-bound variable.
+                    match expr {
+                        Expr::BinOp(op, ref left, ref right) if *op == "||" || *op == "&&" => {
+                            self.visit_expr(&mut expr_buf, left)?;
+                            self.visit_target(buf, true, true, target);
+                            expr_buf.write(&format!(" {op} "));
+                            self.visit_expr(&mut expr_buf, right)?;
+                        }
+                        _ => {
+                            self.visit_expr(&mut expr_buf, expr)?;
+                            self.visit_target(buf, true, true, target);
+                        }
+                    }
+                    buf.write(" = &");
                     buf.write(&expr_buf.buf);
-                    buf.write(")");
                 } else {
                     // The following syntax `*(&(...) as &bool)` is used to
                     // trigger Rust's automatic dereferencing, to coerce
@@ -1990,16 +2002,17 @@ fn is_copyable(expr: &Expr<'_>) -> bool {
 }
 
 fn is_copyable_within_op(expr: &Expr<'_>, within_op: bool) -> bool {
-    use Expr::*;
     match expr {
-        BoolLit(_) | NumLit(_) | StrLit(_) | CharLit(_) => true,
-        Unary(.., expr) => is_copyable_within_op(expr, true),
-        BinOp(_, lhs, rhs) => is_copyable_within_op(lhs, true) && is_copyable_within_op(rhs, true),
-        Range(..) => true,
+        Expr::BoolLit(_) | Expr::NumLit(_) | Expr::StrLit(_) | Expr::CharLit(_) => true,
+        Expr::Unary(.., expr) => is_copyable_within_op(expr, true),
+        Expr::BinOp(_, lhs, rhs) => {
+            is_copyable_within_op(lhs, true) && is_copyable_within_op(rhs, true)
+        }
+        Expr::Range(..) => true,
         // The result of a call likely doesn't need to be borrowed,
         // as in that case the call is more likely to return a
         // reference in the first place then.
-        Call(..) | Path(..) => true,
+        Expr::Call(..) | Expr::Path(..) => true,
         // If the `expr` is within a `Unary` or `BinOp` then
         // an assumption can be made that the operand is copy.
         // If not, then the value is moved and adding `.clone()`

@@ -1,0 +1,30 @@
+[package]
+name = "askama-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = "1.3.2"
+askama = { path = "../askama" }
+askama_parser = { path = "../askama_parser" }
+askama_escape = { path = "../askama_escape" }
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "askama_parser-fuzz_parser"
+path = "fuzz_targets/fuzz_parser.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_filters"
+path = "fuzz_targets/fuzz_filters.rs"
+test = false
+doc = false
