@@ -22,7 +22,7 @@ http = "1.0"
 axum = { version = "0.7", default-features = false }
 http-body-util = "0.1"
 tokio = { version = "1.0", features = ["macros", "rt"] }
-tower = "0.4"
+tower = "0.5"
 
 [features]
 default = ["askama/default"]
