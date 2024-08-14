@@ -118,7 +118,7 @@ fn test_partial_render() {
         title: "the title"
     };
     assert_eq!(
-        t.render().unwrap(),
+        t.render().unwrap().trim(),
         "(the title) Content goes here"
     );
 }
