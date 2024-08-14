@@ -738,7 +738,7 @@ struct TestTemplate&lt;'a&gt; {
 <p>It will not compile, telling you it doesn't know <code>entity</code>. It didn't infer
 that <code>entity</code> was a field of the current type unlike usual. You can go
 around this limitation by binding your field's value into a variable:</p>
-<pre><code class="language-jinja">{% let entity = entity; %}
+<pre><code class="language-jinja">{% let entity = entity %}
 {{ test_macro!(entity) }}
 </code></pre>
 
