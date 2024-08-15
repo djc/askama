@@ -79,7 +79,7 @@ recognized:
   Expressions outside of the block are not required by the struct, and
   inheritance is also supported. This can be useful when you need to
   decompose your template for partial rendering, without needing to
-  extract the partial into a separate template or macro.
+  extract the partial into a separate template or macro. Will be released in version 0.13.0
   ```rust
   #[derive(Template)]
   #[template(path = "hello.html", block = "hello")]
