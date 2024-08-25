@@ -4,14 +4,15 @@ Values such as those obtained from variables can be post-processed
 using **filters**.
 Filters are applied to values using the pipe symbol (`|`) and may
 have optional extra arguments in parentheses.
-Note that the pipe symbol must not be surrounded by spaces;
-otherwise, it will be interpreted as the `BitOr` operator.
 Filters can be chained, in which case the output from one filter
 is passed to the next.
 
 ```
 {{ "HELLO"|lower }}
 ```
+
+**Note that the pipe symbol must not be surrounded by spaces**;
+otherwise, it will be interpreted as the `BitOr` operator.
 
 Askama has a collection of built-in filters, documented below, but can also include custom filters. 
 Additionally, the `json` filter is included in the built-in filters, but is disabled by default.
