@@ -633,6 +633,10 @@ struct SectionOne&lt;'a&gt; {
 let t = RenderInPlace { s1: SectionOne { a: "a", b: "b" } };
 assert_eq!(t.render().unwrap(), "Section 1: A=a\nB=b")
 <span class="boring">}</span></code></pre></pre>
+<p><strong>Note that if your inner template</strong> like <code>SectionOne</code> <strong>renders HTML content, you may want to
+disable escaping</strong> when injecting it into an outer template, e.g. <code>{{ s1|safe }}</code>.
+Otherwise it will render the HTML content literally, because
+Askama <a href="#html-escaping">escapes HTML variables</a> by default.</p>
 <p>See the example
 <a href="https://github.com/djc/askama/blob/main/testing/tests/render_in_place.rs">render in place</a>
 using a vector of templates in a for block.</p>
