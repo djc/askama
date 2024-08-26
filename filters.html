@@ -178,12 +178,12 @@
 using <strong>filters</strong>.
 Filters are applied to values using the pipe symbol (<code>|</code>) and may
 have optional extra arguments in parentheses.
-Note that the pipe symbol must not be surrounded by spaces;
-otherwise, it will be interpreted as the <code>BitOr</code> operator.
 Filters can be chained, in which case the output from one filter
 is passed to the next.</p>
 <pre><code>{{ "HELLO"|lower }}
 </code></pre>
+<p><strong>Note that the pipe symbol must not be surrounded by spaces</strong>;
+otherwise, it will be interpreted as the <code>BitOr</code> operator.</p>
 <p>Askama has a collection of built-in filters, documented below, but can also include custom filters.
 Additionally, the <code>json</code> filter is included in the built-in filters, but is disabled by default.
 Enable it with Cargo features (see below for more information).</p>
