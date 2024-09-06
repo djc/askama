@@ -68,10 +68,10 @@ quis lacus at, gravida maximus elit. Duis tristique, nisl nullam.
     "#;
 
     b.iter(|| {
-        format!("{}", MarkupDisplay::new_unsafe(string_long, Html));
-        format!("{}", MarkupDisplay::new_unsafe(string_short, Html));
-        format!("{}", MarkupDisplay::new_unsafe(empty, Html));
-        format!("{}", MarkupDisplay::new_unsafe(no_escape, Html));
-        format!("{}", MarkupDisplay::new_unsafe(no_escape_long, Html));
+        let _ = format!("{}", MarkupDisplay::new_unsafe(string_long, Html));
+        let _ = format!("{}", MarkupDisplay::new_unsafe(string_short, Html));
+        let _ = format!("{}", MarkupDisplay::new_unsafe(empty, Html));
+        let _ = format!("{}", MarkupDisplay::new_unsafe(no_escape, Html));
+        let _ = format!("{}", MarkupDisplay::new_unsafe(no_escape_long, Html));
     });
 }
