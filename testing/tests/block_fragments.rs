@@ -103,3 +103,22 @@ fn test_specific_block() {
     let t = RenderInPlace { s1 };
     assert_eq!(t.render().unwrap(), "\nSection: [abc]\n");
 }
+
+/// Tests rendering a block fragment that inherits a template.
+/// Only the block, i.e. the partial content, should be rendered.
+#[derive(Template)]
+#[template(path = "child.html", block = "content")]
+struct Partial<'a> {
+    title: &'a str
+}
+
+#[test]
+fn test_partial_render() {
+    let t = Partial {
+        title: "the title"
+    };
+    assert_eq!(
+        t.render().unwrap().trim(),
+        "(the title) Content goes here"
+    );
+}
