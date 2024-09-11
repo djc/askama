@@ -822,6 +822,7 @@ impl<'a> Generator<'a> {
         };
         let locals = MapChain::with_parent(&self.locals);
         let mut child = Self::new(self.input, self.contexts, heritage.as_ref(), locals);
+        child.buf_writable.discard = self.buf_writable.discard;
         let mut size_hint = child.handle(handle_ctx, handle_ctx.nodes, buf, AstLevel::Top)?;
         size_hint += child.write_buf_writable(buf)?;
         self.prepare_ws(i.ws);
