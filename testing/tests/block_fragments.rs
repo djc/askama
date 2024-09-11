@@ -103,3 +103,15 @@ fn test_specific_block() {
     let t = RenderInPlace { s1 };
     assert_eq!(t.render().unwrap(), "\nSection: [abc]\n");
 }
+
+#[derive(Template)]
+#[template(path = "fragment-include.html", block = "body")]
+struct FragmentInclude<'a> {
+    s: &'a str,
+}
+
+#[test]
+fn test_fragment_include() {
+    let fragment_include = FragmentInclude { s: "world" };
+    assert_eq!(fragment_include.render().unwrap(), "\nINCLUDED: world\n");
+}
