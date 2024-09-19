@@ -148,22 +148,23 @@ impl<'a> TryInto<Syntax<'a>> for RawSyntax<'a> {
             comment_end: self.comment_end.unwrap_or(default.comment_end),
         };
 
-        for s in [
-            syntax.block_start,
-            syntax.block_end,
-            syntax.expr_start,
-            syntax.expr_end,
-            syntax.comment_start,
-            syntax.comment_end,
+        for (s, kind) in [
+            (syntax.block_start, "block_start"),
+            (syntax.block_end, "block_end"),
+            (syntax.expr_start, "expr_start"),
+            (syntax.expr_end, "expr_end"),
+            (syntax.comment_start, "comment_start"),
+            (syntax.comment_end, "comment_end"),
         ] {
             if s.len() < 2 {
-                return Err(
-                    format!("delimiters must be at least two characters long: {s:?}").into(),
-                );
+                return Err(format!(
+                    "{kind} delimiter must be at least two characters long: {s:?}"
+                )
+                .into());
             } else if s.chars().any(|c| c.is_whitespace()) {
-                return Err(format!("delimiters may not contain white spaces: {s:?}").into());
+                return Err(format!("{kind} delimiter may not contain whitespace: {s:?}").into());
             } else if TWO_PLUS_CHAR_OPS.contains(&s) {
-                return Err(format!("delimiters may not contain operators: {s:?}").into());
+                return Err(format!("{kind} delimiter may not contain operators: {s:?}").into());
             }
         }
 
@@ -489,7 +490,7 @@ mod tests {
         let config = Config::new(raw_config, None);
         assert_eq!(
             config.unwrap_err().msg,
-            r#"delimiters must be at least two characters long: "<""#,
+            r#"block_start delimiter must be at least two characters long: "<""#,
         );
 
         let raw_config = r#"
@@ -500,7 +501,7 @@ mod tests {
         let config = Config::new(raw_config, None);
         assert_eq!(
             config.unwrap_err().msg,
-            r#"delimiters may not contain white spaces: " {{ ""#,
+            r#"block_start delimiter may not contain whitespace: " {{ ""#,
         );
 
         let raw_config = r#"
