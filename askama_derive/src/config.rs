@@ -7,6 +7,7 @@ use std::{env, fs};
 use serde::Deserialize;
 
 use crate::{CompileError, CRATE};
+use parser::expr::TWO_PLUS_CHAR_OPS;
 use parser::node::Whitespace;
 use parser::Syntax;
 
@@ -161,6 +162,8 @@ impl<'a> TryInto<Syntax<'a>> for RawSyntax<'a> {
                 );
             } else if s.chars().any(|c| c.is_whitespace()) {
                 return Err(format!("delimiters may not contain white spaces: {s:?}").into());
+            } else if TWO_PLUS_CHAR_OPS.contains(&s) {
+                return Err(format!("delimiters may not contain operators: {s:?}").into());
             }
         }
 
