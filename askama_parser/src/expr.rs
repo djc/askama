@@ -270,7 +270,7 @@ impl<'a> Expr<'a> {
                     separated_list0(char(','), ws(move |i| Self::parse(i, level))),
                     Self::Array,
                 ),
-                char(']'),
+                pair(opt(ws(char(','))), char(']')),
             )),
         )(i)
     }
