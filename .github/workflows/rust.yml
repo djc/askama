@@ -10,6 +10,7 @@ on:
 jobs:
   Test:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         rust: [stable, beta]
@@ -30,6 +31,7 @@ jobs:
 
   Package:
     strategy:
+      fail-fast: false
       matrix:
         package: [
           askama, askama_actix, askama_axum, askama_derive, askama_escape,
