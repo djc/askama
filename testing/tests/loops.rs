@@ -84,6 +84,16 @@ fn test_for_array() {
 }
 
 #[derive(Template)]
+#[template(source = "{% for i in [1, 2, 3, ] %}{{ i }}{% endfor %}", ext = "txt")]
+struct ForArrayTailingCommaTemplate;
+
+#[test]
+fn test_for_array_trailing_comma() {
+    let t = ForArrayTailingCommaTemplate;
+    assert_eq!(t.render().unwrap(), "123");
+}
+
+#[derive(Template)]
 #[template(
     source = "{% for i in [1, 2, 3].iter() %}{{ i }}{% endfor %}",
     ext = "txt"
