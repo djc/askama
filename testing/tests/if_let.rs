@@ -128,3 +128,26 @@ fn test_elif() {
     assert_eq!(Elif { s: None }.render().unwrap(), "empty");
     assert_eq!(Elif { s: Some("tada") }.render().unwrap(), "tada");
 }
+
+#[derive(Template)]
+#[template(path = "if-let-with-for.html")]
+struct IfLetWithForTemplate {
+    thing: Option<IfLetWithForTemplateThing>,
+}
+
+struct IfLetWithForTemplateThing {
+    items: Vec<usize>,
+}
+
+#[test]
+fn test_if_let_with_for() {
+    let s = IfLetWithForTemplate {
+        thing: Some(IfLetWithForTemplateThing {
+            items: vec![1, 2, 3],
+        }),
+    };
+    assert_eq!(s.render().unwrap(), "123123");
+
+    let t = IfLetWithForTemplate { thing: None };
+    assert_eq!(t.render().unwrap(), "");
+}
