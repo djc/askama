@@ -1,0 +1,9 @@
+error: failed to parse template source
+ --> testing/templates/filter-recursion.html:1:255
+       "|A|AA|A|A|A|A|AA|A|A|A|A|AA|A|A|A|A|AA|A"...
+ --> tests/ui/filter-recursion.rs:3:10
+  |
+3 | #[derive(Template)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
