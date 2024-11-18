@@ -98,10 +98,11 @@ impl<'a> Generator<'a> {
                 Source::Source(_) => **path != self.input.path,
             };
             if path_is_valid {
-                let path = path.to_str().unwrap();
+                let canonical_path = path.canonicalize().unwrap();
+                let include_path = canonical_path.to_str().unwrap();
                 buf.writeln(
                     &quote! {
-                        include_bytes!(#path);
+                        include_bytes!(#include_path);
                     }
                     .to_string(),
                 )?;
@@ -786,10 +787,11 @@ impl<'a> Generator<'a> {
 
         // Make sure the compiler understands that the generated code depends on the template file.
         {
-            let path = path.to_str().unwrap();
+            let canonical_path = path.canonicalize().unwrap();
+            let include_path = canonical_path.to_str().unwrap();
             buf.writeln(
                 &quote! {
-                    include_bytes!(#path);
+                    include_bytes!(#include_path);
                 }
                 .to_string(),
             )?;
