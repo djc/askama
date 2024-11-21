@@ -305,7 +305,7 @@ static CONFIG_FILE_NAME: &str = "askama.toml";
 static DEFAULT_SYNTAX_NAME: &str = "default";
 static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
     (&["html", "htm", "svg", "xml"], "::Html"),
-    (&["md", "none", "txt", "yml", "typ", ""], "::Text"),
+    (&["md", "none", "txt", "typ", "yml", ""], "::Text"),
     (&["j2", "jinja", "jinja2"], "::Html"),
 ];
 
@@ -574,7 +574,7 @@ mod tests {
                     "::askama::Html".into()
                 ),
                 (
-                    str_set(&["md", "none", "txt", "yml", "typ", ""]),
+                    str_set(&["md", "none", "txt", "typ", "yml", ""]),
                     "::askama::Text".into()
                 ),
                 (str_set(&["j2", "jinja", "jinja2"]), "::askama::Html".into()),
