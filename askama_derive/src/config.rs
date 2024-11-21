@@ -574,7 +574,7 @@ mod tests {
                     "::askama::Html".into()
                 ),
                 (
-                    str_set(&["md", "none", "txt", "yml", ""]),
+                    str_set(&["md", "none", "txt", "yml", "typ", ""]),
                     "::askama::Text".into()
                 ),
                 (str_set(&["j2", "jinja", "jinja2"]), "::askama::Html".into()),
