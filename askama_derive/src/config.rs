@@ -305,7 +305,7 @@ static CONFIG_FILE_NAME: &str = "askama.toml";
 static DEFAULT_SYNTAX_NAME: &str = "default";
 static DEFAULT_ESCAPERS: &[(&[&str], &str)] = &[
     (&["html", "htm", "svg", "xml"], "::Html"),
-    (&["md", "none", "txt", "yml", ""], "::Text"),
+    (&["md", "none", "txt", "yml", "typ", ""], "::Text"),
     (&["j2", "jinja", "jinja2"], "::Html"),
 ];
 
