@@ -6,7 +6,7 @@ struct SelfMethodTemplate<'a> {
     s: &'a str,
 }
 
-impl<'a> SelfMethodTemplate<'a> {
+impl SelfMethodTemplate<'_> {
     fn get_s(&self) -> &str {
         self.s
     }
@@ -40,7 +40,7 @@ struct NestedSelfMethodTemplate<'a> {
     t: SelfMethodTemplate<'a>,
 }
 
-impl<'a> NestedSelfMethodTemplate<'a> {
+impl NestedSelfMethodTemplate<'_> {
     fn get_s(&self) -> &str {
         "bar"
     }

@@ -1990,7 +1990,7 @@ impl MapChain<'_, Cow<'_, str>, LocalMeta> {
     }
 }
 
-impl<'a, K: Eq + hash::Hash, V> Default for MapChain<'a, K, V> {
+impl<K: Eq + hash::Hash, V> Default for MapChain<'_, K, V> {
     fn default() -> Self {
         Self {
             parent: None,
