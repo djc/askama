@@ -944,3 +944,9 @@ fn let_set() {
             .nodes(),
     );
 }
+
+#[test]
+fn fuzzed_filter_recursion() {
+    const TEMPLATE: &str = include_str!("../tests/filter-recursion.txt");
+    assert!(Ast::from_str(TEMPLATE, None, &Syntax::default()).is_err());
+}
