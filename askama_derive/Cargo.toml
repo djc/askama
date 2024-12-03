@@ -24,6 +24,12 @@ with-axum = []
 with-rocket = []
 with-warp = []
 
+## Enables the ability to put templates in a directory relative to the source file that uses them.
+## Requires a nightly compiler and adding:
+## RUSTFLAGS='--cfg proc_macro_span --cfg procmacro2_semver_exempt'
+## to your cargo build command.
+relative-paths = []
+
 [dependencies]
 parser = { package = "askama_parser", version = "0.3.1", path = "../askama_parser" }
 mime = "0.3"
