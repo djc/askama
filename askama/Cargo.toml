@@ -29,6 +29,12 @@ with-axum = ["askama_derive/with-axum"]
 with-rocket = ["askama_derive/with-rocket"]
 with-warp = ["askama_derive/with-warp"]
 
+## Enables the ability to put templates in a directory relative to the source file that uses them.
+## Requires a nightly compiler and adding:
+## RUSTFLAGS='--cfg proc_macro_span --cfg procmacro2_semver_exempt'
+## to your cargo build command.
+relative-paths = ["askama_derive/relative-paths"]
+
 [dependencies]
 askama_derive = { version = "0.13", path = "../askama_derive" }
 askama_escape = { version = "0.11", path = "../askama_escape" }

@@ -26,7 +26,22 @@ impl<'a> Config<'a> {
         template_whitespace: Option<&str>,
     ) -> std::result::Result<Config<'a>, CompileError> {
         let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-        let default_dirs = vec![root.join("templates")];
+        let root_path = root.join("templates");
+        let default_dirs;
+        #[cfg(feature = "relative-paths")]
+        {
+            let source = proc_macro2::Span::call_site().source_file();
+            default_dirs = if source.is_real() {
+                let relative_path = source.path().parent().unwrap().to_path_buf();
+                vec![relative_path, root_path]
+            } else {
+                vec![root_path]
+            };
+        }
+        #[cfg(not(feature = "relative-paths"))]
+        {
+            default_dirs = vec![root_path];
+        }
 
         let mut syntaxes = BTreeMap::new();
         syntaxes.insert(DEFAULT_SYNTAX_NAME.to_string(), Syntax::default());
