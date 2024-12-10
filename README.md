@@ -43,7 +43,7 @@ in a for-profit context, please consider supporting my open source work on
 * Opt-out HTML escaping
 * Syntax customization
 
-[docs]: https://djc.github.io/askama/
+[docs]: https://rinja-rs.github.io/askama/
 [fafhrd91]: https://github.com/fafhrd91
 [mitsuhiko]: http://lucumr.pocoo.org/
 [issues]: https://github.com/djc/askama/issues
